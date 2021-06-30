@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+
+[workspace]
+members = [
+    "openpgp-card",
+    "openpgp-card-sequoia",
+]

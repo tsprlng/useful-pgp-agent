@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: OpenPGP card
+Upstream-Contact: Heiko Schaefer <heiko@schaefer.name>
+Source: https://gitlab.com/hkos/openpgp-card
+
+Files: example/*
+Copyright: 2021 Heiko Schaefer <heiko@schaefer.name>
+License: CC0-1.0
