@@ -8,6 +8,8 @@ license = "MIT OR Apache-2.0"
 version = "0.0.1"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 edition = "2018"
+repository = "https://gitlab.com/hkos/openpgp-card"
+documentation = "https://docs.rs/crate/openpgp-card-sequoia"
 
 [dependencies]
 sequoia-openpgp = "1.3"

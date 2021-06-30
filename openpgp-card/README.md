@@ -12,3 +12,10 @@ specification, in Rust.
 This library is OpenPGP implementation-agnostic. Its communication with 
 the card is based on simple data structures, derived from the formats 
 defined in the OpenPGP card specification.
+
+**Sequoia PGP wrapper**
+
+See the companion crate
+[openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
+for a convenient wrapper to use this library with
+[Sequoia PGP](https://sequoia-pgp.org/).
