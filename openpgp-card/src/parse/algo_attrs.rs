@@ -17,6 +17,7 @@ pub enum Algo {
     Ecdsa(EcdsaAttrs),
     Eddsa(EddsaAttrs),
     Ecdh(EcdhAttrs),
+    Unknown(Vec<u8>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
