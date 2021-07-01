@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 /// APDU Commands for OpenPGP card operations
-
 use crate::apdu::command::Command;
 
 /// Select the OpenPGP applet
 pub fn select_openpgp() -> Command {
     Command::new(
-        0x00, 0xA4, 0x04, 0x00,
+        0x00,
+        0xA4,
+        0x04,
+        0x00,
         vec![0xD2, 0x76, 0x00, 0x01, 0x24, 0x01],
     )
 }
@@ -68,7 +70,6 @@ pub fn activate_file() -> Command {
     Command::new(0x00, 0x44, 0x00, 0x00, vec![])
 }
 
-
 /// 7.2.8 PUT DATA,
 /// ('tag' must consist of either one or two bytes)
 pub fn put_data(tag: &[u8], data: Vec<u8>) -> Command {
@@ -81,7 +82,6 @@ pub fn put_data(tag: &[u8], data: Vec<u8>) -> Command {
     };
     Command::new(0x00, 0xda, p1, p2, data)
 }
-
 
 /// PUT DO Name
 pub fn put_name(name: Vec<u8>) -> Command {

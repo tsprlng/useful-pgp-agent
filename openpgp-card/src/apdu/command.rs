@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
 use crate::apdu::Le;
+use anyhow::Result;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug)]
@@ -22,7 +22,13 @@ pub struct Command {
 
 impl Command {
     pub fn new(cla: u8, ins: u8, p1: u8, p2: u8, data: Vec<u8>) -> Self {
-        Command { cla, ins, p1, p2, data }
+        Command {
+            cla,
+            ins,
+            p1,
+            p2,
+            data,
+        }
     }
 
     pub(crate) fn serialize(&self, ext: Le) -> Result<Vec<u8>> {
@@ -34,9 +40,11 @@ impl Command {
         // (must be the same)
 
         let data_len = if self.data.len() as u16 > 0xff || ext == Le::Long {
-            vec![0,
-                 (self.data.len() as u16 >> 8) as u8,
-                 (self.data.len() as u16 & 255) as u8]
+            vec![
+                0,
+                (self.data.len() as u16 >> 8) as u8,
+                (self.data.len() as u16 & 255) as u8,
+            ]
         } else {
             vec![self.data.len() as u8]
         };
@@ -56,7 +64,6 @@ impl Command {
             //                  thus disable Le in this case.  */
             //               if (reader_table[slot].is_t0)
             //                 le = -1;
-
             Le::None => (),
 
             Le::Short => buf.push(0),

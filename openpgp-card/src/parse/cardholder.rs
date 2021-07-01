@@ -5,9 +5,9 @@ use std::convert::TryFrom;
 
 use anyhow::Result;
 
-use crate::Sex;
 use crate::tlv::tag::Tag;
-use crate::tlv::{TlvEntry, Tlv};
+use crate::tlv::{Tlv, TlvEntry};
+use crate::Sex;
 
 #[derive(Debug)]
 pub struct CardHolder {
@@ -23,14 +23,17 @@ impl TryFrom<&[u8]> for CardHolder {
         let entry = TlvEntry::from(&data, true)?;
         let tlv = Tlv(Tag(vec![0x65]), entry);
 
-        let name: Option<String> = tlv.find(&Tag::from(&[0x5b][..]))
+        let name: Option<String> = tlv
+            .find(&Tag::from(&[0x5b][..]))
             .map(|v| String::from_utf8_lossy(&v.serialize()).to_string());
 
-        let lang: Option<Vec<[char; 2]>> = tlv
-            .find(&Tag::from(&[0x5f, 0x2d][..]))
-            .map(|v| v.serialize().chunks(2)
-                .map(|c| [c[0] as char, c[1] as char]).collect()
-            );
+        let lang: Option<Vec<[char; 2]>> =
+            tlv.find(&Tag::from(&[0x5f, 0x2d][..])).map(|v| {
+                v.serialize()
+                    .chunks(2)
+                    .map(|c| [c[0] as char, c[1] as char])
+                    .collect()
+            });
 
         let sex = tlv
             .find(&Tag::from(&[0x5f, 0x35][..]))

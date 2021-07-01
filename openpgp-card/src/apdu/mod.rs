@@ -5,26 +5,33 @@ pub mod command;
 pub mod commands;
 pub mod response;
 
-use std::convert::TryFrom;
 use pcsc::Card;
+use std::convert::TryFrom;
 
-use crate::OpenPGPCard;
 use crate::apdu::command::Command;
-use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
 use crate::apdu::response::Response;
+use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
+use crate::OpenPGPCard;
 
 #[derive(Clone, Copy, PartialEq)]
-pub(crate) enum Le { None, Short, Long }
+pub(crate) enum Le {
+    None,
+    Short,
+    Long,
+}
 
 /// Send a Command and return the result as a Response.
 ///
 /// If the reply is truncated, this fn assembles all the parts and returns
 /// them as one aggregated Response.
-pub(crate) fn send_command(card: &Card, cmd: Command, ext: Le,
-                           oc: Option<&OpenPGPCard>)
-                           -> Result<Response, OpenpgpCardError> {
-    let mut resp = Response::try_from(
-        send_command_low_level(&card, cmd, ext, oc)?)?;
+pub(crate) fn send_command(
+    card: &Card,
+    cmd: Command,
+    ext: Le,
+    oc: Option<&OpenPGPCard>,
+) -> Result<Response, OpenpgpCardError> {
+    let mut resp =
+        Response::try_from(send_command_low_level(&card, cmd, ext, oc)?)?;
 
     while resp.status()[0] == 0x61 {
         // More data is available for this command from the card
@@ -32,9 +39,12 @@ pub(crate) fn send_command(card: &Card, cmd: Command, ext: Le,
         log::trace!(" response was truncated, getting more data");
 
         // Get additional data
-        let next = Response::try_from
-            (send_command_low_level(&card,
-                                    commands::get_response(), ext, oc)?)?;
+        let next = Response::try_from(send_command_low_level(
+            &card,
+            commands::get_response(),
+            ext,
+            oc,
+        )?)?;
 
         // FIXME: first check for 0x61xx or 0x9000?
         log::trace!(" appending {} bytes to response", next.raw_data().len());
@@ -54,11 +64,12 @@ pub(crate) fn send_command(card: &Card, cmd: Command, ext: Le,
 ///
 /// If the response is chained, this fn only returns one chunk, the caller
 /// needs take care of chained responses
-fn send_command_low_level(card: &Card,
-                          cmd: Command,
-                          ext: Le,
-                          oc: Option<&OpenPGPCard>)
-                          -> Result<Vec<u8>, OpenpgpCardError> {
+fn send_command_low_level(
+    card: &Card,
+    cmd: Command,
+    ext: Le,
+    oc: Option<&OpenPGPCard>,
+) -> Result<Vec<u8>, OpenpgpCardError> {
     log::trace!(" -> full APDU command: {:x?}", cmd);
     log::trace!("    serialized: {:x?}", cmd.serialize(ext));
 
@@ -81,14 +92,18 @@ fn send_command_low_level(card: &Card,
         }
     }
 
-    log::trace!("ext le/lc {}, chaining {}, command chunk size {}",
-                ext_support, chaining_support, chunk_size);
+    log::trace!(
+        "ext le/lc {}, chaining {}, command chunk size {}",
+        ext_support,
+        chaining_support,
+        chunk_size
+    );
 
     // update Le setting to 'long', if we're using a larger chunk size
     let ext = match (ext, chunk_size > 0xff) {
         (Le::None, _) => Le::None,
         (_, true) => Le::Long,
-        _ => ext
+        _ => ext,
     };
 
     let buf_size = if !ext_support {
@@ -109,21 +124,23 @@ fn send_command_low_level(card: &Card,
 
         for (i, d) in chunks.iter().enumerate() {
             let last = i == chunks.len() - 1;
-            let partial =
-                Command {
-                    cla: if last { 0x00 } else { 0x10 },
-                    data: d.to_vec(),
-                    ..cmd
-                };
+            let partial = Command {
+                cla: if last { 0x00 } else { 0x10 },
+                data: d.to_vec(),
+                ..cmd
+            };
 
-            let serialized = partial.serialize(ext).
-                map_err(OpenpgpCardError::InternalError)?;
+            let serialized = partial
+                .serialize(ext)
+                .map_err(OpenpgpCardError::InternalError)?;
             log::trace!(" -> chunked APDU command: {:x?}", &serialized);
 
-            let resp = card
-                .transmit(&serialized, &mut resp_buffer)
-                .map_err(|e| OpenpgpCardError::Smartcard(SmartcardError::Error(
-                    format!("Transmit failed: {:?}", e))))?;
+            let resp =
+                card.transmit(&serialized, &mut resp_buffer).map_err(|e| {
+                    OpenpgpCardError::Smartcard(SmartcardError::Error(
+                        format!("Transmit failed: {:?}", e),
+                    ))
+                })?;
 
             log::trace!(" <- APDU chunk response: {:x?}", &resp);
 
@@ -139,8 +156,8 @@ fn send_command_low_level(card: &Card,
                 // ISO: "If SW1-SW2 is set to '6883', then the last
                 // command of the chain is expected."
                 if !((sw1 == 0x90 && sw2 == 0x00)
-                    || (sw1 == 0x68 && sw2 == 0x83)) {
-
+                    || (sw1 == 0x68 && sw2 == 0x83))
+                {
                     // Unexpected status for a non-final chunked response
                     return Err(OcErrorStatus::from((sw1, sw2)).into());
                 }
@@ -156,11 +173,13 @@ fn send_command_low_level(card: &Card,
     } else {
         let serialized = cmd.serialize(ext)?;
 
-        let resp = card
-            .transmit(&serialized, &mut resp_buffer)
-            .map_err(|e| OpenpgpCardError::Smartcard(SmartcardError::Error(
-                format!("Transmit failed: {:?}", e))))?;
-
+        let resp =
+            card.transmit(&serialized, &mut resp_buffer).map_err(|e| {
+                OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
+                    "Transmit failed: {:?}",
+                    e
+                )))
+            })?;
 
         log::trace!(" <- APDU response: {:x?}", resp);
 

@@ -10,12 +10,11 @@ use openpgp::policy::Policy;
 use openpgp::types::PublicKeyAlgorithm;
 use sequoia_openpgp as openpgp;
 
+use openpgp_card::errors::OpenpgpCardError;
 use openpgp_card::Hash;
 use openpgp_card::OpenPGPCardUser;
-use openpgp_card::errors::OpenpgpCardError;
 
 use crate::PublicKey;
-
 
 pub(crate) struct CardSigner<'a> {
     /// The OpenPGP card (authenticated to allow signing operations)
@@ -30,11 +29,11 @@ impl<'a> CardSigner<'a> {
     ///
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
-    pub fn new(ocu: &'a OpenPGPCardUser,
-               cert: &openpgp::Cert,
-               policy: &dyn Policy)
-               -> Result<CardSigner<'a>, OpenpgpCardError> {
-
+    pub fn new(
+        ocu: &'a OpenPGPCardUser,
+        cert: &openpgp::Cert,
+        policy: &dyn Policy,
+    ) -> Result<CardSigner<'a>, OpenpgpCardError> {
         // Get the fingerprint for the signing key from the card.
         let fps = ocu.get_fingerprints()?;
         let fp = fps.signature();
@@ -44,16 +43,15 @@ impl<'a> CardSigner<'a> {
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
             // Find the matching signing-capable (sub)key in `cert`
-            let keys: Vec<_> =
-                cert
-                    .keys()
-                    .with_policy(policy, None)
-                    .alive()
-                    .revoked(false)
-                    .for_signing()
-                    .filter(|ka| ka.fingerprint() == fp)
-                    .map(|ka| ka.key())
-                    .collect();
+            let keys: Vec<_> = cert
+                .keys()
+                .with_policy(policy, None)
+                .alive()
+                .revoked(false)
+                .for_signing()
+                .filter(|ka| ka.fingerprint() == fp)
+                .map(|ka| ka.key())
+                .collect();
 
             // Exactly one matching (sub)key should be found. If not, fail!
             if keys.len() == 1 {
@@ -64,13 +62,15 @@ impl<'a> CardSigner<'a> {
                     public: public.role_as_unspecified().clone(),
                 })
             } else {
-                Err(OpenpgpCardError::InternalError(
-                    anyhow!("Failed to find a matching (sub)key in cert")))
+                Err(OpenpgpCardError::InternalError(anyhow!(
+                    "Failed to find a matching (sub)key in cert"
+                )))
             }
         } else {
-            Err(OpenpgpCardError::InternalError(
-                anyhow!("Failed to get the signing key's Fingerprint \
-                from the card")))
+            Err(OpenpgpCardError::InternalError(anyhow!(
+                "Failed to get the signing key's Fingerprint \
+                from the card"
+            )))
         }
     }
 }
@@ -86,34 +86,45 @@ impl<'a> crypto::Signer for CardSigner<'a> {
     /// perform the signing operation.
     ///
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    fn sign(&mut self,
-            hash_algo: openpgp::types::HashAlgorithm,
-            digest: &[u8],
+    fn sign(
+        &mut self,
+        hash_algo: openpgp::types::HashAlgorithm,
+        digest: &[u8],
     ) -> openpgp::Result<mpi::Signature> {
         match (self.public.pk_algo(), self.public.mpis()) {
             #[allow(deprecated)]
-            (PublicKeyAlgorithm::RSASign, mpi::PublicKey::RSA { .. }) |
-            (PublicKeyAlgorithm::RSAEncryptSign, mpi::PublicKey::RSA { .. }) => {
+            (PublicKeyAlgorithm::RSASign, mpi::PublicKey::RSA { .. })
+            | (
+                PublicKeyAlgorithm::RSAEncryptSign,
+                mpi::PublicKey::RSA { .. },
+            ) => {
                 let sig = match hash_algo {
                     openpgp::types::HashAlgorithm::SHA256 => {
-                        let hash = Hash::SHA256(digest.try_into()
-                            .map_err(|_| anyhow!("invalid slice length"))?);
+                        let hash =
+                            Hash::SHA256(digest.try_into().map_err(|_| {
+                                anyhow!("invalid slice length")
+                            })?);
                         self.ocu.signature_for_hash(hash)?
                     }
                     openpgp::types::HashAlgorithm::SHA384 => {
-                        let hash = Hash::SHA384(digest.try_into()
-                            .map_err(|_| anyhow!("invalid slice length"))?);
+                        let hash =
+                            Hash::SHA384(digest.try_into().map_err(|_| {
+                                anyhow!("invalid slice length")
+                            })?);
                         self.ocu.signature_for_hash(hash)?
                     }
                     openpgp::types::HashAlgorithm::SHA512 => {
-                        let hash = Hash::SHA512(digest.try_into()
-                            .map_err(|_| anyhow!("invalid slice length"))?);
+                        let hash =
+                            Hash::SHA512(digest.try_into().map_err(|_| {
+                                anyhow!("invalid slice length")
+                            })?);
                         self.ocu.signature_for_hash(hash)?
                     }
                     _ => {
-                        return Err(
-                            anyhow!("Unsupported hash algorithm for RSA {:?}",
-                                    hash_algo));
+                        return Err(anyhow!(
+                            "Unsupported hash algorithm for RSA {:?}",
+                            hash_algo
+                        ));
                     }
                 };
 
@@ -133,7 +144,8 @@ impl<'a> crypto::Signer for CardSigner<'a> {
             // FIXME: implement NIST etc
             (pk_algo, _) => Err(anyhow!(
                 "Unsupported combination of algorithm {:?} and pubkey {:?}",
-                pk_algo, self.public
+                pk_algo,
+                self.public
             )),
         }
     }

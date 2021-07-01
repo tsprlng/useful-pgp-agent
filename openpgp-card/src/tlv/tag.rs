@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use nom::{branch, bytes::complete as bytes, combinator, number::complete as number, sequence};
+use nom::{
+    branch, bytes::complete as bytes, combinator, number::complete as number,
+    sequence,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Tag(pub Vec<u8>);
@@ -38,9 +41,11 @@ impl From<[u8; 2]> for Tag {
     }
 }
 
-
 fn multi_byte_tag(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
-    combinator::recognize(sequence::pair(multi_byte_tag_first, multi_byte_tag_rest))(input)
+    combinator::recognize(sequence::pair(
+        multi_byte_tag_first,
+        multi_byte_tag_rest,
+    ))(input)
 }
 
 fn multi_byte_tag_first(input: &[u8]) -> nom::IResult<&[u8], u8> {
@@ -61,12 +66,9 @@ fn multi_byte_tag_rest(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
     }
 
     fn single_byte_rest(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
-        combinator::verify(bytes::take(1u8),
-                           |c: &[u8]| {
-                               c.len() == 1 &&
-                                   is_first(&c[0]) &&
-                                   is_last(&c[0])
-                           })(input)
+        combinator::verify(bytes::take(1u8), |c: &[u8]| {
+            c.len() == 1 && is_first(&c[0]) && is_last(&c[0])
+        })(input)
     }
 
     fn multi_byte_rest(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
@@ -81,18 +83,16 @@ fn multi_byte_tag_rest(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
 }
 
 fn single_byte_tag(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
-    combinator::verify(bytes::take(1u8),
-                       |c: &[u8]| {
-                           c.len() == 1 &&
-                               !is_multi_byte_tag_first(&c[0])
-                       })(input)
+    combinator::verify(bytes::take(1u8), |c: &[u8]| {
+        c.len() == 1 && !is_multi_byte_tag_first(&c[0])
+    })(input)
 }
 
 pub(super) fn tag(input: &[u8]) -> nom::IResult<&[u8], Tag> {
-    combinator::map(branch::alt((multi_byte_tag, single_byte_tag)),
-                    Tag::from)(input)
+    combinator::map(branch::alt((multi_byte_tag, single_byte_tag)), Tag::from)(
+        input,
+    )
 }
-
 
 #[cfg(test)]
 mod test {

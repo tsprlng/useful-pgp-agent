@@ -6,17 +6,13 @@ use std::convert::TryFrom;
 use anyhow::{anyhow, Result};
 use pcsc::*;
 
-use apdu::{commands, Le, response::Response};
-use parse::{algo_attrs::Algo,
-            algo_info::AlgoInfo,
-            application_id::ApplicationId,
-            cardholder::CardHolder,
-            extended_cap::ExtendedCap,
-            extended_cap::Features,
-            extended_length_info::ExtendedLengthInfo,
-            fingerprint,
-            historical::Historical,
-            KeySet};
+use apdu::{commands, response::Response, Le};
+use parse::{
+    algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
+    cardholder::CardHolder, extended_cap::ExtendedCap, extended_cap::Features,
+    extended_length_info::ExtendedLengthInfo, fingerprint,
+    historical::Historical, KeySet,
+};
 use tlv::Tlv;
 
 use crate::errors::{OpenpgpCardError, SmartcardError};
@@ -24,13 +20,12 @@ use crate::tlv::tag::Tag;
 use crate::tlv::TlvEntry;
 use std::ops::Deref;
 
-pub mod errors;
 mod apdu;
 mod card;
+pub mod errors;
 mod key_upload;
 mod parse;
 mod tlv;
-
 
 pub enum Hash<'a> {
     SHA256([u8; 0x20]),
@@ -42,13 +37,16 @@ pub enum Hash<'a> {
 impl Hash<'_> {
     fn oid(&self) -> Option<&'static [u8]> {
         match self {
-            Self::SHA256(_) =>
-                Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01]),
-            Self::SHA384(_) =>
-                Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02]),
-            Self::SHA512(_) =>
-                Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03]),
-            Self::EdDSA(_) => None
+            Self::SHA256(_) => {
+                Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01])
+            }
+            Self::SHA384(_) => {
+                Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02])
+            }
+            Self::SHA512(_) => {
+                Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03])
+            }
+            Self::EdDSA(_) => None,
         }
     }
 
@@ -57,11 +55,10 @@ impl Hash<'_> {
             Self::SHA256(d) => &d[..],
             Self::SHA384(d) => &d[..],
             Self::SHA512(d) => &d[..],
-            Self::EdDSA(d) => d
+            Self::EdDSA(d) => d,
         }
     }
 }
-
 
 /// A PGP-implementation-agnostic wrapper for private key data, to upload
 /// to an OpenPGP card
@@ -116,9 +113,13 @@ pub enum DecryptMe<'a> {
     ECDH(&'a [u8]),
 }
 
-
 #[derive(Debug)]
-pub enum Sex { NotKnown, Male, Female, NotApplicable }
+pub enum Sex {
+    NotKnown,
+    Male,
+    Female,
+    NotApplicable,
+}
 
 impl Sex {
     pub fn as_u8(&self) -> u8 {
@@ -141,7 +142,6 @@ impl From<u8> for Sex {
         }
     }
 }
-
 
 /// Enum to identify one of the Key-slots on an OpenPGP card
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -219,17 +219,24 @@ impl OpenPGPCard {
     /// Get all cards that can be opened as an OpenPGP card applet
     pub fn list_cards() -> Result<Vec<Self>> {
         let cards = card::get_cards().map_err(|err| anyhow!(err))?;
-        let ocs: Vec<_> = cards.into_iter().map(Self::open_card)
-            .map(|oc| oc.ok()).flatten().collect();
+        let ocs: Vec<_> = cards
+            .into_iter()
+            .map(Self::open_card)
+            .map(|oc| oc.ok())
+            .flatten()
+            .collect();
 
         Ok(ocs)
     }
 
     /// Find an OpenPGP card by serial number and return it.
     pub fn open_by_serial(serial: &str) -> Result<Self, OpenpgpCardError> {
-        let cards = card::get_cards()
-            .map_err(|e| OpenpgpCardError::Smartcard(
-                SmartcardError::Error(format!("{:?}", e))))?;
+        let cards = card::get_cards().map_err(|e| {
+            OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
+                "{:?}",
+                e
+            )))
+        })?;
 
         for card in cards {
             let res = Self::open_card(card);
@@ -248,9 +255,12 @@ impl OpenPGPCard {
 
     /// Open connection to some card and select the openpgp applet
     pub fn open_yolo() -> Result<Self, OpenpgpCardError> {
-        let mut cards = card::get_cards()
-            .map_err(|e| OpenpgpCardError::Smartcard(
-                SmartcardError::Error(format!("{:?}", e))))?;
+        let mut cards = card::get_cards().map_err(|e| {
+            OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
+                "{:?}",
+                e
+            )))
+        })?;
 
         // randomly use the first card in the list
         let card = cards.swap_remove(0);
@@ -262,8 +272,7 @@ impl OpenPGPCard {
     fn open_card(card: Card) -> Result<Self, OpenpgpCardError> {
         let select_openpgp = commands::select_openpgp();
 
-        let resp =
-            apdu::send_command(&card, select_openpgp, Le::Short, None)?;
+        let resp = apdu::send_command(&card, select_openpgp, Le::Short, None)?;
 
         if resp.is_ok() {
             // read and cache "application related data"
@@ -314,7 +323,9 @@ impl OpenPGPCard {
         }
     }
 
-    pub fn get_extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>> {
+    pub fn get_extended_length_information(
+        &self,
+    ) -> Result<Option<ExtendedLengthInfo>> {
         // get from cached "application related data"
         let eli = self.ard.find(&Tag::from([0x7F, 0x66]));
 
@@ -337,7 +348,9 @@ impl OpenPGPCard {
         unimplemented!()
     }
 
-    pub fn get_extended_capabilities(&self) -> Result<ExtendedCap, OpenpgpCardError> {
+    pub fn get_extended_capabilities(
+        &self,
+    ) -> Result<ExtendedCap, OpenpgpCardError> {
         // get from cached "application related data"
         let ecap = self.ard.find(&Tag::from([0xc0]));
 
@@ -355,8 +368,10 @@ impl OpenPGPCard {
         if let Some(aa) = aa {
             Algo::try_from(&aa.serialize()[..])
         } else {
-            Err(anyhow!("Failed to get algorithm attributes for {:?}.",
-                key_type))
+            Err(anyhow!(
+                "Failed to get algorithm attributes for {:?}.",
+                key_type
+            ))
         }
     }
 
@@ -364,7 +379,9 @@ impl OpenPGPCard {
         unimplemented!()
     }
 
-    pub fn get_fingerprints(&self) -> Result<KeySet<fingerprint::Fingerprint>, OpenpgpCardError> {
+    pub fn get_fingerprints(
+        &self,
+    ) -> Result<KeySet<fingerprint::Fingerprint>, OpenpgpCardError> {
         // Get from cached "application related data"
         let fp = self.ard.find(&Tag::from([0xc5]));
 
@@ -416,10 +433,18 @@ impl OpenPGPCard {
         let _eli = self.get_extended_length_information()?;
 
         // FIXME: figure out Le
-        let resp = apdu::send_command(&self.card, commands::get_url(), Le::Long, Some(self))?;
+        let resp = apdu::send_command(
+            &self.card,
+            commands::get_url(),
+            Le::Long,
+            Some(self),
+        )?;
 
-        log::trace!(" final response: {:x?}, data len {}",
-                    resp, resp.raw_data().len());
+        log::trace!(
+            " final response: {:x?}, data len {}",
+            resp,
+            resp.raw_data().len()
+        );
 
         Ok(String::from_utf8_lossy(resp.data()?).to_string())
     }
@@ -443,8 +468,11 @@ impl OpenPGPCard {
         let resp = apdu::send_command(&self.card, sst, ext, Some(self))?;
         resp.check_ok()?;
 
-        log::trace!(" final response: {:x?}, data len {}",
-                    resp, resp.data()?.len());
+        log::trace!(
+            " final response: {:x?}, data len {}",
+            resp,
+            resp.data()?.len()
+        );
 
         Tlv::try_from(resp.data()?)
     }
@@ -460,7 +488,12 @@ impl OpenPGPCard {
             return Ok(None);
         }
 
-        let resp = apdu::send_command(&self.card, commands::get_algo_list(), Le::Short, Some(self))?;
+        let resp = apdu::send_command(
+            &self.card,
+            commands::get_algo_list(),
+            Le::Short,
+            Some(self),
+        )?;
         resp.check_ok()?;
 
         let ai = AlgoInfo::try_from(resp.data()?)?;
@@ -475,9 +508,11 @@ impl OpenPGPCard {
         // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
             let verify = commands::verify_pw1_81([0x40; 8].to_vec());
-            let resp = apdu::send_command(&self.card, verify, Le::None, Some(self))?;
+            let resp =
+                apdu::send_command(&self.card, verify, Le::None, Some(self))?;
             if !(resp.status() == [0x69, 0x82]
-                || resp.status() == [0x69, 0x83]) {
+                || resp.status() == [0x69, 0x83])
+            {
                 return Err(anyhow!("Unexpected status for reset, at pw1."));
             }
         }
@@ -486,10 +521,12 @@ impl OpenPGPCard {
         // [apdu 00 20 00 83 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
             let verify = commands::verify_pw3([0x40; 8].to_vec());
-            let resp = apdu::send_command(&self.card, verify, Le::None, Some(self))?;
+            let resp =
+                apdu::send_command(&self.card, verify, Le::None, Some(self))?;
 
             if !(resp.status() == [0x69, 0x82]
-                || resp.status() == [0x69, 0x83]) {
+                || resp.status() == [0x69, 0x83])
+            {
                 return Err(anyhow!("Unexpected status for reset, at pw3."));
             }
         }
@@ -510,8 +547,10 @@ impl OpenPGPCard {
         Ok(())
     }
 
-    pub fn verify_pw1_81(self, pin: &str)
-                         -> Result<OpenPGPCardUser, OpenPGPCard> {
+    pub fn verify_pw1_81(
+        self,
+        pin: &str,
+    ) -> Result<OpenPGPCardUser, OpenPGPCard> {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
@@ -527,8 +566,10 @@ impl OpenPGPCard {
         Err(self)
     }
 
-    pub fn verify_pw1_82(self, pin: &str)
-                         -> Result<OpenPGPCardUser, OpenPGPCard> {
+    pub fn verify_pw1_82(
+        self,
+        pin: &str,
+    ) -> Result<OpenPGPCardUser, OpenPGPCard> {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
@@ -544,7 +585,10 @@ impl OpenPGPCard {
         Err(self)
     }
 
-    pub fn verify_pw3(self, pin: &str) -> Result<OpenPGPCardAdmin, OpenPGPCard> {
+    pub fn verify_pw3(
+        self,
+        pin: &str,
+    ) -> Result<OpenPGPCardAdmin, OpenPGPCard> {
         assert!(pin.len() >= 8); // FIXME: Err
 
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
@@ -560,7 +604,6 @@ impl OpenPGPCard {
         Err(self)
     }
 }
-
 
 /// An OpenPGP card after successful verification of PW1 (needs to be split
 /// further to model authentication for signing)
@@ -579,8 +622,7 @@ impl Deref for OpenPGPCardUser {
 
 impl OpenPGPCardUser {
     /// Decrypt the ciphertext in `dm`, on the card.
-    pub fn decrypt(&self, dm: DecryptMe)
-                   -> Result<Vec<u8>, OpenpgpCardError> {
+    pub fn decrypt(&self, dm: DecryptMe) -> Result<Vec<u8>, OpenpgpCardError> {
         match dm {
             DecryptMe::RSA(message) => {
                 let mut data = vec![0x0];
@@ -591,16 +633,13 @@ impl OpenPGPCardUser {
             }
             DecryptMe::ECDH(eph) => {
                 // External Public Key
-                let epk = Tlv(Tag(vec![0x86]),
-                              TlvEntry::S(eph.to_vec()));
+                let epk = Tlv(Tag(vec![0x86]), TlvEntry::S(eph.to_vec()));
 
                 // Public Key DO
-                let pkdo = Tlv(Tag(vec![0x7f, 0x49]),
-                               TlvEntry::C(vec![epk]));
+                let pkdo = Tlv(Tag(vec![0x7f, 0x49]), TlvEntry::C(vec![epk]));
 
                 // Cipher DO
-                let cdo = Tlv(Tag(vec![0xa6]),
-                              TlvEntry::C(vec![pkdo]));
+                let cdo = Tlv(Tag(vec![0xa6]), TlvEntry::C(vec![pkdo]));
 
                 self.pso_decipher(cdo.serialize())
             }
@@ -609,56 +648,68 @@ impl OpenPGPCardUser {
 
     /// Run decryption operation on the smartcard
     /// (7.2.11 PSO: DECIPHER)
-    pub(crate) fn pso_decipher(&self, data: Vec<u8>)
-                               -> Result<Vec<u8>, OpenpgpCardError> {
+    pub(crate) fn pso_decipher(
+        &self,
+        data: Vec<u8>,
+    ) -> Result<Vec<u8>, OpenpgpCardError> {
         // The OpenPGP card is already connected and PW1 82 has been verified
         let dec_cmd = commands::decryption(data);
-        let resp = apdu::send_command(&self.card, dec_cmd, Le::Short, Some(self))?;
+        let resp =
+            apdu::send_command(&self.card, dec_cmd, Le::Short, Some(self))?;
         resp.check_ok()?;
 
         Ok(resp.data().map(|d| d.to_vec())?)
     }
 
-
     /// Sign the message in `hash`, on the card.
-    pub fn signature_for_hash(&self, hash: Hash)
-                              -> Result<Vec<u8>, OpenpgpCardError> {
+    pub fn signature_for_hash(
+        &self,
+        hash: Hash,
+    ) -> Result<Vec<u8>, OpenpgpCardError> {
         match hash {
             Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
-                let tlv = Tlv(Tag(vec![0x30]),
-                              TlvEntry::C(
-                                  vec![Tlv(Tag(vec![0x30]),
-                                           TlvEntry::C(
-                                               vec![Tlv(Tag(vec![0x06]),
-                                                        // unwrapping is
-                                                        // ok, for SHA*
-                                                        TlvEntry::S(hash.oid().unwrap().to_vec())),
-                                                    Tlv(Tag(vec![0x05]), TlvEntry::S(vec![]))
-                                               ])),
-                                       Tlv(Tag(vec!(0x04)), TlvEntry::S(hash.digest().to_vec()))
-                                  ]
-                              ));
+                let tlv = Tlv(
+                    Tag(vec![0x30]),
+                    TlvEntry::C(vec![
+                        Tlv(
+                            Tag(vec![0x30]),
+                            TlvEntry::C(vec![
+                                Tlv(
+                                    Tag(vec![0x06]),
+                                    // unwrapping is
+                                    // ok, for SHA*
+                                    TlvEntry::S(hash.oid().unwrap().to_vec()),
+                                ),
+                                Tlv(Tag(vec![0x05]), TlvEntry::S(vec![])),
+                            ]),
+                        ),
+                        Tlv(
+                            Tag(vec![0x04]),
+                            TlvEntry::S(hash.digest().to_vec()),
+                        ),
+                    ]),
+                );
 
                 Ok(self.compute_digital_signature(tlv.serialize())?)
             }
-            Hash::EdDSA(d) => {
-                Ok(self.compute_digital_signature(d.to_vec())?)
-            }
+            Hash::EdDSA(d) => Ok(self.compute_digital_signature(d.to_vec())?),
         }
     }
 
     /// Run signing operation on the smartcard
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    pub(crate) fn compute_digital_signature(&self, data: Vec<u8>)
-                                            -> Result<Vec<u8>, OpenpgpCardError> {
+    pub(crate) fn compute_digital_signature(
+        &self,
+        data: Vec<u8>,
+    ) -> Result<Vec<u8>, OpenpgpCardError> {
         let dec_cmd = commands::signature(data);
 
-        let resp = apdu::send_command(&self.card, dec_cmd, Le::Short, Some(self))?;
+        let resp =
+            apdu::send_command(&self.card, dec_cmd, Le::Short, Some(self))?;
 
         Ok(resp.data().map(|d| d.to_vec())?)
     }
 }
-
 
 /// An OpenPGP card after successful verification of PW3
 pub struct OpenPGPCardAdmin {
@@ -732,26 +783,26 @@ impl OpenPGPCardAdmin {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use super::tlv::{Tlv, TlvEntry};
     use super::tlv::tag::Tag;
+    use super::tlv::{Tlv, TlvEntry};
 
     #[test]
     fn test_tlv() {
-        let cpkt =
-            Tlv(Tag(vec![0x7F, 0x48]),
-                TlvEntry::S(vec![0x91, 0x03,
-                                 0x92, 0x82, 0x01, 0x00,
-                                 0x93, 0x82, 0x01, 0x00]));
+        let cpkt = Tlv(
+            Tag(vec![0x7F, 0x48]),
+            TlvEntry::S(vec![
+                0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93, 0x82, 0x01, 0x00,
+            ]),
+        );
 
-        assert_eq!(cpkt.serialize(),
-                   vec![0x7F, 0x48,
-                        0x0A,
-                        0x91, 0x03,
-                        0x92, 0x82, 0x01, 0x00,
-                        0x93, 0x82, 0x01, 0x00,
-                   ]);
+        assert_eq!(
+            cpkt.serialize(),
+            vec![
+                0x7F, 0x48, 0x0A, 0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93,
+                0x82, 0x01, 0x00,
+            ]
+        );
     }
 }

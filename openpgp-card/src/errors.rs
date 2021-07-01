@@ -100,17 +100,16 @@ pub enum OcErrorStatus {
 
     #[error("Unexpected response length: {0}")]
     ResponseLength(usize),
-
 }
 
 impl From<(u8, u8)> for OcErrorStatus {
     fn from(status: (u8, u8)) -> Self {
         match (status.0, status.1) {
             (0x62, 0x85) => OcErrorStatus::TerminationState,
-            (0x63, 0xC0..=0xCF) =>
-                OcErrorStatus::PasswordNotChecked(status.1 & 0xf),
-            (0x64, 0x02..=0x80) =>
-                OcErrorStatus::TriggeringByCard(status.1),
+            (0x63, 0xC0..=0xCF) => {
+                OcErrorStatus::PasswordNotChecked(status.1 & 0xf)
+            }
+            (0x64, 0x02..=0x80) => OcErrorStatus::TriggeringByCard(status.1),
             (0x65, 0x01) => OcErrorStatus::MemoryFailure,
             (0x66, 0x00) => OcErrorStatus::SecurityRelatedIssues,
             (0x67, 0x00) => OcErrorStatus::WrongLength,
@@ -130,7 +129,7 @@ impl From<(u8, u8)> for OcErrorStatus {
             (0x6D, 0x00) => OcErrorStatus::INSNotSupported,
             (0x6E, 0x00) => OcErrorStatus::CLANotSupported,
             (0x6F, 0x00) => OcErrorStatus::NoPreciseDiagnosis,
-            _ => OcErrorStatus::UnknownStatus(status.0, status.1)
+            _ => OcErrorStatus::UnknownStatus(status.0, status.1),
         }
     }
 }

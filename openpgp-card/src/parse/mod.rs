@@ -6,14 +6,14 @@
 
 pub mod algo_attrs;
 pub mod algo_info;
+pub mod application_id;
 pub mod cardholder;
-pub mod historical;
 pub mod extended_cap;
 pub mod extended_length_info;
 pub mod fingerprint;
-pub mod application_id;
+pub mod historical;
 
-use anyhow::{Error, anyhow};
+use anyhow::{anyhow, Error};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KeySet<T> {

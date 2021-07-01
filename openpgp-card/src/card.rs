@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
-use pcsc::{Card, Context, Scope, ShareMode, Protocols, Error};
+use pcsc::{Card, Context, Error, Protocols, Scope, ShareMode};
 
 use crate::errors;
-
 
 pub fn get_cards() -> Result<Vec<Card>, errors::SmartcardError> {
     let ctx = match Context::establish(Scope::User) {
         Ok(ctx) => ctx,
-        Err(err) => return Err(errors::SmartcardError::ContextError(err.to_string())),
+        Err(err) => {
+            return Err(errors::SmartcardError::ContextError(err.to_string()))
+        }
     };
 
     // List available readers.
@@ -32,7 +33,8 @@ pub fn get_cards() -> Result<Vec<Card>, errors::SmartcardError> {
         found_reader = true;
 
         // Try connecting to card in this reader
-        let card = match ctx.connect(reader, ShareMode::Shared, Protocols::ANY) {
+        let card = match ctx.connect(reader, ShareMode::Shared, Protocols::ANY)
+        {
             Ok(card) => card,
             Err(Error::NoSmartcard) => {
                 continue; // try next reader

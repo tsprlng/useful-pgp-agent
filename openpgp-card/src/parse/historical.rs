@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::{anyhow, Result};
 use crate::errors::OpenpgpCardError;
+use anyhow::{anyhow, Result};
 
 #[derive(Debug)]
 pub struct CardCapabilities {
@@ -24,7 +24,6 @@ impl CardCapabilities {
         self.extended_length_information
     }
 
-
     pub fn from(data: [u8; 3]) -> Self {
         let byte3 = data[2];
 
@@ -32,7 +31,11 @@ impl CardCapabilities {
         let extended_lc_le = byte3 & 0x40 != 0;
         let extended_length_information = byte3 & 0x20 != 0;
 
-        Self { command_chaining, extended_lc_le, extended_length_information }
+        Self {
+            command_chaining,
+            extended_lc_le,
+            extended_length_information,
+        }
     }
 }
 
@@ -109,35 +112,39 @@ impl Historical {
                         cc = Some([ctlv[1], ctlv[2], ctlv[3]]);
                         ctlv.drain(0..4);
                     }
-                    0 => { ctlv.drain(0..1); }
-                    _ => unimplemented!("unexpected tlv in historical bytes")
+                    0 => {
+                        ctlv.drain(0..1);
+                    }
+                    _ => unimplemented!("unexpected tlv in historical bytes"),
                 }
             }
 
-            let sib =
-                match data[len - 3] {
-                    0 => {
-                        // Card does not offer life cycle management, commands
-                        // TERMINATE DF and ACTIVATE FILE are not supported
-                        0
-                    }
-                    3 => {
-                        // Initialisation state
-                        // OpenPGP application can be reset to default values with
-                        // an ACTIVATE FILE command
-                        3
-                    }
-                    5 => {
-                        // Operational state (activated)
-                        // Card supports life cycle management, commands TERMINATE
-                        // DF and ACTIVATE FILE are available
-                        5
-                    }
-                    _ => {
-                        return Err(anyhow!("unexpected status indicator in \
-                        historical bytes").into());
-                    }
-                };
+            let sib = match data[len - 3] {
+                0 => {
+                    // Card does not offer life cycle management, commands
+                    // TERMINATE DF and ACTIVATE FILE are not supported
+                    0
+                }
+                3 => {
+                    // Initialisation state
+                    // OpenPGP application can be reset to default values with
+                    // an ACTIVATE FILE command
+                    3
+                }
+                5 => {
+                    // Operational state (activated)
+                    // Card supports life cycle management, commands TERMINATE
+                    // DF and ACTIVATE FILE are available
+                    5
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "unexpected status indicator in \
+                        historical bytes"
+                    )
+                    .into());
+                }
+            };
 
             // Ignore final two bytes: according to the spec, they should
             // show [0x90, 0x0] - but Yubikey Neo shows [0x0, 0x0].
@@ -148,8 +155,8 @@ impl Historical {
 
             Ok(Self { cib, csd, cc, sib })
         } else {
-            Err(anyhow!("Unexpected category indicator in historical \
-            bytes").into())
+            Err(anyhow!("Unexpected category indicator in historical bytes")
+                .into())
         }
     }
 }

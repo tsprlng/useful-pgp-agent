@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use nom::{branch, bytes::complete as bytes, combinator, number::complete as number, sequence};
+use nom::{
+    branch, bytes::complete as bytes, combinator, number::complete as number,
+    sequence,
+};
 
 fn length1(input: &[u8]) -> nom::IResult<&[u8], u8> {
     combinator::verify(number::u8, |&c| c < 0x80)(input)

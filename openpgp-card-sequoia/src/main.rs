@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::error::Error;
 use std::env;
+use std::error::Error;
 
 use anyhow::Result;
-use sequoia_openpgp::Cert;
 use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::Cert;
 
 use openpgp_card::{KeyType, OpenPGPCard};
 
@@ -20,7 +20,6 @@ use openpgp_card::{KeyType, OpenPGPCard};
 
 const TEST_KEY_PATH: &str = "example/test25519.sec";
 const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
-
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -72,13 +71,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         let algo = oc.get_algorithm_attributes(KeyType::Authentication)?;
         println!("algo aut {:?}", algo);
 
-
         // ---------------------------------------------
         //  CAUTION: Write commands ahead!
         //  Try not to overwrite your production cards.
         // ---------------------------------------------
         assert_eq!(app_id.serial(), test_card_serial);
-
 
         oc.factory_reset()?;
 
@@ -89,7 +86,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let res = oc_admin.set_name("Bar<<Foo")?;
                 println!("set name {:x?}", res);
 
-                let res = oc_admin.set_sex(openpgp_card::Sex::NotApplicable)?;
+                let res =
+                    oc_admin.set_sex(openpgp_card::Sex::NotApplicable)?;
                 println!("set sex {:x?}", res);
 
                 let res = oc_admin.set_lang("en")?;
@@ -97,7 +95,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 let res = oc_admin.set_url("https://keys.openpgp.org")?;
                 println!("set url {:x?}", res);
-
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
@@ -123,7 +120,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 //     None,
                 // )?;
             }
-            _ => panic!()
+            _ => panic!(),
         }
 
         // -----------------------------
@@ -141,21 +138,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("pw1 82 verify ok");
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
-                let msg = std::fs::read_to_string
-                    (TEST_ENC_MSG)
+                let msg = std::fs::read_to_string(TEST_ENC_MSG)
                     .expect("Unable to read file");
 
                 println!("{:?}", msg);
 
-                let res = openpgp_card_sequoia::decrypt
-                    (&oc_user, &cert, msg.into_bytes())?;
+                let res = openpgp_card_sequoia::decrypt(
+                    &oc_user,
+                    &cert,
+                    msg.into_bytes(),
+                )?;
 
                 let plain = String::from_utf8_lossy(&res);
                 println!("decrypted plaintext: {}", plain);
 
                 assert_eq!(plain, "Hello world!\n");
             }
-            _ => panic!("verify pw1 failed")
+            _ => panic!("verify pw1 failed"),
         }
 
         // -----------------------------
@@ -171,8 +170,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 let text = "Hello world, I am signed.";
-                let res = openpgp_card_sequoia::sign(&oc_user, &cert,
-                                                     &mut text.as_bytes());
+                let res = openpgp_card_sequoia::sign(
+                    &oc_user,
+                    &cert,
+                    &mut text.as_bytes(),
+                );
 
                 println!("res sign {:?}", res);
 
@@ -180,7 +182,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 // FIXME: validate sig
             }
-            _ => panic!("verify pw1 failed")
+            _ => panic!("verify pw1 failed"),
         }
     } else {
         println!("Please set environment variable TEST_CARD_SERIAL.");
@@ -190,8 +192,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("So do NOT use your production card for testing.");
         println!();
 
-        println!("The following OpenPGP cards are currently connected to \
-        your system:");
+        println!("The following OpenPGP cards are connected to your system:");
 
         let cards = openpgp_card::OpenPGPCard::list_cards()?;
         for c in cards {

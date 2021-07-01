@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use nom::{bytes::complete as bytes, number::complete as number};
 use anyhow::Result;
+use nom::{bytes::complete as bytes, number::complete as number};
 use std::convert::TryFrom;
 
 use crate::parse;
@@ -24,8 +24,7 @@ pub struct ApplicationId {
     pub serial: u32,
 }
 
-fn parse(input: &[u8])
-         -> nom::IResult<&[u8], ApplicationId> {
+fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationId> {
     let (input, _) = bytes::tag([0xd2, 0x76, 0x0, 0x1, 0x24])(input)?;
 
     let (input, application) = number::u8(input)?;
@@ -36,8 +35,15 @@ fn parse(input: &[u8])
     let (input, _) =
         nom::combinator::all_consuming(bytes::tag([0x0, 0x0]))(input)?;
 
-    Ok((input,
-        ApplicationId { application, version, manufacturer, serial }))
+    Ok((
+        input,
+        ApplicationId {
+            application,
+            version,
+            manufacturer,
+            serial,
+        },
+    ))
 }
 
 impl TryFrom<&[u8]> for ApplicationId {
@@ -53,4 +59,3 @@ impl ApplicationId {
         format!("{:08X}", self.serial)
     }
 }
-

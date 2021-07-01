@@ -3,7 +3,6 @@
 
 use anyhow::anyhow;
 
-use openpgp::Cert;
 use openpgp::crypto;
 use openpgp::crypto::mpi;
 use openpgp::crypto::SessionKey;
@@ -13,10 +12,11 @@ use openpgp::parse::stream::{
 };
 use openpgp::policy::Policy;
 use openpgp::types::{Curve, SymmetricAlgorithm};
+use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
-use openpgp_card::{DecryptMe, OpenPGPCardUser};
 use openpgp_card::errors::OpenpgpCardError;
+use openpgp_card::{DecryptMe, OpenPGPCardUser};
 
 use crate::PublicKey;
 
@@ -33,10 +33,11 @@ impl<'a> CardDecryptor<'a> {
     ///
     /// An Error is returned if no match between the card's decryption
     /// key and a (sub)key of `cert` can be made.
-    pub fn new(ocu: &'a OpenPGPCardUser,
-               cert: &Cert,
-               policy: &dyn Policy) -> Result<CardDecryptor<'a>, OpenpgpCardError> {
-
+    pub fn new(
+        ocu: &'a OpenPGPCardUser,
+        cert: &Cert,
+        policy: &dyn Policy,
+    ) -> Result<CardDecryptor<'a>, OpenpgpCardError> {
         // Get the fingerprint for the decryption key from the card.
         let fps = ocu.get_fingerprints()?;
         let fp = fps.decryption();
@@ -46,27 +47,28 @@ impl<'a> CardDecryptor<'a> {
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
             // Find the matching encryption-capable (sub)key in `cert`
-            let keys: Vec<_> =
-                cert.keys()
-                    .with_policy(policy, None)
-                    .for_storage_encryption()
-                    .for_transport_encryption()
-                    .filter(|ka| ka.fingerprint() == fp)
-                    .map(|ka| ka.key())
-                    .collect();
+            let keys: Vec<_> = cert
+                .keys()
+                .with_policy(policy, None)
+                .for_storage_encryption()
+                .for_transport_encryption()
+                .filter(|ka| ka.fingerprint() == fp)
+                .map(|ka| ka.key())
+                .collect();
 
             // Exactly one matching (sub)key should be found. If not, fail!
             if keys.len() == 1 {
                 let public = keys[0].clone();
                 Ok(Self { ocu, public })
             } else {
-                Err(OpenpgpCardError::InternalError(
-                    anyhow!("Failed to find a matching (sub)key in cert")))
+                Err(OpenpgpCardError::InternalError(anyhow!(
+                    "Failed to find a matching (sub)key in cert"
+                )))
             }
         } else {
-            Err(OpenpgpCardError::InternalError(
-                anyhow!("Failed to get the decryption key's Fingerprint \
-                from the card")))
+            Err(OpenpgpCardError::InternalError(anyhow!(
+                "Failed to get the decryption key's Fingerprint from the card"
+            )))
         }
     }
 }
@@ -88,10 +90,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
         _plaintext_len: Option<usize>,
     ) -> openpgp::Result<crypto::SessionKey> {
         match (ciphertext, self.public.mpis()) {
-            (
-                mpi::Ciphertext::RSA { c: ct },
-                mpi::PublicKey::RSA { .. },
-            ) => {
+            (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = DecryptMe::RSA(ct.value());
                 let dec = self.ocu.decrypt(dm)?;
 
@@ -102,29 +101,29 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 mpi::Ciphertext::ECDH { ref e, .. },
                 mpi::PublicKey::ECDH { ref curve, .. },
             ) => {
-                let dm =
-                    if curve == &Curve::Cv25519 {
-                        // Ephemeral key without header byte 0x40
-                        DecryptMe::ECDH(&e.value()[1..])
-                    } else {
-                        // NIST curves: ephemeral key with header byte
-                        DecryptMe::ECDH(&e.value())
-                    };
+                let dm = if curve == &Curve::Cv25519 {
+                    // Ephemeral key without header byte 0x40
+                    DecryptMe::ECDH(&e.value()[1..])
+                } else {
+                    // NIST curves: ephemeral key with header byte
+                    DecryptMe::ECDH(&e.value())
+                };
 
                 // Decryption operation on the card
                 let dec = self.ocu.decrypt(dm)?;
 
                 #[allow(non_snake_case)]
-                    let S: openpgp::crypto::mem::Protected = dec.into();
+                let S: openpgp::crypto::mem::Protected = dec.into();
 
                 Ok(crypto::ecdh::decrypt_unwrap(&self.public, &S, ciphertext)?)
             }
 
-            (ciphertext, public) =>
-                Err(anyhow!(
-                    "Unsupported combination of ciphertext {:?} \
-                     and public key {:?} ", ciphertext, public
-                )),
+            (ciphertext, public) => Err(anyhow!(
+                "Unsupported combination of ciphertext {:?} \
+                     and public key {:?} ",
+                ciphertext,
+                public
+            )),
         }
     }
 }
@@ -137,7 +136,8 @@ impl<'a> DecryptionHelper for CardDecryptor<'a> {
         sym_algo: Option<SymmetricAlgorithm>,
         mut dec_fn: D,
     ) -> openpgp::Result<Option<openpgp::Fingerprint>>
-        where D: FnMut(SymmetricAlgorithm, &SessionKey) -> bool,
+    where
+        D: FnMut(SymmetricAlgorithm, &SessionKey) -> bool,
     {
         // Try to decrypt each PKESK, see:
         // https://docs.sequoia-pgp.org/src/sequoia_openpgp/packet/pkesk.rs.html#125
@@ -160,7 +160,10 @@ impl<'a> DecryptionHelper for CardDecryptor<'a> {
 }
 
 impl<'a> VerificationHelper for CardDecryptor<'a> {
-    fn get_certs(&mut self, _ids: &[openpgp::KeyHandle]) -> openpgp::Result<Vec<openpgp::Cert>> {
+    fn get_certs(
+        &mut self,
+        _ids: &[openpgp::KeyHandle],
+    ) -> openpgp::Result<Vec<openpgp::Cert>> {
         Ok(vec![])
     }
     fn check(&mut self, _structure: MessageStructure) -> openpgp::Result<()> {

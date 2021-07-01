@@ -12,24 +12,24 @@ use chrono::prelude::*;
 use openpgp::armor;
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use openpgp::crypto::mpi;
-use openpgp::crypto::mpi::{MPI, ProtectedMPI};
-use openpgp::packet::{Key, key};
+use openpgp::crypto::mpi::{ProtectedMPI, MPI};
 use openpgp::packet::key::{SecretParts, UnspecifiedRole};
-use openpgp::parse::{Parse, stream::DecryptorBuilder};
+use openpgp::packet::{key, Key};
+use openpgp::parse::{stream::DecryptorBuilder, Parse};
 use openpgp::policy::StandardPolicy;
 use openpgp::serialize::stream::{Message, Signer};
 use sequoia_openpgp as openpgp;
 
-use openpgp_card::{CardUploadableKey, EccKey, EccType, errors::OpenpgpCardError,
-                   KeyType, OpenPGPCardAdmin, OpenPGPCardUser, PrivateKeyMaterial,
-                   RSAKey};
+use openpgp_card::{
+    errors::OpenpgpCardError, CardUploadableKey, EccKey, EccType, KeyType,
+    OpenPGPCardAdmin, OpenPGPCardUser, PrivateKeyMaterial, RSAKey,
+};
 
 mod decryptor;
 mod signer;
 
 /// Shorthand for public key data
 pub(crate) type PublicKey = Key<key::PublicParts, key::UnspecifiedRole>;
-
 
 /// A SequoiaKey represents the private cryptographic key material of an
 /// OpenPGP (sub)key to be uploaded to an OpenPGP card.
@@ -43,8 +43,10 @@ impl SequoiaKey {
     /// A `SequoiaKey` wraps a Sequoia PGP private (sub)key data
     /// (i.e. a ValidErasedKeyAmalgamation) in a form that can be uploaded
     /// by the openpgp-card crate.
-    fn new(vka: ValidErasedKeyAmalgamation<SecretParts>,
-           password: Option<String>) -> Self {
+    fn new(
+        vka: ValidErasedKeyAmalgamation<SecretParts>,
+        password: Option<String>,
+    ) -> Self {
         let public = vka.parts_as_public().mpis().clone();
 
         Self {
@@ -62,51 +64,72 @@ impl CardUploadableKey for SequoiaKey {
         // Decrypt key with password, if set
         let key = match &self.password {
             None => self.key.clone(),
-            Some(pw) => self.key.clone()
-                .decrypt_secret(&openpgp::crypto::Password::from(pw.as_str()))?
+            Some(pw) => self.key.clone().decrypt_secret(
+                &openpgp::crypto::Password::from(pw.as_str()),
+            )?,
         };
 
         // Get private cryptographic material
-        let unenc =
-            if let Some(openpgp::packet::key::SecretKeyMaterial::Unencrypted(ref u)) = key.optional_secret() {
-                u
-            } else {
-                panic!("can't get private key material");
-            };
+        let unenc = if let Some(
+            openpgp::packet::key::SecretKeyMaterial::Unencrypted(ref u),
+        ) = key.optional_secret()
+        {
+            u
+        } else {
+            panic!("can't get private key material");
+        };
 
         let secret_key_material = unenc.map(|mpis| mpis.clone());
 
         match (&self.public, secret_key_material) {
-            (mpi::PublicKey::RSA { e, n },
-                mpi::SecretKeyMaterial::RSA { d: _, p, q, u: _ }) => {
+            (
+                mpi::PublicKey::RSA { e, n },
+                mpi::SecretKeyMaterial::RSA { d: _, p, q, u: _ },
+            ) => {
                 let sq_rsa = SqRSA::new(e.clone(), n.clone(), p, q);
 
                 Ok(PrivateKeyMaterial::R(Box::new(sq_rsa)))
             }
-            (mpi::PublicKey::ECDH { curve, .. },
-                mpi::SecretKeyMaterial::ECDH { scalar }) => {
-                let sq_ecc = SqEccKey::new(curve.oid().to_vec(),
-                                           scalar, EccType::ECDH);
+            (
+                mpi::PublicKey::ECDH { curve, .. },
+                mpi::SecretKeyMaterial::ECDH { scalar },
+            ) => {
+                let sq_ecc =
+                    SqEccKey::new(curve.oid().to_vec(), scalar, EccType::ECDH);
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
-            (mpi::PublicKey::ECDSA { curve, .. },
-                mpi::SecretKeyMaterial::ECDSA { scalar }) => {
-                let sq_ecc = SqEccKey::new(curve.oid().to_vec(),
-                                           scalar, EccType::ECDSA);
+            (
+                mpi::PublicKey::ECDSA { curve, .. },
+                mpi::SecretKeyMaterial::ECDSA { scalar },
+            ) => {
+                let sq_ecc = SqEccKey::new(
+                    curve.oid().to_vec(),
+                    scalar,
+                    EccType::ECDSA,
+                );
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
-            (mpi::PublicKey::EdDSA { curve, .. },
-                mpi::SecretKeyMaterial::EdDSA { scalar }) => {
-                let sq_ecc = SqEccKey::new(curve.oid().to_vec(),
-                                           scalar, EccType::EdDSA);
+            (
+                mpi::PublicKey::EdDSA { curve, .. },
+                mpi::SecretKeyMaterial::EdDSA { scalar },
+            ) => {
+                let sq_ecc = SqEccKey::new(
+                    curve.oid().to_vec(),
+                    scalar,
+                    EccType::EdDSA,
+                );
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
             (p, s) => {
-                unimplemented!("Unexpected algorithms: public {:?}, \
-                secret {:?}", p, s);
+                unimplemented!(
+                    "Unexpected algorithms: public {:?}, \
+                secret {:?}",
+                    p,
+                    s
+                );
             }
         }
     }
@@ -120,7 +143,6 @@ impl CardUploadableKey for SequoiaKey {
         self.key.fingerprint().as_bytes().to_vec()
     }
 }
-
 
 /// RSA-specific data-structure to hold private (sub)key material for upload
 /// with the `openpgp-card` crate.
@@ -165,7 +187,11 @@ struct SqEccKey {
 
 impl SqEccKey {
     fn new(oid: Vec<u8>, scalar: ProtectedMPI, ecc_type: EccType) -> Self {
-        SqEccKey { oid, scalar, ecc_type }
+        SqEccKey {
+            oid,
+            scalar,
+            ecc_type,
+        }
     }
 }
 
@@ -182,7 +208,6 @@ impl EccKey for SqEccKey {
         self.ecc_type
     }
 }
-
 
 /// Convenience fn to select and upload a (sub)key from a Cert, as a given
 /// KeyType. If multiple suitable (sub)keys are found, the first one is
@@ -267,9 +292,7 @@ pub fn sign(
         let s = signer::CardSigner::new(ocu, cert, &p)?;
 
         let message = Message::new(&mut armorer);
-        let mut message = Signer::new(message, s)
-            .detached()
-            .build()?;
+        let mut message = Signer::new(message, s).detached().build()?;
 
         // Process input data, via message
         io::copy(input, &mut message)?;
@@ -279,6 +302,5 @@ pub fn sign(
 
     let buffer = armorer.finalize()?;
 
-    String::from_utf8(buffer)
-        .context("Failed to convert signature to utf8")
+    String::from_utf8(buffer).context("Failed to convert signature to utf8")
 }

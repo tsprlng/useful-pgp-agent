@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use anyhow::anyhow;
 use nom::{bytes::complete as bytes, combinator, sequence};
 use std::fmt;
-use anyhow::anyhow;
 
-use crate::parse::KeySet;
 use crate::errors::OpenpgpCardError;
+use crate::parse::KeySet;
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Fingerprint([u8; 20]);
@@ -60,7 +60,9 @@ fn fingerprint(input: &[u8]) -> nom::IResult<&[u8], Option<Fingerprint>> {
 }
 
 fn fingerprints(input: &[u8]) -> nom::IResult<&[u8], KeySet<Fingerprint>> {
-    combinator::into(sequence::tuple((fingerprint, fingerprint, fingerprint)))(input)
+    combinator::into(sequence::tuple((fingerprint, fingerprint, fingerprint)))(
+        input,
+    )
 }
 
 pub fn from(input: &[u8]) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {

@@ -66,15 +66,16 @@ impl TryFrom<Vec<u8>> for Response {
     type Error = OcErrorStatus;
 
     fn try_from(mut data: Vec<u8>) -> Result<Self, OcErrorStatus> {
-        let sw2 = data.pop()
+        let sw2 = data
+            .pop()
             .ok_or_else(|| OcErrorStatus::ResponseLength(data.len()))?;
-        let sw1 = data.pop()
+        let sw1 = data
+            .pop()
             .ok_or_else(|| OcErrorStatus::ResponseLength(data.len()))?;
 
         Ok(Response { data, sw1, sw2 })
     }
 }
-
 
 impl Response {
     /// Is the response (0x90 0x00)?

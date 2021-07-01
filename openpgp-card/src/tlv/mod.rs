@@ -35,7 +35,7 @@ impl Tlv {
         let length = crate::tlv::tlv_encode_length(value.len() as u16);
 
         let mut ser = Vec::new();
-        ser.extend(self.0.0.iter());
+        ser.extend(self.0 .0.iter());
         ser.extend(length.iter());
         ser.extend(value.iter());
         ser
@@ -114,43 +114,44 @@ impl TlvEntry {
 #[cfg(test)]
 mod test {
     use super::{Tag, Tlv};
-    use hex_literal::hex;
-    use anyhow::Result;
     use crate::tlv::TlvEntry;
+    use anyhow::Result;
+    use hex_literal::hex;
 
     #[test]
     fn test_tlv() -> Result<()> {
         // From OpenPGP card spec § 7.2.6
-        let data = hex!("5B0B546573743C3C54657374695F2D0264655F350131")
-            .to_vec();
+        let data =
+            hex!("5B0B546573743C3C54657374695F2D0264655F350131").to_vec();
 
         let (input, tlv) = Tlv::parse(&data).unwrap();
 
-        assert_eq!(tlv,
-                   Tlv(Tag::from([0x5b]),
-                       TlvEntry::S(hex!("546573743C3C5465737469")
-                           .to_vec())));
+        assert_eq!(
+            tlv,
+            Tlv(
+                Tag::from([0x5b]),
+                TlvEntry::S(hex!("546573743C3C5465737469").to_vec())
+            )
+        );
 
         let (input, tlv) = Tlv::parse(input).unwrap();
 
-        assert_eq!(tlv,
-                   Tlv(Tag::from([0x5f, 0x2d]),
-                       TlvEntry::S(hex!("6465")
-                           .to_vec())));
+        assert_eq!(
+            tlv,
+            Tlv(Tag::from([0x5f, 0x2d]), TlvEntry::S(hex!("6465").to_vec()))
+        );
 
         let (input, tlv) = Tlv::parse(input).unwrap();
 
-        assert_eq!(tlv,
-                   Tlv(Tag::from([0x5f, 0x35]),
-                       TlvEntry::S(hex!("31")
-                           .to_vec())));
-
+        assert_eq!(
+            tlv,
+            Tlv(Tag::from([0x5f, 0x35]), TlvEntry::S(hex!("31").to_vec()))
+        );
 
         assert!(input.is_empty());
 
         Ok(())
     }
-
 
     #[test]
     fn test_tlv_yubi5() -> Result<()> {
@@ -168,7 +169,10 @@ mod test {
         assert_eq!(entry.serialize(), hex!("7d000bfe080000ff0000"));
 
         let entry = tlv.find(&Tag::from([0x4f])).unwrap();
-        assert_eq!(entry.serialize(), hex!("d2760001240103040006160191800000"));
+        assert_eq!(
+            entry.serialize(),
+            hex!("d2760001240103040006160191800000")
+        );
 
         let entry = tlv.find(&Tag::from([0x5f, 0x52])).unwrap();
         assert_eq!(entry.serialize(), hex!("00730000e0059000"));
@@ -203,9 +207,11 @@ mod test {
         let entry = tlv.find(&Tag::from([0xc6])).unwrap();
         assert_eq!(entry.serialize(), hex!("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
 
-
         let entry = tlv.find(&Tag::from([0xcd])).unwrap();
-        assert_eq!(entry.serialize(), hex!("00000000000000000000000000000000"));
+        assert_eq!(
+            entry.serialize(),
+            hex!("00000000000000000000000000000000")
+        );
 
         let entry = tlv.find(&Tag::from([0xde])).unwrap();
         assert_eq!(entry.serialize(), hex!("0100020003008102"));
@@ -234,17 +240,22 @@ mod test {
         // but has been abridged and changed. It does not represent a
         // complete valid OpenPGP card DO!
 
-        let a = Tlv(Tag::from(&[0x7F, 0x48][..]),
-                    TlvEntry::S(vec![0x92, 0x03]));
+        let a =
+            Tlv(Tag::from(&[0x7F, 0x48][..]), TlvEntry::S(vec![0x92, 0x03]));
 
-        let b = Tlv(Tag::from(&[0x5F, 0x48][..]),
-                    TlvEntry::S(vec![0x1, 0x2, 0x3]));
+        let b = Tlv(
+            Tag::from(&[0x5F, 0x48][..]),
+            TlvEntry::S(vec![0x1, 0x2, 0x3]),
+        );
 
-        let tlv = Tlv(Tag::from(&[0x4d][..]),
-                      TlvEntry::C(vec![a, b]));
+        let tlv = Tlv(Tag::from(&[0x4d][..]), TlvEntry::C(vec![a, b]));
 
-        assert_eq!(tlv.serialize(), &[0x4d, 0xb,
-            0x7f, 0x48, 0x2, 0x92, 0x3,
-            0x5f, 0x48, 0x3, 0x1, 0x2, 0x3]);
+        assert_eq!(
+            tlv.serialize(),
+            &[
+                0x4d, 0xb, 0x7f, 0x48, 0x2, 0x92, 0x3, 0x5f, 0x48, 0x3, 0x1,
+                0x2, 0x3
+            ]
+        );
     }
 }

@@ -4,10 +4,10 @@
 use std::convert::TryFrom;
 
 use anyhow::Result;
-use nom::{branch, bytes::complete as bytes, number::complete as number};
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
+use nom::{branch, bytes::complete as bytes, number::complete as number};
 
 use crate::parse;
 
@@ -35,7 +35,11 @@ pub struct EcdsaAttrs {
 
 impl EcdsaAttrs {
     pub fn new(curve: Curve, import_format: Option<u8>) -> Self {
-        Self { curve, oid: curve.oid().to_vec(), import_format }
+        Self {
+            curve,
+            oid: curve.oid().to_vec(),
+            import_format,
+        }
     }
 }
 
@@ -48,7 +52,11 @@ pub struct EddsaAttrs {
 
 impl EddsaAttrs {
     pub fn new(curve: Curve, import_format: Option<u8>) -> Self {
-        Self { curve, oid: curve.oid().to_vec(), import_format }
+        Self {
+            curve,
+            oid: curve.oid().to_vec(),
+            import_format,
+        }
     }
 }
 
@@ -61,7 +69,11 @@ pub struct EcdhAttrs {
 
 impl EcdhAttrs {
     pub fn new(curve: Curve, import_format: Option<u8>) -> Self {
-        Self { curve, oid: curve.oid().to_vec(), import_format }
+        Self {
+            curve,
+            oid: curve.oid().to_vec(),
+            import_format,
+        }
     }
 }
 
@@ -87,23 +99,25 @@ impl Curve {
             NistP256r1 => &[0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07],
             NistP384r1 => &[0x2B, 0x81, 0x04, 0x00, 0x22],
             NistP521r1 => &[0x2B, 0x81, 0x04, 0x00, 0x23],
-            BrainpoolP256r1 =>
-                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07],
-            BrainpoolP384r1 =>
-                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b],
-            BrainpoolP512r1 =>
-                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d],
+            BrainpoolP256r1 => {
+                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07]
+            }
+            BrainpoolP384r1 => {
+                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b]
+            }
+            BrainpoolP512r1 => {
+                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d]
+            }
             Secp256k1 => &[0x2B, 0x81, 0x04, 0x00, 0x0A],
-            Ed25519 =>
-                &[0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01],
-            Cv25519 =>
-                &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01],
+            Ed25519 => &[0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01],
+            Cv25519 => {
+                &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01]
+            }
             Ed448 => &[0x2b, 0x65, 0x71],
             X448 => &[0x2b, 0x65, 0x6f],
         }
     }
 }
-
 
 fn parse_oid_cv25519(input: &[u8]) -> nom::IResult<&[u8], Curve> {
     map(tag(Curve::Cv25519.oid()), |_| Curve::Cv25519)(input)
@@ -130,15 +144,21 @@ fn parse_oid_nist521(input: &[u8]) -> nom::IResult<&[u8], Curve> {
 }
 
 fn parse_oid_brainpool_p256r1(input: &[u8]) -> nom::IResult<&[u8], Curve> {
-    map(tag(Curve::BrainpoolP256r1.oid()), |_| Curve::BrainpoolP256r1)(input)
+    map(tag(Curve::BrainpoolP256r1.oid()), |_| {
+        Curve::BrainpoolP256r1
+    })(input)
 }
 
 fn parse_oid_brainpool_p384r1(input: &[u8]) -> nom::IResult<&[u8], Curve> {
-    map(tag(Curve::BrainpoolP384r1.oid()), |_| Curve::BrainpoolP384r1)(input)
+    map(tag(Curve::BrainpoolP384r1.oid()), |_| {
+        Curve::BrainpoolP384r1
+    })(input)
 }
 
 fn parse_oid_brainpool_p512r1(input: &[u8]) -> nom::IResult<&[u8], Curve> {
-    map(tag(Curve::BrainpoolP512r1.oid()), |_| Curve::BrainpoolP512r1)(input)
+    map(tag(Curve::BrainpoolP512r1.oid()), |_| {
+        Curve::BrainpoolP512r1
+    })(input)
 }
 
 fn parse_oid_ed448(input: &[u8]) -> nom::IResult<&[u8], Curve> {
@@ -150,12 +170,19 @@ fn parse_oid_x448(input: &[u8]) -> nom::IResult<&[u8], Curve> {
 }
 
 fn parse_oid(input: &[u8]) -> nom::IResult<&[u8], Curve> {
-    alt((parse_oid_nist256, parse_oid_nist384, parse_oid_nist521,
-         parse_oid_brainpool_p256r1, parse_oid_brainpool_p384r1,
-         parse_oid_brainpool_p512r1,
-         parse_oid_secp256k1,
-         parse_oid_ed25519, parse_oid_cv25519,
-         parse_oid_ed448, parse_oid_x448))(input)
+    alt((
+        parse_oid_nist256,
+        parse_oid_nist384,
+        parse_oid_nist521,
+        parse_oid_brainpool_p256r1,
+        parse_oid_brainpool_p384r1,
+        parse_oid_brainpool_p512r1,
+        parse_oid_secp256k1,
+        parse_oid_ed25519,
+        parse_oid_cv25519,
+        parse_oid_ed448,
+        parse_oid_x448,
+    ))(input)
 }
 
 fn parse_rsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
@@ -165,7 +192,14 @@ fn parse_rsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, len_e) = number::be_u16(input)?;
     let (input, import_format) = number::u8(input)?;
 
-    Ok((input, Algo::Rsa(RsaAttrs { len_n, len_e, import_format })))
+    Ok((
+        input,
+        Algo::Rsa(RsaAttrs {
+            len_n,
+            len_e,
+            import_format,
+        }),
+    ))
 }
 
 fn parse_import_format(input: &[u8]) -> nom::IResult<&[u8], Option<u8>> {
@@ -208,9 +242,7 @@ fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
 }
 
 pub(crate) fn parse(input: &[u8]) -> nom::IResult<&[u8], Algo> {
-    branch::alt(
-        (parse_rsa, parse_ecdsa, parse_eddsa, parse_ecdh)
-    )(input)
+    branch::alt((parse_rsa, parse_ecdsa, parse_eddsa, parse_ecdh))(input)
 }
 
 impl TryFrom<&[u8]> for Algo {
