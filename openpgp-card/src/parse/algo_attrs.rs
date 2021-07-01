@@ -76,6 +76,8 @@ pub enum Curve {
     Secp256k1,
     Ed25519,
     Cv25519,
+    Ed448,
+    X448,
 }
 
 impl Curve {
@@ -95,7 +97,9 @@ impl Curve {
             Ed25519 =>
                 &[0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01],
             Cv25519 =>
-                &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01]
+                &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01],
+            Ed448 => &[0x2b, 0x65, 0x71],
+            X448 => &[0x2b, 0x65, 0x6f],
         }
     }
 }
@@ -137,12 +141,21 @@ fn parse_oid_brainpool_p512r1(input: &[u8]) -> nom::IResult<&[u8], Curve> {
     map(tag(Curve::BrainpoolP512r1.oid()), |_| Curve::BrainpoolP512r1)(input)
 }
 
+fn parse_oid_ed448(input: &[u8]) -> nom::IResult<&[u8], Curve> {
+    map(tag(Curve::Ed448.oid()), |_| Curve::Ed448)(input)
+}
+
+fn parse_oid_x448(input: &[u8]) -> nom::IResult<&[u8], Curve> {
+    map(tag(Curve::X448.oid()), |_| Curve::X448)(input)
+}
+
 fn parse_oid(input: &[u8]) -> nom::IResult<&[u8], Curve> {
     alt((parse_oid_nist256, parse_oid_nist384, parse_oid_nist521,
          parse_oid_brainpool_p256r1, parse_oid_brainpool_p384r1,
          parse_oid_brainpool_p512r1,
          parse_oid_secp256k1,
-         parse_oid_ed25519, parse_oid_cv25519))(input)
+         parse_oid_ed25519, parse_oid_cv25519,
+         parse_oid_ed448, parse_oid_x448))(input)
 }
 
 fn parse_rsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
