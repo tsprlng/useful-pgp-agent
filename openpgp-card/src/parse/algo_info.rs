@@ -36,13 +36,17 @@ fn key_type(input: &[u8]) -> nom::IResult<&[u8], KeyType> {
     ))(input)
 }
 
+fn unknown(input: &[u8]) -> nom::IResult<&[u8], Algo> {
+    Ok((&[], Algo::Unknown(input.to_vec())))
+}
+
 fn parse_one(input: &[u8]) -> nom::IResult<&[u8], Algo> {
-    let (x, a) = combinator::map(
+    let (input, a) = combinator::map(
         combinator::flat_map(crate::tlv::length::length, bytes::take),
-        |i| combinator::all_consuming(algo_attrs::parse)(i),
+        |i| alt((combinator::all_consuming(algo_attrs::parse), unknown))(i),
     )(input)?;
 
-    Ok((x, a?.1))
+    Ok((input, a?.1))
 }
 
 fn parse_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
