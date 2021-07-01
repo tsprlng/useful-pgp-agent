@@ -460,12 +460,7 @@ impl OpenPGPCard {
             return Ok(None);
         }
 
-        // FIXME: this is a temporary hack!
-        let eli = self.get_extended_length_information()?;
-        let ext = eli.is_some() && ec.max_len_special_do > 255;
-        let ext = if ext { Le::Long } else { Le::Short };
-
-        let resp = apdu::send_command(&self.card, commands::get_algo_list(), ext, Some(self))?;
+        let resp = apdu::send_command(&self.card, commands::get_algo_list(), Le::Short, Some(self))?;
         resp.check_ok()?;
 
         let ai = AlgoInfo::try_from(resp.data()?)?;
