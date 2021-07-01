@@ -101,12 +101,13 @@ mod test {
     use crate::parse::extended_cap::{ExtendedCap, Features};
     use hex_literal::hex;
     use std::collections::HashSet;
+    use std::convert::TryFrom;
     use std::iter::FromIterator;
 
     #[test]
     fn test_ec() {
         let data = hex!("7d 00 0b fe 08 00 00 ff 00 00");
-        let ec = ExtendedCap::from(&data).unwrap();
+        let ec = ExtendedCap::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ec,

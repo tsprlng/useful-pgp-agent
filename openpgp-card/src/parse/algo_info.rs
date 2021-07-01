@@ -112,7 +112,7 @@ mod test {
             0x1,
         ];
 
-        let ai = AlgoInfo::try_from(data.to_vec()).unwrap();
+        let ai = AlgoInfo::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ai,
@@ -206,7 +206,7 @@ mod test {
             0xd,
         ];
 
-        let ai = AlgoInfo::try_from(data.to_vec()).unwrap();
+        let ai = AlgoInfo::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ai,
@@ -360,7 +360,7 @@ mod test {
             0x4, 0x1, 0x97, 0x55, 0x1, 0x5, 0x1,
         ];
 
-        let ai = AlgoInfo::try_from(data.to_vec()).unwrap();
+        let ai = AlgoInfo::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ai,
