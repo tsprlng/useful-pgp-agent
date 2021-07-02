@@ -8,7 +8,7 @@ use anyhow::Result;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::{KeyType, OpenPGPCard};
+use openpgp_card::{CardBase, KeyType};
 
 // Filename of test key and test message to use:
 
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_serial) = test_card_serial {
         println!("** get card");
-        let oc = OpenPGPCard::open_by_serial(&test_card_serial)?;
+        let oc = CardBase::open_by_serial(&test_card_serial)?;
 
         // card metadata
 
@@ -127,13 +127,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
 
-        let oc = OpenPGPCard::open_by_serial(&test_card_serial)?;
+        let oc = CardBase::open_by_serial(&test_card_serial)?;
         let app_id = oc.get_aid()?;
 
         // Check that we're still using the expected card
         assert_eq!(app_id.serial(), test_card_serial);
 
-        match oc.verify_pw1_82("123456") {
+        match oc.verify_pw1("123456") {
             Ok(oc_user) => {
                 println!("pw1 82 verify ok");
 
@@ -160,10 +160,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let oc = OpenPGPCard::open_by_serial(&test_card_serial)?;
+        let oc = CardBase::open_by_serial(&test_card_serial)?;
 
         // Sign
-        match oc.verify_pw1_81("123456") {
+        match oc.verify_pw1_for_signing("123456") {
             Ok(oc_user) => {
                 println!("pw1 81 verify ok");
 
@@ -194,7 +194,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!("The following OpenPGP cards are connected to your system:");
 
-        let cards = openpgp_card::OpenPGPCard::list_cards()?;
+        let cards = openpgp_card::CardBase::list_cards()?;
         for c in cards {
             println!(" '{}'", c.get_aid()?.serial());
         }

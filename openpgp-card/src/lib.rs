@@ -27,6 +27,8 @@ mod key_upload;
 mod parse;
 mod tlv;
 
+/// Container for a hash value.
+/// These hash values can be signed by the card.
 pub enum Hash<'a> {
     SHA256([u8; 0x20]),
     SHA384([u8; 0x30]),
@@ -97,6 +99,8 @@ pub trait EccKey {
     fn get_type(&self) -> EccType;
 }
 
+/// A marker to distinguish between elliptic curve algorithms (ECDH, ECDSA,
+/// EdDSA)
 #[derive(Clone, Copy)]
 pub enum EccType {
     ECDH,
@@ -203,9 +207,9 @@ impl KeyType {
     }
 }
 
-/// Representation of an opened OpenPGP card, with default privileges (i.e.
-/// no passwords have been verified)
-pub struct OpenPGPCard {
+/// Representation of an opened OpenPGP card in its basic, freshly opened,
+/// state (i.e. no passwords have been verified, default privileges apply).
+pub struct CardBase {
     card: Card,
 
     // Cache of "application related data".
@@ -215,7 +219,7 @@ pub struct OpenPGPCard {
     ard: Tlv,
 }
 
-impl OpenPGPCard {
+impl CardBase {
     /// Get all cards that can be opened as an OpenPGP card applet
     pub fn list_cards() -> Result<Vec<Self>> {
         let cards = card::get_cards().map_err(|err| anyhow!(err))?;
@@ -229,7 +233,7 @@ impl OpenPGPCard {
         Ok(ocs)
     }
 
-    /// Find an OpenPGP card by serial number and return it.
+    /// Find an OpenPGP card by serial number, open and return it.
     pub fn open_by_serial(serial: &str) -> Result<Self, OpenpgpCardError> {
         let cards = card::get_cards().map_err(|e| {
             OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
@@ -547,10 +551,10 @@ impl OpenPGPCard {
         Ok(())
     }
 
-    pub fn verify_pw1_81(
+    pub fn verify_pw1_for_signing(
         self,
         pin: &str,
-    ) -> Result<OpenPGPCardUser, OpenPGPCard> {
+    ) -> Result<CardSign, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
@@ -559,17 +563,14 @@ impl OpenPGPCard {
 
         if let Ok(resp) = res {
             if resp.is_ok() {
-                return Ok(OpenPGPCardUser { oc: self });
+                return Ok(CardSign { oc: self });
             }
         }
 
         Err(self)
     }
 
-    pub fn verify_pw1_82(
-        self,
-        pin: &str,
-    ) -> Result<OpenPGPCardUser, OpenPGPCard> {
+    pub fn verify_pw1(self, pin: &str) -> Result<CardUser, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
@@ -578,17 +579,14 @@ impl OpenPGPCard {
 
         if let Ok(resp) = res {
             if resp.is_ok() {
-                return Ok(OpenPGPCardUser { oc: self });
+                return Ok(CardUser { oc: self });
             }
         }
 
         Err(self)
     }
 
-    pub fn verify_pw3(
-        self,
-        pin: &str,
-    ) -> Result<OpenPGPCardAdmin, OpenPGPCard> {
+    pub fn verify_pw3(self, pin: &str) -> Result<CardAdmin, CardBase> {
         assert!(pin.len() >= 8); // FIXME: Err
 
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
@@ -597,7 +595,7 @@ impl OpenPGPCard {
 
         if let Ok(resp) = res {
             if resp.is_ok() {
-                return Ok(OpenPGPCardAdmin { oc: self });
+                return Ok(CardAdmin { oc: self });
             }
         }
 
@@ -605,22 +603,22 @@ impl OpenPGPCard {
     }
 }
 
-/// An OpenPGP card after successful verification of PW1 (needs to be split
-/// further to model authentication for signing)
-pub struct OpenPGPCardUser {
-    oc: OpenPGPCard,
+/// An OpenPGP card after successful verification of PW1 in mode 82
+/// (verification for operations other than signing)
+pub struct CardUser {
+    oc: CardBase,
 }
 
 /// Allow access to fn of OpenPGPCard, through OpenPGPCardUser.
-impl Deref for OpenPGPCardUser {
-    type Target = OpenPGPCard;
+impl Deref for CardUser {
+    type Target = CardBase;
 
     fn deref(&self) -> &Self::Target {
         &self.oc
     }
 }
 
-impl OpenPGPCardUser {
+impl CardUser {
     /// Decrypt the ciphertext in `dm`, on the card.
     pub fn decrypt(&self, dm: DecryptMe) -> Result<Vec<u8>, OpenpgpCardError> {
         match dm {
@@ -660,7 +658,26 @@ impl OpenPGPCardUser {
 
         Ok(resp.data().map(|d| d.to_vec())?)
     }
+}
 
+/// An OpenPGP card after successful verification of PW1 in mode 81
+/// (verification for signing)
+pub struct CardSign {
+    oc: CardBase,
+}
+
+/// Allow access to fn of OpenPGPCard, through OpenPGPCardUser.
+impl Deref for CardSign {
+    type Target = CardBase;
+
+    fn deref(&self) -> &Self::Target {
+        &self.oc
+    }
+}
+
+// FIXME: depending on the setting in "PW1 Status byte", only one
+// signature can be made after verification for signing
+impl CardSign {
     /// Sign the message in `hash`, on the card.
     pub fn signature_for_hash(
         &self,
@@ -676,8 +693,7 @@ impl OpenPGPCardUser {
                             TlvEntry::C(vec![
                                 Tlv(
                                     Tag(vec![0x06]),
-                                    // unwrapping is
-                                    // ok, for SHA*
+                                    // unwrapping is ok, for SHA*
                                     TlvEntry::S(hash.oid().unwrap().to_vec()),
                                 ),
                                 Tlv(Tag(vec![0x05]), TlvEntry::S(vec![])),
@@ -711,21 +727,21 @@ impl OpenPGPCardUser {
     }
 }
 
-/// An OpenPGP card after successful verification of PW3
-pub struct OpenPGPCardAdmin {
-    oc: OpenPGPCard,
+/// An OpenPGP card after successful verification of PW3 ("Admin privileges")
+pub struct CardAdmin {
+    oc: CardBase,
 }
 
 /// Allow access to fn of OpenPGPCard, through OpenPGPCardAdmin.
-impl Deref for OpenPGPCardAdmin {
-    type Target = OpenPGPCard;
+impl Deref for CardAdmin {
+    type Target = CardBase;
 
     fn deref(&self) -> &Self::Target {
         &self.oc
     }
 }
 
-impl OpenPGPCardAdmin {
+impl CardAdmin {
     pub(crate) fn card(&self) -> &Card {
         &self.card
     }

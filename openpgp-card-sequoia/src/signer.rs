@@ -11,14 +11,14 @@ use openpgp::types::PublicKeyAlgorithm;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::errors::OpenpgpCardError;
+use openpgp_card::CardSign;
 use openpgp_card::Hash;
-use openpgp_card::OpenPGPCardUser;
 
 use crate::PublicKey;
 
 pub(crate) struct CardSigner<'a> {
     /// The OpenPGP card (authenticated to allow signing operations)
-    ocu: &'a OpenPGPCardUser,
+    ocu: &'a CardSign,
 
     /// The matching public key for the card's signing key
     public: PublicKey,
@@ -30,12 +30,12 @@ impl<'a> CardSigner<'a> {
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        ocu: &'a OpenPGPCardUser,
+        ocs: &'a CardSign,
         cert: &openpgp::Cert,
         policy: &dyn Policy,
     ) -> Result<CardSigner<'a>, OpenpgpCardError> {
         // Get the fingerprint for the signing key from the card.
-        let fps = ocu.get_fingerprints()?;
+        let fps = ocs.get_fingerprints()?;
         let fp = fps.signature();
 
         if let Some(fp) = fp {
@@ -58,7 +58,7 @@ impl<'a> CardSigner<'a> {
                 let public = keys[0].clone();
 
                 Ok(CardSigner {
-                    ocu,
+                    ocu: ocs,
                     public: public.role_as_unspecified().clone(),
                 })
             } else {

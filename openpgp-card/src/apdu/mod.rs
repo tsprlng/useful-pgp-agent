@@ -11,7 +11,7 @@ use std::convert::TryFrom;
 use crate::apdu::command::Command;
 use crate::apdu::response::Response;
 use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
-use crate::OpenPGPCard;
+use crate::CardBase;
 
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Le {
@@ -28,7 +28,7 @@ pub(crate) fn send_command(
     card: &Card,
     cmd: Command,
     ext: Le,
-    oc: Option<&OpenPGPCard>,
+    oc: Option<&CardBase>,
 ) -> Result<Response, OpenpgpCardError> {
     let mut resp =
         Response::try_from(send_command_low_level(&card, cmd, ext, oc)?)?;
@@ -68,7 +68,7 @@ fn send_command_low_level(
     card: &Card,
     cmd: Command,
     ext: Le,
-    oc: Option<&OpenPGPCard>,
+    oc: Option<&CardBase>,
 ) -> Result<Vec<u8>, OpenpgpCardError> {
     log::trace!(" -> full APDU command: {:x?}", cmd);
     log::trace!("    serialized: {:x?}", cmd.serialize(ext));

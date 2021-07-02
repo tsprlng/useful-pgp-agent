@@ -21,8 +21,8 @@ use openpgp::serialize::stream::{Message, Signer};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::{
-    errors::OpenpgpCardError, CardUploadableKey, EccKey, EccType, KeyType,
-    OpenPGPCardAdmin, OpenPGPCardUser, PrivateKeyMaterial, RSAKey,
+    errors::OpenpgpCardError, CardAdmin, CardSign, CardUploadableKey,
+    CardUser, EccKey, EccType, KeyType, PrivateKeyMaterial, RSAKey,
 };
 
 mod decryptor;
@@ -216,7 +216,7 @@ impl EccKey for SqEccKey {
 /// FIXME: picking the (sub)key to upload should probably done with
 /// more intent.
 pub fn upload_from_cert_yolo(
-    oca: &OpenPGPCardAdmin,
+    oca: &CardAdmin,
     cert: &sequoia_openpgp::Cert,
     key_type: KeyType,
     password: Option<String>,
@@ -249,7 +249,7 @@ pub fn upload_from_cert_yolo(
 ///
 /// The caller needs to make sure that `vka` is suitable for `key_type`.
 pub fn upload_key(
-    oca: &OpenPGPCardAdmin,
+    oca: &CardAdmin,
     vka: ValidErasedKeyAmalgamation<SecretParts>,
     key_type: KeyType,
     password: Option<String>,
@@ -260,7 +260,7 @@ pub fn upload_key(
 }
 
 pub fn decrypt(
-    ocu: &OpenPGPCardUser,
+    ocu: &CardUser,
     cert: &sequoia_openpgp::Cert,
     msg: Vec<u8>,
 ) -> Result<Vec<u8>> {
@@ -282,7 +282,7 @@ pub fn decrypt(
 }
 
 pub fn sign(
-    ocu: &OpenPGPCardUser,
+    ocu: &CardSign,
     cert: &sequoia_openpgp::Cert,
     input: &mut dyn io::Read,
 ) -> Result<String> {

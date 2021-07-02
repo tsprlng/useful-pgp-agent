@@ -12,7 +12,7 @@ use crate::parse::algo_attrs::{Algo, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    tlv, CardUploadableKey, EccKey, EccType, KeyType, OpenPGPCardAdmin,
+    tlv, CardAdmin, CardUploadableKey, EccKey, EccType, KeyType,
     PrivateKeyMaterial, RSAKey,
 };
 
@@ -20,7 +20,7 @@ use crate::{
 ///
 /// The client needs to make sure that the key is suitable for `key_type`.
 pub(crate) fn upload_key(
-    oca: &OpenPGPCardAdmin,
+    oca: &CardAdmin,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
 ) -> Result<(), OpenpgpCardError> {
@@ -369,7 +369,7 @@ fn ecc_algo_attrs_cmd(
 }
 
 fn copy_key_to_card(
-    oca: &OpenPGPCardAdmin,
+    oca: &CardAdmin,
     key_type: KeyType,
     ts: u64,
     fp: Vec<u8>,
