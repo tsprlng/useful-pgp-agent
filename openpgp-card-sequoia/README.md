@@ -21,7 +21,7 @@ NOTE: data on this card will be deleted in the process of running this
 program!
 
 ```
-$ export TEST_CARD_SERIAL="01234567"
+$ export TEST_CARD_IDENT="0123:4567ABCD"
 $ cargo run
 ```
 
