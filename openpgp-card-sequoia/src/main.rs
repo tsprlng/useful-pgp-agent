@@ -24,12 +24,12 @@ const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // Serial number of the OpenPGP Card that will be used for tests.
-    let test_card_serial = env::var("TEST_CARD_SERIAL");
+    // Ident of the OpenPGP Card that will be used for tests.
+    let test_card_ident = env::var("TEST_CARD_IDENT");
 
-    if let Ok(test_card_serial) = test_card_serial {
+    if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
-        let oc = CardBase::open_by_serial(&test_card_serial)?;
+        let oc = CardBase::open_by_ident(&test_card_ident)?;
 
         // card metadata
 
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let app_id = oc.get_aid()?;
 
         println!("app id: {:x?}\n\n", app_id);
-        println!(" serial: {:?}\n\n", app_id.serial());
+        println!(" ident: {:?}\n\n", app_id.ident());
 
         let eli = oc.get_extended_length_information()?;
         println!("extended_length_info: {:?}\n\n", eli);
@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  CAUTION: Write commands ahead!
         //  Try not to overwrite your production cards.
         // ---------------------------------------------
-        assert_eq!(app_id.serial(), test_card_serial);
+        assert_eq!(app_id.ident(), test_card_ident);
 
         oc.factory_reset()?;
 
@@ -127,11 +127,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
 
-        let oc = CardBase::open_by_serial(&test_card_serial)?;
+        let oc = CardBase::open_by_ident(&test_card_ident)?;
         let app_id = oc.get_aid()?;
 
         // Check that we're still using the expected card
-        assert_eq!(app_id.serial(), test_card_serial);
+        assert_eq!(app_id.ident(), test_card_ident);
 
         match oc.verify_pw1("123456") {
             Ok(oc_user) => {
@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let oc = CardBase::open_by_serial(&test_card_serial)?;
+        let oc = CardBase::open_by_ident(&test_card_ident)?;
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
@@ -185,7 +185,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             _ => panic!("verify pw1 failed"),
         }
     } else {
-        println!("Please set environment variable TEST_CARD_SERIAL.");
+        println!("Please set environment variable TEST_CARD_IDENT.");
         println!();
 
         println!("NOTE: the configured card will get overwritten!");
@@ -196,7 +196,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let cards = openpgp_card::CardBase::list_cards()?;
         for c in cards {
-            println!(" '{}'", c.get_aid()?.serial());
+            println!(" '{}'", c.get_aid()?.ident());
         }
     }
 

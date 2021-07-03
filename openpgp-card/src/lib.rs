@@ -233,8 +233,11 @@ impl CardBase {
         Ok(ocs)
     }
 
-    /// Find an OpenPGP card by serial number, open and return it.
-    pub fn open_by_serial(serial: &str) -> Result<Self, OpenpgpCardError> {
+    /// Find an OpenPGP card by "ident", open and return it.
+    ///
+    /// The ident is constructed as a concatenation of manufacturer
+    /// id, a colon, and the card serial. Example: "1234:5678ABCD".
+    pub fn open_by_ident(ident: &str) -> Result<Self, OpenpgpCardError> {
         let cards = card::get_cards().map_err(|e| {
             OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
                 "{:?}",
@@ -247,14 +250,16 @@ impl CardBase {
             if let Ok(opened_card) = res {
                 let res = opened_card.get_aid();
                 if let Ok(aid) = res {
-                    if aid.serial() == serial {
+                    if aid.ident() == ident {
                         return Ok(opened_card);
                     }
                 }
             }
         }
 
-        Err(OpenpgpCardError::Smartcard(SmartcardError::CardNotFound))
+        Err(OpenpgpCardError::Smartcard(SmartcardError::CardNotFound(
+            ident.to_string(),
+        )))
     }
 
     /// Open connection to some card and select the openpgp applet

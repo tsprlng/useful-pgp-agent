@@ -55,7 +55,22 @@ impl TryFrom<&[u8]> for ApplicationId {
 }
 
 impl ApplicationId {
-    pub fn serial(&self) -> String {
-        format!("{:08X}", self.serial)
+    pub fn serial(&self) -> u32 {
+        self.serial
+    }
+
+    pub fn manufacturer(&self) -> u16 {
+        self.manufacturer
+    }
+
+    /// This ident is constructed as the concatenation of manufacturer
+    /// id, a colon, and the card serial (in hexadecimal representation).
+    ///
+    /// It is a more easily human-readable, shorter form of the full
+    /// 16-byte AID ("Application Identifier").
+    ///
+    /// Example: "1234:5678ABCD".
+    pub fn ident(&self) -> String {
+        format!("{:04X}:{:08X}", self.manufacturer, self.serial)
     }
 }

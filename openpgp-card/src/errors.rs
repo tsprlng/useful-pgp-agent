@@ -145,8 +145,8 @@ pub enum SmartcardError {
     #[error("No reader found.")]
     NoReaderFoundError,
 
-    #[error("The requested card was not found.")]
-    CardNotFound,
+    #[error("The requested card '{0}' was not found.")]
+    CardNotFound(String),
 
     #[error("Failed to connect to the card: {0}")]
     SmartCardConnectionError(String),
