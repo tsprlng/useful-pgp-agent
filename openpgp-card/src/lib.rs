@@ -784,7 +784,7 @@ impl CardAdmin {
         };
 
         let put_name = commands::put_name(name.as_bytes().to_vec());
-        apdu::send_command(self.card(), put_name, Le::Short, Some(self))
+        apdu::send_command(self.card(), put_name, Le::None, Some(self))
     }
 
     pub fn set_lang(&self, lang: &str) -> Result<Response, OpenpgpCardError> {
@@ -793,12 +793,12 @@ impl CardAdmin {
         }
 
         let put_lang = commands::put_lang(lang.as_bytes().to_vec());
-        apdu::send_command(self.card(), put_lang, Le::Short, Some(self))
+        apdu::send_command(self.card(), put_lang, Le::None, Some(self))
     }
 
     pub fn set_sex(&self, sex: Sex) -> Result<Response, OpenpgpCardError> {
         let put_sex = commands::put_sex(sex.as_u8());
-        apdu::send_command(self.card(), put_sex, Le::Short, Some(self))
+        apdu::send_command(self.card(), put_sex, Le::None, Some(self))
     }
 
     pub fn set_url(&self, url: &str) -> Result<Response, OpenpgpCardError> {
@@ -811,7 +811,7 @@ impl CardAdmin {
 
         if url.len() < ec.max_len_special_do as usize {
             let put_url = commands::put_url(url.as_bytes().to_vec());
-            apdu::send_command(self.card(), put_url, Le::Short, Some(self))
+            apdu::send_command(self.card(), put_url, Le::None, Some(self))
         } else {
             Err(anyhow!("URL too long").into())
         }

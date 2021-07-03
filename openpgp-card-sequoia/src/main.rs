@@ -94,16 +94,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 let res = oc_admin.set_name("Bar<<Foo")?;
                 println!("set name {:x?}", res);
+                res.check_ok()?;
 
                 let res =
                     oc_admin.set_sex(openpgp_card::Sex::NotApplicable)?;
                 println!("set sex {:x?}", res);
+                res.check_ok()?;
 
                 let res = oc_admin.set_lang("en")?;
                 println!("set lang {:x?}", res);
+                res.check_ok()?;
 
                 let res = oc_admin.set_url("https://keys.openpgp.org")?;
                 println!("set url {:x?}", res);
+                res.check_ok()?;
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
