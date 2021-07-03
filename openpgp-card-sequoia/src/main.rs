@@ -80,11 +80,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         // ---------------------------------------------
         assert_eq!(app_id.ident(), test_card_ident);
 
+        let check = oc.check_pw3();
+        println!("has pw3 been verified yet? {:x?}", check);
+
         oc.factory_reset()?;
 
         match oc.verify_pw3("12345678") {
             Ok(oc_admin) => {
                 println!("pw3 verify ok");
+
+                let check = oc_admin.check_pw3();
+                println!("has pw3 been verified yet? {:x?}", check);
 
                 let res = oc_admin.set_name("Bar<<Foo")?;
                 println!("set name {:x?}", res);
@@ -136,9 +142,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Check that we're still using the expected card
         assert_eq!(app_id.ident(), test_card_ident);
 
+        let check = oc.check_pw1();
+        println!("has pw1/82 been verified yet? {:x?}", check);
+
         match oc.verify_pw1("123456") {
             Ok(oc_user) => {
                 println!("pw1 82 verify ok");
+
+                let check = oc_user.check_pw1();
+                println!("has pw1/82 been verified yet? {:x?}", check);
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
                 let msg = std::fs::read_to_string(TEST_ENC_MSG)

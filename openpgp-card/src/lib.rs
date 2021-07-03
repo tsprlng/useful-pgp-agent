@@ -587,6 +587,11 @@ impl CardBase {
         Err(self)
     }
 
+    pub fn check_pw1(&self) -> Result<Response, OpenpgpCardError> {
+        let verify = commands::verify_pw1_82(vec![]);
+        apdu::send_command(&self.card, verify, Le::None, Some(&self))
+    }
+
     pub fn verify_pw1(self, pin: &str) -> Result<CardUser, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
@@ -601,6 +606,11 @@ impl CardBase {
         }
 
         Err(self)
+    }
+
+    pub fn check_pw3(&self) -> Result<Response, OpenpgpCardError> {
+        let verify = commands::verify_pw3(vec![]);
+        apdu::send_command(&self.card, verify, Le::None, Some(&self))
     }
 
     pub fn verify_pw3(self, pin: &str) -> Result<CardAdmin, CardBase> {
