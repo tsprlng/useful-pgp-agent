@@ -11,7 +11,7 @@ use parse::{
     algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
     cardholder::CardHolder, extended_cap::ExtendedCap, extended_cap::Features,
     extended_length_info::ExtendedLengthInfo, fingerprint,
-    historical::Historical, KeySet,
+    historical::Historical, pw_status::PWStatus, KeySet,
 };
 use tlv::Tlv;
 
@@ -384,8 +384,20 @@ impl CardBase {
         }
     }
 
-    pub fn get_pw_status_bytes() {
-        unimplemented!()
+    /// PW status Bytes
+    pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
+        // get from cached "application related data"
+        let psb = self.ard.find(&Tag::from([0xc4]));
+
+        if let Some(psb) = psb {
+            let pws = PWStatus::try_from(&psb.serialize())?;
+
+            log::debug!("PW Status: {:x?}", pws);
+
+            Ok(pws)
+        } else {
+            Err(anyhow!("Failed to get PW status Bytes.").into())
+        }
     }
 
     pub fn get_fingerprints(

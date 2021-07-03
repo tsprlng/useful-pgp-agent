@@ -12,6 +12,7 @@ pub mod extended_cap;
 pub mod extended_length_info;
 pub mod fingerprint;
 pub mod historical;
+pub mod pw_status;
 
 use anyhow::{anyhow, Error};
 

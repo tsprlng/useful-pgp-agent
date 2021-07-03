@@ -48,6 +48,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let ext = oc.get_extended_capabilities()?;
         println!("extended_capabilities {:#x?}", ext);
 
+        let pws = oc.get_pw_status_bytes()?;
+        println!("PW Status Bytes {:#x?}", pws);
+
         // cardholder
 
         let ch = oc.get_cardholder_related_data()?;
