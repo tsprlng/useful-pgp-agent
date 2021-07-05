@@ -3,31 +3,29 @@
 
 use anyhow::{anyhow, Result};
 
-use crate::apdu;
 use crate::apdu::command::Command;
 use crate::apdu::commands;
-use crate::apdu::Le;
+use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
 use crate::parse::algo_attrs::{Algo, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
+use crate::{apdu, CardCaps};
 use crate::{
-    tlv, CardAdmin, CardUploadableKey, EccKey, EccType, KeyType,
-    PrivateKeyMaterial, RSAKey,
+    tlv, CardUploadableKey, EccKey, EccType, KeyType, PrivateKeyMaterial,
+    RSAKey,
 };
+use pcsc::Card;
 
 /// Upload an explicitly selected Key to the card as a specific KeyType.
 ///
 /// The client needs to make sure that the key is suitable for `key_type`.
 pub(crate) fn upload_key(
-    oca: &CardAdmin,
+    card_app: &CardApp,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
+    algo_list: Option<AlgoInfo>,
 ) -> Result<(), OpenpgpCardError> {
-    // FIXME: the list of algorithms is retrieved multiple times, it should
-    // be cached
-    let algo_list = oca.list_supported_algo()?;
-
     let (algo_cmd, key_cmd) = match key.get_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
             // RSA bitsize
@@ -35,7 +33,7 @@ pub(crate) fn upload_key(
             let rsa_bits =
                 (((rsa_key.get_n().len() * 8 + 31) / 32) * 32) as u16;
 
-            // FIXME: deal with absence of algo list (unwrap!)
+            // FIXME: deal with absence of algo list (don't just unwrap!)
             // Get suitable algorithm from card's list
             let algo =
                 get_card_algo_rsa(algo_list.unwrap(), key_type, rsa_bits);
@@ -71,12 +69,13 @@ pub(crate) fn upload_key(
     };
 
     copy_key_to_card(
-        oca,
+        card_app.card(),
         key_type,
         key.get_ts(),
         key.get_fp(),
         algo_cmd,
         key_cmd,
+        card_app.card_caps(),
     )?;
 
     Ok(())
@@ -369,12 +368,13 @@ fn ecc_algo_attrs_cmd(
 }
 
 fn copy_key_to_card(
-    oca: &CardAdmin,
+    card: &Card,
     key_type: KeyType,
     ts: u64,
     fp: Vec<u8>,
     algo_cmd: Command,
     key_cmd: Command,
+    card_caps: Option<&CardCaps>,
 ) -> Result<(), OpenpgpCardError> {
     let fp_cmd = commands::put_data(&[key_type.get_fingerprint_put_tag()], fp);
 
@@ -391,15 +391,13 @@ fn copy_key_to_card(
 
     // Send all the commands
 
-    let ext = Le::None; // FIXME?!
-
     // FIXME: Only write algo attributes to the card if "extended
     // capabilities" show that they are changeable!
-    apdu::send_command(oca.card(), algo_cmd, ext, Some(oca))?.check_ok()?;
+    apdu::send_command(card, algo_cmd, false, card_caps)?.check_ok()?;
 
-    apdu::send_command(oca.card(), key_cmd, ext, Some(oca))?.check_ok()?;
-    apdu::send_command(oca.card(), fp_cmd, ext, Some(oca))?.check_ok()?;
-    apdu::send_command(oca.card(), time_cmd, ext, Some(oca))?.check_ok()?;
+    apdu::send_command(card, key_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card, fp_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card, time_cmd, false, card_caps)?.check_ok()?;
 
     Ok(())
 }

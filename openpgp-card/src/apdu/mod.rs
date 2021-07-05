@@ -11,7 +11,7 @@ use std::convert::TryFrom;
 use crate::apdu::command::Command;
 use crate::apdu::response::Response;
 use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
-use crate::CardBase;
+use crate::CardCaps;
 
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Le {
@@ -27,11 +27,15 @@ pub(crate) enum Le {
 pub(crate) fn send_command(
     card: &Card,
     cmd: Command,
-    ext: Le,
-    oc: Option<&CardBase>,
+    expect_reply: bool,
+    card_caps: Option<&CardCaps>,
 ) -> Result<Response, OpenpgpCardError> {
-    let mut resp =
-        Response::try_from(send_command_low_level(&card, cmd, ext, oc)?)?;
+    let mut resp = Response::try_from(send_command_low_level(
+        &card,
+        cmd,
+        expect_reply,
+        card_caps,
+    )?)?;
 
     while resp.status()[0] == 0x61 {
         // More data is available for this command from the card
@@ -42,8 +46,8 @@ pub(crate) fn send_command(
         let next = Response::try_from(send_command_low_level(
             &card,
             commands::get_response(),
-            ext,
-            oc,
+            expect_reply,
+            card_caps,
         )?)?;
 
         // FIXME: first check for 0x61xx or 0x9000?
@@ -67,44 +71,44 @@ pub(crate) fn send_command(
 fn send_command_low_level(
     card: &Card,
     cmd: Command,
-    ext: Le,
-    oc: Option<&CardBase>,
+    expect_reply: bool,
+    card_caps: Option<&CardCaps>,
 ) -> Result<Vec<u8>, OpenpgpCardError> {
-    log::trace!(" -> full APDU command: {:x?}", cmd);
-    log::trace!("    serialized: {:x?}", cmd.serialize(ext));
+    let (ext_support, chaining_support, max_cmd_bytes) =
+        if let Some(caps) = card_caps {
+            log::trace!("found card caps data!");
 
-    // default settings
-    let mut ext_support = false;
-    let mut chaining_support = false;
-    let mut chunk_size = 255;
+            (
+                caps.ext_support,
+                caps.chaining_support,
+                caps.max_cmd_bytes as usize,
+            )
+        } else {
+            log::trace!("found NO card caps data!");
 
-    // Get feature configuration from card metadata
-    if let Some(oc) = oc {
-        if let Ok(hist) = oc.get_historical() {
-            if let Some(cc) = hist.get_card_capabilities() {
-                chaining_support = cc.get_command_chaining();
-                ext_support = cc.get_extended_lc_le();
-            }
-        }
-
-        if let Ok(Some(eli)) = oc.get_extended_length_information() {
-            chunk_size = eli.max_command_bytes as usize;
-        }
-    }
+            // default settings
+            (false, false, 255)
+        };
 
     log::trace!(
         "ext le/lc {}, chaining {}, command chunk size {}",
         ext_support,
         chaining_support,
-        chunk_size
+        max_cmd_bytes
     );
 
-    // update Le setting to 'long', if we're using a larger chunk size
-    let ext = match (ext, chunk_size > 0xff) {
-        (Le::None, _) => Le::None,
+    // Set Le to 'long', if we're using an extended chunk size.
+    //
+    // According to the Card spec 3.4.1, pg 47,
+    // 255 is the maximum value for 'Lc' in short mode:
+    // "A short Lc field consists of one byte not set to '00' (1 to 255 dec.)"
+    let ext = match (expect_reply, ext_support && max_cmd_bytes > 0xFF) {
+        (false, _) => Le::None,
         (_, true) => Le::Long,
-        _ => ext,
+        _ => Le::Short,
     };
+
+    log::trace!(" -> full APDU command: {:x?}", cmd);
 
     let buf_size = if !ext_support {
         pcsc::MAX_BUFFER_SIZE
@@ -120,7 +124,7 @@ fn send_command_low_level(
         log::trace!("chained command mode");
 
         // Break up payload into chunks that fit into one command, each
-        let chunks: Vec<_> = cmd.data.chunks(chunk_size).collect();
+        let chunks: Vec<_> = cmd.data.chunks(max_cmd_bytes).collect();
 
         for (i, d) in chunks.iter().enumerate() {
             let last = i == chunks.len() - 1;

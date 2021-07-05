@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::convert::TryFrom;
-
 use anyhow::{anyhow, Result};
 use pcsc::*;
 
-use apdu::{commands, response::Response, Le};
+use apdu::{commands, response::Response};
 use parse::{
     algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
     cardholder::CardHolder, extended_cap::ExtendedCap, extended_cap::Features,
@@ -15,17 +13,25 @@ use parse::{
 };
 use tlv::Tlv;
 
+use crate::card_app::CardApp;
 use crate::errors::{OpenpgpCardError, SmartcardError};
-use crate::tlv::tag::Tag;
-use crate::tlv::TlvEntry;
 use std::ops::Deref;
 
 mod apdu;
 mod card;
+mod card_app;
 pub mod errors;
 mod key_upload;
 mod parse;
 mod tlv;
+
+/// Information about the capabilities of the card.
+/// (feature configuration from card metadata)
+pub(crate) struct CardCaps {
+    pub(crate) ext_support: bool,
+    pub(crate) chaining_support: bool,
+    pub(crate) max_cmd_bytes: u16,
+}
 
 /// Container for a hash value.
 /// These hash values can be signed by the card.
@@ -210,7 +216,7 @@ impl KeyType {
 /// Representation of an opened OpenPGP card in its basic, freshly opened,
 /// state (i.e. no passwords have been verified, default privileges apply).
 pub struct CardBase {
-    card: Card,
+    card_app: CardApp,
 
     // Cache of "application related data".
     //
@@ -280,14 +286,43 @@ impl CardBase {
     /// Open connection to a specific card and select the openpgp applet
     fn open_card(card: Card) -> Result<Self, OpenpgpCardError> {
         let select_openpgp = commands::select_openpgp();
-
-        let resp = apdu::send_command(&card, select_openpgp, Le::Short, None)?;
+        let resp = apdu::send_command(&card, select_openpgp, true, None)?;
 
         if resp.is_ok() {
             // read and cache "application related data"
-            let ard = Self::get_app_data(&card)?;
+            let card_app = CardApp::new(card);
+            let ard = card_app.get_app_data()?;
 
-            Ok(Self { card, ard })
+            // Determine chaining/extended length support from card
+            // metadata and cache this information in CardApp (as a
+            // CardCaps)
+
+            let mut ext_support = false;
+            let mut chaining_support = false;
+
+            if let Ok(hist) = CardApp::get_historical(&ard) {
+                if let Some(cc) = hist.get_card_capabilities() {
+                    chaining_support = cc.get_command_chaining();
+                    ext_support = cc.get_extended_lc_le();
+                }
+            }
+
+            let max_cmd_bytes = if let Ok(Some(eli)) =
+                CardApp::get_extended_length_information(&ard)
+            {
+                eli.max_command_bytes
+            } else {
+                255
+            };
+
+            let caps = CardCaps {
+                ext_support,
+                chaining_support,
+                max_cmd_bytes,
+            };
+            let card_app = card_app.set_caps(caps);
+
+            Ok(Self { card_app, ard })
         } else {
             Err(anyhow!("Couldn't open OpenPGP application").into())
         }
@@ -299,54 +334,22 @@ impl CardBase {
     ///
     /// This is done once, after opening the OpenPGP card applet
     /// (the data is stored in the OpenPGPCard object).
-    fn get_app_data(card: &Card) -> Result<Tlv> {
-        let ad = commands::get_application_data();
-        let resp = apdu::send_command(card, ad, Le::Short, None)?;
-        let entry = TlvEntry::from(resp.data()?, true)?;
-
-        log::trace!(" App data TlvEntry: {:x?}", entry);
-
-        Ok(Tlv(Tag::from([0x6E]), entry))
+    fn get_app_data(&self) -> Result<Tlv> {
+        self.card_app.get_app_data()
     }
 
     pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
-        // get from cached "application related data"
-        let aid = self.ard.find(&Tag::from([0x4F]));
-
-        if let Some(aid) = aid {
-            Ok(ApplicationId::try_from(&aid.serialize()[..])?)
-        } else {
-            Err(anyhow!("Couldn't get Application ID.").into())
-        }
+        CardApp::get_aid(&self.ard)
     }
 
     pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
-        // get from cached "application related data"
-        let hist = self.ard.find(&Tag::from([0x5F, 0x52]));
-
-        if let Some(hist) = hist {
-            log::debug!("Historical bytes: {:x?}", hist);
-            Historical::from(&hist.serialize())
-        } else {
-            Err(anyhow!("Failed to get historical bytes.").into())
-        }
+        CardApp::get_historical(&self.ard)
     }
 
     pub fn get_extended_length_information(
         &self,
     ) -> Result<Option<ExtendedLengthInfo>> {
-        // get from cached "application related data"
-        let eli = self.ard.find(&Tag::from([0x7F, 0x66]));
-
-        log::debug!("Extended length information: {:x?}", eli);
-
-        if let Some(eli) = eli {
-            // The card has returned extended length information
-            Ok(Some(ExtendedLengthInfo::from(&eli.serialize()[..])?))
-        } else {
-            // The card didn't return this (optional) DO. That is ok.
-            Ok(None)
-        }
+        CardApp::get_extended_length_information(&self.ard)
     }
 
     pub fn get_general_feature_management() -> Option<bool> {
@@ -360,61 +363,22 @@ impl CardBase {
     pub fn get_extended_capabilities(
         &self,
     ) -> Result<ExtendedCap, OpenpgpCardError> {
-        // get from cached "application related data"
-        let ecap = self.ard.find(&Tag::from([0xc0]));
-
-        if let Some(ecap) = ecap {
-            Ok(ExtendedCap::try_from(&ecap.serialize()[..])?)
-        } else {
-            Err(anyhow!("Failed to get extended capabilities.").into())
-        }
+        CardApp::get_extended_capabilities(&self.ard)
     }
 
     pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
-        // get from cached "application related data"
-        let aa = self.ard.find(&Tag::from([key_type.get_algorithm_tag()]));
-
-        if let Some(aa) = aa {
-            Algo::try_from(&aa.serialize()[..])
-        } else {
-            Err(anyhow!(
-                "Failed to get algorithm attributes for {:?}.",
-                key_type
-            ))
-        }
+        CardApp::get_algorithm_attributes(&self.ard, key_type)
     }
 
     /// PW status Bytes
     pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
-        // get from cached "application related data"
-        let psb = self.ard.find(&Tag::from([0xc4]));
-
-        if let Some(psb) = psb {
-            let pws = PWStatus::try_from(&psb.serialize())?;
-
-            log::debug!("PW Status: {:x?}", pws);
-
-            Ok(pws)
-        } else {
-            Err(anyhow!("Failed to get PW status Bytes.").into())
-        }
+        CardApp::get_pw_status_bytes(&self.ard)
     }
 
     pub fn get_fingerprints(
         &self,
     ) -> Result<KeySet<fingerprint::Fingerprint>, OpenpgpCardError> {
-        // Get from cached "application related data"
-        let fp = self.ard.find(&Tag::from([0xc5]));
-
-        if let Some(fp) = fp {
-            let fp = fingerprint::from(&fp.serialize())?;
-
-            log::debug!("Fp: {:x?}", fp);
-
-            Ok(fp)
-        } else {
-            Err(anyhow!("Failed to get fingerprints.").into())
-        }
+        CardApp::get_fingerprints(&self.ard)
     }
 
     pub fn get_ca_fingerprints(&self) {
@@ -451,51 +415,17 @@ impl CardBase {
     // --- URL (5f50) ---
 
     pub fn get_url(&self) -> Result<String> {
-        let _eli = self.get_extended_length_information()?;
-
-        // FIXME: figure out Le
-        let resp = apdu::send_command(
-            &self.card,
-            commands::get_url(),
-            Le::Long,
-            Some(self),
-        )?;
-
-        log::trace!(
-            " final response: {:x?}, data len {}",
-            resp,
-            resp.raw_data().len()
-        );
-
-        Ok(String::from_utf8_lossy(resp.data()?).to_string())
+        self.card_app.get_url()
     }
 
     // --- cardholder related data (65) ---
     pub fn get_cardholder_related_data(&self) -> Result<CardHolder> {
-        let crd = commands::cardholder_related_data();
-        let resp = apdu::send_command(&self.card, crd, Le::Short, Some(self))?;
-        resp.check_ok()?;
-
-        CardHolder::try_from(resp.data()?)
+        self.card_app.get_cardholder_related_data()
     }
 
     // --- security support template (7a) ---
     pub fn get_security_support_template(&self) -> Result<Tlv> {
-        let sst = commands::get_security_support_template();
-
-        let ext = self.get_extended_length_information()?.is_some();
-        let ext = if ext { Le::Long } else { Le::Short };
-
-        let resp = apdu::send_command(&self.card, sst, ext, Some(self))?;
-        resp.check_ok()?;
-
-        log::trace!(
-            " final response: {:x?}, data len {}",
-            resp,
-            resp.data()?.len()
-        );
-
-        Tlv::try_from(resp.data()?)
+        self.card_app.get_security_support_template()
     }
 
     // DO "Algorithm Information" (0xFA)
@@ -509,63 +439,14 @@ impl CardBase {
             return Ok(None);
         }
 
-        let resp = apdu::send_command(
-            &self.card,
-            commands::get_algo_list(),
-            Le::Short,
-            Some(self),
-        )?;
-        resp.check_ok()?;
-
-        let ai = AlgoInfo::try_from(resp.data()?)?;
-        Ok(Some(ai))
+        self.card_app.list_supported_algo()
     }
 
     // ----------
 
     /// Delete all state on this OpenPGP card
     pub fn factory_reset(&self) -> Result<()> {
-        // send 4 bad requests to verify pw1
-        // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
-        for _ in 0..4 {
-            let verify = commands::verify_pw1_81([0x40; 8].to_vec());
-            let resp =
-                apdu::send_command(&self.card, verify, Le::None, Some(self))?;
-            if !(resp.status() == [0x69, 0x82]
-                || resp.status() == [0x69, 0x83])
-            {
-                return Err(anyhow!("Unexpected status for reset, at pw1."));
-            }
-        }
-
-        // send 4 bad requests to verify pw3
-        // [apdu 00 20 00 83 08 40 40 40 40 40 40 40 40]
-        for _ in 0..4 {
-            let verify = commands::verify_pw3([0x40; 8].to_vec());
-            let resp =
-                apdu::send_command(&self.card, verify, Le::None, Some(self))?;
-
-            if !(resp.status() == [0x69, 0x82]
-                || resp.status() == [0x69, 0x83])
-            {
-                return Err(anyhow!("Unexpected status for reset, at pw3."));
-            }
-        }
-
-        // terminate_df [apdu 00 e6 00 00]
-        let term = commands::terminate_df();
-        let resp = apdu::send_command(&self.card, term, Le::None, Some(self))?;
-        resp.check_ok()?;
-
-        // activate_file [apdu 00 44 00 00]
-        let act = commands::activate_file();
-        let resp = apdu::send_command(&self.card, act, Le::None, Some(self))?;
-        resp.check_ok()?;
-
-        // FIXME: does the connection need to be re-opened on some cards,
-        // after reset?!
-
-        Ok(())
+        self.card_app.factory_reset()
     }
 
     pub fn verify_pw1_for_signing(
@@ -574,9 +455,7 @@ impl CardBase {
     ) -> Result<CardSign, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
-        let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
-        let res =
-            apdu::send_command(&self.card, verify, Le::None, Some(&self));
+        let res = self.card_app.verify_pw1_for_signing(pin);
 
         if let Ok(resp) = res {
             if resp.is_ok() {
@@ -588,16 +467,13 @@ impl CardBase {
     }
 
     pub fn check_pw1(&self) -> Result<Response, OpenpgpCardError> {
-        let verify = commands::verify_pw1_82(vec![]);
-        apdu::send_command(&self.card, verify, Le::None, Some(&self))
+        self.card_app.check_pw1()
     }
 
     pub fn verify_pw1(self, pin: &str) -> Result<CardUser, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
-        let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
-        let res =
-            apdu::send_command(&self.card, verify, Le::None, Some(&self));
+        let res = self.card_app.verify_pw1(pin);
 
         if let Ok(resp) = res {
             if resp.is_ok() {
@@ -609,16 +485,13 @@ impl CardBase {
     }
 
     pub fn check_pw3(&self) -> Result<Response, OpenpgpCardError> {
-        let verify = commands::verify_pw3(vec![]);
-        apdu::send_command(&self.card, verify, Le::None, Some(&self))
+        self.card_app.check_pw3()
     }
 
     pub fn verify_pw3(self, pin: &str) -> Result<CardAdmin, CardBase> {
         assert!(pin.len() >= 8); // FIXME: Err
 
-        let verify = commands::verify_pw3(pin.as_bytes().to_vec());
-        let res =
-            apdu::send_command(&self.card, verify, Le::None, Some(&self));
+        let res = self.card_app.verify_pw3(pin);
 
         if let Ok(resp) = res {
             if resp.is_ok() {
@@ -648,27 +521,7 @@ impl Deref for CardUser {
 impl CardUser {
     /// Decrypt the ciphertext in `dm`, on the card.
     pub fn decrypt(&self, dm: DecryptMe) -> Result<Vec<u8>, OpenpgpCardError> {
-        match dm {
-            DecryptMe::RSA(message) => {
-                let mut data = vec![0x0];
-                data.extend_from_slice(message);
-
-                // Call the card to decrypt `data`
-                self.pso_decipher(data)
-            }
-            DecryptMe::ECDH(eph) => {
-                // External Public Key
-                let epk = Tlv(Tag(vec![0x86]), TlvEntry::S(eph.to_vec()));
-
-                // Public Key DO
-                let pkdo = Tlv(Tag(vec![0x7f, 0x49]), TlvEntry::C(vec![epk]));
-
-                // Cipher DO
-                let cdo = Tlv(Tag(vec![0xa6]), TlvEntry::C(vec![pkdo]));
-
-                self.pso_decipher(cdo.serialize())
-            }
-        }
+        self.card_app.decrypt(dm)
     }
 
     /// Run decryption operation on the smartcard
@@ -677,13 +530,7 @@ impl CardUser {
         &self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
-        // The OpenPGP card is already connected and PW1 82 has been verified
-        let dec_cmd = commands::decryption(data);
-        let resp =
-            apdu::send_command(&self.card, dec_cmd, Le::Short, Some(self))?;
-        resp.check_ok()?;
-
-        Ok(resp.data().map(|d| d.to_vec())?)
+        self.card_app.pso_decipher(data)
     }
 }
 
@@ -710,33 +557,7 @@ impl CardSign {
         &self,
         hash: Hash,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
-        match hash {
-            Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
-                let tlv = Tlv(
-                    Tag(vec![0x30]),
-                    TlvEntry::C(vec![
-                        Tlv(
-                            Tag(vec![0x30]),
-                            TlvEntry::C(vec![
-                                Tlv(
-                                    Tag(vec![0x06]),
-                                    // unwrapping is ok, for SHA*
-                                    TlvEntry::S(hash.oid().unwrap().to_vec()),
-                                ),
-                                Tlv(Tag(vec![0x05]), TlvEntry::S(vec![])),
-                            ]),
-                        ),
-                        Tlv(
-                            Tag(vec![0x04]),
-                            TlvEntry::S(hash.digest().to_vec()),
-                        ),
-                    ]),
-                );
-
-                Ok(self.compute_digital_signature(tlv.serialize())?)
-            }
-            Hash::EdDSA(d) => Ok(self.compute_digital_signature(d.to_vec())?),
-        }
+        self.card_app.signature_for_hash(hash)
     }
 
     /// Run signing operation on the smartcard
@@ -745,12 +566,7 @@ impl CardSign {
         &self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
-        let dec_cmd = commands::signature(data);
-
-        let resp =
-            apdu::send_command(&self.card, dec_cmd, Le::Short, Some(self))?;
-
-        Ok(resp.data().map(|d| d.to_vec())?)
+        self.card_app.compute_digital_signature(data)
     }
 }
 
@@ -769,10 +585,6 @@ impl Deref for CardAdmin {
 }
 
 impl CardAdmin {
-    pub(crate) fn card(&self) -> &Card {
-        &self.card
-    }
-
     pub fn set_name(&self, name: &str) -> Result<Response, OpenpgpCardError> {
         if name.len() >= 40 {
             return Err(anyhow!("name too long").into());
@@ -783,8 +595,7 @@ impl CardAdmin {
             return Err(anyhow!("Invalid char in name").into());
         };
 
-        let put_name = commands::put_name(name.as_bytes().to_vec());
-        apdu::send_command(self.card(), put_name, Le::None, Some(self))
+        self.card_app.set_name(name)
     }
 
     pub fn set_lang(&self, lang: &str) -> Result<Response, OpenpgpCardError> {
@@ -792,13 +603,11 @@ impl CardAdmin {
             return Err(anyhow!("lang too long").into());
         }
 
-        let put_lang = commands::put_lang(lang.as_bytes().to_vec());
-        apdu::send_command(self.card(), put_lang, Le::None, Some(self))
+        self.card_app.set_lang(lang)
     }
 
     pub fn set_sex(&self, sex: Sex) -> Result<Response, OpenpgpCardError> {
-        let put_sex = commands::put_sex(sex.as_u8());
-        apdu::send_command(self.card(), put_sex, Le::None, Some(self))
+        self.card_app.set_sex(sex)
     }
 
     pub fn set_url(&self, url: &str) -> Result<Response, OpenpgpCardError> {
@@ -810,8 +619,7 @@ impl CardAdmin {
         let ec = self.get_extended_capabilities()?;
 
         if url.len() < ec.max_len_special_do as usize {
-            let put_url = commands::put_url(url.as_bytes().to_vec());
-            apdu::send_command(self.card(), put_url, Le::None, Some(self))
+            self.card_app.set_url(url)
         } else {
             Err(anyhow!("URL too long").into())
         }
@@ -822,7 +630,9 @@ impl CardAdmin {
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), OpenpgpCardError> {
-        key_upload::upload_key(self, key, key_type)
+        let algo_list = self.list_supported_algo()?;
+
+        key_upload::upload_key(&self.card_app, key, key_type, algo_list)
     }
 }
 
