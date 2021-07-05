@@ -59,8 +59,7 @@ impl Command {
         // Le
         match ext {
             // FIXME? (from scd/apdu.c):
-            // /* T=0 does not allow the use of Lc together with L
-            // e;
+            // /* T=0 does not allow the use of Lc together with Le;
             //                  thus disable Le in this case.  */
             //               if (reader_table[slot].is_t0)
             //                 le = -1;
