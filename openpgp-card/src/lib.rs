@@ -286,7 +286,7 @@ impl CardBase {
     /// Open connection to a specific card and select the openpgp applet
     fn open_card(card: Card) -> Result<Self, OpenpgpCardError> {
         let select_openpgp = commands::select_openpgp();
-        let resp = apdu::send_command(&card, select_openpgp, true, None)?;
+        let resp = apdu::send_command(&card, select_openpgp, false, None)?;
 
         if resp.is_ok() {
             // read and cache "application related data"
