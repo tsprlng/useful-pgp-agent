@@ -4,7 +4,7 @@
 use anyhow::{anyhow, Result};
 
 use crate::apdu::command::Command;
-use crate::apdu::commands;
+use crate::apdu::{commands, CardClient};
 use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
 use crate::parse::algo_attrs::{Algo, RsaAttrs};
@@ -21,7 +21,7 @@ use pcsc::Card;
 ///
 /// The client needs to make sure that the key is suitable for `key_type`.
 pub(crate) fn upload_key(
-    card_app: &CardApp,
+    card_app: &mut CardApp,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
@@ -68,6 +68,8 @@ pub(crate) fn upload_key(
         }
     };
 
+    let caps: Option<CardCaps> = card_app.card_caps().map(|c| c.clone());
+
     copy_key_to_card(
         card_app.card(),
         key_type,
@@ -75,7 +77,7 @@ pub(crate) fn upload_key(
         key.get_fp(),
         algo_cmd,
         key_cmd,
-        card_app.card_caps(),
+        caps.as_ref(),
     )?;
 
     Ok(())
@@ -368,7 +370,7 @@ fn ecc_algo_attrs_cmd(
 }
 
 fn copy_key_to_card(
-    card: &Card,
+    card_client: &mut Box<dyn CardClient + Send + Sync>,
     key_type: KeyType,
     ts: u64,
     fp: Vec<u8>,
@@ -393,11 +395,11 @@ fn copy_key_to_card(
 
     // FIXME: Only write algo attributes to the card if "extended
     // capabilities" show that they are changeable!
-    apdu::send_command(card, algo_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card_client, algo_cmd, false, card_caps)?.check_ok()?;
 
-    apdu::send_command(card, key_cmd, false, card_caps)?.check_ok()?;
-    apdu::send_command(card, fp_cmd, false, card_caps)?.check_ok()?;
-    apdu::send_command(card, time_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card_client, key_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card_client, fp_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card_client, time_cmd, false, card_caps)?.check_ok()?;
 
     Ok(())
 }

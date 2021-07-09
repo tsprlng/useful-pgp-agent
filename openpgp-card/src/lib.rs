@@ -13,9 +13,10 @@ use parse::{
 };
 use tlv::Tlv;
 
+use crate::apdu::{CardClient, PcscClient};
 use crate::card_app::CardApp;
 use crate::errors::{OpenpgpCardError, SmartcardError};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 mod apdu;
 mod card;
@@ -27,6 +28,7 @@ mod tlv;
 
 /// Information about the capabilities of the card.
 /// (feature configuration from card metadata)
+#[derive(Clone, Copy)]
 pub(crate) struct CardCaps {
     pub(crate) ext_support: bool,
     pub(crate) chaining_support: bool,
@@ -286,11 +288,16 @@ impl CardBase {
     /// Open connection to a specific card and select the openpgp applet
     fn open_card(card: Card) -> Result<Self, OpenpgpCardError> {
         let select_openpgp = commands::select_openpgp();
-        let resp = apdu::send_command(&card, select_openpgp, false, None)?;
+
+        let card_client = PcscClient::new(card);
+        let mut ccb =
+            Box::new(card_client) as Box<dyn CardClient + Send + Sync>;
+
+        let resp = apdu::send_command(&mut ccb, select_openpgp, false, None)?;
 
         if resp.is_ok() {
             // read and cache "application related data"
-            let card_app = CardApp::new(card);
+            let mut card_app = CardApp::new(ccb);
             let ard = card_app.get_app_data()?;
 
             // Determine chaining/extended length support from card
@@ -334,7 +341,7 @@ impl CardBase {
     ///
     /// This is done once, after opening the OpenPGP card applet
     /// (the data is stored in the OpenPGPCard object).
-    fn get_app_data(&self) -> Result<Tlv> {
+    fn get_app_data(&mut self) -> Result<Tlv> {
         self.card_app.get_app_data()
     }
 
@@ -414,22 +421,22 @@ impl CardBase {
 
     // --- URL (5f50) ---
 
-    pub fn get_url(&self) -> Result<String> {
+    pub fn get_url(&mut self) -> Result<String> {
         self.card_app.get_url()
     }
 
     // --- cardholder related data (65) ---
-    pub fn get_cardholder_related_data(&self) -> Result<CardHolder> {
+    pub fn get_cardholder_related_data(&mut self) -> Result<CardHolder> {
         self.card_app.get_cardholder_related_data()
     }
 
     // --- security support template (7a) ---
-    pub fn get_security_support_template(&self) -> Result<Tlv> {
+    pub fn get_security_support_template(&mut self) -> Result<Tlv> {
         self.card_app.get_security_support_template()
     }
 
     // DO "Algorithm Information" (0xFA)
-    pub fn list_supported_algo(&self) -> Result<Option<AlgoInfo>> {
+    pub fn list_supported_algo(&mut self) -> Result<Option<AlgoInfo>> {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
         let ec = self.get_extended_capabilities()?;
@@ -445,12 +452,12 @@ impl CardBase {
     // ----------
 
     /// Delete all state on this OpenPGP card
-    pub fn factory_reset(&self) -> Result<()> {
+    pub fn factory_reset(&mut self) -> Result<()> {
         self.card_app.factory_reset()
     }
 
     pub fn verify_pw1_for_signing(
-        self,
+        mut self,
         pin: &str,
     ) -> Result<CardSign, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
@@ -466,11 +473,11 @@ impl CardBase {
         Err(self)
     }
 
-    pub fn check_pw1(&self) -> Result<Response, OpenpgpCardError> {
+    pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
         self.card_app.check_pw1()
     }
 
-    pub fn verify_pw1(self, pin: &str) -> Result<CardUser, CardBase> {
+    pub fn verify_pw1(mut self, pin: &str) -> Result<CardUser, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let res = self.card_app.verify_pw1(pin);
@@ -484,11 +491,11 @@ impl CardBase {
         Err(self)
     }
 
-    pub fn check_pw3(&self) -> Result<Response, OpenpgpCardError> {
+    pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
         self.card_app.check_pw3()
     }
 
-    pub fn verify_pw3(self, pin: &str) -> Result<CardAdmin, CardBase> {
+    pub fn verify_pw3(mut self, pin: &str) -> Result<CardAdmin, CardBase> {
         assert!(pin.len() >= 8); // FIXME: Err
 
         let res = self.card_app.verify_pw3(pin);
@@ -518,16 +525,26 @@ impl Deref for CardUser {
     }
 }
 
+/// Allow access to fn of CardBase, through CardUser.
+impl DerefMut for CardUser {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.oc
+    }
+}
+
 impl CardUser {
     /// Decrypt the ciphertext in `dm`, on the card.
-    pub fn decrypt(&self, dm: DecryptMe) -> Result<Vec<u8>, OpenpgpCardError> {
+    pub fn decrypt(
+        &mut self,
+        dm: DecryptMe,
+    ) -> Result<Vec<u8>, OpenpgpCardError> {
         self.card_app.decrypt(dm)
     }
 
     /// Run decryption operation on the smartcard
     /// (7.2.11 PSO: DECIPHER)
     pub(crate) fn pso_decipher(
-        &self,
+        &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         self.card_app.pso_decipher(data)
@@ -540,7 +557,7 @@ pub struct CardSign {
     oc: CardBase,
 }
 
-/// Allow access to fn of OpenPGPCard, through OpenPGPCardUser.
+/// Allow access to fn of CardBase, through CardSign.
 impl Deref for CardSign {
     type Target = CardBase;
 
@@ -549,12 +566,19 @@ impl Deref for CardSign {
     }
 }
 
+/// Allow access to fn of CardBase, through CardSign.
+impl DerefMut for CardSign {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.oc
+    }
+}
+
 // FIXME: depending on the setting in "PW1 Status byte", only one
 // signature can be made after verification for signing
 impl CardSign {
     /// Sign the message in `hash`, on the card.
     pub fn signature_for_hash(
-        &self,
+        &mut self,
         hash: Hash,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         self.card_app.signature_for_hash(hash)
@@ -563,7 +587,7 @@ impl CardSign {
     /// Run signing operation on the smartcard
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
     pub(crate) fn compute_digital_signature(
-        &self,
+        &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         self.card_app.compute_digital_signature(data)
@@ -584,8 +608,18 @@ impl Deref for CardAdmin {
     }
 }
 
+/// Allow access to fn of OpenPGPCard, through OpenPGPCardAdmin.
+impl DerefMut for CardAdmin {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.oc
+    }
+}
+
 impl CardAdmin {
-    pub fn set_name(&self, name: &str) -> Result<Response, OpenpgpCardError> {
+    pub fn set_name(
+        &mut self,
+        name: &str,
+    ) -> Result<Response, OpenpgpCardError> {
         if name.len() >= 40 {
             return Err(anyhow!("name too long").into());
         }
@@ -598,7 +632,10 @@ impl CardAdmin {
         self.card_app.set_name(name)
     }
 
-    pub fn set_lang(&self, lang: &str) -> Result<Response, OpenpgpCardError> {
+    pub fn set_lang(
+        &mut self,
+        lang: &str,
+    ) -> Result<Response, OpenpgpCardError> {
         if lang.len() > 8 {
             return Err(anyhow!("lang too long").into());
         }
@@ -606,11 +643,14 @@ impl CardAdmin {
         self.card_app.set_lang(lang)
     }
 
-    pub fn set_sex(&self, sex: Sex) -> Result<Response, OpenpgpCardError> {
+    pub fn set_sex(&mut self, sex: Sex) -> Result<Response, OpenpgpCardError> {
         self.card_app.set_sex(sex)
     }
 
-    pub fn set_url(&self, url: &str) -> Result<Response, OpenpgpCardError> {
+    pub fn set_url(
+        &mut self,
+        url: &str,
+    ) -> Result<Response, OpenpgpCardError> {
         if url.chars().any(|c| !c.is_ascii()) {
             return Err(anyhow!("Invalid char in url").into());
         }
@@ -626,13 +666,13 @@ impl CardAdmin {
     }
 
     pub fn upload_key(
-        &self,
+        &mut self,
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), OpenpgpCardError> {
         let algo_list = self.list_supported_algo()?;
 
-        key_upload::upload_key(&self.card_app, key, key_type, algo_list)
+        key_upload::upload_key(&mut self.card_app, key, key_type, algo_list)
     }
 }
 

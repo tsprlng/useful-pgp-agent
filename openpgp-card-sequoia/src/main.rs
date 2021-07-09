@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
-        let oc = CardBase::open_by_ident(&test_card_ident)?;
+        let mut oc = CardBase::open_by_ident(&test_card_ident)?;
 
         // card metadata
 
@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         oc.factory_reset()?;
 
         match oc.verify_pw3("12345678") {
-            Ok(oc_admin) => {
+            Ok(mut oc_admin) => {
                 println!("pw3 verify ok");
 
                 let check = oc_admin.check_pw3();
@@ -112,14 +112,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 openpgp_card_sequoia::upload_from_cert_yolo(
-                    &oc_admin,
+                    &mut oc_admin,
                     &cert,
                     KeyType::Decryption,
                     None,
                 )?;
 
                 openpgp_card_sequoia::upload_from_cert_yolo(
-                    &oc_admin,
+                    &mut oc_admin,
                     &cert,
                     KeyType::Signing,
                     None,
@@ -140,7 +140,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
 
-        let oc = CardBase::open_by_ident(&test_card_ident)?;
+        let mut oc = CardBase::open_by_ident(&test_card_ident)?;
         let app_id = oc.get_aid()?;
 
         // Check that we're still using the expected card
@@ -150,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("has pw1/82 been verified yet? {:x?}", check);
 
         match oc.verify_pw1("123456") {
-            Ok(oc_user) => {
+            Ok(mut oc_user) => {
                 println!("pw1 82 verify ok");
 
                 let check = oc_user.check_pw1();
@@ -163,7 +163,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("{:?}", msg);
 
                 let res = openpgp_card_sequoia::decrypt(
-                    &oc_user,
+                    &mut oc_user,
                     &cert,
                     msg.into_bytes(),
                 )?;
@@ -183,14 +183,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
-            Ok(oc_user) => {
+            Ok(mut oc_user) => {
                 println!("pw1 81 verify ok");
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 let text = "Hello world, I am signed.";
                 let res = openpgp_card_sequoia::sign(
-                    &oc_user,
+                    &mut oc_user,
                     &cert,
                     &mut text.as_bytes(),
                 );

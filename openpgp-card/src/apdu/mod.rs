@@ -5,6 +5,7 @@ pub mod command;
 pub mod commands;
 pub mod response;
 
+use anyhow::Result;
 use pcsc::Card;
 use std::convert::TryFrom;
 
@@ -25,13 +26,13 @@ pub(crate) enum Le {
 /// If the reply is truncated, this fn assembles all the parts and returns
 /// them as one aggregated Response.
 pub(crate) fn send_command(
-    card: &Card,
+    card_client: &mut Box<dyn CardClient + Send + Sync>,
     cmd: Command,
     expect_reply: bool,
     card_caps: Option<&CardCaps>,
 ) -> Result<Response, OpenpgpCardError> {
     let mut resp = Response::try_from(send_command_low_level(
-        &card,
+        card_client,
         cmd,
         expect_reply,
         card_caps,
@@ -44,7 +45,7 @@ pub(crate) fn send_command(
 
         // Get additional data
         let next = Response::try_from(send_command_low_level(
-            &card,
+            card_client,
             commands::get_response(),
             expect_reply,
             card_caps,
@@ -69,7 +70,7 @@ pub(crate) fn send_command(
 /// If the response is chained, this fn only returns one chunk, the caller
 /// needs take care of chained responses
 fn send_command_low_level(
-    card: &Card,
+    card_client: &mut Box<dyn CardClient + Send + Sync>,
     cmd: Command,
     expect_reply: bool,
     card_caps: Option<&CardCaps>,
@@ -116,8 +117,6 @@ fn send_command_low_level(
         pcsc::MAX_BUFFER_SIZE_EXTENDED
     };
 
-    let mut resp_buffer = vec![0; buf_size];
-
     if chaining_support && !cmd.data.is_empty() {
         // Send command in chained mode
 
@@ -139,12 +138,7 @@ fn send_command_low_level(
                 .map_err(OpenpgpCardError::InternalError)?;
             log::trace!(" -> chunked APDU command: {:x?}", &serialized);
 
-            let resp =
-                card.transmit(&serialized, &mut resp_buffer).map_err(|e| {
-                    OpenpgpCardError::Smartcard(SmartcardError::Error(
-                        format!("Transmit failed: {:?}", e),
-                    ))
-                })?;
+            let resp = card_client.transmit(&serialized, buf_size)?;
 
             log::trace!(" <- APDU chunk response: {:x?}", &resp);
 
@@ -170,20 +164,45 @@ fn send_command_low_level(
                 // chaining is not supported."
             } else {
                 // this is the last Response in the chain -> return
-                return Ok(resp.to_vec());
+                return Ok(resp);
             }
         }
         unreachable!("This state should be unreachable");
     } else {
         let serialized = cmd.serialize(ext)?;
 
-        let resp =
-            card.transmit(&serialized, &mut resp_buffer).map_err(|e| {
-                OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
-                    "Transmit failed: {:?}",
-                    e
-                )))
-            })?;
+        let resp = card_client.transmit(&serialized, buf_size)?;
+
+        log::trace!(" <- APDU response: {:x?}", resp);
+
+        Ok(resp)
+    }
+}
+
+pub trait CardClient {
+    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>>;
+}
+
+pub struct PcscClient {
+    card: Card,
+}
+
+impl PcscClient {
+    pub fn new(card: Card) -> Self {
+        Self { card }
+    }
+}
+
+impl CardClient for PcscClient {
+    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>> {
+        let mut resp_buffer = vec![0; buf_size];
+
+        let resp = self.card.transmit(cmd, &mut resp_buffer).map_err(|e| {
+            OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
+                "Transmit failed: {:?}",
+                e
+            )))
+        })?;
 
         log::trace!(" <- APDU response: {:x?}", resp);
 

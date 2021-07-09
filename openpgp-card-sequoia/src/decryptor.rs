@@ -22,7 +22,7 @@ use crate::PublicKey;
 
 pub(crate) struct CardDecryptor<'a> {
     /// The OpenPGP card (authenticated to allow decryption operations)
-    ocu: &'a CardUser,
+    ocu: &'a mut CardUser,
 
     /// The matching public key for the card's decryption key
     public: PublicKey,
@@ -34,7 +34,7 @@ impl<'a> CardDecryptor<'a> {
     /// An Error is returned if no match between the card's decryption
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        ocu: &'a CardUser,
+        ocu: &'a mut CardUser,
         cert: &Cert,
         policy: &dyn Policy,
     ) -> Result<CardDecryptor<'a>, OpenpgpCardError> {

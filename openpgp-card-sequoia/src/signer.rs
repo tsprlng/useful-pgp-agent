@@ -18,7 +18,7 @@ use crate::PublicKey;
 
 pub(crate) struct CardSigner<'a> {
     /// The OpenPGP card (authenticated to allow signing operations)
-    ocu: &'a CardSign,
+    ocu: &'a mut CardSign,
 
     /// The matching public key for the card's signing key
     public: PublicKey,
@@ -30,7 +30,7 @@ impl<'a> CardSigner<'a> {
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        ocs: &'a CardSign,
+        ocs: &'a mut CardSign,
         cert: &openpgp::Cert,
         policy: &dyn Policy,
     ) -> Result<CardSigner<'a>, OpenpgpCardError> {
