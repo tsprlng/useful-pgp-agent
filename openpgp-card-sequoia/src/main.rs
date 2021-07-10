@@ -24,7 +24,6 @@ const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
 
 const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
 
-// #[tokio::main]
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 

@@ -1,17 +1,17 @@
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
+use lazy_static::lazy_static;
 use sequoia_ipc::assuan::{Client, Response};
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
-use lazy_static::lazy_static;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::OpenpgpCardError;
 use openpgp_card::{CardBase, CardCaps, CardClient};
 
 lazy_static! {
     pub(crate) static ref RT: Mutex<Runtime> =
-        { Mutex::new(tokio::runtime::Runtime::new().unwrap()) };
+        Mutex::new(tokio::runtime::Runtime::new().unwrap());
 }
 
 pub struct ScdClient {
@@ -22,19 +22,13 @@ impl ScdClient {
     /// Create a CardBase object that uses an scdaemon instance as its
     /// backend.
     pub fn open_scdc(socket: &str) -> Result<CardBase, OpenpgpCardError> {
-        println!("open_scdc");
-
         let card_client = ScdClient::new(socket)?;
-
-        let ccb = Box::new(card_client) as Box<dyn CardClient + Send + Sync>;
-
-        println!("get ard");
+        let card_client_box =
+            Box::new(card_client) as Box<dyn CardClient + Send + Sync>;
 
         // read and cache "application related data"
-        let mut card_app = CardApp::new(ccb);
+        let mut card_app = CardApp::new(card_client_box);
         let ard = card_app.get_app_data()?;
-
-        println!("got ard");
 
         // Determine chaining/extended length support from card
         // metadata and cache this information in CardApp (as a
@@ -59,6 +53,7 @@ impl ScdClient {
         };
 
         let caps = CardCaps::new(ext_support, chaining_support, max_cmd_bytes);
+
         let card_app = card_app.set_caps(caps);
 
         Ok(CardBase::new(card_app, ard))
@@ -69,47 +64,36 @@ impl ScdClient {
         let client = Arc::new(Mutex::new(client));
         Ok(Self { client })
     }
+}
 
-    async fn transmit_async(&mut self, cmd: &[u8]) -> Result<Vec<u8>> {
+impl CardClient for ScdClient {
+    fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>> {
         let hex = hex::encode(cmd);
 
         let mut client = self.client.lock().unwrap();
 
-        let mut res = None;
+        let send = format!("APDU {}\n", hex);
+        println!("send: '{}'", send);
+        client.send(send)?;
 
-        {
-            let send = format!("APDU {}\n", hex);
-            println!("send: '{}'", send);
-            client.send(send)?;
+        let mut rt = RT.lock().unwrap();
 
-            while let Some(response) = client.next().await {
-                println!("res: {:?}", response);
-                if let Ok(Response::Data { partial }) = response {
-                    res = Some(partial);
+        while let Some(response) = rt.block_on(client.next()) {
+            println!("res: {:x?}", response);
+            if let Ok(Response::Data { partial }) = response {
+                let res = partial;
 
-                    // drop remaining lines
-                    while let Some(_) = client.next().await {}
-
-                    break;
+                // drop remaining lines
+                while let Some(drop) = rt.block_on(client.next()) {
+                    println!("drop: {:x?}", drop);
                 }
+
+                println!();
+
+                return Ok(res);
             }
         }
 
-        match res {
-            Some(s) => Ok(s),
-            None => Err(anyhow!("no response found")),
-        }
-    }
-}
-
-impl CardClient for ScdClient {
-    fn transmit(&mut self, cmd: &[u8], _buf_size: usize) -> Result<Vec<u8>> {
-        let mut res = None;
-
-        {
-            res = Some(RT.lock().unwrap().block_on(self.transmit_async(cmd)));
-        }
-
-        res.unwrap()
+        Err(anyhow!("no response found"))
     }
 }

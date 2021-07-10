@@ -26,8 +26,6 @@ pub(crate) fn upload_key(
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
 ) -> Result<(), OpenpgpCardError> {
-    println!("upload key");
-
     let (algo_cmd, key_cmd) = match key.get_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
             // RSA bitsize
