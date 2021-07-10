@@ -1,0 +1,15 @@
+[package]
+name = "openpgp-card-scdc"
+description = "Experimental SCDaemon Client, intended for use in the openpgp-card crate"
+version = "0.0.1"
+edition = "2018"
+
+[dependencies]
+openpgp-card = { path = "../openpgp-card" }
+sequoia-ipc = { path = "../../sequoia/ipc" }
+libc = "0.2"
+hex = "0.4"
+anyhow = "1"
+futures = "0.3"
+tokio = "0.2"
+lazy_static = "1.4"

@@ -12,7 +12,7 @@ use std::convert::TryFrom;
 use crate::apdu::command::Command;
 use crate::apdu::response::Response;
 use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
-use crate::CardCaps;
+use crate::{CardCaps, CardClient};
 
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Le {
@@ -177,10 +177,6 @@ fn send_command_low_level(
 
         Ok(resp)
     }
-}
-
-pub trait CardClient {
-    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>>;
 }
 
 pub struct PcscClient {

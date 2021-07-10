@@ -28,14 +28,13 @@ use crate::errors::OpenpgpCardError;
 use crate::tlv::tag::Tag;
 use crate::tlv::TlvEntry;
 
-use crate::apdu::CardClient;
 use crate::Hash;
 use crate::{
-    apdu, key_upload, parse, tlv, CardCaps, CardUploadableKey, DecryptMe,
-    KeyType, Sex,
+    apdu, key_upload, parse, tlv, CardCaps, CardClient, CardUploadableKey,
+    DecryptMe, KeyType, Sex,
 };
 
-pub(crate) struct CardApp {
+pub struct CardApp {
     card_client: Box<dyn CardClient + Send + Sync>,
     card_caps: Option<CardCaps>,
 }

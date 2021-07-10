@@ -9,18 +9,22 @@ use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::{CardBase, KeyType};
+use openpgp_card_scdc::ScdClient;
 
 // Filename of test key and test message to use:
 
-// const TEST_KEY_PATH: &str = "example/test4k.sec";
-// const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
+const TEST_KEY_PATH: &str = "example/test4k.sec";
+const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
 
 // const TEST_KEY_PATH: &str = "example/nist521.sec";
 // const TEST_ENC_MSG: &str = "example/encrypted_to_nist521.asc";
 
-const TEST_KEY_PATH: &str = "example/test25519.sec";
-const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
+// const TEST_KEY_PATH: &str = "example/test25519.sec";
+// const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
 
+const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
+
+// #[tokio::main]
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -29,7 +33,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
-        let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        let mut oc = ScdClient::open_scdc(SOCKET)?;
 
         // card metadata
 
@@ -140,7 +145,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
 
-        let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        let mut oc = ScdClient::open_scdc(SOCKET)?;
+
         let app_id = oc.get_aid()?;
 
         // Check that we're still using the expected card
@@ -179,7 +186,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let oc = CardBase::open_by_ident(&test_card_ident)?;
+        // let oc = CardBase::open_by_ident(&test_card_ident)?;
+        let mut oc = ScdClient::open_scdc(SOCKET)?;
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {

@@ -4,13 +4,13 @@
 use anyhow::{anyhow, Result};
 
 use crate::apdu::command::Command;
-use crate::apdu::{commands, CardClient};
+use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
 use crate::parse::algo_attrs::{Algo, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{apdu, CardCaps};
+use crate::{apdu, CardCaps, CardClient};
 use crate::{
     tlv, CardUploadableKey, EccKey, EccType, KeyType, PrivateKeyMaterial,
     RSAKey,
@@ -26,6 +26,8 @@ pub(crate) fn upload_key(
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
 ) -> Result<(), OpenpgpCardError> {
+    println!("upload key");
+
     let (algo_cmd, key_cmd) = match key.get_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
             // RSA bitsize

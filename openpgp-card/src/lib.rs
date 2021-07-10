@@ -13,26 +13,44 @@ use parse::{
 };
 use tlv::Tlv;
 
-use crate::apdu::{CardClient, PcscClient};
+use crate::apdu::PcscClient;
 use crate::card_app::CardApp;
 use crate::errors::{OpenpgpCardError, SmartcardError};
 use std::ops::{Deref, DerefMut};
 
 mod apdu;
 mod card;
-mod card_app;
+pub mod card_app;
 pub mod errors;
 mod key_upload;
 mod parse;
 mod tlv;
 
+pub trait CardClient {
+    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>>;
+}
+
 /// Information about the capabilities of the card.
 /// (feature configuration from card metadata)
 #[derive(Clone, Copy)]
-pub(crate) struct CardCaps {
+pub struct CardCaps {
     pub(crate) ext_support: bool,
     pub(crate) chaining_support: bool,
     pub(crate) max_cmd_bytes: u16,
+}
+
+impl CardCaps {
+    pub fn new(
+        ext_support: bool,
+        chaining_support: bool,
+        max_cmd_bytes: u16,
+    ) -> CardCaps {
+        Self {
+            ext_support,
+            chaining_support,
+            max_cmd_bytes,
+        }
+    }
 }
 
 /// Container for a hash value.
@@ -228,6 +246,10 @@ pub struct CardBase {
 }
 
 impl CardBase {
+    pub fn new(card_app: CardApp, ard: Tlv) -> Self {
+        Self { card_app, ard }
+    }
+
     /// Get all cards that can be opened as an OpenPGP card applet
     pub fn list_cards() -> Result<Vec<Self>> {
         let cards = card::get_cards().map_err(|err| anyhow!(err))?;
