@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
 use lazy_static::lazy_static;
