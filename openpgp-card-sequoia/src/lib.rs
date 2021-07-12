@@ -24,6 +24,7 @@ use openpgp_card::{
     errors::OpenpgpCardError, CardAdmin, CardSign, CardUploadableKey,
     CardUser, EccKey, EccType, KeyType, PrivateKeyMaterial, RSAKey,
 };
+use std::sync::{Arc, Mutex};
 
 mod decryptor;
 mod signer;
@@ -282,7 +283,7 @@ pub fn decrypt(
 }
 
 pub fn sign(
-    ocu: &mut CardSign,
+    ocu: Arc<Mutex<CardSign>>,
     cert: &sequoia_openpgp::Cert,
     input: &mut dyn io::Read,
 ) -> Result<String> {

@@ -10,6 +10,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::{CardBase, KeyType};
 use openpgp_card_scdc::ScdClient;
+use std::sync::{Arc, Mutex};
 
 // Filename of test key and test message to use:
 
@@ -197,7 +198,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 let text = "Hello world, I am signed.";
                 let res = openpgp_card_sequoia::sign(
-                    &mut oc_user,
+                    Arc::new(Mutex::new(oc_user)),
                     &cert,
                     &mut text.as_bytes(),
                 );

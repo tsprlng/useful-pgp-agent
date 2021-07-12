@@ -15,27 +15,28 @@ use openpgp_card::CardSign;
 use openpgp_card::Hash;
 
 use crate::PublicKey;
+use std::sync::{Arc, Mutex};
 
-pub(crate) struct CardSigner<'a> {
+pub(crate) struct CardSigner {
     /// The OpenPGP card (authenticated to allow signing operations)
-    ocu: &'a mut CardSign,
+    ocu: Arc<Mutex<CardSign>>,
 
     /// The matching public key for the card's signing key
     public: PublicKey,
 }
 
-impl<'a> CardSigner<'a> {
+impl CardSigner {
     /// Try to create a CardSigner.
     ///
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        ocs: &'a mut CardSign,
+        cs: Arc<Mutex<CardSign>>,
         cert: &openpgp::Cert,
         policy: &dyn Policy,
-    ) -> Result<CardSigner<'a>, OpenpgpCardError> {
+    ) -> Result<CardSigner, OpenpgpCardError> {
         // Get the fingerprint for the signing key from the card.
-        let fps = ocs.get_fingerprints()?;
+        let fps = cs.lock().unwrap().get_fingerprints()?;
         let fp = fps.signature();
 
         if let Some(fp) = fp {
@@ -58,7 +59,7 @@ impl<'a> CardSigner<'a> {
                 let public = keys[0].clone();
 
                 Ok(CardSigner {
-                    ocu: ocs,
+                    ocu: cs,
                     public: public.role_as_unspecified().clone(),
                 })
             } else {
@@ -75,7 +76,7 @@ impl<'a> CardSigner<'a> {
     }
 }
 
-impl<'a> crypto::Signer for CardSigner<'a> {
+impl<'a> crypto::Signer for CardSigner {
     fn public(&self) -> &PublicKey {
         &self.public
     }
@@ -98,28 +99,22 @@ impl<'a> crypto::Signer for CardSigner<'a> {
                 PublicKeyAlgorithm::RSAEncryptSign,
                 mpi::PublicKey::RSA { .. },
             ) => {
-                let sig = match hash_algo {
-                    openpgp::types::HashAlgorithm::SHA256 => {
-                        let hash =
-                            Hash::SHA256(digest.try_into().map_err(|_| {
-                                anyhow!("invalid slice length")
-                            })?);
-                        self.ocu.signature_for_hash(hash)?
-                    }
-                    openpgp::types::HashAlgorithm::SHA384 => {
-                        let hash =
-                            Hash::SHA384(digest.try_into().map_err(|_| {
-                                anyhow!("invalid slice length")
-                            })?);
-                        self.ocu.signature_for_hash(hash)?
-                    }
-                    openpgp::types::HashAlgorithm::SHA512 => {
-                        let hash =
-                            Hash::SHA512(digest.try_into().map_err(|_| {
-                                anyhow!("invalid slice length")
-                            })?);
-                        self.ocu.signature_for_hash(hash)?
-                    }
+                let hash = match hash_algo {
+                    openpgp::types::HashAlgorithm::SHA256 => Hash::SHA256(
+                        digest
+                            .try_into()
+                            .map_err(|_| anyhow!("invalid slice length"))?,
+                    ),
+                    openpgp::types::HashAlgorithm::SHA384 => Hash::SHA384(
+                        digest
+                            .try_into()
+                            .map_err(|_| anyhow!("invalid slice length"))?,
+                    ),
+                    openpgp::types::HashAlgorithm::SHA512 => Hash::SHA512(
+                        digest
+                            .try_into()
+                            .map_err(|_| anyhow!("invalid slice length"))?,
+                    ),
                     _ => {
                         return Err(anyhow!(
                             "Unsupported hash algorithm for RSA {:?}",
@@ -128,12 +123,21 @@ impl<'a> crypto::Signer for CardSigner<'a> {
                     }
                 };
 
+                let cs = self.ocu.clone();
+                let mut cs = cs.lock().unwrap();
+
+                let sig = cs.signature_for_hash(hash)?;
+
                 let mpi = mpi::MPI::new(&sig[..]);
                 Ok(mpi::Signature::RSA { s: mpi })
             }
             (PublicKeyAlgorithm::EdDSA, mpi::PublicKey::EdDSA { .. }) => {
                 let hash = Hash::EdDSA(digest);
-                let sig = self.ocu.signature_for_hash(hash)?;
+
+                let cs = self.ocu.clone();
+                let mut cs = cs.lock().unwrap();
+
+                let sig = cs.signature_for_hash(hash)?;
 
                 let r = mpi::MPI::new(&sig[..32]);
                 let s = mpi::MPI::new(&sig[32..]);
