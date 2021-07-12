@@ -10,12 +10,11 @@ use crate::errors::OpenpgpCardError;
 use crate::parse::algo_attrs::{Algo, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{apdu, CardCaps, CardClient};
+use crate::{apdu, CardCaps, CardClientBox};
 use crate::{
     tlv, CardUploadableKey, EccKey, EccType, KeyType, PrivateKeyMaterial,
     RSAKey,
 };
-use pcsc::Card;
 
 /// Upload an explicitly selected Key to the card as a specific KeyType.
 ///
@@ -370,7 +369,7 @@ fn ecc_algo_attrs_cmd(
 }
 
 fn copy_key_to_card(
-    card_client: &mut Box<dyn CardClient + Send + Sync>,
+    card_client: &mut CardClientBox,
     key_type: KeyType,
     ts: u64,
     fp: Vec<u8>,

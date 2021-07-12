@@ -13,34 +13,28 @@ use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 
 use anyhow::{anyhow, Result};
-use pcsc::*;
 
-use apdu::{commands, response::Response};
-use parse::{
+use crate::apdu::{commands, response::Response};
+use crate::errors::OpenpgpCardError;
+use crate::parse::{
     algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
     cardholder::CardHolder, extended_cap::ExtendedCap,
     extended_length_info::ExtendedLengthInfo, fingerprint,
     historical::Historical, pw_status::PWStatus, KeySet,
 };
-use tlv::Tlv;
-
-use crate::errors::OpenpgpCardError;
-use crate::tlv::tag::Tag;
-use crate::tlv::TlvEntry;
-
-use crate::Hash;
+use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, key_upload, parse, tlv, CardCaps, CardClient, CardUploadableKey,
-    DecryptMe, KeyType, Sex,
+    apdu, key_upload, parse, tlv, CardCaps, CardClientBox, CardUploadableKey,
+    DecryptMe, Hash, KeyType, Sex,
 };
 
 pub struct CardApp {
-    card_client: Box<dyn CardClient + Send + Sync>,
+    card_client: CardClientBox,
     card_caps: Option<CardCaps>,
 }
 
 impl CardApp {
-    pub fn new(card_client: Box<dyn CardClient + Send + Sync>) -> Self {
+    pub fn new(card_client: CardClientBox) -> Self {
         Self {
             card_client,
             card_caps: None,
@@ -54,7 +48,7 @@ impl CardApp {
         }
     }
 
-    pub fn card(&mut self) -> &mut Box<dyn CardClient + Send + Sync> {
+    pub fn card(&mut self) -> &mut CardClientBox {
         &mut self.card_client
     }
 

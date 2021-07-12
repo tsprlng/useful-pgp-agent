@@ -30,6 +30,8 @@ pub trait CardClient {
     fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>>;
 }
 
+pub type CardClientBox = Box<dyn CardClient + Send + Sync>;
+
 /// Information about the capabilities of the card.
 /// (feature configuration from card metadata)
 #[derive(Clone, Copy)]
@@ -250,12 +252,12 @@ impl CardBase {
         Self { card_app, ard }
     }
 
-    /// Get all cards that can be opened as an OpenPGP card applet
-    pub fn list_cards() -> Result<Vec<Self>> {
+    /// Get all cards that can be opened as an OpenPGP card applet via pcsc
+    pub fn list_cards_pcsc() -> Result<Vec<Self>> {
         let cards = card::get_cards().map_err(|err| anyhow!(err))?;
         let ocs: Vec<_> = cards
             .into_iter()
-            .map(Self::open_card)
+            .map(PcscClient::open)
             .map(|oc| oc.ok())
             .flatten()
             .collect();
@@ -267,7 +269,7 @@ impl CardBase {
     ///
     /// The ident is constructed as a concatenation of manufacturer
     /// id, a colon, and the card serial. Example: "1234:5678ABCD".
-    pub fn open_by_ident(ident: &str) -> Result<Self, OpenpgpCardError> {
+    pub fn open_by_ident_pcsc(ident: &str) -> Result<Self, OpenpgpCardError> {
         let cards = card::get_cards().map_err(|e| {
             OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
                 "{:?}",
@@ -276,7 +278,7 @@ impl CardBase {
         })?;
 
         for card in cards {
-            let res = Self::open_card(card);
+            let res = PcscClient::open(card);
             if let Ok(opened_card) = res {
                 let res = opened_card.get_aid();
                 if let Ok(aid) = res {
@@ -293,7 +295,7 @@ impl CardBase {
     }
 
     /// Open connection to some card and select the openpgp applet
-    pub fn open_yolo() -> Result<Self, OpenpgpCardError> {
+    pub fn open_yolo_pcsc() -> Result<Self, OpenpgpCardError> {
         let mut cards = card::get_cards().map_err(|e| {
             OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
                 "{:?}",
@@ -304,57 +306,46 @@ impl CardBase {
         // randomly use the first card in the list
         let card = cards.swap_remove(0);
 
-        Self::open_card(card)
+        PcscClient::open(card)
     }
 
-    /// Open connection to a specific card and select the openpgp applet
-    fn open_card(card: Card) -> Result<Self, OpenpgpCardError> {
-        let select_openpgp = commands::select_openpgp();
+    /// Set up connection (cache "application related data") to a
+    /// CardClient, on which the openpgp applet has already been opened.
+    pub fn open_card(ccb: CardClientBox) -> Result<Self, OpenpgpCardError> {
+        // read and cache "application related data"
+        let mut card_app = CardApp::new(ccb);
+        let ard = card_app.get_app_data()?;
 
-        let card_client = PcscClient::new(card);
-        let mut ccb =
-            Box::new(card_client) as Box<dyn CardClient + Send + Sync>;
+        // Determine chaining/extended length support from card
+        // metadata and cache this information in CardApp (as a
+        // CardCaps)
 
-        let resp = apdu::send_command(&mut ccb, select_openpgp, false, None)?;
+        let mut ext_support = false;
+        let mut chaining_support = false;
 
-        if resp.is_ok() {
-            // read and cache "application related data"
-            let mut card_app = CardApp::new(ccb);
-            let ard = card_app.get_app_data()?;
-
-            // Determine chaining/extended length support from card
-            // metadata and cache this information in CardApp (as a
-            // CardCaps)
-
-            let mut ext_support = false;
-            let mut chaining_support = false;
-
-            if let Ok(hist) = CardApp::get_historical(&ard) {
-                if let Some(cc) = hist.get_card_capabilities() {
-                    chaining_support = cc.get_command_chaining();
-                    ext_support = cc.get_extended_lc_le();
-                }
+        if let Ok(hist) = CardApp::get_historical(&ard) {
+            if let Some(cc) = hist.get_card_capabilities() {
+                chaining_support = cc.get_command_chaining();
+                ext_support = cc.get_extended_lc_le();
             }
-
-            let max_cmd_bytes = if let Ok(Some(eli)) =
-                CardApp::get_extended_length_information(&ard)
-            {
-                eli.max_command_bytes
-            } else {
-                255
-            };
-
-            let caps = CardCaps {
-                ext_support,
-                chaining_support,
-                max_cmd_bytes,
-            };
-            let card_app = card_app.set_caps(caps);
-
-            Ok(Self { card_app, ard })
-        } else {
-            Err(anyhow!("Couldn't open OpenPGP application").into())
         }
+
+        let max_cmd_bytes = if let Ok(Some(eli)) =
+            CardApp::get_extended_length_information(&ard)
+        {
+            eli.max_command_bytes
+        } else {
+            255
+        };
+
+        let caps = CardCaps {
+            ext_support,
+            chaining_support,
+            max_cmd_bytes,
+        };
+        let card_app = card_app.set_caps(caps);
+
+        Ok(Self { card_app, ard })
     }
 
     // --- application data ---

@@ -5,14 +5,14 @@ pub mod command;
 pub mod commands;
 pub mod response;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use pcsc::Card;
 use std::convert::TryFrom;
 
 use crate::apdu::command::Command;
 use crate::apdu::response::Response;
 use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
-use crate::{CardCaps, CardClient};
+use crate::{CardBase, CardCaps, CardClient, CardClientBox};
 
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Le {
@@ -26,7 +26,7 @@ pub(crate) enum Le {
 /// If the reply is truncated, this fn assembles all the parts and returns
 /// them as one aggregated Response.
 pub(crate) fn send_command(
-    card_client: &mut Box<dyn CardClient + Send + Sync>,
+    card_client: &mut CardClientBox,
     cmd: Command,
     expect_reply: bool,
     card_caps: Option<&CardCaps>,
@@ -70,7 +70,7 @@ pub(crate) fn send_command(
 /// If the response is chained, this fn only returns one chunk, the caller
 /// needs take care of chained responses
 fn send_command_low_level(
-    card_client: &mut Box<dyn CardClient + Send + Sync>,
+    card_client: &mut CardClientBox,
     cmd: Command,
     expect_reply: bool,
     card_caps: Option<&CardCaps>,
@@ -184,8 +184,26 @@ pub struct PcscClient {
 }
 
 impl PcscClient {
-    pub fn new(card: Card) -> Self {
+    fn new(card: Card) -> Self {
         Self { card }
+    }
+
+    /// Take a PCSC Card object and try to open the OpenPGP card applet.
+    /// If successful, wrap and return the resulting CardClient as a
+    /// CardBase object (which involves caching the "application related
+    /// data").
+    pub fn open(card: Card) -> Result<CardBase, OpenpgpCardError> {
+        let card_client = PcscClient::new(card);
+        let mut ccb = Box::new(card_client) as CardClientBox;
+
+        let select_openpgp = commands::select_openpgp();
+        let resp = send_command(&mut ccb, select_openpgp, false, None)?;
+
+        if resp.is_ok() {
+            CardBase::open_card(ccb)
+        } else {
+            Err(anyhow!("Couldn't open OpenPGP application").into())
+        }
     }
 }
 

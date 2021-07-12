@@ -5,9 +5,8 @@ use sequoia_ipc::assuan::{Client, Response};
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
-use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::{CardBase, CardCaps, CardClient};
+use openpgp_card::{CardBase, CardClient, CardClientBox};
 
 lazy_static! {
     pub(crate) static ref RT: Mutex<Runtime> =
@@ -23,40 +22,9 @@ impl ScdClient {
     /// backend.
     pub fn open_scdc(socket: &str) -> Result<CardBase, OpenpgpCardError> {
         let card_client = ScdClient::new(socket)?;
-        let card_client_box =
-            Box::new(card_client) as Box<dyn CardClient + Send + Sync>;
+        let card_client_box = Box::new(card_client) as CardClientBox;
 
-        // read and cache "application related data"
-        let mut card_app = CardApp::new(card_client_box);
-        let ard = card_app.get_app_data()?;
-
-        // Determine chaining/extended length support from card
-        // metadata and cache this information in CardApp (as a
-        // CardCaps)
-
-        let mut ext_support = false;
-        let mut chaining_support = false;
-
-        if let Ok(hist) = CardApp::get_historical(&ard) {
-            if let Some(cc) = hist.get_card_capabilities() {
-                chaining_support = cc.get_command_chaining();
-                ext_support = cc.get_extended_lc_le();
-            }
-        }
-
-        let max_cmd_bytes = if let Ok(Some(eli)) =
-            CardApp::get_extended_length_information(&ard)
-        {
-            eli.max_command_bytes
-        } else {
-            255
-        };
-
-        let caps = CardCaps::new(ext_support, chaining_support, max_cmd_bytes);
-
-        let card_app = card_app.set_caps(caps);
-
-        Ok(CardBase::new(card_app, ard))
+        CardBase::open_card(card_client_box)
     }
 
     pub fn new(socket: &str) -> Result<Self> {
@@ -80,6 +48,10 @@ impl CardClient for ScdClient {
 
         while let Some(response) = rt.block_on(client.next()) {
             println!("res: {:x?}", response);
+            if let Err(_) = response {
+                unimplemented!();
+            }
+
             if let Ok(Response::Data { partial }) = response {
                 let res = partial;
 

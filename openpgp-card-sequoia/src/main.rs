@@ -186,7 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         // let oc = CardBase::open_by_ident(&test_card_ident)?;
-        let mut oc = ScdClient::open_scdc(SOCKET)?;
+        let oc = ScdClient::open_scdc(SOCKET)?;
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
@@ -220,7 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!("The following OpenPGP cards are connected to your system:");
 
-        let cards = openpgp_card::CardBase::list_cards()?;
+        let cards = openpgp_card::CardBase::list_cards_pcsc()?;
         for c in cards {
             println!(" '{}'", c.get_aid()?.ident());
         }
