@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+name = "card-functionality"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+openpgp-card = { path = "../openpgp-card" }
+anyhow = "1"
