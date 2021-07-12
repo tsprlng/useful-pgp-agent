@@ -41,6 +41,10 @@ impl CardApp {
         }
     }
 
+    pub(crate) fn take_card(self) -> CardClientBox {
+        self.card_client
+    }
+
     pub fn set_caps(self, card_caps: CardCaps) -> Self {
         Self {
             card_client: self.card_client,
@@ -54,6 +58,14 @@ impl CardApp {
 
     pub fn card_caps(&self) -> Option<&CardCaps> {
         self.card_caps.as_ref()
+    }
+
+    // --- select ---
+
+    /// "Select" the OpenPGP card application
+    pub fn select(&mut self) -> Result<Response, OpenpgpCardError> {
+        let select_openpgp = commands::select_openpgp();
+        apdu::send_command(&mut self.card_client, select_openpgp, false, None)
     }
 
     // --- application data ---

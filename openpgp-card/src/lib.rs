@@ -18,7 +18,7 @@ use crate::card_app::CardApp;
 use crate::errors::{OpenpgpCardError, SmartcardError};
 use std::ops::{Deref, DerefMut};
 
-mod apdu;
+pub mod apdu;
 mod card;
 pub mod card_app;
 pub mod errors;

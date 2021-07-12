@@ -11,6 +11,8 @@ use std::convert::TryFrom;
 
 use crate::apdu::command::Command;
 use crate::apdu::response::Response;
+use crate::card;
+use crate::card_app::CardApp;
 use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
 use crate::{CardBase, CardCaps, CardClient, CardClientBox};
 
@@ -188,6 +190,14 @@ impl PcscClient {
         Self { card }
     }
 
+    pub fn list_cards() -> Result<Vec<PcscClient>> {
+        Ok(card::get_cards()
+            .map_err(|err| anyhow!(err))?
+            .into_iter()
+            .map(PcscClient::new)
+            .collect())
+    }
+
     /// Take a PCSC Card object and try to open the OpenPGP card applet.
     /// If successful, wrap and return the resulting CardClient as a
     /// CardBase object (which involves caching the "application related
@@ -196,11 +206,11 @@ impl PcscClient {
         let card_client = PcscClient::new(card);
         let mut ccb = Box::new(card_client) as CardClientBox;
 
-        let select_openpgp = commands::select_openpgp();
-        let resp = send_command(&mut ccb, select_openpgp, false, None)?;
+        let mut ca = CardApp::new(ccb);
+        let resp = ca.select()?;
 
         if resp.is_ok() {
-            CardBase::open_card(ccb)
+            CardBase::open_card(ca.take_card())
         } else {
             Err(anyhow!("Couldn't open OpenPGP application").into())
         }
