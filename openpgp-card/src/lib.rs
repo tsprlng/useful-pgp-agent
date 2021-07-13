@@ -145,7 +145,7 @@ pub enum DecryptMe<'a> {
     ECDH(&'a [u8]),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Sex {
     NotKnown,
     Male,
@@ -167,9 +167,9 @@ impl Sex {
 impl From<u8> for Sex {
     fn from(s: u8) -> Self {
         match s {
-            31 => Sex::Male,
-            32 => Sex::Female,
-            39 => Sex::NotApplicable,
+            0x31 => Sex::Male,
+            0x32 => Sex::Female,
+            0x39 => Sex::NotApplicable,
             _ => Sex::NotKnown,
         }
     }
