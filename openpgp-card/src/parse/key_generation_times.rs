@@ -9,9 +9,24 @@ use std::fmt;
 
 use crate::errors::OpenpgpCardError;
 use crate::parse::KeySet;
+use chrono::{DateTime, NaiveDateTime, Utc};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KeyGeneration(u32);
+
+impl From<KeyGeneration> for DateTime<Utc> {
+    fn from(kg: KeyGeneration) -> Self {
+        let naive_datetime = NaiveDateTime::from_timestamp(kg.0 as i64, 0);
+
+        DateTime::from_utc(naive_datetime, Utc)
+    }
+}
+
+impl From<&KeyGeneration> for u32 {
+    fn from(kg: &KeyGeneration) -> Self {
+        kg.0
+    }
+}
 
 impl From<u32> for KeyGeneration {
     fn from(data: u32) -> Self {
