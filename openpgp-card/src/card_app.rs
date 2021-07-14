@@ -16,11 +16,12 @@ use anyhow::{anyhow, Result};
 
 use crate::apdu::{commands, response::Response};
 use crate::errors::OpenpgpCardError;
+use crate::parse::key_generation_times::KeyGeneration;
 use crate::parse::{
     algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
     cardholder::CardHolder, extended_cap::ExtendedCap,
     extended_length_info::ExtendedLengthInfo, fingerprint,
-    historical::Historical, pw_status::PWStatus, KeySet,
+    historical::Historical, key_generation_times, pw_status::PWStatus, KeySet,
 };
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
@@ -236,8 +237,20 @@ impl CardApp {
         unimplemented!()
     }
 
-    pub fn get_key_generation_times() {
-        unimplemented!()
+    pub fn get_key_generation_times(
+        ard: &Tlv,
+    ) -> Result<KeySet<KeyGeneration>, OpenpgpCardError> {
+        let kg = ard.find(&Tag::from([0xCD]));
+
+        if let Some(kg) = kg {
+            let kg = key_generation_times::from(&kg.serialize())?;
+
+            log::debug!("Key generation: {:x?}", kg);
+
+            Ok(kg)
+        } else {
+            Err(anyhow!("Failed to get key generation times.").into())
+        }
     }
 
     pub fn get_key_information() {

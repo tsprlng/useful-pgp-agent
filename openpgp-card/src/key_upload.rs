@@ -387,6 +387,7 @@ fn copy_key_to_card(
         .copied()
         .collect();
 
+    // Generation date/time
     let time_cmd =
         commands::put_data(&[key_type.get_timestamp_put_tag()], time_value);
 
