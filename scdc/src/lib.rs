@@ -30,10 +30,50 @@ impl ScdClient {
         CardBase::open_card(card_client_box)
     }
 
+    /// Create a CardBase object that uses an scdaemon instance as its
+    /// backend, asking for a specific card by `serial`.
+    pub fn open_scdc_by_serial(
+        socket: &str,
+        serial: &str,
+    ) -> Result<CardBase, OpenpgpCardError> {
+        let mut card_client = ScdClient::new(socket)?;
+
+        card_client.select_card(serial)?;
+
+        let card_client_box = Box::new(card_client) as CardClientBox;
+
+        CardBase::open_card(card_client_box)
+    }
+
     pub fn new(socket: &str) -> Result<Self> {
         let client = RT.lock().unwrap().block_on(Client::connect(socket))?;
         let client = Arc::new(Mutex::new(client));
         Ok(Self { client })
+    }
+
+    /// SERIALNO --demand=D27600012401030400050000A8350000
+    fn select_card(&mut self, serial: &str) -> Result<()> {
+        let mut client = self.client.lock().unwrap();
+
+        let send = format!("SERIALNO --demand={}\n", serial);
+        client.send(send)?;
+
+        let mut rt = RT.lock().unwrap();
+
+        while let Some(response) = rt.block_on(client.next()) {
+            if let Err(_) = response {
+                return Err(anyhow!("Card not found"));
+            }
+
+            if let Ok(Response::Status { .. }) = response {
+                // drop remaining lines
+                while let Some(drop) = rt.block_on(client.next()) {}
+
+                return Ok(());
+            }
+        }
+
+        Err(anyhow!("Card not found"))
     }
 }
 
