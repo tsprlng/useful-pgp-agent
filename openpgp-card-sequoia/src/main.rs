@@ -13,14 +13,14 @@ use openpgp_card_scdc::ScdClient;
 
 // Filename of test key and test message to use:
 
-// const TEST_KEY_PATH: &str = "example/test4k.sec";
-// const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
+const TEST_KEY_PATH: &str = "example/test4k.sec";
+const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
 
 // const TEST_KEY_PATH: &str = "example/nist521.sec";
 // const TEST_ENC_MSG: &str = "example/encrypted_to_nist521.asc";
 
-const TEST_KEY_PATH: &str = "example/test25519.sec";
-const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
+// const TEST_KEY_PATH: &str = "example/test25519.sec";
+// const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
 
 const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
 
@@ -30,10 +30,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Ident of the OpenPGP Card that will be used for tests.
     let test_card_ident = env::var("TEST_CARD_IDENT");
 
+    // "serial" for opening a specific card through scdaemon
+    let test_card_serial = env::var("TEST_CARD_SERIAL")?;
+
     if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
         // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
-        let mut oc = ScdClient::open_scdc(SOCKET)?;
+        // let mut oc = ScdClient::open_scdc(SOCKET)?;
+        let mut oc =
+            ScdClient::open_scdc_by_serial(SOCKET, &test_card_serial)?;
 
         // card metadata
 
