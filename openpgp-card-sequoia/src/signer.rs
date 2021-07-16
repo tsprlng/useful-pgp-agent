@@ -15,11 +15,10 @@ use openpgp_card::CardSign;
 use openpgp_card::Hash;
 
 use crate::PublicKey;
-use std::sync::{Arc, Mutex};
 
 pub(crate) struct CardSigner {
     /// The OpenPGP card (authenticated to allow signing operations)
-    ocu: Arc<Mutex<CardSign>>,
+    ocu: CardSign,
 
     /// The matching public key for the card's signing key
     public: PublicKey,
@@ -31,12 +30,12 @@ impl CardSigner {
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        cs: Arc<Mutex<CardSign>>,
+        cs: CardSign,
         cert: &openpgp::Cert,
         policy: &dyn Policy,
     ) -> Result<CardSigner, OpenpgpCardError> {
         // Get the fingerprint for the signing key from the card.
-        let fps = cs.lock().unwrap().get_fingerprints()?;
+        let fps = cs.get_fingerprints()?;
         let fp = fps.signature();
 
         if let Some(fp) = fp {
@@ -123,10 +122,7 @@ impl<'a> crypto::Signer for CardSigner {
                     }
                 };
 
-                let cs = self.ocu.clone();
-                let mut cs = cs.lock().unwrap();
-
-                let sig = cs.signature_for_hash(hash)?;
+                let sig = self.ocu.signature_for_hash(hash)?;
 
                 let mpi = mpi::MPI::new(&sig[..]);
                 Ok(mpi::Signature::RSA { s: mpi })
@@ -134,10 +130,7 @@ impl<'a> crypto::Signer for CardSigner {
             (PublicKeyAlgorithm::EdDSA, mpi::PublicKey::EdDSA { .. }) => {
                 let hash = Hash::EdDSA(digest);
 
-                let cs = self.ocu.clone();
-                let mut cs = cs.lock().unwrap();
-
-                let sig = cs.signature_for_hash(hash)?;
+                let sig = self.ocu.signature_for_hash(hash)?;
 
                 let r = mpi::MPI::new(&sig[..32]);
                 let s = mpi::MPI::new(&sig[32..]);

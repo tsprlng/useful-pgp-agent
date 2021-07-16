@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use sequoia_ipc::assuan::{Client, Response};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
 use openpgp_card::errors::OpenpgpCardError;
@@ -17,7 +17,7 @@ lazy_static! {
 }
 
 pub struct ScdClient {
-    client: Arc<Mutex<Client>>,
+    client: Client,
 }
 
 impl ScdClient {
@@ -47,27 +47,24 @@ impl ScdClient {
 
     pub fn new(socket: &str) -> Result<Self> {
         let client = RT.lock().unwrap().block_on(Client::connect(socket))?;
-        let client = Arc::new(Mutex::new(client));
         Ok(Self { client })
     }
 
     /// SERIALNO --demand=D27600012401030400050000A8350000
     fn select_card(&mut self, serial: &str) -> Result<()> {
-        let mut client = self.client.lock().unwrap();
-
         let send = format!("SERIALNO --demand={}\n", serial);
-        client.send(send)?;
+        self.client.send(send)?;
 
         let mut rt = RT.lock().unwrap();
 
-        while let Some(response) = rt.block_on(client.next()) {
+        while let Some(response) = rt.block_on(self.client.next()) {
             if let Err(_) = response {
                 return Err(anyhow!("Card not found"));
             }
 
             if let Ok(Response::Status { .. }) = response {
                 // drop remaining lines
-                while let Some(drop) = rt.block_on(client.next()) {}
+                while let Some(_drop) = rt.block_on(self.client.next()) {}
 
                 return Ok(());
             }
@@ -81,15 +78,13 @@ impl CardClient for ScdClient {
     fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>> {
         let hex = hex::encode(cmd);
 
-        let mut client = self.client.lock().unwrap();
-
         let send = format!("APDU {}\n", hex);
         println!("send: '{}'", send);
-        client.send(send)?;
+        self.client.send(send)?;
 
         let mut rt = RT.lock().unwrap();
 
-        while let Some(response) = rt.block_on(client.next()) {
+        while let Some(response) = rt.block_on(self.client.next()) {
             println!("res: {:x?}", response);
             if let Err(_) = response {
                 unimplemented!();
@@ -99,7 +94,7 @@ impl CardClient for ScdClient {
                 let res = partial;
 
                 // drop remaining lines
-                while let Some(drop) = rt.block_on(client.next()) {
+                while let Some(drop) = rt.block_on(self.client.next()) {
                     println!("drop: {:x?}", drop);
                 }
 

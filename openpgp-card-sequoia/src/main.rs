@@ -8,9 +8,8 @@ use anyhow::Result;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::{CardBase, KeyType};
+use openpgp_card::KeyType;
 use openpgp_card_scdc::ScdClient;
-use std::sync::{Arc, Mutex};
 
 // Filename of test key and test message to use:
 
@@ -196,14 +195,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
-            Ok(mut oc_user) => {
+            Ok(oc_user) => {
                 println!("pw1 81 verify ok");
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 let text = "Hello world, I am signed.";
                 let res = openpgp_card_sequoia::sign(
-                    Arc::new(Mutex::new(oc_user)),
+                    oc_user,
                     &cert,
                     &mut text.as_bytes(),
                 );

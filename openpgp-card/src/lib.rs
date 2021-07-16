@@ -30,7 +30,7 @@ pub trait CardClient {
     fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>>;
 }
 
-pub type CardClientBox = Box<dyn CardClient + Send>;
+pub type CardClientBox = Box<dyn CardClient + Send + Sync>;
 
 /// Information about the capabilities of the card.
 /// (feature configuration from card metadata)
