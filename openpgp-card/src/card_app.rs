@@ -42,6 +42,43 @@ impl CardApp {
         }
     }
 
+    pub(crate) fn take_card(self) -> CardClientBox {
+        self.card_client
+    }
+
+    /// Read capabilities from the card, and set them in the CardApp
+    pub fn init_caps(mut self, ard: &Tlv) -> Result<Self> {
+        // Determine chaining/extended length support from card
+        // metadata and cache this information in CardApp (as a
+        // CardCaps)
+
+        let mut ext_support = false;
+        let mut chaining_support = false;
+
+        if let Ok(hist) = CardApp::get_historical(&ard) {
+            if let Some(cc) = hist.get_card_capabilities() {
+                chaining_support = cc.get_command_chaining();
+                ext_support = cc.get_extended_lc_le();
+            }
+        }
+
+        let max_cmd_bytes = if let Ok(Some(eli)) =
+            CardApp::get_extended_length_information(&ard)
+        {
+            eli.max_command_bytes
+        } else {
+            255
+        };
+
+        let caps = CardCaps {
+            ext_support,
+            chaining_support,
+            max_cmd_bytes,
+        };
+
+        Ok(self.set_caps(caps))
+    }
+
     pub fn set_caps(self, card_caps: CardCaps) -> Self {
         Self {
             card_client: self.card_client,
@@ -55,6 +92,14 @@ impl CardApp {
 
     pub fn card_caps(&self) -> Option<&CardCaps> {
         self.card_caps.as_ref()
+    }
+
+    // --- select ---
+
+    /// "Select" the OpenPGP card application
+    pub fn select(&mut self) -> Result<Response, OpenpgpCardError> {
+        let select_openpgp = commands::select_openpgp();
+        apdu::send_command(&mut self.card_client, select_openpgp, false, None)
     }
 
     // --- application data ---

@@ -18,7 +18,7 @@ use crate::card_app::CardApp;
 use crate::errors::{OpenpgpCardError, SmartcardError};
 use std::ops::{Deref, DerefMut};
 
-mod apdu;
+pub mod apdu;
 mod card;
 pub mod card_app;
 pub mod errors;
@@ -145,7 +145,7 @@ pub enum DecryptMe<'a> {
     ECDH(&'a [u8]),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Sex {
     NotKnown,
     Male,
@@ -314,36 +314,10 @@ impl CardBase {
     pub fn open_card(ccb: CardClientBox) -> Result<Self, OpenpgpCardError> {
         // read and cache "application related data"
         let mut card_app = CardApp::new(ccb);
+
         let ard = card_app.get_app_data()?;
 
-        // Determine chaining/extended length support from card
-        // metadata and cache this information in CardApp (as a
-        // CardCaps)
-
-        let mut ext_support = false;
-        let mut chaining_support = false;
-
-        if let Ok(hist) = CardApp::get_historical(&ard) {
-            if let Some(cc) = hist.get_card_capabilities() {
-                chaining_support = cc.get_command_chaining();
-                ext_support = cc.get_extended_lc_le();
-            }
-        }
-
-        let max_cmd_bytes = if let Ok(Some(eli)) =
-            CardApp::get_extended_length_information(&ard)
-        {
-            eli.max_command_bytes
-        } else {
-            255
-        };
-
-        let caps = CardCaps {
-            ext_support,
-            chaining_support,
-            max_cmd_bytes,
-        };
-        let card_app = card_app.set_caps(caps);
+        card_app = card_app.init_caps(&ard)?;
 
         Ok(Self { card_app, ard })
     }
