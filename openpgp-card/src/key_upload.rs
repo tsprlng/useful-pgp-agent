@@ -3,7 +3,8 @@
 
 use anyhow::{anyhow, Result};
 
-use crate::apdu::{command::Command, commands};
+use crate::apdu::command::Command;
+use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
 use crate::parse::algo_attrs::{Algo, RsaAttrs};
@@ -386,6 +387,7 @@ fn copy_key_to_card(
         .copied()
         .collect();
 
+    // Generation date/time
     let time_cmd =
         commands::put_data(&[key_type.get_timestamp_put_tag()], time_value);
 
