@@ -57,6 +57,15 @@ impl SequoiaKey {
     }
 }
 
+/// Helper fn: get a CardUploadableKey for a ValidErasedKeyAmalgamation
+pub fn vka_as_uploadable_key(
+    vka: ValidErasedKeyAmalgamation<SecretParts>,
+    password: Option<String>,
+) -> Box<dyn CardUploadableKey> {
+    let sqk = SequoiaKey::new(vka, password);
+    Box::new(sqk)
+}
+
 /// Implement the `CardUploadableKey` trait that openpgp-card uses to
 /// upload (sub)keys to a card.
 impl CardUploadableKey for SequoiaKey {
