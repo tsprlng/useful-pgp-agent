@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 openpgp-card = { path = "../openpgp-card" }
-sequoia-ipc = { path = "../../sequoia/ipc" }
+sequoia-ipc = {  git = "https://gitlab.com/sequoia-pgp/sequoia.git", branch = "justus/workwork" }
 libc = "0.2"
 hex = "0.4"
 anyhow = "1"
