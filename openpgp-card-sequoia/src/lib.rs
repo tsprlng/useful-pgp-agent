@@ -282,7 +282,7 @@ pub fn decrypt(
 }
 
 pub fn sign(
-    ocu: &mut CardSign,
+    ocu: CardSign,
     cert: &sequoia_openpgp::Cert,
     input: &mut dyn io::Read,
 ) -> Result<String> {

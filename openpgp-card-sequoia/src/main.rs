@@ -8,7 +8,8 @@ use anyhow::Result;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::{CardBase, KeyType};
+use openpgp_card::KeyType;
+use openpgp_card_scdc::ScdClient;
 
 // Filename of test key and test message to use:
 
@@ -21,6 +22,8 @@ use openpgp_card::{CardBase, KeyType};
 const TEST_KEY_PATH: &str = "example/test25519.sec";
 const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
 
+const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -29,7 +32,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
-        let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        let mut oc = ScdClient::open_scdc(SOCKET)?;
 
         // card metadata
 
@@ -140,7 +144,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
 
-        let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
+        let mut oc = ScdClient::open_scdc(SOCKET)?;
+
         let app_id = oc.get_aid()?;
 
         // Check that we're still using the expected card
@@ -179,18 +185,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let oc = CardBase::open_by_ident(&test_card_ident)?;
+        // let oc = CardBase::open_by_ident(&test_card_ident)?;
+        let oc = ScdClient::open_scdc(SOCKET)?;
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
-            Ok(mut oc_user) => {
+            Ok(oc_user) => {
                 println!("pw1 81 verify ok");
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 let text = "Hello world, I am signed.";
                 let res = openpgp_card_sequoia::sign(
-                    &mut oc_user,
+                    oc_user,
                     &cert,
                     &mut text.as_bytes(),
                 );
@@ -213,7 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!("The following OpenPGP cards are connected to your system:");
 
-        let cards = openpgp_card::CardBase::list_cards()?;
+        let cards = openpgp_card::CardBase::list_cards_pcsc()?;
         for c in cards {
             println!(" '{}'", c.get_aid()?.ident());
         }

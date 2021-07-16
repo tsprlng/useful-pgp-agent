@@ -16,26 +16,26 @@ use openpgp_card::Hash;
 
 use crate::PublicKey;
 
-pub(crate) struct CardSigner<'a> {
+pub(crate) struct CardSigner {
     /// The OpenPGP card (authenticated to allow signing operations)
-    ocu: &'a mut CardSign,
+    ocu: CardSign,
 
     /// The matching public key for the card's signing key
     public: PublicKey,
 }
 
-impl<'a> CardSigner<'a> {
+impl CardSigner {
     /// Try to create a CardSigner.
     ///
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        ocs: &'a mut CardSign,
+        cs: CardSign,
         cert: &openpgp::Cert,
         policy: &dyn Policy,
-    ) -> Result<CardSigner<'a>, OpenpgpCardError> {
+    ) -> Result<CardSigner, OpenpgpCardError> {
         // Get the fingerprint for the signing key from the card.
-        let fps = ocs.get_fingerprints()?;
+        let fps = cs.get_fingerprints()?;
         let fp = fps.signature();
 
         if let Some(fp) = fp {
@@ -58,7 +58,7 @@ impl<'a> CardSigner<'a> {
                 let public = keys[0].clone();
 
                 Ok(CardSigner {
-                    ocu: ocs,
+                    ocu: cs,
                     public: public.role_as_unspecified().clone(),
                 })
             } else {
@@ -75,7 +75,7 @@ impl<'a> CardSigner<'a> {
     }
 }
 
-impl<'a> crypto::Signer for CardSigner<'a> {
+impl<'a> crypto::Signer for CardSigner {
     fn public(&self) -> &PublicKey {
         &self.public
     }
