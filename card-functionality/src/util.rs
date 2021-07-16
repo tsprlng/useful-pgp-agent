@@ -17,7 +17,6 @@ pub(crate) fn upload_subkeys(
     cert: &Cert,
 ) -> Result<Vec<(String, u32)>> {
     let mut out = vec![];
-    let mut gentime = 0;
 
     for kt in [
         KeyType::Signing,
@@ -39,7 +38,7 @@ pub(crate) fn upload_subkeys(
 
         // upload key
         let cuk = vka_as_uploadable_key(vka, None);
-        let res = ca.upload_key(cuk, kt)?;
+        let _ = ca.upload_key(cuk, kt)?;
     }
 
     Ok(out)

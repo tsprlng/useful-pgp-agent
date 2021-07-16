@@ -33,7 +33,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::apdu::PcscClient;
 use openpgp_card::card_app::CardApp;
-use openpgp_card::{CardClientBox, KeyType, Sex};
+use openpgp_card::{CardClientBox, Sex};
 
 mod util;
 
@@ -141,7 +141,7 @@ fn test_keygen() {
 }
 
 fn test_reset(ca: &mut CardApp) -> Result<TestOutput> {
-    let res = ca.factory_reset()?;
+    let _res = ca.factory_reset()?;
     Ok(vec![])
 }
 

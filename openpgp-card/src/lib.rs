@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Result};
-use pcsc::*;
 
-use apdu::{commands, response::Response};
+use apdu::response::Response;
 use parse::{
     algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
     cardholder::CardHolder, extended_cap::ExtendedCap, extended_cap::Features,

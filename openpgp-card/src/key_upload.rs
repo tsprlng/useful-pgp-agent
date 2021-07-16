@@ -67,7 +67,7 @@ pub(crate) fn upload_key(
         }
     };
 
-    let caps: Option<CardCaps> = card_app.card_caps().map(|c| c.clone());
+    let caps: Option<CardCaps> = card_app.card_caps().copied();
 
     copy_key_to_card(
         card_app.card(),

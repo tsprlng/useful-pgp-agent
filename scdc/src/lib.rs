@@ -57,7 +57,7 @@ impl ScdClient {
         let mut rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.client.next()) {
-            if let Err(_) = response {
+            if response.is_err() {
                 return Err(anyhow!("Card not found"));
             }
 
@@ -85,7 +85,7 @@ impl CardClient for ScdClient {
 
         while let Some(response) = rt.block_on(self.client.next()) {
             log::trace!("res: {:x?}", response);
-            if let Err(_) = response {
+            if response.is_err() {
                 unimplemented!();
             }
 

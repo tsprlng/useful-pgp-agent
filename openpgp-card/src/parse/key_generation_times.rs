@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::anyhow;
-use nom::{
-    bytes::complete as bytes, combinator, number::complete as number, sequence,
-};
-use std::fmt;
+use chrono::{DateTime, NaiveDateTime, Utc};
+use nom::{combinator, number::complete as number, sequence};
 
 use crate::errors::OpenpgpCardError;
 use crate::parse::KeySet;
-use chrono::{DateTime, NaiveDateTime, Utc};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KeyGeneration(u32);

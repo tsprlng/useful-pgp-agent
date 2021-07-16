@@ -25,8 +25,8 @@ use crate::parse::{
 };
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, key_upload, parse, tlv, CardCaps, CardClientBox, CardUploadableKey,
-    DecryptMe, Hash, KeyType, Sex,
+    apdu, key_upload, CardCaps, CardClientBox, CardUploadableKey, DecryptMe,
+    Hash, KeyType, Sex,
 };
 
 pub struct CardApp {
