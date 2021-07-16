@@ -98,28 +98,22 @@ impl<'a> crypto::Signer for CardSigner {
                 PublicKeyAlgorithm::RSAEncryptSign,
                 mpi::PublicKey::RSA { .. },
             ) => {
-                let sig = match hash_algo {
-                    openpgp::types::HashAlgorithm::SHA256 => {
-                        let hash =
-                            Hash::SHA256(digest.try_into().map_err(|_| {
-                                anyhow!("invalid slice length")
-                            })?);
-                        self.ocu.signature_for_hash(hash)?
-                    }
-                    openpgp::types::HashAlgorithm::SHA384 => {
-                        let hash =
-                            Hash::SHA384(digest.try_into().map_err(|_| {
-                                anyhow!("invalid slice length")
-                            })?);
-                        self.ocu.signature_for_hash(hash)?
-                    }
-                    openpgp::types::HashAlgorithm::SHA512 => {
-                        let hash =
-                            Hash::SHA512(digest.try_into().map_err(|_| {
-                                anyhow!("invalid slice length")
-                            })?);
-                        self.ocu.signature_for_hash(hash)?
-                    }
+                let hash = match hash_algo {
+                    openpgp::types::HashAlgorithm::SHA256 => Hash::SHA256(
+                        digest
+                            .try_into()
+                            .map_err(|_| anyhow!("invalid slice length"))?,
+                    ),
+                    openpgp::types::HashAlgorithm::SHA384 => Hash::SHA384(
+                        digest
+                            .try_into()
+                            .map_err(|_| anyhow!("invalid slice length"))?,
+                    ),
+                    openpgp::types::HashAlgorithm::SHA512 => Hash::SHA512(
+                        digest
+                            .try_into()
+                            .map_err(|_| anyhow!("invalid slice length"))?,
+                    ),
                     _ => {
                         return Err(anyhow!(
                             "Unsupported hash algorithm for RSA {:?}",
@@ -128,11 +122,14 @@ impl<'a> crypto::Signer for CardSigner {
                     }
                 };
 
+                let sig = self.ocu.signature_for_hash(hash)?;
+
                 let mpi = mpi::MPI::new(&sig[..]);
                 Ok(mpi::Signature::RSA { s: mpi })
             }
             (PublicKeyAlgorithm::EdDSA, mpi::PublicKey::EdDSA { .. }) => {
                 let hash = Hash::EdDSA(digest);
+
                 let sig = self.ocu.signature_for_hash(hash)?;
 
                 let r = mpi::MPI::new(&sig[..32]);
