@@ -47,7 +47,7 @@ impl CardApp {
     }
 
     /// Read capabilities from the card, and set them in the CardApp
-    pub fn init_caps(mut self, ard: &Tlv) -> Result<Self> {
+    pub fn init_caps(self, ard: &Tlv) -> Result<Self> {
         // Determine chaining/extended length support from card
         // metadata and cache this information in CardApp (as a
         // CardCaps)
