@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use anyhow::{anyhow, Result};
 
 use sequoia_openpgp::cert::amalgamation::key::ValidKeyAmalgamation;

@@ -6,3 +6,7 @@ Source: https://gitlab.com/hkos/openpgp-card
 Files: example/*
 Copyright: 2021 Heiko Schaefer <heiko@schaefer.name>
 License: CC0-1.0
+
+Files: card-functionality/data/*
+Copyright: 2021 Heiko Schaefer <heiko@schaefer.name>
+License: CC0-1.0
