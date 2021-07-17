@@ -251,6 +251,11 @@ impl CardBase {
         Self { card_app, ard }
     }
 
+    /// Get a reference to the internal CardApp object (for use in tests)
+    pub fn get_card_app(&mut self) -> &mut CardApp {
+        &mut self.card_app
+    }
+
     /// Get all cards that can be opened as an OpenPGP card applet via pcsc
     pub fn list_cards_pcsc() -> Result<Vec<Self>> {
         let cards = card::get_cards().map_err(|err| anyhow!(err))?;

@@ -20,9 +20,10 @@ use openpgp::policy::StandardPolicy;
 use openpgp::serialize::stream::{Message, Signer};
 use sequoia_openpgp as openpgp;
 
+use openpgp_card::card_app::CardApp;
 use openpgp_card::{
-    errors::OpenpgpCardError, CardAdmin, CardSign, CardUploadableKey,
-    CardUser, EccKey, EccType, KeyType, PrivateKeyMaterial, RSAKey,
+    errors::OpenpgpCardError, CardAdmin, CardSign, CardUploadableKey, EccKey,
+    EccType, KeyType, PrivateKeyMaterial, RSAKey,
 };
 
 mod decryptor;
@@ -269,7 +270,7 @@ pub fn upload_key(
 }
 
 pub fn decrypt(
-    ocu: &mut CardUser,
+    ca: &mut CardApp,
     cert: &sequoia_openpgp::Cert,
     msg: Vec<u8>,
 ) -> Result<Vec<u8>> {
@@ -278,7 +279,7 @@ pub fn decrypt(
         let reader = io::BufReader::new(&msg[..]);
 
         let p = StandardPolicy::new();
-        let d = decryptor::CardDecryptor::new(ocu, cert, &p)?;
+        let d = decryptor::CardDecryptor::new(ca, cert, &p)?;
 
         let db = DecryptorBuilder::from_reader(reader)?;
         let mut decryptor = db.with_policy(&p, None, d)?;

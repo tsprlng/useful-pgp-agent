@@ -33,7 +33,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::apdu::PcscClient;
 use openpgp_card::card_app::CardApp;
-use openpgp_card::{CardClientBox, Sex};
+use openpgp_card::{CardBase, CardClientBox, Sex};
 
 mod util;
 
@@ -49,9 +49,26 @@ type TestOutput = Vec<TestResult>;
 type TestsOutput = HashMap<String, TestOutput>;
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-fn test_decrypt() {
-    // FIXME
-    unimplemented!()
+fn test_decrypt(mut ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
+    assert_eq!(
+        param.len(),
+        2,
+        "test_decrypt needs filenames for 'cert' and 'encrypted'"
+    );
+
+    let cert = Cert::from_file(param[0])?;
+    let msg =
+        std::fs::read_to_string(param[1]).expect("Unable to read ciphertext");
+
+    let res = ca.verify_pw1("123456")?;
+    res.check_ok()?;
+
+    let res = openpgp_card_sequoia::decrypt(&mut ca, &cert, msg.into_bytes())?;
+    let plain = String::from_utf8_lossy(&res);
+
+    assert_eq!(plain, "Hello world!\n");
+
+    Ok(vec![])
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
@@ -109,29 +126,26 @@ fn check_key_upload_algo_attrs() -> Result<()> {
     Ok(())
 }
 
-fn test_upload_keys_rsa_2k(ca: &mut CardApp) -> Result<TestOutput> {
+fn test_upload_keys(ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
+    assert_eq!(
+        param.len(),
+        1,
+        "test_upload_keys needs a filename for 'cert'"
+    );
+
     let verify = ca.verify_pw3("12345678")?;
     verify.check_ok()?;
 
-    let cert = Cert::from_file("data/rsa2k.sec")?;
+    let cert = Cert::from_file(param[0])?;
+
+    // FIXME: check if card supports the algo in question?
+
     let meta = util::upload_subkeys(ca, &cert)?;
 
     check_key_upload_metadata(ca, &meta)?;
     check_key_upload_algo_attrs()?;
 
     Ok(vec![])
-}
-
-fn test_upload_keys_25519() {
-    // FIXME
-    unimplemented!()
-
-    // check if card supports 25519, if not that's ok, return this
-    // information and don't try upload.
-
-    // upload key
-
-    // test upload general - checks
 }
 
 fn test_keygen() {
@@ -150,7 +164,10 @@ fn test_reset(ca: &mut CardApp) -> Result<TestOutput> {
 ///
 /// Returns an empty TestOutput, throws errors for unexpected Status codes
 /// and for unequal field values.
-fn test_set_user_data(ca: &mut CardApp) -> Result<TestOutput> {
+fn test_set_user_data(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput> {
     let res = ca.verify_pw3("12345678")?;
     res.check_ok()?;
 
@@ -186,7 +203,7 @@ fn test_set_user_data(ca: &mut CardApp) -> Result<TestOutput> {
 /// Outputs:
 /// - verify pw3 (check) -> Status
 /// - verify pw1 (check) -> Status
-fn test_verify(ca: &mut CardApp) -> Result<TestOutput> {
+fn test_verify(ca: &mut CardApp, _param: &[&str]) -> Result<TestOutput> {
     // Steps:
     //
     // - try to set name without verify, assert result is not ok
@@ -236,7 +253,8 @@ fn test_verify(ca: &mut CardApp) -> Result<TestOutput> {
 
 fn run_test(
     cards: &[&str],
-    t: fn(&mut CardApp) -> Result<TestOutput>,
+    t: fn(&mut CardApp, &[&str]) -> Result<TestOutput>,
+    param: &[&str],
 ) -> Result<TestsOutput> {
     let mut out = HashMap::new();
 
@@ -259,7 +277,7 @@ fn run_test(
         if cards.contains(&app_id.ident().as_str()) {
             println!("Running Test on {}:", app_id.ident());
 
-            let res = t(&mut ca);
+            let res = t(&mut ca, param);
 
             out.insert(app_id.ident(), res?);
         }
@@ -291,17 +309,25 @@ fn main() -> Result<()> {
     // let userdata_out = run_test(&cards, test_set_user_data)?;
     // println!("{:x?}", userdata_out);
 
-    // upload RSA keys
-    println!("upload RSA2k key");
-    let upload_out = run_test(&cards, test_upload_keys_rsa_2k)?;
-    println!("{:x?}", upload_out);
+    for (key, ciphertext) in vec![
+        ("data/rsa2k.sec", "data/encrypted_to_rsa2k.asc"),
+        ("data/rsa4k.sec", "data/encrypted_to_rsa4k.asc"),
+    ] {
+        // upload keys
+        println!("upload key");
+        let upload_out = run_test(&cards, test_upload_keys, &vec![key])?;
+        println!("{:x?}", upload_out);
 
-    // sign
-    // decrypt
+        // FIXME: if this card doesn't support the key type, skip the
+        // following tests?
 
-    // upload 25519 keys
-    // sign
-    // decrypt
+        // decrypt
+        println!("decrypt");
+        let dec_out = run_test(&cards, test_decrypt, &vec![key, ciphertext])?;
+        println!("{:x?}", dec_out);
+
+        // sign
+    }
 
     // upload some key with pw
 

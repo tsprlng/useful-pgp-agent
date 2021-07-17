@@ -174,7 +174,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("{:?}", msg);
 
                 let res = openpgp_card_sequoia::decrypt(
-                    &mut oc_user,
+                    &mut oc_user.get_card_app(),
                     &cert,
                     msg.into_bytes(),
                 )?;

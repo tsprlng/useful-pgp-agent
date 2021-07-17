@@ -16,13 +16,14 @@ use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::{CardUser, DecryptMe};
+use openpgp_card::DecryptMe;
 
 use crate::PublicKey;
+use openpgp_card::card_app::CardApp;
 
 pub(crate) struct CardDecryptor<'a> {
     /// The OpenPGP card (authenticated to allow decryption operations)
-    ocu: &'a mut CardUser,
+    ca: &'a mut CardApp,
 
     /// The matching public key for the card's decryption key
     public: PublicKey,
@@ -34,12 +35,13 @@ impl<'a> CardDecryptor<'a> {
     /// An Error is returned if no match between the card's decryption
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        ocu: &'a mut CardUser,
+        ca: &'a mut CardApp,
         cert: &Cert,
         policy: &dyn Policy,
     ) -> Result<CardDecryptor<'a>, OpenpgpCardError> {
         // Get the fingerprint for the decryption key from the card.
-        let fps = ocu.get_fingerprints()?;
+        let ard = ca.get_app_data()?;
+        let fps = CardApp::get_fingerprints(&ard)?;
         let fp = fps.decryption();
 
         if let Some(fp) = fp {
@@ -59,7 +61,7 @@ impl<'a> CardDecryptor<'a> {
             // Exactly one matching (sub)key should be found. If not, fail!
             if keys.len() == 1 {
                 let public = keys[0].clone();
-                Ok(Self { ocu, public })
+                Ok(Self { ca, public })
             } else {
                 Err(OpenpgpCardError::InternalError(anyhow!(
                     "Failed to find a matching (sub)key in cert"
@@ -92,7 +94,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = DecryptMe::RSA(ct.value());
-                let dec = self.ocu.decrypt(dm)?;
+                let dec = self.ca.decrypt(dm)?;
 
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
                 Ok(sk)
@@ -110,7 +112,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 };
 
                 // Decryption operation on the card
-                let dec = self.ocu.decrypt(dm)?;
+                let dec = self.ca.decrypt(dm)?;
 
                 #[allow(non_snake_case)]
                 let S: openpgp::crypto::mem::Protected = dec.into();
