@@ -138,6 +138,17 @@ impl<'a> crypto::Signer for CardSigner<'a> {
 
                 Ok(mpi::Signature::EdDSA { r, s })
             }
+            (PublicKeyAlgorithm::ECDSA, mpi::PublicKey::ECDSA { .. }) => {
+                let hash = Hash::ECDSA(digest);
+
+                let sig = self.ca.signature_for_hash(hash)?;
+
+                let len_2 = sig.len() / 2;
+                let r = mpi::MPI::new(&sig[..len_2]);
+                let s = mpi::MPI::new(&sig[len_2..]);
+
+                Ok(mpi::Signature::ECDSA { r, s })
+            }
 
             // FIXME: implement NIST etc
             (pk_algo, _) => Err(anyhow!(

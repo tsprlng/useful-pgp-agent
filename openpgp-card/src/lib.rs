@@ -61,6 +61,7 @@ pub enum Hash<'a> {
     SHA384([u8; 0x30]),
     SHA512([u8; 0x40]),
     EdDSA(&'a [u8]), // FIXME?
+    ECDSA(&'a [u8]), // FIXME?
 }
 
 impl Hash<'_> {
@@ -76,6 +77,7 @@ impl Hash<'_> {
                 Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03])
             }
             Self::EdDSA(_) => None,
+            Self::ECDSA(_) => None,
         }
     }
 
@@ -85,6 +87,7 @@ impl Hash<'_> {
             Self::SHA384(d) => &d[..],
             Self::SHA512(d) => &d[..],
             Self::EdDSA(d) => d,
+            Self::ECDSA(d) => d,
         }
     }
 }

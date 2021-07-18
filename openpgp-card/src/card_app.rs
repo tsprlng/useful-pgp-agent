@@ -543,6 +543,7 @@ impl CardApp {
                 tlv.serialize()
             }
             Hash::EdDSA(d) => d.to_vec(),
+            Hash::ECDSA(d) => d.to_vec(),
         };
 
         self.compute_digital_signature(data)
