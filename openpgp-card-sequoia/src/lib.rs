@@ -22,8 +22,8 @@ use sequoia_openpgp as openpgp;
 
 use openpgp_card::card_app::CardApp;
 use openpgp_card::{
-    errors::OpenpgpCardError, CardAdmin, CardSign, CardUploadableKey, EccKey,
-    EccType, KeyType, PrivateKeyMaterial, RSAKey,
+    errors::OpenpgpCardError, CardAdmin, CardUploadableKey, EccKey, EccType,
+    KeyType, PrivateKeyMaterial, RSAKey,
 };
 
 mod decryptor;
@@ -292,14 +292,14 @@ pub fn decrypt(
 }
 
 pub fn sign(
-    ocu: CardSign,
+    ca: &mut CardApp,
     cert: &sequoia_openpgp::Cert,
     input: &mut dyn io::Read,
 ) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
     {
         let p = StandardPolicy::new();
-        let s = signer::CardSigner::new(ocu, cert, &p)?;
+        let s = signer::CardSigner::new(ca, cert, &p)?;
 
         let message = Message::new(&mut armorer);
         let mut message = Signer::new(message, s).detached().build()?;

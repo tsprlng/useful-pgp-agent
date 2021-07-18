@@ -195,14 +195,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
-            Ok(oc_user) => {
+            Ok(mut oc_user) => {
                 println!("pw1 81 verify ok");
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 let text = "Hello world, I am signed.";
                 let res = openpgp_card_sequoia::sign(
-                    oc_user,
+                    oc_user.get_card_app(),
                     &cert,
                     &mut text.as_bytes(),
                 );

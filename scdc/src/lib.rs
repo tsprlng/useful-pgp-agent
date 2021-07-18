@@ -50,20 +50,24 @@ impl ScdClient {
         Ok(Self { client })
     }
 
-    fn select_card(&mut self, serial: &str) -> Result<()> {
+    pub fn select_card(&mut self, serial: &str) -> Result<()> {
         let send = format!("SERIALNO --demand={}\n", serial);
         self.client.send(send)?;
 
         let mut rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.client.next()) {
+            log::trace!("select res: {:x?}", response);
+
             if response.is_err() {
                 return Err(anyhow!("Card not found"));
             }
 
             if let Ok(Response::Status { .. }) = response {
                 // drop remaining lines
-                while let Some(_drop) = rt.block_on(self.client.next()) {}
+                while let Some(_drop) = rt.block_on(self.client.next()) {
+                    log::trace!("select drop: {:x?}", _drop);
+                }
 
                 return Ok(());
             }
@@ -78,7 +82,7 @@ impl CardClient for ScdClient {
         let hex = hex::encode(cmd);
 
         let send = format!("APDU {}\n", hex);
-        println!("send: '{}'", send);
+        log::trace!("send: '{}'", send);
         self.client.send(send)?;
 
         let mut rt = RT.lock().unwrap();

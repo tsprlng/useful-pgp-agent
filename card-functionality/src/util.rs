@@ -3,14 +3,20 @@
 
 use anyhow::{anyhow, Result};
 
+use sequoia_openpgp as openpgp;
 use sequoia_openpgp::cert::amalgamation::key::ValidKeyAmalgamation;
 use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
+use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_app::CardApp;
 use openpgp_card::KeyType;
 use openpgp_card_sequoia::vka_as_uploadable_key;
+use sequoia_openpgp::parse::stream::{
+    DetachedVerifierBuilder, MessageLayer, MessageStructure,
+    VerificationHelper,
+};
 use std::time::SystemTime;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();
@@ -71,4 +77,49 @@ fn get_subkey(
     } else {
         Err(anyhow!("No suitable (sub)key found"))
     }
+}
+
+/// Perform signature verification for one Cert and a simple signature
+/// over a message.
+struct VHelper<'a> {
+    cert: &'a Cert,
+}
+
+impl<'a> VHelper<'a> {
+    fn new(cert: &'a Cert) -> Self {
+        Self { cert }
+    }
+}
+
+impl<'a> VerificationHelper for VHelper<'a> {
+    fn get_certs(
+        &mut self,
+        _ids: &[openpgp::KeyHandle],
+    ) -> openpgp::Result<Vec<openpgp::Cert>> {
+        // Hand out our single Cert
+        Ok(vec![self.cert.clone()])
+    }
+
+    fn check(&mut self, structure: MessageStructure) -> openpgp::Result<()> {
+        // We are interested in signatures over the data (level 0 signatures)
+        if let Some(MessageLayer::SignatureGroup { results }) =
+            structure.into_iter().next()
+        {
+            match results.into_iter().next() {
+                Some(Ok(_)) => Ok(()), // Good signature.
+                Some(Err(e)) => Err(openpgp::Error::from(e).into()),
+                None => Err(anyhow::anyhow!("No signature")),
+            }
+        } else {
+            Err(anyhow::anyhow!("Unexpected message structure"))
+        }
+    }
+}
+
+pub fn verify_sig(cert: &Cert, msg: &[u8], sig: &[u8]) -> Result<bool> {
+    let vh = VHelper::new(cert);
+    let mut dv = DetachedVerifierBuilder::from_bytes(&sig[..])?
+        .with_policy(SP, None, vh)?;
+
+    Ok(dv.verify_bytes(msg).is_ok())
 }

@@ -10,32 +10,33 @@ use openpgp::policy::Policy;
 use openpgp::types::PublicKeyAlgorithm;
 use sequoia_openpgp as openpgp;
 
+use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::CardSign;
 use openpgp_card::Hash;
 
 use crate::PublicKey;
 
-pub(crate) struct CardSigner {
+pub(crate) struct CardSigner<'a> {
     /// The OpenPGP card (authenticated to allow signing operations)
-    ocu: CardSign,
+    ca: &'a mut CardApp,
 
     /// The matching public key for the card's signing key
     public: PublicKey,
 }
 
-impl CardSigner {
+impl<'a> CardSigner<'a> {
     /// Try to create a CardSigner.
     ///
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        cs: CardSign,
+        ca: &'a mut CardApp,
         cert: &openpgp::Cert,
         policy: &dyn Policy,
-    ) -> Result<CardSigner, OpenpgpCardError> {
+    ) -> Result<CardSigner<'a>, OpenpgpCardError> {
         // Get the fingerprint for the signing key from the card.
-        let fps = cs.get_fingerprints()?;
+        let ard = ca.get_app_data()?;
+        let fps = CardApp::get_fingerprints(&ard)?;
         let fp = fps.signature();
 
         if let Some(fp) = fp {
@@ -58,7 +59,7 @@ impl CardSigner {
                 let public = keys[0].clone();
 
                 Ok(CardSigner {
-                    ocu: cs,
+                    ca,
                     public: public.role_as_unspecified().clone(),
                 })
             } else {
@@ -75,7 +76,7 @@ impl CardSigner {
     }
 }
 
-impl<'a> crypto::Signer for CardSigner {
+impl<'a> crypto::Signer for CardSigner<'a> {
     fn public(&self) -> &PublicKey {
         &self.public
     }
@@ -122,7 +123,7 @@ impl<'a> crypto::Signer for CardSigner {
                     }
                 };
 
-                let sig = self.ocu.signature_for_hash(hash)?;
+                let sig = self.ca.signature_for_hash(hash)?;
 
                 let mpi = mpi::MPI::new(&sig[..]);
                 Ok(mpi::Signature::RSA { s: mpi })
@@ -130,7 +131,7 @@ impl<'a> crypto::Signer for CardSigner {
             (PublicKeyAlgorithm::EdDSA, mpi::PublicKey::EdDSA { .. }) => {
                 let hash = Hash::EdDSA(digest);
 
-                let sig = self.ocu.signature_for_hash(hash)?;
+                let sig = self.ca.signature_for_hash(hash)?;
 
                 let r = mpi::MPI::new(&sig[..32]);
                 let s = mpi::MPI::new(&sig[32..]);
