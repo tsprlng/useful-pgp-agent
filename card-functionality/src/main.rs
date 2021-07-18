@@ -167,7 +167,7 @@ fn test_keygen() {
     unimplemented!()
 }
 
-fn test_reset(ca: &mut CardApp) -> Result<TestOutput> {
+fn test_reset(ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
     let _res = ca.factory_reset()?;
     Ok(vec![])
 }
@@ -356,19 +356,23 @@ fn main() -> Result<()> {
     ];
 
     // println!("reset");
-    // let _ = run_test(&cards, test_reset)?;
+    // let _ = run_test_pcsc(&pcsc_cards, test_reset, &vec![])?;
     //
     // println!("verify");
-    // let verify_out = run_test(&cards, test_verify)?;
+    // let verify_out = run_test_pcsc(&pcsc_cards, test_verify, &vec![])?;
     // println!("{:x?}", verify_out);
     //
     // println!("set user data");
-    // let userdata_out = run_test(&cards, test_set_user_data)?;
+    // let userdata_out =
+    //     run_test_pcsc(&pcsc_cards, test_set_user_data, &vec![])?;
     // println!("{:x?}", userdata_out);
 
     for (key, ciphertext) in vec![
         ("data/rsa2k.sec", "data/encrypted_to_rsa2k.asc"),
         ("data/rsa4k.sec", "data/encrypted_to_rsa4k.asc"),
+        ("data/25519.sec", "data/encrypted_to_25519.asc"),
+        ("data/nist256.sec", "data/encrypted_to_nist256.asc"),
+        ("data/nist521.sec", "data/encrypted_to_nist521.asc"),
     ] {
         // upload keys
         println!("Upload key '{}'", key);
@@ -383,8 +387,9 @@ fn main() -> Result<()> {
         // decrypt
         println!("Decrypt");
         let dec_out =
-            run_test_pcsc(&cards, test_decrypt, &vec![key, ciphertext])?;
+            run_test_pcsc(&pcsc_cards, test_decrypt, &vec![key, ciphertext])?;
         println!("{:x?}", dec_out);
+        println!();
 
         // sign
         println!("Sign");
