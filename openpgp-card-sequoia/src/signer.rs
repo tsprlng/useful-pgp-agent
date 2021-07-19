@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use openpgp::crypto;
 use openpgp::crypto::mpi;
 use openpgp::policy::Policy;
-use openpgp::types::PublicKeyAlgorithm;
+use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::card_app::CardApp;
@@ -138,8 +138,16 @@ impl<'a> crypto::Signer for CardSigner<'a> {
 
                 Ok(mpi::Signature::EdDSA { r, s })
             }
-            (PublicKeyAlgorithm::ECDSA, mpi::PublicKey::ECDSA { .. }) => {
-                let hash = Hash::ECDSA(digest);
+            (
+                PublicKeyAlgorithm::ECDSA,
+                mpi::PublicKey::ECDSA { curve, .. },
+            ) => {
+                let hash = match curve {
+                    Curve::NistP256 => Hash::ECDSA(&digest[..32]),
+                    Curve::NistP384 => Hash::ECDSA(&digest[..48]),
+                    Curve::NistP521 => Hash::ECDSA(&digest[..64]),
+                    _ => Hash::ECDSA(digest),
+                };
 
                 let sig = self.ca.signature_for_hash(hash)?;
 
