@@ -118,7 +118,7 @@ impl<'a> VerificationHelper for VHelper<'a> {
 
 pub fn verify_sig(cert: &Cert, msg: &[u8], sig: &[u8]) -> Result<bool> {
     let vh = VHelper::new(cert);
-    let mut dv = DetachedVerifierBuilder::from_bytes(&sig[..])?
+    let mut dv = DetachedVerifierBuilder::from_bytes(&sig)?
         .with_policy(SP, None, vh)?;
 
     Ok(dv.verify_bytes(msg).is_ok())
