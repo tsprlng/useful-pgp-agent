@@ -112,7 +112,14 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 };
 
                 // Decryption operation on the card
-                let dec = self.ca.decrypt(dm)?;
+                let mut dec = self.ca.decrypt(dm)?;
+
+                // Specifically handle return value from Gnuk
+                // (Gnuk returns a leading '0x04' byte and
+                // an additional 32 trailing bytes)
+                if curve == &Curve::NistP256 && dec.len() == 65 {
+                    dec = dec[1..33].to_vec();
+                }
 
                 #[allow(non_snake_case)]
                 let S: openpgp::crypto::mem::Protected = dec.into();
