@@ -25,18 +25,75 @@
 //! The Yubikey 5 erroneously returns Status 0x6a80 ("Incorrect parameters in
 //! the command data field").
 
-use anyhow::Result;
-use std::collections::HashMap;
+use anyhow::{anyhow, Error, Result};
+use thiserror::Error;
 
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::apdu::PcscClient;
 use openpgp_card::card_app::CardApp;
+use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
 use openpgp_card::{CardClientBox, Sex};
 use openpgp_card_scdc::ScdClient;
 
 mod util;
+
+#[derive(Debug)]
+enum TestCard {
+    Pcsc(&'static str),
+    Scdc(&'static str),
+}
+
+impl TestCard {
+    fn open(&self) -> Result<CardApp> {
+        match self {
+            Self::Pcsc(ident) => {
+                for card in PcscClient::list_cards()? {
+                    let card_client = Box::new(card) as CardClientBox;
+                    let mut ca = CardApp::new(card_client);
+
+                    // Select OpenPGP applet
+                    let res = ca.select()?;
+                    res.check_ok()?;
+
+                    // Set Card Capabilities (chaining, command length, ..)
+                    let ard = ca.get_app_data()?;
+                    ca = ca.init_caps(&ard)?;
+
+                    let app_id = CardApp::get_aid(&ard)?;
+
+                    if &app_id.ident().as_str() == ident {
+                        // println!("opened pcsc card {}", ident);
+
+                        return Ok(ca);
+                    }
+                }
+
+                Err(anyhow!("Pcsc card {} not found", ident))
+            }
+            Self::Scdc(serial) => {
+                // FIXME
+                const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
+
+                let mut card = ScdClient::new(SOCKET)?;
+                card.select_card(serial)?;
+
+                let card_client = Box::new(card) as CardClientBox;
+
+                let mut ca = CardApp::new(card_client);
+
+                // Set Card Capabilities (chaining, command length, ..)
+                let ard = ca.get_app_data()?;
+                ca = ca.init_caps(&ard)?;
+
+                // println!("opened scdc card {}", serial);
+
+                Ok(ca)
+            }
+        }
+    }
+}
 
 #[derive(Debug)]
 enum TestResult {
@@ -46,11 +103,26 @@ enum TestResult {
 
 type TestOutput = Vec<TestResult>;
 
-/// Map: Card ident -> TestOutput
-type TestsOutput = HashMap<String, TestOutput>;
+#[derive(Error, Debug)]
+pub enum TestError {
+    #[error("Failed to upload key {0} ({1})")]
+    KeyUploadError(String, Error),
+
+    #[error(transparent)]
+    OPGP(#[from] OpenpgpCardError),
+
+    #[error(transparent)]
+    OCard(#[from] OcErrorStatus),
+
+    #[error(transparent)]
+    Other(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
+}
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-fn test_decrypt(mut ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
+fn test_decrypt(
+    mut ca: &mut CardApp,
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     assert_eq!(
         param.len(),
         2,
@@ -73,7 +145,10 @@ fn test_decrypt(mut ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-fn test_sign(mut ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
+fn test_sign(
+    mut ca: &mut CardApp,
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
 
     let res = ca.verify_pw1_for_signing("123456")?;
@@ -139,7 +214,10 @@ fn check_key_upload_algo_attrs() -> Result<()> {
     Ok(())
 }
 
-fn test_upload_keys(ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
+fn test_upload_keys(
+    ca: &mut CardApp,
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     assert_eq!(
         param.len(),
         1,
@@ -153,9 +231,12 @@ fn test_upload_keys(ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
 
     // FIXME: check if card supports the algo in question?
 
-    let meta = util::upload_subkeys(ca, &cert)?;
+    let meta = util::upload_subkeys(ca, &cert)
+        .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
 
     check_key_upload_metadata(ca, &meta)?;
+
+    // FIXME: implement
     check_key_upload_algo_attrs()?;
 
     Ok(vec![])
@@ -167,7 +248,10 @@ fn test_keygen() {
     unimplemented!()
 }
 
-fn test_reset(ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
+fn test_reset(
+    ca: &mut CardApp,
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     let _res = ca.factory_reset()?;
     Ok(vec![])
 }
@@ -180,7 +264,7 @@ fn test_reset(ca: &mut CardApp, param: &[&str]) -> Result<TestOutput> {
 fn test_set_user_data(
     ca: &mut CardApp,
     _param: &[&str],
-) -> Result<TestOutput> {
+) -> Result<TestOutput, TestError> {
     let res = ca.verify_pw3("12345678")?;
     res.check_ok()?;
 
@@ -216,7 +300,10 @@ fn test_set_user_data(
 /// Outputs:
 /// - verify pw3 (check) -> Status
 /// - verify pw1 (check) -> Status
-fn test_verify(ca: &mut CardApp, _param: &[&str]) -> Result<TestOutput> {
+fn test_verify(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
     // Steps:
     //
     // - try to set name without verify, assert result is not ok
@@ -264,141 +351,95 @@ fn test_verify(ca: &mut CardApp, _param: &[&str]) -> Result<TestOutput> {
     Ok(out)
 }
 
-fn run_test_pcsc(
-    cards: &[&str],
-    t: fn(&mut CardApp, &[&str]) -> Result<TestOutput>,
+fn run_test(
+    card: &mut TestCard,
+    t: fn(&mut CardApp, &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
-) -> Result<TestsOutput> {
-    let mut out = HashMap::new();
+) -> Result<TestOutput, TestError> {
+    println!();
+    println!("Test card {:?}", card);
 
-    for card in PcscClient::list_cards()? {
-        let card_client = Box::new(card) as CardClientBox;
-        let mut ca = CardApp::new(card_client);
+    let mut ca = card.open()?;
 
-        // Select OpenPGP applet
-        let res = ca.select()?;
-        res.check_ok()?;
+    let ard = ca.get_app_data()?;
 
-        // Set Card Capabilities (chaining, command length, ..)
-        let ard = ca.get_app_data()?;
-        ca = ca.init_caps(&ard)?;
+    let app_id = CardApp::get_aid(&ard)?;
 
-        let app_id = CardApp::get_aid(&ard)?;
+    println!("Running Test on {}:", app_id.ident());
 
-        if cards.contains(&app_id.ident().as_str()) {
-            // println!("Running Test on {}:", app_id.ident());
-
-            let res = t(&mut ca, param);
-
-            out.insert(app_id.ident(), res?);
-        }
-    }
-
-    Ok(out)
-}
-
-fn run_test_scdc(
-    cards: &[&str],
-    t: fn(&mut CardApp, &[&str]) -> Result<TestOutput>,
-    param: &[&str],
-) -> Result<TestsOutput> {
-    let mut out = HashMap::new();
-
-    const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
-
-    for serial in cards {
-        let mut card = ScdClient::new(SOCKET)?;
-        card.select_card(serial)?;
-
-        let card_client = Box::new(card) as CardClientBox;
-
-        let mut ca = CardApp::new(card_client);
-
-        // Set Card Capabilities (chaining, command length, ..)
-        let ard = ca.get_app_data()?;
-        ca = ca.init_caps(&ard)?;
-
-        println!("XXX");
-
-        let app_id = CardApp::get_aid(&ard)?;
-
-        if cards.contains(&app_id.ident().as_str()) {
-            // println!("Running Test on {}:", app_id.ident());
-
-            let res = t(&mut ca, param);
-
-            out.insert(app_id.ident(), res?);
-        }
-    }
-
-    Ok(out)
+    t(&mut ca, param)
 }
 
 fn main() -> Result<()> {
     env_logger::init();
 
-    // list of card idents to runs the tests on
-    let pcsc_cards = vec![
-        "0006:16019180", /* Yubikey 5 */
-        "0005:0000A835", /* FLOSS Card 3.4 */
-        "FFFE:57183146", /* Gnuk Rysim (green) */
-
-                         // "FFFE:4231EB6E", /* Gnuk FST */
+    let cards = vec![
+        // TestCard::Scdc("D276000124010200FFFEF1420A7A0000"), /* Gnuk emulated */
+        // TestCard::Scdc("D2760001240103040006160191800000"), /* Yubikey 5 */
+        // TestCard::Scdc("D27600012401030400050000A8350000"), /* FLOSS Card 3.4 */
+        // TestCard::Scdc("D276000124010200FFFE571831460000"), /* Gnuk Rysim (green) */
+        // TestCard::Scdc("D276000124010200FFFE4231EB6E0000"), /* Gnuk FST */
+        TestCard::Pcsc("0006:16019180"), /* Yubikey 5 */
+        TestCard::Pcsc("0005:0000A835"), /* FLOSS Card 3.4 */
+        TestCard::Pcsc("FFFE:57183146"), /* Gnuk Rysim (green) */
+        TestCard::Pcsc("FFFE:4231EB6E"), /* Gnuk FST */
     ];
 
-    // list of scdc card serial to runs the tests on
-    let scdc_cards = vec![
-        // "D2760001240103040006160191800000", /* Yubikey 5 */
-        "D27600012401030400050000A8350000", /* FLOSS Card 3.4 */
-        "D276000124010200FFFE571831460000", /* Gnuk Rysim (green) */
+    for mut card in cards {
+        println!("reset");
+        let _ = run_test(&mut card, test_reset, &[])?;
 
-                                            // "D276000124010200FFFE4231EB6E0000", /* Gnuk FST */
-    ];
+        println!("verify");
+        let verify_out = run_test(&mut card, test_verify, &[])?;
+        println!("{:x?}", verify_out);
 
-    // println!("reset");
-    // let _ = run_test_pcsc(&pcsc_cards, test_reset, &vec![])?;
-    //
-    // println!("verify");
-    // let verify_out = run_test_pcsc(&pcsc_cards, test_verify, &vec![])?;
-    // println!("{:x?}", verify_out);
-    //
-    // println!("set user data");
-    // let userdata_out =
-    //     run_test_pcsc(&pcsc_cards, test_set_user_data, &vec![])?;
-    // println!("{:x?}", userdata_out);
+        println!("set user data");
+        let userdata_out = run_test(&mut card, test_set_user_data, &[])?;
+        println!("{:x?}", userdata_out);
 
-    for (key, ciphertext) in vec![
-        ("data/rsa2k.sec", "data/encrypted_to_rsa2k.asc"),
-        ("data/rsa4k.sec", "data/encrypted_to_rsa4k.asc"),
-        ("data/25519.sec", "data/encrypted_to_25519.asc"),
-        ("data/nist256.sec", "data/encrypted_to_nist256.asc"),
-        ("data/nist521.sec", "data/encrypted_to_nist521.asc"),
-    ] {
-        // upload keys
-        println!("Upload key '{}'", key);
-        let upload_out =
-            run_test_pcsc(&pcsc_cards, test_upload_keys, &vec![key])?;
-        println!("{:x?}", upload_out);
-        println!();
+        for (key, ciphertext) in [
+            ("data/rsa2k.sec", "data/encrypted_to_rsa2k.asc"),
+            ("data/rsa4k.sec", "data/encrypted_to_rsa4k.asc"),
+            ("data/25519.sec", "data/encrypted_to_25519.asc"),
+            ("data/nist256.sec", "data/encrypted_to_nist256.asc"),
+            ("data/nist521.sec", "data/encrypted_to_nist521.asc"),
+        ] {
+            // upload keys
+            println!("Upload key '{}'", key);
+            let upload_res = run_test(&mut card, test_upload_keys, &[key]);
 
-        // FIXME: if this card doesn't support the key type, skip the
-        // following tests?
+            // FIXME: if this card doesn't support the key type, skip the
+            // following tests?
+            if let Err(TestError::KeyUploadError(s, _)) = upload_res {
+                println!(
+                    "upload of key {} to card {:?} failed -> skip",
+                    key, card
+                );
+                continue; // FIXME: add label?
+            }
 
-        // decrypt
-        println!("Decrypt");
-        let dec_out =
-            run_test_pcsc(&pcsc_cards, test_decrypt, &vec![key, ciphertext])?;
-        println!("{:x?}", dec_out);
-        println!();
+            let upload_out = upload_res?;
+            println!("{:x?}", upload_out);
+            println!();
 
-        // sign
-        println!("Sign");
-        let sign_out = run_test_pcsc(&pcsc_cards, test_sign, &vec![key])?;
-        println!("{:x?}", sign_out);
-        println!();
+            // decrypt
+            println!("Decrypt");
+            let dec_out =
+                run_test(&mut card, test_decrypt, &[key, ciphertext])?;
+            println!("{:x?}", dec_out);
+            println!();
+
+            // sign
+            println!("Sign");
+            let sign_out = run_test(&mut card, test_sign, &[key])?;
+            println!("{:x?}", sign_out);
+            println!();
+        }
+
+        // FIXME: generate keys
+
+        // FIXME: upload key with password
     }
-
-    // upload some key with pw
 
     Ok(())
 }
