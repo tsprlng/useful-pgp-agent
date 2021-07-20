@@ -59,11 +59,11 @@ impl TestCard {
 
                     // Set Card Capabilities (chaining, command length, ..)
                     let ard = ca.get_app_data()?;
-                    ca = ca.init_caps(&ard)?;
-
                     let app_id = CardApp::get_aid(&ard)?;
 
                     if &app_id.ident().as_str() == ident {
+                        ca = ca.init_caps(&ard)?;
+
                         // println!("opened pcsc card {}", ident);
 
                         return Ok(ca);
@@ -354,16 +354,9 @@ fn run_test(
     t: fn(&mut CardApp, &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    println!();
-    println!("Test card {:?}", card);
-
     let mut ca = card.open()?;
-
     let ard = ca.get_app_data()?;
-
     let app_id = CardApp::get_aid(&ard)?;
-
-    println!("Running Test on {}:", app_id.ident());
 
     t(&mut ca, param)
 }
@@ -374,26 +367,29 @@ fn main() -> Result<()> {
     let cards = vec![
         // TestCard::Scdc("D276000124010200FFFEF1420A7A0000"), /* Gnuk emulated */
         // TestCard::Scdc("D2760001240103040006160191800000"), /* Yubikey 5 */
-        // TestCard::Scdc("D27600012401030400050000A8350000"), /* FLOSS Card 3.4 */
         // TestCard::Scdc("D276000124010200FFFE571831460000"), /* Gnuk Rysim (green) */
         // TestCard::Scdc("D276000124010200FFFE4231EB6E0000"), /* Gnuk FST */
+        // TestCard::Scdc("D27600012401030400050000A8350000"), /* FLOSS Card 3.4 */
+        // TestCard::Pcsc("FFFE:F1420A7A"), /* Gnuk emulated */
         TestCard::Pcsc("0006:16019180"), /* Yubikey 5 */
-        TestCard::Pcsc("0005:0000A835"), /* FLOSS Card 3.4 */
         TestCard::Pcsc("FFFE:57183146"), /* Gnuk Rysim (green) */
         TestCard::Pcsc("FFFE:4231EB6E"), /* Gnuk FST */
+        TestCard::Pcsc("0005:0000A835"), /* FLOSS Card 3.4 */
     ];
 
     for mut card in cards {
-        println!("reset");
+        println!("** Run tests on card {:?} **", card);
+
+        println!("Reset");
         let _ = run_test(&mut card, test_reset, &[])?;
 
-        println!("verify");
+        print!("Verify");
         let verify_out = run_test(&mut card, test_verify, &[])?;
-        println!("{:x?}", verify_out);
+        println!(" {:x?}", verify_out);
 
-        println!("set user data");
+        print!("Set user data");
         let userdata_out = run_test(&mut card, test_set_user_data, &[])?;
-        println!("{:x?}", userdata_out);
+        println!(" {:x?}", userdata_out);
 
         for (key, ciphertext) in [
             ("data/rsa2k.sec", "data/encrypted_to_rsa2k.asc"),
@@ -403,41 +399,37 @@ fn main() -> Result<()> {
             ("data/nist521.sec", "data/encrypted_to_nist521.asc"),
         ] {
             // upload keys
-            println!("Upload key '{}'", key);
+            print!("Upload key '{}'", key);
             let upload_res = run_test(&mut card, test_upload_keys, &[key]);
 
             if let Err(TestError::KeyUploadError(s, _)) = upload_res {
                 // The card doesn't support this key type, so skip to the
                 // next key - don't try to decrypt/sign for this key.
 
-                println!(
-                    "Upload of key {} to card {:?} failed -> skip",
-                    key, card
-                );
+                println!(" => Upload failed, skip tests");
                 continue;
             }
 
             let upload_out = upload_res?;
-            println!("{:x?}", upload_out);
-            println!();
+            println!(" {:x?}", upload_out);
 
             // decrypt
-            println!("Decrypt");
+            print!("  Decrypt");
             let dec_out =
                 run_test(&mut card, test_decrypt, &[key, ciphertext])?;
-            println!("{:x?}", dec_out);
-            println!();
+            println!(" {:x?}", dec_out);
 
             // sign
-            println!("Sign");
+            print!("  Sign");
             let sign_out = run_test(&mut card, test_sign, &[key])?;
-            println!("{:x?}", sign_out);
-            println!();
+            println!(" {:x?}", sign_out);
         }
 
         // FIXME: generate keys
 
         // FIXME: upload key with password
+
+        println!();
     }
 
     Ok(())
