@@ -229,8 +229,6 @@ fn test_upload_keys(
 
     let cert = Cert::from_file(param[0])?;
 
-    // FIXME: check if card supports the algo in question?
-
     let meta = util::upload_subkeys(ca, &cert)
         .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
 
@@ -408,14 +406,15 @@ fn main() -> Result<()> {
             println!("Upload key '{}'", key);
             let upload_res = run_test(&mut card, test_upload_keys, &[key]);
 
-            // FIXME: if this card doesn't support the key type, skip the
-            // following tests?
             if let Err(TestError::KeyUploadError(s, _)) = upload_res {
+                // The card doesn't support this key type, so skip to the
+                // next key - don't try to decrypt/sign for this key.
+
                 println!(
-                    "upload of key {} to card {:?} failed -> skip",
+                    "Upload of key {} to card {:?} failed -> skip",
                     key, card
                 );
-                continue; // FIXME: add label?
+                continue;
             }
 
             let upload_out = upload_res?;
