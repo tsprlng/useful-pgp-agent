@@ -118,6 +118,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 // (Gnuk returns a leading '0x04' byte and
                 // an additional 32 trailing bytes)
                 if curve == &Curve::NistP256 && dec.len() == 65 {
+                    // see Gnuk src/call-ec.c:82
                     dec = dec[1..33].to_vec();
                 }
 
