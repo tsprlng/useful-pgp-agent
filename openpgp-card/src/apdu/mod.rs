@@ -183,6 +183,14 @@ fn send_command_low_level(
     } else {
         let serialized = cmd.serialize(ext)?;
 
+        // Can't send this command to the card, because it is too long and
+        // the card doesn't support command chaining.
+        if serialized.len() > max_cmd_bytes {
+            return Err(OpenpgpCardError::CommandTooLong(serialized.len()));
+        }
+
+        log::debug!(" -> APDU command: {:x?}", &serialized);
+
         let resp = card_client.transmit(&serialized, buf_size)?;
 
         log::debug!(" <- APDU response: {:x?}", resp);

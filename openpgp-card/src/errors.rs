@@ -11,6 +11,9 @@ pub enum OpenpgpCardError {
     #[error("OpenPGP card error status {0}")]
     OcStatus(OcErrorStatus),
 
+    #[error("Command too long ({0} bytes)")]
+    CommandTooLong(usize),
+
     #[error("Internal error {0}")]
     InternalError(anyhow::Error),
 }
