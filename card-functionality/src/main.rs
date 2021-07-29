@@ -79,7 +79,7 @@ impl TestCard {
                 let mut card = ScdClient::new(SOCKET)?;
                 card.select_card(serial)?;
 
-                let mut card_client = Box::new(card) as CardClientBox;
+                let card_client = Box::new(card) as CardClientBox;
 
                 let mut ca = CardApp::new(card_client);
 
@@ -266,7 +266,7 @@ fn test_keygen() {
 
 fn test_reset(
     ca: &mut CardApp,
-    param: &[&str],
+    _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let _res = ca.factory_reset()?;
     Ok(vec![])
@@ -374,7 +374,7 @@ fn run_test(
 ) -> Result<TestOutput, TestError> {
     let mut ca = card.open()?;
     let ard = ca.get_app_data()?;
-    let app_id = CardApp::get_aid(&ard)?;
+    let _app_id = CardApp::get_aid(&ard)?;
 
     t(&mut ca, param)
 }
