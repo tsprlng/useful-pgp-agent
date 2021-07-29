@@ -31,23 +31,22 @@ use crate::{
 
 pub struct CardApp {
     card_client: CardClientBox,
-    card_caps: Option<CardCaps>,
 }
 
 impl CardApp {
     pub fn new(card_client: CardClientBox) -> Self {
-        Self {
-            card_client,
-            card_caps: None,
-        }
+        Self { card_client }
     }
 
     pub(crate) fn take_card(self) -> CardClientBox {
         self.card_client
     }
 
-    /// Read capabilities from the card, and set them in the CardApp
-    pub fn init_caps(self, ard: &Tlv) -> Result<Self> {
+    /// Read capabilities from the card, and set them in the CardApp.
+    ///
+    /// Also initializes the underlying CardClient with the caps - some
+    /// implementations may need this information.
+    pub fn init_caps(&mut self, ard: &Tlv) -> Result<()> {
         // Determine chaining/extended length support from card
         // metadata and cache this information in CardApp (as a
         // CardCaps)
@@ -62,36 +61,28 @@ impl CardApp {
             }
         }
 
-        let max_cmd_bytes = if let Ok(Some(eli)) =
+        let (max_cmd_bytes, max_rsp_bytes) = if let Ok(Some(eli)) =
             CardApp::get_extended_length_information(&ard)
         {
-            eli.max_command_bytes
+            (eli.max_command_bytes, eli.max_response_bytes)
         } else {
-            255
+            (255, 255)
         };
 
         let caps = CardCaps {
             ext_support,
             chaining_support,
             max_cmd_bytes,
+            max_rsp_bytes,
         };
 
-        Ok(self.set_caps(caps))
-    }
+        self.card_client.init_caps(caps);
 
-    pub fn set_caps(self, card_caps: CardCaps) -> Self {
-        Self {
-            card_client: self.card_client,
-            card_caps: Some(card_caps),
-        }
+        Ok(())
     }
 
     pub fn card(&mut self) -> &mut CardClientBox {
         &mut self.card_client
-    }
-
-    pub fn card_caps(&self) -> Option<&CardCaps> {
-        self.card_caps.as_ref()
     }
 
     // --- select ---
@@ -99,7 +90,7 @@ impl CardApp {
     /// "Select" the OpenPGP card application
     pub fn select(&mut self) -> Result<Response, OpenpgpCardError> {
         let select_openpgp = commands::select_openpgp();
-        apdu::send_command(&mut self.card_client, select_openpgp, false, None)
+        apdu::send_command(&mut self.card_client, select_openpgp, false)
     }
 
     // --- application data ---
@@ -110,10 +101,10 @@ impl CardApp {
     /// (the data is stored in the OpenPGPCard object).
     pub fn get_app_data(&mut self) -> Result<Tlv> {
         let ad = commands::get_application_data();
-        let resp = apdu::send_command(&mut self.card_client, ad, true, None)?;
+        let resp = apdu::send_command(&mut self.card_client, ad, true)?;
         let entry = TlvEntry::from(resp.data()?, true)?;
 
-        log::trace!(" App data TlvEntry: {:x?}", entry);
+        log::debug!(" App data TlvEntry: {:x?}", entry);
 
         Ok(Tlv(Tag::from([0x6E]), entry))
     }
@@ -283,7 +274,6 @@ impl CardApp {
             &mut self.card_client,
             commands::get_url(),
             true,
-            self.card_caps.as_ref(),
         )?;
 
         Ok(String::from_utf8_lossy(resp.data()?).to_string())
@@ -292,12 +282,7 @@ impl CardApp {
     // --- cardholder related data (65) ---
     pub fn get_cardholder_related_data(&mut self) -> Result<CardHolder> {
         let crd = commands::cardholder_related_data();
-        let resp = apdu::send_command(
-            &mut self.card_client,
-            crd,
-            true,
-            self.card_caps.as_ref(),
-        )?;
+        let resp = apdu::send_command(&mut self.card_client, crd, true)?;
         resp.check_ok()?;
 
         CardHolder::try_from(resp.data()?)
@@ -306,12 +291,7 @@ impl CardApp {
     // --- security support template (7a) ---
     pub fn get_security_support_template(&mut self) -> Result<Tlv> {
         let sst = commands::get_security_support_template();
-        let resp = apdu::send_command(
-            &mut self.card_client,
-            sst,
-            true,
-            self.card_caps.as_ref(),
-        )?;
+        let resp = apdu::send_command(&mut self.card_client, sst, true)?;
         resp.check_ok()?;
 
         Tlv::try_from(resp.data()?)
@@ -323,7 +303,6 @@ impl CardApp {
             &mut self.card_client,
             commands::get_algo_list(),
             true,
-            self.card_caps.as_ref(),
         )?;
         resp.check_ok()?;
 
@@ -339,12 +318,8 @@ impl CardApp {
         // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
             let verify = commands::verify_pw1_81([0x40; 8].to_vec());
-            let resp = apdu::send_command(
-                &mut self.card_client,
-                verify,
-                false,
-                self.card_caps.as_ref(),
-            )?;
+            let resp =
+                apdu::send_command(&mut self.card_client, verify, false)?;
             if !(resp.status() == [0x69, 0x82]
                 || resp.status() == [0x69, 0x83])
             {
@@ -356,12 +331,8 @@ impl CardApp {
         // [apdu 00 20 00 83 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
             let verify = commands::verify_pw3([0x40; 8].to_vec());
-            let resp = apdu::send_command(
-                &mut self.card_client,
-                verify,
-                false,
-                self.card_caps.as_ref(),
-            )?;
+            let resp =
+                apdu::send_command(&mut self.card_client, verify, false)?;
 
             if !(resp.status() == [0x69, 0x82]
                 || resp.status() == [0x69, 0x83])
@@ -372,22 +343,12 @@ impl CardApp {
 
         // terminate_df [apdu 00 e6 00 00]
         let term = commands::terminate_df();
-        let resp = apdu::send_command(
-            &mut self.card_client,
-            term,
-            false,
-            self.card_caps.as_ref(),
-        )?;
+        let resp = apdu::send_command(&mut self.card_client, term, false)?;
         resp.check_ok()?;
 
         // activate_file [apdu 00 44 00 00]
         let act = commands::activate_file();
-        let resp = apdu::send_command(
-            &mut self.card_client,
-            act,
-            false,
-            self.card_caps.as_ref(),
-        )?;
+        let resp = apdu::send_command(&mut self.card_client, act, false)?;
         resp.check_ok()?;
 
         // FIXME: does the connection need to be re-opened on some cards,
@@ -403,22 +364,12 @@ impl CardApp {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
-        apdu::send_command(
-            &mut self.card_client,
-            verify,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(&mut self.card_client, verify, false)
     }
 
     pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
         let verify = commands::verify_pw1_82(vec![]);
-        apdu::send_command(
-            &mut self.card_client,
-            verify,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(&mut self.card_client, verify, false)
     }
 
     pub fn verify_pw1(
@@ -428,22 +379,12 @@ impl CardApp {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
-        apdu::send_command(
-            &mut self.card_client,
-            verify,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(&mut self.card_client, verify, false)
     }
 
     pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
         let verify = commands::verify_pw3(vec![]);
-        apdu::send_command(
-            &mut self.card_client,
-            verify,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(&mut self.card_client, verify, false)
     }
 
     pub fn verify_pw3(
@@ -453,12 +394,7 @@ impl CardApp {
         assert!(pin.len() >= 8); // FIXME: Err
 
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
-        apdu::send_command(
-            &mut self.card_client,
-            verify,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(&mut self.card_client, verify, false)
     }
 
     // --- decrypt ---
@@ -499,12 +435,7 @@ impl CardApp {
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         // The OpenPGP card is already connected and PW1 82 has been verified
         let dec_cmd = commands::decryption(data);
-        let resp = apdu::send_command(
-            &mut self.card_client,
-            dec_cmd,
-            true,
-            self.card_caps.as_ref(),
-        )?;
+        let resp = apdu::send_command(&mut self.card_client, dec_cmd, true)?;
         resp.check_ok()?;
 
         Ok(resp.data().map(|d| d.to_vec())?)
@@ -557,12 +488,7 @@ impl CardApp {
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         let dec_cmd = commands::signature(data);
 
-        let resp = apdu::send_command(
-            &mut self.card_client,
-            dec_cmd,
-            true,
-            self.card_caps.as_ref(),
-        )?;
+        let resp = apdu::send_command(&mut self.card_client, dec_cmd, true)?;
 
         Ok(resp.data().map(|d| d.to_vec())?)
     }
@@ -574,12 +500,7 @@ impl CardApp {
         name: &str,
     ) -> Result<Response, OpenpgpCardError> {
         let put_name = commands::put_name(name.as_bytes().to_vec());
-        apdu::send_command(
-            &mut self.card_client,
-            put_name,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(&mut self.card_client, put_name, false)
     }
 
     pub fn set_lang(
@@ -587,22 +508,12 @@ impl CardApp {
         lang: &str,
     ) -> Result<Response, OpenpgpCardError> {
         let put_lang = commands::put_lang(lang.as_bytes().to_vec());
-        apdu::send_command(
-            self.card_client.borrow_mut(),
-            put_lang,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(self.card_client.borrow_mut(), put_lang, false)
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<Response, OpenpgpCardError> {
         let put_sex = commands::put_sex(sex.as_u8());
-        apdu::send_command(
-            self.card_client.borrow_mut(),
-            put_sex,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(self.card_client.borrow_mut(), put_sex, false)
     }
 
     pub fn set_url(
@@ -610,12 +521,7 @@ impl CardApp {
         url: &str,
     ) -> Result<Response, OpenpgpCardError> {
         let put_url = commands::put_url(url.as_bytes().to_vec());
-        apdu::send_command(
-            &mut self.card_client,
-            put_url,
-            false,
-            self.card_caps.as_ref(),
-        )
+        apdu::send_command(&mut self.card_client, put_url, false)
     }
 
     pub fn upload_key(

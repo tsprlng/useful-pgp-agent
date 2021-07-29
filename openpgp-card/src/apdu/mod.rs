@@ -16,7 +16,7 @@ use crate::card_app::CardApp;
 use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
 use crate::{CardBase, CardCaps, CardClient, CardClientBox};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) enum Le {
     None,
     Short,
@@ -31,37 +31,34 @@ pub(crate) fn send_command(
     card_client: &mut CardClientBox,
     cmd: Command,
     expect_reply: bool,
-    card_caps: Option<&CardCaps>,
 ) -> Result<Response, OpenpgpCardError> {
     let mut resp = Response::try_from(send_command_low_level(
         card_client,
         cmd,
         expect_reply,
-        card_caps,
     )?)?;
 
     while resp.status()[0] == 0x61 {
         // More data is available for this command from the card
 
-        log::trace!(" response was truncated, getting more data");
+        log::debug!(" response was truncated, getting more data");
 
         // Get additional data
         let next = Response::try_from(send_command_low_level(
             card_client,
             commands::get_response(),
             expect_reply,
-            card_caps,
         )?)?;
 
         // FIXME: first check for 0x61xx or 0x9000?
-        log::trace!(" appending {} bytes to response", next.raw_data().len());
+        log::debug!(" appending {} bytes to response", next.raw_data().len());
 
         // Append new data to resp.data and overwrite status.
         resp.raw_mut_data().extend_from_slice(next.raw_data());
         resp.set_status(next.status());
     }
 
-    log::trace!(" final response len: {}", resp.raw_data().len());
+    log::debug!(" final response len: {}", resp.raw_data().len());
 
     Ok(resp)
 }
@@ -75,29 +72,39 @@ fn send_command_low_level(
     card_client: &mut CardClientBox,
     cmd: Command,
     expect_reply: bool,
-    card_caps: Option<&CardCaps>,
 ) -> Result<Vec<u8>, OpenpgpCardError> {
-    let (ext_support, chaining_support, max_cmd_bytes) =
-        if let Some(caps) = card_caps {
-            log::trace!("found card caps data!");
+    let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
+        if let Some(caps) = card_client.get_caps() {
+            log::debug!("found card caps data!");
 
             (
                 caps.ext_support,
                 caps.chaining_support,
                 caps.max_cmd_bytes as usize,
+                caps.max_rsp_bytes as usize,
             )
         } else {
-            log::trace!("found NO card caps data!");
+            log::debug!("found NO card caps data!");
 
             // default settings
-            (false, false, 255)
+            (false, false, 255, 255)
         };
 
-    log::trace!(
-        "ext le/lc {}, chaining {}, command chunk size {}",
+    // If the CardClient implementation has an inherent limit for the cmd
+    // size, take that limit into account.
+    // (E.g. when using scdaemon as a CardClient backend, there is a
+    // limitation to 1000 bytes length for Assuan commands, which
+    // translates to maximum command length of a bit under 500 bytes)
+    if let Some(max_cardclient_cmd_bytes) = card_client.max_cmd_len() {
+        max_cmd_bytes = usize::min(max_cmd_bytes, max_cardclient_cmd_bytes);
+    }
+
+    log::debug!(
+        "ext le/lc {}, chaining {}, max cmd {}, max rsp {}",
         ext_support,
         chaining_support,
-        max_cmd_bytes
+        max_cmd_bytes,
+        max_rsp_bytes
     );
 
     // Set Le to 'long', if we're using an extended chunk size.
@@ -111,18 +118,20 @@ fn send_command_low_level(
         _ => Le::Short,
     };
 
-    log::trace!(" -> full APDU command: {:x?}", cmd);
+    log::debug!(" -> full APDU command: {:x?}", cmd);
 
-    let buf_size = if !ext_support {
+    let buf_size = if !ext_support || ext == Le::Short {
         pcsc::MAX_BUFFER_SIZE
     } else {
-        pcsc::MAX_BUFFER_SIZE_EXTENDED
+        max_rsp_bytes
     };
+
+    log::trace!("buf_size {}", buf_size);
 
     if chaining_support && !cmd.data.is_empty() {
         // Send command in chained mode
 
-        log::trace!("chained command mode");
+        log::debug!("chained command mode");
 
         // Break up payload into chunks that fit into one command, each
         let chunks: Vec<_> = cmd.data.chunks(max_cmd_bytes).collect();
@@ -138,11 +147,12 @@ fn send_command_low_level(
             let serialized = partial
                 .serialize(ext)
                 .map_err(OpenpgpCardError::InternalError)?;
-            log::trace!(" -> chunked APDU command: {:x?}", &serialized);
+
+            log::debug!(" -> chunked APDU command: {:x?}", &serialized);
 
             let resp = card_client.transmit(&serialized, buf_size)?;
 
-            log::trace!(" <- APDU chunk response: {:x?}", &resp);
+            log::debug!(" <- APDU chunk response: {:x?}", &resp);
 
             if resp.len() < 2 {
                 return Err(OcErrorStatus::ResponseLength(resp.len()).into());
@@ -175,7 +185,7 @@ fn send_command_low_level(
 
         let resp = card_client.transmit(&serialized, buf_size)?;
 
-        log::trace!(" <- APDU response: {:x?}", resp);
+        log::debug!(" <- APDU response: {:x?}", resp);
 
         Ok(resp)
     }
@@ -183,11 +193,15 @@ fn send_command_low_level(
 
 pub struct PcscClient {
     card: Card,
+    card_caps: Option<CardCaps>,
 }
 
 impl PcscClient {
     fn new(card: Card) -> Self {
-        Self { card }
+        Self {
+            card,
+            card_caps: None,
+        }
     }
 
     pub fn list_cards() -> Result<Vec<PcscClient>> {
@@ -204,7 +218,7 @@ impl PcscClient {
     /// data").
     pub fn open(card: Card) -> Result<CardBase, OpenpgpCardError> {
         let card_client = PcscClient::new(card);
-        let mut ccb = Box::new(card_client) as CardClientBox;
+        let ccb = Box::new(card_client) as CardClientBox;
 
         let mut ca = CardApp::new(ccb);
         let resp = ca.select()?;
@@ -228,8 +242,16 @@ impl CardClient for PcscClient {
             )))
         })?;
 
-        log::trace!(" <- APDU response: {:x?}", resp);
+        log::debug!(" <- APDU response: {:x?}", resp);
 
         Ok(resp.to_vec())
+    }
+
+    fn init_caps(&mut self, caps: CardCaps) {
+        self.card_caps = Some(caps);
+    }
+
+    fn get_caps(&self) -> Option<&CardCaps> {
+        self.card_caps.as_ref()
     }
 }

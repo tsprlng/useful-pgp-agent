@@ -67,8 +67,6 @@ pub(crate) fn upload_key(
         }
     };
 
-    let caps: Option<CardCaps> = card_app.card_caps().copied();
-
     copy_key_to_card(
         card_app.card(),
         key_type,
@@ -76,7 +74,6 @@ pub(crate) fn upload_key(
         key.get_fp(),
         algo_cmd,
         key_cmd,
-        caps.as_ref(),
     )?;
 
     Ok(())
@@ -375,7 +372,6 @@ fn copy_key_to_card(
     fp: Vec<u8>,
     algo_cmd: Command,
     key_cmd: Command,
-    card_caps: Option<&CardCaps>,
 ) -> Result<(), OpenpgpCardError> {
     let fp_cmd = commands::put_data(&[key_type.get_fingerprint_put_tag()], fp);
 
@@ -395,11 +391,11 @@ fn copy_key_to_card(
 
     // FIXME: Only write algo attributes to the card if "extended
     // capabilities" show that they are changeable!
-    apdu::send_command(card_client, algo_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card_client, algo_cmd, false)?.check_ok()?;
 
-    apdu::send_command(card_client, key_cmd, false, card_caps)?.check_ok()?;
-    apdu::send_command(card_client, fp_cmd, false, card_caps)?.check_ok()?;
-    apdu::send_command(card_client, time_cmd, false, card_caps)?.check_ok()?;
+    apdu::send_command(card_client, key_cmd, false)?.check_ok()?;
+    apdu::send_command(card_client, fp_cmd, false)?.check_ok()?;
+    apdu::send_command(card_client, time_cmd, false)?.check_ok()?;
 
     Ok(())
 }

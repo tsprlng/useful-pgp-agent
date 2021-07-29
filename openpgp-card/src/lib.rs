@@ -27,17 +27,27 @@ mod tlv;
 
 pub trait CardClient {
     fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>>;
+    fn init_caps(&mut self, caps: CardCaps);
+    fn get_caps(&self) -> Option<&CardCaps>;
+
+    /// If a CardClient implementation introduces an inherent limit for
+    /// maximum number of bytes per command, this fn can indicate that
+    /// limit by returning `Some(max_cmd_len)`.
+    fn max_cmd_len(&self) -> Option<usize> {
+        None
+    }
 }
 
 pub type CardClientBox = Box<dyn CardClient + Send + Sync>;
 
 /// Information about the capabilities of the card.
 /// (feature configuration from card metadata)
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct CardCaps {
-    pub(crate) ext_support: bool,
-    pub(crate) chaining_support: bool,
-    pub(crate) max_cmd_bytes: u16,
+    pub ext_support: bool,
+    pub chaining_support: bool,
+    pub max_cmd_bytes: u16,
+    pub max_rsp_bytes: u16,
 }
 
 impl CardCaps {
@@ -45,11 +55,13 @@ impl CardCaps {
         ext_support: bool,
         chaining_support: bool,
         max_cmd_bytes: u16,
+        max_rsp_bytes: u16,
     ) -> CardCaps {
         Self {
             ext_support,
             chaining_support,
             max_cmd_bytes,
+            max_rsp_bytes,
         }
     }
 }
@@ -324,7 +336,7 @@ impl CardBase {
 
         let ard = card_app.get_app_data()?;
 
-        card_app = card_app.init_caps(&ard)?;
+        card_app.init_caps(&ard)?;
 
         Ok(Self { card_app, ard })
     }
