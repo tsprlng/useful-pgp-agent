@@ -425,11 +425,12 @@ fn main() -> Result<()> {
             print!("Upload key '{}'", key);
             let upload_res = run_test(&mut card, test_upload_keys, &[key]);
 
-            if let Err(TestError::KeyUploadError(s, _)) = upload_res {
+            if let Err(TestError::KeyUploadError(_file, err)) = &upload_res {
                 // The card doesn't support this key type, so skip to the
                 // next key - don't try to decrypt/sign for this key.
 
-                println!(" => Upload failed, skip tests");
+                println!(" => Upload failed ({:?}), skip tests", err);
+
                 continue;
             }
 
