@@ -214,6 +214,24 @@ fn check_key_upload_algo_attrs() -> Result<()> {
     Ok(())
 }
 
+fn test_print_caps(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let ard = ca.get_app_data()?;
+
+    let hist = CardApp::get_historical(&ard)?;
+    println!("hist: {:#?}", hist);
+
+    let ecap = CardApp::get_extended_capabilities(&ard)?;
+    println!("ecap: {:#?}", ecap);
+
+    let eli = CardApp::get_extended_length_information(&ard)?;
+    println!("eli: {:#?}", eli);
+
+    Ok(vec![])
+}
+
 fn test_upload_keys(
     ca: &mut CardApp,
     param: &[&str],
@@ -379,6 +397,11 @@ fn main() -> Result<()> {
 
     for mut card in cards {
         println!("** Run tests on card {:?} **", card);
+
+        // println!("Caps");
+        // let _ = run_test(&mut card, test_print_caps, &[])?;
+        //
+        // // continue; // only print caps
 
         println!("Reset");
         let _ = run_test(&mut card, test_reset, &[])?;
