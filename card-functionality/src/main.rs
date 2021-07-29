@@ -62,7 +62,7 @@ impl TestCard {
                     let app_id = CardApp::get_aid(&ard)?;
 
                     if &app_id.ident().as_str() == ident {
-                        ca = ca.init_caps(&ard)?;
+                        ca.init_caps(&ard)?;
 
                         // println!("opened pcsc card {}", ident);
 
@@ -79,13 +79,13 @@ impl TestCard {
                 let mut card = ScdClient::new(SOCKET)?;
                 card.select_card(serial)?;
 
-                let card_client = Box::new(card) as CardClientBox;
+                let mut card_client = Box::new(card) as CardClientBox;
 
                 let mut ca = CardApp::new(card_client);
 
                 // Set Card Capabilities (chaining, command length, ..)
                 let ard = ca.get_app_data()?;
-                ca = ca.init_caps(&ard)?;
+                ca.init_caps(&ard)?;
 
                 // println!("opened scdc card {}", serial);
 
