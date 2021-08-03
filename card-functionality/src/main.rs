@@ -73,10 +73,7 @@ impl TestCard {
                 Err(anyhow!("Pcsc card {} not found", ident))
             }
             Self::Scdc(serial) => {
-                // FIXME
-                const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
-
-                let card_client = ScdClient::open_by_serial(SOCKET, serial)?;
+                let card_client = ScdClient::open_by_serial(None, serial)?;
                 let mut ca = CardApp::new(card_client);
 
                 // Set Card Capabilities (chaining, command length, ..)
