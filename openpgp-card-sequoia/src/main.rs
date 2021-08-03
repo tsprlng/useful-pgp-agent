@@ -22,8 +22,6 @@ const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
 // const TEST_KEY_PATH: &str = "example/test25519.sec";
 // const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
 
-const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
-
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
@@ -36,9 +34,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
         // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
-        // let mut oc = ScdClient::open_scdc(SOCKET)?;
         let mut oc = CardBase::open_card(ScdClient::open_by_serial(
-            SOCKET,
+            None,
             &test_card_serial,
         )?)?;
 
@@ -153,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
         let mut oc = CardBase::open_card(ScdClient::open_by_serial(
-            SOCKET,
+            None,
             &test_card_serial,
         )?)?;
 
@@ -197,7 +194,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         // let oc = CardBase::open_by_ident(&test_card_ident)?;
         let oc = CardBase::open_card(ScdClient::open_by_serial(
-            SOCKET,
+            None,
             &test_card_serial,
         )?)?;
 
