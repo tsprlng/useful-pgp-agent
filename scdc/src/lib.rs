@@ -3,11 +3,13 @@
 
 //! This crate provides `ScdClient`, which is an implementation of the
 //! CardClient trait that uses GnuPG's scdaemon to access OpenPGP cards.
+//! To access scdaemon, GnuPG Agent is used.
 
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
 use lazy_static::lazy_static;
-use sequoia_ipc::assuan::{Client, Response};
+use sequoia_ipc::assuan::Response;
+use sequoia_ipc::gnupg::{Agent, Context};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
@@ -48,36 +50,76 @@ const ASSUAN_LINELENGTH: usize = 1000;
 const CMD_SIZE_MAX: usize = ASSUAN_LINELENGTH / 2 - 25;
 
 pub struct ScdClient {
-    client: Client,
+    agent: Agent,
     card_caps: Option<CardCaps>,
 }
 
 impl ScdClient {
     /// Initialize an ScdClient object that is connected to an scdaemon
-    /// instance via `socket`
-    fn new(socket: &str) -> Result<Self> {
-        let client = RT.lock().unwrap().block_on(Client::connect(socket))?;
-        Ok(Self {
-            client,
+    /// instance via a GnuPG `agent` instance.
+    ///
+    /// If `agent` is None, a Context with the default GnuPG home directory
+    /// is used.
+    fn new(agent: Option<Agent>) -> Result<Self> {
+        let agent = if let Some(agent) = agent {
+            agent
+        } else {
+            // Create and use a new Agent based on a default Context
+            let ctx = Context::new()?;
+            RT.lock().unwrap().block_on(Agent::connect(&ctx))?
+        };
+
+        let mut scdc = Self {
+            agent,
             card_caps: None,
-        })
+        };
+
+        // call "SCD SERIALNO", which causes scdaemon to be started by gpg
+        // agent (if it's not running yet)
+        scdc.init()?;
+
+        Ok(scdc)
+    }
+
+    fn init(&mut self) -> Result<()> {
+        let mut rt = RT.lock().unwrap();
+
+        let send = format!("SCD SERIALNO");
+        self.agent.send(send)?;
+
+        while let Some(response) = rt.block_on(self.agent.next()) {
+            log::debug!("init res: {:x?}", response);
+
+            if let Ok(Response::Status { .. }) = response {
+                // drop remaining lines
+                while let Some(_drop) = rt.block_on(self.agent.next()) {
+                    log::trace!("init drop: {:x?}", _drop);
+                }
+
+                return Ok(());
+            }
+        }
+
+        Err(anyhow!("SCDC init() failed"))
     }
 
     /// Create a CardClientBox object that uses an scdaemon instance as its
     /// backend. If multiple cards are available, scdaemon implicitly
     /// selects one.
-    pub fn open(socket: &str) -> Result<CardClientBox, OpenpgpCardError> {
-        let card = ScdClient::new(socket)?;
+    pub fn open(
+        agent: Option<Agent>,
+    ) -> Result<CardClientBox, OpenpgpCardError> {
+        let card = ScdClient::new(agent)?;
         Ok(Box::new(card) as CardClientBox)
     }
 
     /// Create a CardClientBox object that uses an scdaemon instance as its
     /// backend. Requests the specific card `serial`.
     pub fn open_by_serial(
-        socket: &str,
+        agent: Option<Agent>,
         serial: &str,
     ) -> Result<CardClientBox, OpenpgpCardError> {
-        let mut card = ScdClient::new(socket)?;
+        let mut card = ScdClient::new(agent)?;
         card.select_card(serial)?;
 
         Ok(Box::new(card) as CardClientBox)
@@ -86,12 +128,12 @@ impl ScdClient {
     /// Ask scdameon to switch to using a specific OpenPGP card, based on
     /// its `serial`.
     fn select_card(&mut self, serial: &str) -> Result<()> {
-        let send = format!("SERIALNO --demand={}\n", serial);
-        self.client.send(send)?;
+        let send = format!("SCD SERIALNO --demand={}", serial);
+        self.agent.send(send)?;
 
         let mut rt = RT.lock().unwrap();
 
-        while let Some(response) = rt.block_on(self.client.next()) {
+        while let Some(response) = rt.block_on(self.agent.next()) {
             log::debug!("select res: {:x?}", response);
 
             if response.is_err() {
@@ -100,7 +142,7 @@ impl ScdClient {
 
             if let Ok(Response::Status { .. }) = response {
                 // drop remaining lines
-                while let Some(_drop) = rt.block_on(self.client.next()) {
+                while let Some(_drop) = rt.block_on(self.agent.next()) {
                     log::debug!("select drop: {:x?}", _drop);
                 }
 
@@ -126,7 +168,7 @@ impl CardClient for ScdClient {
             "".to_string()
         };
 
-        let send = format!("APDU {}{}\n", ext, hex);
+        let send = format!("SCD APDU {}{}\n", ext, hex);
         log::debug!("SCDC command: '{}'", send);
 
         if send.len() > ASSUAN_LINELENGTH {
@@ -136,11 +178,11 @@ impl CardClient for ScdClient {
             ));
         }
 
-        self.client.send(send)?;
+        self.agent.send(send)?;
 
         let mut rt = RT.lock().unwrap();
 
-        while let Some(response) = rt.block_on(self.client.next()) {
+        while let Some(response) = rt.block_on(self.agent.next()) {
             log::debug!("res: {:x?}", response);
             if response.is_err() {
                 return Err(anyhow!(
@@ -153,7 +195,7 @@ impl CardClient for ScdClient {
                 let res = partial;
 
                 // drop remaining lines
-                while let Some(drop) = rt.block_on(self.client.next()) {
+                while let Some(drop) = rt.block_on(self.agent.next()) {
                     log::trace!("drop: {:x?}", drop);
                 }
 
