@@ -10,7 +10,7 @@ use crate::errors::OpenpgpCardError;
 use crate::parse::algo_attrs::{Algo, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{apdu, CardCaps, CardClientBox};
+use crate::{apdu, CardClientBox};
 use crate::{
     tlv, CardUploadableKey, EccKey, EccType, KeyType, PrivateKeyMaterial,
     RSAKey,
