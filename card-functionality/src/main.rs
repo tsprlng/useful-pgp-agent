@@ -76,11 +76,7 @@ impl TestCard {
                 // FIXME
                 const SOCKET: &str = "/run/user/1000/gnupg/S.scdaemon";
 
-                let mut card = ScdClient::new(SOCKET)?;
-                card.select_card(serial)?;
-
-                let card_client = Box::new(card) as CardClientBox;
-
+                let card_client = ScdClient::open_by_serial(SOCKET, serial)?;
                 let mut ca = CardApp::new(card_client);
 
                 // Set Card Capabilities (chaining, command length, ..)

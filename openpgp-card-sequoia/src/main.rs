@@ -8,7 +8,7 @@ use anyhow::Result;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::KeyType;
+use openpgp_card::{CardBase, KeyType};
 use openpgp_card_scdc::ScdClient;
 
 // Filename of test key and test message to use:
@@ -37,8 +37,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("** get card");
         // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
         // let mut oc = ScdClient::open_scdc(SOCKET)?;
-        let mut oc =
-            ScdClient::open_scdc_by_serial(SOCKET, &test_card_serial)?;
+        let mut oc = CardBase::open_card(ScdClient::open_by_serial(
+            SOCKET,
+            &test_card_serial,
+        )?)?;
 
         // card metadata
 
@@ -150,7 +152,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
 
         // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
-        let mut oc = ScdClient::open_scdc(SOCKET)?;
+        let mut oc = CardBase::open_card(ScdClient::open_by_serial(
+            SOCKET,
+            &test_card_serial,
+        )?)?;
 
         let app_id = oc.get_aid()?;
 
@@ -191,7 +196,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         // let oc = CardBase::open_by_ident(&test_card_ident)?;
-        let oc = ScdClient::open_scdc(SOCKET)?;
+        let oc = CardBase::open_card(ScdClient::open_by_serial(
+            SOCKET,
+            &test_card_serial,
+        )?)?;
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
