@@ -60,7 +60,7 @@ impl ScdClient {
     ///
     /// If `agent` is None, a Context with the default GnuPG home directory
     /// is used.
-    fn new(agent: Option<Agent>) -> Result<Self> {
+    fn new(agent: Option<Agent>, init: bool) -> Result<Self> {
         let agent = if let Some(agent) = agent {
             agent
         } else {
@@ -74,9 +74,11 @@ impl ScdClient {
             card_caps: None,
         };
 
-        // call "SCD SERIALNO", which causes scdaemon to be started by gpg
-        // agent (if it's not running yet)
-        scdc.init()?;
+        if init {
+            // call "SCD SERIALNO", which causes scdaemon to be started by gpg
+            // agent (if it's not running yet)
+            scdc.init()?;
+        }
 
         Ok(scdc)
     }
@@ -109,7 +111,7 @@ impl ScdClient {
     pub fn open(
         agent: Option<Agent>,
     ) -> Result<CardClientBox, OpenpgpCardError> {
-        let card = ScdClient::new(agent)?;
+        let card = ScdClient::new(agent, true)?;
         Ok(Box::new(card) as CardClientBox)
     }
 
@@ -119,7 +121,7 @@ impl ScdClient {
         agent: Option<Agent>,
         serial: &str,
     ) -> Result<CardClientBox, OpenpgpCardError> {
-        let mut card = ScdClient::new(agent)?;
+        let mut card = ScdClient::new(agent, true)?;
         card.select_card(serial)?;
 
         Ok(Box::new(card) as CardClientBox)
@@ -151,6 +153,40 @@ impl ScdClient {
         }
 
         Err(anyhow!("Card not found"))
+    }
+
+    fn send(&mut self, cmd: &str) -> Result<()> {
+        self.agent.send(cmd)?;
+
+        let mut rt = RT.lock().unwrap();
+
+        while let Some(response) = rt.block_on(self.agent.next()) {
+            log::debug!("select res: {:x?}", response);
+
+            if let Err(e) = response {
+                return Err(anyhow!("Err {:?}", e));
+            }
+
+            if let Ok(..) = response {
+                // drop remaining lines
+                while let Some(_drop) = rt.block_on(self.agent.next()) {
+                    log::debug!(" drop: {:x?}", _drop);
+                }
+
+                return Ok(());
+            }
+        }
+
+        Err(anyhow!("Error sending command {}", cmd))
+    }
+
+    pub fn shutdown_scd(agent: Option<Agent>) -> Result<()> {
+        let mut scdc = Self::new(agent, false)?;
+
+        scdc.send("SCD RESTART")?;
+        scdc.send("SCD BYE")?;
+
+        Ok(())
     }
 }
 
