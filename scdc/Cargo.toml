@@ -3,7 +3,7 @@
 
 [package]
 name = "openpgp-card-scdc"
-description = "Experimental SCDaemon Client, intended for use in the openpgp-card crate"
+description = "Experimental SCDaemon Client, intended for use with the openpgp-card crate"
 version = "0.0.1"
 edition = "2018"
 
