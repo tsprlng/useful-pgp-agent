@@ -49,6 +49,11 @@ impl TestCard {
     fn open(&self) -> Result<CardApp> {
         match self {
             Self::Pcsc(ident) => {
+                // Attempt to shutdown SCD, if it is running.
+                // Ignore any errors that occur during that shutdown attempt.
+                let res = ScdClient::shutdown_scd(None);
+                log::trace!(" Attempt to shutdown scd: {:?}", res);
+
                 for card in PcscClient::list_cards()? {
                     let card_client = Box::new(card) as CardClientBox;
                     let mut ca = CardApp::new(card_client);
