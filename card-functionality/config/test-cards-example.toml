@@ -1,26 +1,31 @@
-# Define which cards the test suite should be performed on.
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: MIT OR Apache-2.0
 #
-# NOTE that this test suite is DESTRUCTIVE.
-# It will overwrite all data on test cards!
+# This configuration specifies which cards the test suite is performed on.
 #
-# The test suite looks for the configuration in 'config/test-cards.toml',
-# you should configure your own set of test-card identifiers there.
+# NOTE: the test suite is **DESTRUCTIVE**.
+# It will **OVERWRITE** all data on test cards!
 #
-# Normally you'll probably want to test all cards via the pcsc transport.
+# The test suite reads the configuration from 'config/test-cards.toml'.
+# You should configure your set of test-card identifiers and store your
+# configuration in that location.
 #
-# The scdc transport is offered as an alternative, but not recommended.
-# (However, currently emulated Gnuk can only be used via scdc for unknown
-# reasons)
+# Usually you will want to test cards via the pcsc transport, which talks
+# to smartcards via the standard PCSC lite middleware
+# (https://pcsclite.apdu.fr/).
+#
+# An alternative scdc transport is provided. It talks to smartcards via
+# scdaemon (which is part of the GnuPG system).
+# The scdc transport is not recommended for use by default, it is offered
+# for experimental use only.
+#
+# (However, note that emulated Gnuk can currently only be accessed via scdc)
 
 pcsc = [
-    # Yubikey 5
-    "0006:12345678",
-
-    # FLOSS Card 3.4
-    "0005:0000A835",
+    "0006:12345678", # Yubikey 5
+    "0005:0000A835", # FLOSS Card 3.4
 ]
 
 scdc = [
-    # Gnuk emulated
-    "D276000124010200FFFEF1420A7A0000",
+    "D276000124010200FFFEF1420A7A0000", # Gnuk emulated
 ]
