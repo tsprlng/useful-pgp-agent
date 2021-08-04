@@ -1,0 +1,26 @@
+# Define which cards the test suite should be performed on.
+#
+# NOTE that this test suite is DESTRUCTIVE.
+# It will overwrite all data on test cards!
+#
+# The test suite looks for the configuration in 'config/test-cards.toml',
+# you should configure your own set of test-card identifiers there.
+#
+# Normally you'll probably want to test all cards via the pcsc transport.
+#
+# The scdc transport is offered as an alternative, but not recommended.
+# (However, currently emulated Gnuk can only be used via scdc for unknown
+# reasons)
+
+pcsc = [
+    # Yubikey 5
+    "0006:12345678",
+
+    # FLOSS Card 3.4
+    "0005:0000A835",
+]
+
+scdc = [
+    # Gnuk emulated
+    "D276000124010200FFFEF1420A7A0000",
+]

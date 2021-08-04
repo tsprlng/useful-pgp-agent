@@ -26,6 +26,7 @@
 //! the command data field").
 
 use anyhow::{anyhow, Error, Result};
+use serde_derive::Deserialize;
 use thiserror::Error;
 
 use sequoia_openpgp::parse::Parse;
@@ -41,8 +42,8 @@ mod util;
 
 #[derive(Debug)]
 enum TestCard {
-    Pcsc(&'static str),
-    Scdc(&'static str),
+    Pcsc(String),
+    Scdc(String),
 }
 
 impl TestCard {
@@ -377,21 +378,39 @@ fn run_test(
     t(&mut ca, param)
 }
 
+#[derive(Debug, Deserialize)]
+struct TestConfig {
+    pcsc: Option<Vec<String>>,
+    scdc: Option<Vec<String>>,
+}
+
+impl TestConfig {
+    fn get_cards(&self) -> Vec<TestCard> {
+        let mut cards = vec![];
+
+        if let Some(pcsc) = &self.pcsc {
+            for card in pcsc {
+                cards.push(TestCard::Pcsc(card.to_string()));
+            }
+        }
+
+        if let Some(scdc) = &self.scdc {
+            for card in scdc {
+                cards.push(TestCard::Scdc(card.to_string()));
+            }
+        }
+
+        cards
+    }
+}
+
 fn main() -> Result<()> {
     env_logger::init();
 
-    let cards = vec![
-        // TestCard::Scdc("D276000124010200FFFEF1420A7A0000"), /* Gnuk emulated */
-        // TestCard::Scdc("D2760001240103040006160191800000"), /* Yubikey 5 */
-        // TestCard::Scdc("D276000124010200FFFE571831460000"), /* Gnuk Rysim (green) */
-        // TestCard::Scdc("D276000124010200FFFE4231EB6E0000"), /* Gnuk FST */
-        // TestCard::Scdc("D27600012401030400050000A8350000"), /* FLOSS Card 3.4 */
-        // TestCard::Pcsc("FFFE:F1420A7A"), /* Gnuk emulated */
-        TestCard::Pcsc("0006:16019180"), /* Yubikey 5 */
-        TestCard::Pcsc("FFFE:57183146"), /* Gnuk Rysim (green) */
-        TestCard::Pcsc("FFFE:4231EB6E"), /* Gnuk FST */
-        TestCard::Pcsc("0005:0000A835"), /* FLOSS Card 3.4 */
-    ];
+    let config = std::fs::read_to_string("config/test-cards.toml")?;
+    let config: TestConfig = toml::from_str(&config)?;
+
+    let cards = config.get_cards();
 
     for mut card in cards {
         println!("** Run tests on card {:?} **", card);
