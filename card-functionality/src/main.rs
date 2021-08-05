@@ -25,74 +25,20 @@
 //! The Yubikey 5 erroneously returns Status 0x6a80 ("Incorrect parameters in
 //! the command data field").
 
-use anyhow::{anyhow, Error, Result};
-use serde_derive::Deserialize;
+use anyhow::{Error, Result};
 use thiserror::Error;
 
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::apdu::PcscClient;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
-use openpgp_card::{CardClientBox, Sex};
-use openpgp_card_scdc::ScdClient;
+use openpgp_card::Sex;
 
+use crate::cards::{TestCard, TestConfig};
+
+mod cards;
 mod util;
-
-#[derive(Debug)]
-enum TestCard {
-    Pcsc(String),
-    Scdc(String),
-}
-
-impl TestCard {
-    fn open(&self) -> Result<CardApp> {
-        match self {
-            Self::Pcsc(ident) => {
-                // Attempt to shutdown SCD, if it is running.
-                // Ignore any errors that occur during that shutdown attempt.
-                let res = ScdClient::shutdown_scd(None);
-                log::trace!(" Attempt to shutdown scd: {:?}", res);
-
-                for card in PcscClient::list_cards()? {
-                    let card_client = Box::new(card) as CardClientBox;
-                    let mut ca = CardApp::new(card_client);
-
-                    // Select OpenPGP applet
-                    let res = ca.select()?;
-                    res.check_ok()?;
-
-                    // Set Card Capabilities (chaining, command length, ..)
-                    let ard = ca.get_app_data()?;
-                    let app_id = CardApp::get_aid(&ard)?;
-
-                    if app_id.ident().as_str() == ident {
-                        ca.init_caps(&ard)?;
-
-                        // println!("opened pcsc card {}", ident);
-
-                        return Ok(ca);
-                    }
-                }
-
-                Err(anyhow!("Pcsc card {} not found", ident))
-            }
-            Self::Scdc(serial) => {
-                let card_client = ScdClient::open_by_serial(None, serial)?;
-                let mut ca = CardApp::new(card_client);
-
-                // Set Card Capabilities (chaining, command length, ..)
-                let ard = ca.get_app_data()?;
-                ca.init_caps(&ard)?;
-
-                // println!("opened scdc card {}", serial);
-
-                Ok(ca)
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 enum TestResult {
@@ -378,37 +324,10 @@ fn run_test(
     t(&mut ca, param)
 }
 
-#[derive(Debug, Deserialize)]
-struct TestConfig {
-    pcsc: Option<Vec<String>>,
-    scdc: Option<Vec<String>>,
-}
-
-impl TestConfig {
-    fn get_cards(&self) -> Vec<TestCard> {
-        let mut cards = vec![];
-
-        if let Some(pcsc) = &self.pcsc {
-            for card in pcsc {
-                cards.push(TestCard::Pcsc(card.to_string()));
-            }
-        }
-
-        if let Some(scdc) = &self.scdc {
-            for card in scdc {
-                cards.push(TestCard::Scdc(card.to_string()));
-            }
-        }
-
-        cards
-    }
-}
-
 fn main() -> Result<()> {
     env_logger::init();
 
-    let config = std::fs::read_to_string("config/test-cards.toml")?;
-    let config: TestConfig = toml::from_str(&config)?;
+    let config = TestConfig::open("config/test-cards.toml")?;
 
     let cards = config.get_cards();
 
