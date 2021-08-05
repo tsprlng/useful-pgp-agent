@@ -32,10 +32,29 @@ pub(crate) fn upload_key(
             let rsa_bits =
                 (((rsa_key.get_n().len() * 8 + 31) / 32) * 32) as u16;
 
-            // FIXME: deal with absence of algo list (don't just unwrap!)
-            // Get suitable algorithm from card's list
-            let algo =
-                get_card_algo_rsa(algo_list.unwrap(), key_type, rsa_bits);
+            // Get suitable algorithm from card's list, or try to derive it
+            // from the current algo settings on the card
+            let algo = if let Some(algo_list) = algo_list {
+                get_card_algo_rsa(algo_list, key_type, rsa_bits)
+            } else {
+                // Get current settings for this KeyType and adjust the bit
+                // length.
+
+                // FIXME: caching?
+                let ard = card_app.get_app_data()?;
+
+                let algo = CardApp::get_algorithm_attributes(&ard, key_type)?;
+
+                if let Algo::Rsa(mut rsa) = algo {
+                    rsa.len_n = rsa_bits;
+
+                    rsa
+                } else {
+                    // We don't expect a card to support non-RSA algos when
+                    // it can't provide an algorithm list.
+                    unimplemented!("Unexpected: current algo is not RSA");
+                }
+            };
 
             let algo_cmd = rsa_algo_attrs_cmd(key_type, rsa_bits, &algo)?;
             let key_cmd = rsa_key_cmd(key_type, rsa_key, &algo)?;
