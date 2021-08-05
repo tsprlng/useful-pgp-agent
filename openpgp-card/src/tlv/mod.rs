@@ -83,7 +83,7 @@ impl TlvEntry {
                 let mut input = data;
 
                 while !input.is_empty() {
-                    let (rest, tlv) = Tlv::parse(&input)?;
+                    let (rest, tlv) = Tlv::parse(input)?;
                     input = rest;
                     c.push(tlv);
                 }

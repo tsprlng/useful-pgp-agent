@@ -211,7 +211,7 @@ impl EccKey for SqEccKey {
     }
 
     fn get_scalar(&self) -> &[u8] {
-        &self.scalar.value()
+        self.scalar.value()
     }
 
     fn get_type(&self) -> EccType {

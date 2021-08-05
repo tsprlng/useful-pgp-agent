@@ -108,7 +108,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                     DecryptMe::ECDH(&e.value()[1..])
                 } else {
                     // NIST curves: ephemeral key with header byte
-                    DecryptMe::ECDH(&e.value())
+                    DecryptMe::ECDH(e.value())
                 };
 
                 // Decryption operation on the card

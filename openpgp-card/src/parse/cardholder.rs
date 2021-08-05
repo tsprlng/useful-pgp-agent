@@ -20,7 +20,7 @@ impl TryFrom<&[u8]> for CardHolder {
     type Error = anyhow::Error;
 
     fn try_from(data: &[u8]) -> Result<Self> {
-        let entry = TlvEntry::from(&data, true)?;
+        let entry = TlvEntry::from(data, true)?;
         let tlv = Tlv(Tag(vec![0x65]), entry);
 
         let name: Option<String> = tlv

@@ -86,7 +86,7 @@ impl ScdClient {
     fn init(&mut self) -> Result<()> {
         let mut rt = RT.lock().unwrap();
 
-        let send = format!("SCD SERIALNO");
+        let send = "SCD SERIALNO";
         self.agent.send(send)?;
 
         while let Some(response) = rt.block_on(self.agent.next()) {

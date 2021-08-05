@@ -67,7 +67,7 @@ impl TestCard {
                     let ard = ca.get_app_data()?;
                     let app_id = CardApp::get_aid(&ard)?;
 
-                    if &app_id.ident().as_str() == ident {
+                    if app_id.ident().as_str() == ident {
                         ca.init_caps(&ard)?;
 
                         // println!("opened pcsc card {}", ident);

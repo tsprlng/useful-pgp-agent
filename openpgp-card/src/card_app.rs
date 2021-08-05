@@ -54,7 +54,7 @@ impl CardApp {
         let mut ext_support = false;
         let mut chaining_support = false;
 
-        if let Ok(hist) = CardApp::get_historical(&ard) {
+        if let Ok(hist) = CardApp::get_historical(ard) {
             if let Some(cc) = hist.get_card_capabilities() {
                 chaining_support = cc.get_command_chaining();
                 ext_support = cc.get_extended_lc_le();
@@ -62,7 +62,7 @@ impl CardApp {
         }
 
         let (max_cmd_bytes, max_rsp_bytes) = if let Ok(Some(eli)) =
-            CardApp::get_extended_length_information(&ard)
+            CardApp::get_extended_length_information(ard)
         {
             (eli.max_command_bytes, eli.max_response_bytes)
         } else {
