@@ -223,7 +223,6 @@ fn test_keygen(
         let fp = fp.as_bytes();
         assert_eq!(fp.len(), 20);
 
-        println!("fp {:?}", fp);
         Ok(fp.try_into().unwrap())
     };
 

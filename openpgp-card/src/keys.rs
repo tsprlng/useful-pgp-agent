@@ -112,7 +112,7 @@ pub(crate) fn gen_key(
 
     let pubkey = tlv_to_pubkey(&tlv)?;
 
-    println!("public {:x?}", pubkey);
+    log::trace!("public {:x?}", pubkey);
 
     Ok(pubkey)
 }
