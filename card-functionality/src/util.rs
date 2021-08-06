@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Result};
+use std::time::SystemTime;
 
 use sequoia_openpgp as openpgp;
 use sequoia_openpgp::cert::amalgamation::key::ValidKeyAmalgamation;
 use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
+use sequoia_openpgp::parse::stream::{
+    DetachedVerifierBuilder, MessageLayer, MessageStructure,
+    VerificationHelper,
+};
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::Cert;
@@ -13,11 +18,6 @@ use sequoia_openpgp::Cert;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::KeyType;
 use openpgp_card_sequoia::vka_as_uploadable_key;
-use sequoia_openpgp::parse::stream::{
-    DetachedVerifierBuilder, MessageLayer, MessageStructure,
-    VerificationHelper,
-};
-use std::time::SystemTime;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();
 
