@@ -4,11 +4,12 @@
 //! This library supports using openpgp-card functionality with
 //! sequoia_openpgp data structures.
 
+use std::convert::TryFrom;
 use std::error::Error;
 use std::io;
+use std::time::SystemTime;
 
 use anyhow::{anyhow, Context, Result};
-use chrono::prelude::*;
 use openpgp::armor;
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use openpgp::crypto::mpi;
@@ -23,8 +24,10 @@ use sequoia_openpgp as openpgp;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::{
     errors::OpenpgpCardError, CardAdmin, CardUploadableKey, EccKey, EccType,
-    KeyType, PrivateKeyMaterial, RSAKey,
+    KeyType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
 };
+use sequoia_openpgp::packet::key::{Key4, PublicParts};
+use sequoia_openpgp::types::Timestamp;
 
 mod decryptor;
 mod signer;
@@ -65,6 +68,22 @@ pub fn vka_as_uploadable_key(
 ) -> Box<dyn CardUploadableKey> {
     let sqk = SequoiaKey::new(vka, password);
     Box::new(sqk)
+}
+
+/// Helper fn: get a Key<PublicParts, UnspecifiedRole> for a PublicKeyMaterial
+pub fn public_key_material_to_key(
+    pkm: &PublicKeyMaterial,
+    time: SystemTime,
+) -> Result<Key<PublicParts, UnspecifiedRole>> {
+    match pkm {
+        PublicKeyMaterial::R(rsa) => {
+            let k4: Key4<key::PublicParts, key::UnspecifiedRole> =
+                Key4::import_public_rsa(&rsa.v, &rsa.n, Some(time))?;
+
+            Ok(Key::from(k4))
+        }
+        _ => unimplemented!("ECC not implemented yet"),
+    }
 }
 
 /// Implement the `CardUploadableKey` trait that openpgp-card uses to
@@ -144,9 +163,12 @@ impl CardUploadableKey for SequoiaKey {
         }
     }
 
-    fn get_ts(&self) -> u64 {
-        let key_creation: DateTime<Utc> = self.key.creation_time().into();
-        key_creation.timestamp() as u64
+    /// Number of non-leap seconds since January 1, 1970 0:00:00 UTC
+    /// (aka "UNIX timestamp")
+    fn get_ts(&self) -> u32 {
+        let ts: Timestamp = Timestamp::try_from(self.key.creation_time())
+            .expect("Creation time cannot be converted into u32 timestamp");
+        ts.into()
     }
 
     fn get_fp(&self) -> Vec<u8> {

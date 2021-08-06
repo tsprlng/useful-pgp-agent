@@ -7,9 +7,7 @@ use nom::{combinator, number::complete as number, sequence};
 
 use crate::errors::OpenpgpCardError;
 use crate::parse::KeySet;
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct KeyGeneration(u32);
+use crate::KeyGeneration;
 
 impl From<KeyGeneration> for DateTime<Utc> {
     fn from(kg: KeyGeneration) -> Self {

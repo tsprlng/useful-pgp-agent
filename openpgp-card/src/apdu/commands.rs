@@ -126,3 +126,8 @@ pub fn decryption(data: Vec<u8>) -> Command {
 pub fn signature(data: Vec<u8>) -> Command {
     Command::new(0x00, 0x2A, 0x9e, 0x9a, data)
 }
+
+/// Creates new APDU for "GENERATE ASYMMETRIC KEY PAIR"
+pub fn gen_key(data: Vec<u8>) -> Command {
+    Command::new(0x00, 0x47, 0x80, 0x00, data)
+}

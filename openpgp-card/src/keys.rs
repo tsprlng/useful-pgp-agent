@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Generate and import keys
+
 use anyhow::{anyhow, Result};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::apdu::command::Command;
 use crate::apdu::commands;
@@ -10,11 +13,108 @@ use crate::errors::OpenpgpCardError;
 use crate::parse::algo_attrs::{Algo, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{apdu, CardClientBox};
+use crate::{apdu, EccPub, PublicKeyMaterial, RSAPub};
 use crate::{
     tlv, CardUploadableKey, EccKey, EccType, KeyType, PrivateKeyMaterial,
     RSAKey,
 };
+
+/// `fp_from_pub` calculates the fingerprint for a public key data object
+pub(crate) fn gen_key_with_metadata(
+    card_app: &mut CardApp,
+    fp_from_pub: fn(&PublicKeyMaterial, SystemTime) -> Result<[u8; 20]>,
+    key_type: KeyType,
+) -> Result<(), OpenpgpCardError> {
+    let pubkey = gen_key(card_app, key_type)?;
+
+    // set creation time
+    let time = SystemTime::now();
+
+    // Store creation timestamp (unix time format, limited to u32)
+    let ts = time
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| OpenpgpCardError::InternalError(anyhow!(e)))?
+        .as_secs() as u32;
+
+    card_app.set_creation_time(ts, key_type)?.check_ok()?;
+
+    // calculate/store fingerprint
+    let fp = fp_from_pub(&pubkey, time)?;
+    let fp_cmd =
+        commands::put_data(&[key_type.get_fingerprint_put_tag()], fp.to_vec());
+
+    apdu::send_command(card_app.card(), fp_cmd, true)?.check_ok()?;
+
+    Ok(())
+}
+
+fn tlv_to_pubkey(tlv: &Tlv) -> Result<PublicKeyMaterial> {
+    let n = tlv.find(&Tag::new(vec![0x81]));
+    let v = tlv.find(&Tag::new(vec![0x82]));
+
+    let ec = tlv.find(&Tag::new(vec![0x86]));
+
+    match (n, v, ec) {
+        (Some(n), Some(v), None) => {
+            let rsa = RSAPub {
+                n: n.serialize(),
+                v: v.serialize(),
+            };
+
+            Ok(PublicKeyMaterial::R(rsa))
+        }
+        (None, None, Some(ec)) => {
+            let ec = ec.serialize();
+
+            // The public key for ECDSA/DH consists of of two raw
+            // big-endian integers with the same length as a field element
+            // each. In compliance with EN 419212 the format is 04 || x || y
+            // where the first byte (04) indicates an uncompressed raw format.
+
+            assert_eq!(ec[0], 0x4);
+
+            let len = ec.len();
+            assert_eq!(len % 2, 1); // odd number of bytes
+
+            // len 3 -> 4/2 = 2
+            let middle = (len + 1) / 2;
+            let x = ec[1..middle].to_vec();
+            let y = ec[middle..].to_vec();
+
+            let ecc = EccPub { x, y };
+
+            Ok(PublicKeyMaterial::E(ecc))
+        }
+
+        (_, _, _) => {
+            unimplemented!()
+        }
+    }
+}
+
+pub(crate) fn gen_key(
+    card_app: &mut CardApp,
+    key_type: KeyType,
+) -> Result<PublicKeyMaterial, OpenpgpCardError> {
+    println!("gen key for {:?}", key_type);
+
+    // generate key
+    let crt = get_crt(key_type)?;
+    let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
+
+    let card_client = card_app.card();
+
+    let resp = apdu::send_command(card_client, gen_key_cmd, true)?;
+    resp.check_ok()?;
+
+    let tlv = Tlv::try_from(resp.data()?)?;
+
+    let pubkey = tlv_to_pubkey(&tlv)?;
+
+    println!("public {:x?}", pubkey);
+
+    Ok(pubkey)
+}
 
 /// Upload an explicitly selected Key to the card as a specific KeyType.
 ///
@@ -87,7 +187,7 @@ pub(crate) fn upload_key(
     };
 
     copy_key_to_card(
-        card_app.card(),
+        card_app,
         key_type,
         key.get_ts(),
         key.get_fp(),
@@ -385,28 +485,17 @@ fn ecc_algo_attrs_cmd(
 }
 
 fn copy_key_to_card(
-    card_client: &mut CardClientBox,
+    card_app: &mut CardApp,
     key_type: KeyType,
-    ts: u64,
+    ts: u32,
     fp: Vec<u8>,
     algo_cmd: Command,
     key_cmd: Command,
 ) -> Result<(), OpenpgpCardError> {
     let fp_cmd = commands::put_data(&[key_type.get_fingerprint_put_tag()], fp);
 
-    // Timestamp update
-    let time_value: Vec<u8> = ts
-        .to_be_bytes()
-        .iter()
-        .skip_while(|&&e| e == 0)
-        .copied()
-        .collect();
-
-    // Generation date/time
-    let time_cmd =
-        commands::put_data(&[key_type.get_timestamp_put_tag()], time_value);
-
     // Send all the commands
+    let card_client = card_app.card();
 
     // FIXME: Only write algo attributes to the card if "extended
     // capabilities" show that they are changeable!
@@ -414,7 +503,8 @@ fn copy_key_to_card(
 
     apdu::send_command(card_client, key_cmd, false)?.check_ok()?;
     apdu::send_command(card_client, fp_cmd, false)?.check_ok()?;
-    apdu::send_command(card_client, time_cmd, false)?.check_ok()?;
+
+    card_app.set_creation_time(ts, key_type)?.check_ok()?;
 
     Ok(())
 }

@@ -26,6 +26,8 @@
 //! the command data field").
 
 use anyhow::{Error, Result};
+use std::convert::TryInto;
+use std::time::SystemTime;
 use thiserror::Error;
 
 use sequoia_openpgp::parse::Parse;
@@ -33,7 +35,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
-use openpgp_card::Sex;
+use openpgp_card::{KeyType, PublicKeyMaterial, Sex};
 
 use crate::cards::{TestCard, TestConfig};
 
@@ -203,10 +205,32 @@ fn test_upload_keys(
     Ok(vec![])
 }
 
-fn test_keygen() {
-    // FIXME
-    // (implementation of this functionality is still missing in openpgp-card)
-    unimplemented!()
+/// Generate keys for each of the three KeyTypes
+fn test_keygen(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let verify = ca.verify_pw3("12345678")?;
+    verify.check_ok()?;
+
+    let fp = |pkm: &PublicKeyMaterial, ts: SystemTime| {
+        // FIXME: store creation timestamp
+
+        let key = openpgp_card_sequoia::public_key_material_to_key(pkm, ts)?;
+
+        let fp = key.fingerprint();
+        let fp = fp.as_bytes();
+        assert_eq!(fp.len(), 20);
+
+        println!("fp {:?}", fp);
+        Ok(fp.try_into().unwrap())
+    };
+
+    ca.generate_key(fp, KeyType::Signing)?;
+    ca.generate_key(fp, KeyType::Decryption)?;
+    ca.generate_key(fp, KeyType::Authentication)?;
+
+    Ok(vec![])
 }
 
 fn test_reset(
@@ -342,6 +366,11 @@ fn main() -> Result<()> {
         println!("Reset");
         let _ = run_test(&mut card, test_reset, &[])?;
 
+        println!("Generate key");
+        let _ = run_test(&mut card, test_keygen, &[])?;
+
+        panic!();
+
         print!("Verify");
         let verify_out = run_test(&mut card, test_verify, &[])?;
         println!(" {:x?}", verify_out);
@@ -384,8 +413,6 @@ fn main() -> Result<()> {
             let sign_out = run_test(&mut card, test_sign, &[key])?;
             println!(" {:x?}", sign_out);
         }
-
-        // FIXME: generate keys
 
         // FIXME: upload key with password
 

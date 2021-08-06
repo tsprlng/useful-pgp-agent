@@ -21,7 +21,7 @@ pub mod apdu;
 mod card;
 pub mod card_app;
 pub mod errors;
-mod key_upload;
+mod keys;
 mod parse;
 mod tlv;
 
@@ -63,6 +63,16 @@ impl CardCaps {
             max_cmd_bytes,
             max_rsp_bytes,
         }
+    }
+}
+
+/// An OpenPGP key generation Time
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct KeyGeneration(u32);
+
+impl KeyGeneration {
+    pub fn get(&self) -> u32 {
+        self.0
     }
 }
 
@@ -111,10 +121,35 @@ pub trait CardUploadableKey {
     fn get_key(&self) -> Result<PrivateKeyMaterial>;
 
     /// timestamp of (sub)key creation
-    fn get_ts(&self) -> u64;
+    fn get_ts(&self) -> u32;
 
     /// fingerprint
     fn get_fp(&self) -> Vec<u8>;
+}
+
+/// Algorithm-independent container for public key material retrieved from
+/// an OpenPGP card
+#[derive(Debug)]
+pub enum PublicKeyMaterial {
+    R(RSAPub),
+    E(EccPub),
+}
+
+/// RSA-specific container for public key material from an OpenPGP card.
+#[derive(Debug)]
+pub struct RSAPub {
+    /// Modulus (a number denoted as n coded on x bytes)
+    pub n: Vec<u8>,
+
+    /// Public exponent (a number denoted as v, e.g. 65537 dec.)
+    pub v: Vec<u8>,
+}
+
+/// ECC-specific container for public key material from an OpenPGP card.
+#[derive(Debug)]
+pub struct EccPub {
+    pub x: Vec<u8>,
+    pub y: Vec<u8>,
 }
 
 /// Algorithm-independent container for private key material to upload to
@@ -678,7 +713,7 @@ impl CardAdmin {
     ) -> Result<(), OpenpgpCardError> {
         let algo_list = self.list_supported_algo()?;
 
-        key_upload::upload_key(&mut self.card_app, key, key_type, algo_list)
+        keys::upload_key(&mut self.card_app, key, key_type, algo_list)
     }
 }
 

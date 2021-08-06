@@ -11,6 +11,7 @@
 
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
+use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 
@@ -20,13 +21,12 @@ use crate::parse::{
     algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
     cardholder::CardHolder, extended_cap::ExtendedCap,
     extended_length_info::ExtendedLengthInfo, fingerprint,
-    historical::Historical, key_generation_times,
-    key_generation_times::KeyGeneration, pw_status::PWStatus, KeySet,
+    historical::Historical, key_generation_times, pw_status::PWStatus, KeySet,
 };
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, key_upload, CardCaps, CardClientBox, CardUploadableKey, DecryptMe,
-    Hash, KeyType, Sex,
+    apdu, keys, CardCaps, CardClientBox, CardUploadableKey, DecryptMe, Hash,
+    KeyGeneration, KeyType, PublicKeyMaterial, Sex,
 };
 
 pub struct CardApp {
@@ -524,6 +524,27 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, put_url, false)
     }
 
+    pub fn set_creation_time(
+        &mut self,
+        time: u32,
+        key_type: KeyType,
+    ) -> Result<Response, OpenpgpCardError> {
+        // Timestamp update
+        let time_value: Vec<u8> = time
+            .to_be_bytes()
+            .iter()
+            .skip_while(|&&e| e == 0)
+            .copied()
+            .collect();
+
+        let time_cmd = commands::put_data(
+            &[key_type.get_timestamp_put_tag()],
+            time_value,
+        );
+
+        apdu::send_command(&mut self.card_client, time_cmd, false)
+    }
+
     pub fn upload_key(
         &mut self,
         key: Box<dyn CardUploadableKey>,
@@ -539,6 +560,16 @@ impl CardApp {
             None
         };
 
-        key_upload::upload_key(self, key, key_type, algo_list)
+        keys::upload_key(self, key, key_type, algo_list)
+    }
+
+    // FIXME: use subset of CardUploadableKey to specify algo?
+    pub fn generate_key(
+        &mut self,
+        fp_from_pub: fn(&PublicKeyMaterial, SystemTime) -> Result<[u8; 20]>,
+        key_type: KeyType,
+    ) -> Result<(), OpenpgpCardError> {
+        // FIXME: specify algo; pass in algo list?
+        keys::gen_key_with_metadata(self, fp_from_pub, key_type)
     }
 }
