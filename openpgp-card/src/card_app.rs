@@ -572,4 +572,11 @@ impl CardApp {
         // FIXME: specify algo; pass in algo list?
         keys::gen_key_with_metadata(self, fp_from_pub, key_type)
     }
+
+    pub fn get_pub_key(
+        &mut self,
+        key_type: KeyType,
+    ) -> Result<PublicKeyMaterial, OpenpgpCardError> {
+        keys::get_pub_key(self, key_type)
+    }
 }

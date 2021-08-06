@@ -31,6 +31,7 @@ use std::time::SystemTime;
 use thiserror::Error;
 
 use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::types::Timestamp;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_app::CardApp;
@@ -233,6 +234,46 @@ fn test_keygen(
     Ok(vec![])
 }
 
+/// Construct public key based on data from the card
+fn test_get_pub(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let ard = ca.get_app_data()?;
+    let key_gen = CardApp::get_key_generation_times(&ard)?;
+
+    // --
+
+    let sig = ca.get_pub_key(KeyType::Signing)?;
+    let ts = Timestamp::from(key_gen.signature().unwrap().get()).into();
+    let key = openpgp_card_sequoia::public_key_material_to_key(&sig, ts)?;
+
+    println!(" sig key data from card -> {:x?}", key);
+
+    // --
+
+    let dec = ca.get_pub_key(KeyType::Decryption)?;
+    let ts = Timestamp::from(key_gen.decryption().unwrap().get()).into();
+    let key = openpgp_card_sequoia::public_key_material_to_key(&dec, ts)?;
+
+    println!(" dec key data from card -> {:x?}", key);
+
+    // --
+
+    let auth = ca.get_pub_key(KeyType::Authentication)?;
+    let ts = Timestamp::from(key_gen.authentication().unwrap().get()).into();
+    let key = openpgp_card_sequoia::public_key_material_to_key(&auth, ts)?;
+
+    println!(" auth key data from card -> {:x?}", key);
+
+    // FIXME: assert that key FP is equal to FP from card
+
+    // ca.generate_key(fp, KeyType::Decryption)?;
+    // ca.generate_key(fp, KeyType::Authentication)?;
+
+    Ok(vec![])
+}
+
 fn test_reset(
     ca: &mut CardApp,
     _param: &[&str],
@@ -357,6 +398,11 @@ fn main() -> Result<()> {
 
     for mut card in cards {
         println!("** Run tests on card {:?} **", card);
+
+        println!("Get pubkey");
+        let _ = run_test(&mut card, test_get_pub, &[])?;
+
+        panic!();
 
         // println!("Caps");
         // let _ = run_test(&mut card, test_print_caps, &[])?;

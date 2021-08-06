@@ -131,3 +131,8 @@ pub fn signature(data: Vec<u8>) -> Command {
 pub fn gen_key(data: Vec<u8>) -> Command {
     Command::new(0x00, 0x47, 0x80, 0x00, data)
 }
+
+/// Creates new APDU for "Reading of public key template"
+pub fn get_pub_key(data: Vec<u8>) -> Command {
+    Command::new(0x00, 0x47, 0x81, 0x00, data)
+}

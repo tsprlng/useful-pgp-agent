@@ -19,7 +19,8 @@ use crate::{
     RSAKey,
 };
 
-/// `fp_from_pub` calculates the fingerprint for a public key data object
+/// `gen_key_with_metadata` calculates the fingerprint for a public key
+/// data object
 pub(crate) fn gen_key_with_metadata(
     card_app: &mut CardApp,
     fp_from_pub: fn(&PublicKeyMaterial, SystemTime) -> Result<[u8; 20]>,
@@ -112,6 +113,27 @@ pub(crate) fn gen_key(
     let pubkey = tlv_to_pubkey(&tlv)?;
 
     println!("public {:x?}", pubkey);
+
+    Ok(pubkey)
+}
+
+pub(crate) fn get_pub_key(
+    card_app: &mut CardApp,
+    key_type: KeyType,
+) -> Result<PublicKeyMaterial, OpenpgpCardError> {
+    println!("get pub key for {:?}", key_type);
+
+    let card_client = card_app.card();
+
+    // get public key
+    let crt = get_crt(key_type)?;
+    let get_pub_key_cmd = commands::get_pub_key(crt.serialize().to_vec());
+
+    let resp = apdu::send_command(card_client, get_pub_key_cmd, true)?;
+    resp.check_ok()?;
+
+    let tlv = Tlv::try_from(resp.data()?)?;
+    let pubkey = tlv_to_pubkey(&tlv)?;
 
     Ok(pubkey)
 }
