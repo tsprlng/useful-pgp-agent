@@ -552,13 +552,9 @@ impl CardApp {
     ) -> Result<(), OpenpgpCardError> {
         let algo_list = self.list_supported_algo();
 
-        let algo_list = if algo_list.is_ok() {
-            algo_list.unwrap()
-        } else {
-            // An error is ok - it's fine if a card doesn't offer a list of
-            // supported algorithms
-            None
-        };
+        // An error is ok - it's fine if a card doesn't offer a list of
+        // supported algorithms
+        let algo_list = algo_list.unwrap_or(None);
 
         keys::upload_key(self, key, key_type, algo_list)
     }
