@@ -92,6 +92,7 @@ mod test {
     use crate::parse::algo_attrs::Curve::*;
     use crate::parse::algo_attrs::*;
     use crate::parse::algo_info::AlgoInfo;
+    use crate::EccType::*;
     use crate::KeyType::*;
 
     #[test]
@@ -133,9 +134,9 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Signing, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(Secp256k1, None))),
-                (Signing, Eddsa(EddsaAttrs::new(Ed25519, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
+                (Signing, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
                 (
                     Decryption,
                     Rsa(RsaAttrs {
@@ -152,9 +153,9 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Decryption, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Decryption, Ecdsa(EcdsaAttrs::new(Secp256k1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(Cv25519, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, Cv25519, None))),
                 (
                     Authentication,
                     Rsa(RsaAttrs {
@@ -171,9 +172,9 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Authentication, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Authentication, Ecdsa(EcdsaAttrs::new(Secp256k1, None))),
-                (Authentication, Eddsa(EddsaAttrs::new(Ed25519, None)))
+                (Authentication, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
+                (Authentication, Ecc(EccAttrs::new(EdDSA, Ed25519, None)))
             ])
         );
     }
@@ -235,12 +236,12 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Signing, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(NistP384r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(NistP521r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(BrainpoolP256r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(BrainpoolP384r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(BrainpoolP512r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP256r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP384r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP512r1, None))),
                 (
                     Decryption,
                     Rsa(RsaAttrs {
@@ -265,12 +266,12 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Decryption, Ecdh(EcdhAttrs::new(NistP256r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(NistP384r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(NistP521r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(BrainpoolP256r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(BrainpoolP384r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(BrainpoolP512r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, NistP256r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, NistP384r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, NistP521r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP256r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP384r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP512r1, None))),
                 (
                     Authentication,
                     Rsa(RsaAttrs {
@@ -295,20 +296,20 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Authentication, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Authentication, Ecdsa(EcdsaAttrs::new(NistP384r1, None))),
-                (Authentication, Ecdsa(EcdsaAttrs::new(NistP521r1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
                 (
                     Authentication,
-                    Ecdsa(EcdsaAttrs::new(BrainpoolP256r1, None))
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP256r1, None))
                 ),
                 (
                     Authentication,
-                    Ecdsa(EcdsaAttrs::new(BrainpoolP384r1, None))
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP384r1, None))
                 ),
                 (
                     Authentication,
-                    Ecdsa(EcdsaAttrs::new(BrainpoolP512r1, None))
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP512r1, None))
                 )
             ])
         );
@@ -389,15 +390,15 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Signing, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(NistP384r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(NistP521r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(Secp256k1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(BrainpoolP256r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(BrainpoolP384r1, None))),
-                (Signing, Ecdsa(EcdsaAttrs::new(BrainpoolP512r1, None))),
-                (Signing, Eddsa(EddsaAttrs::new(Ed25519, None))),
-                (Signing, Eddsa(EddsaAttrs::new(Cv25519, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP256r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP384r1, None))),
+                (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP512r1, None))),
+                (Signing, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
+                (Signing, Ecc(EccAttrs::new(EdDSA, Cv25519, None))),
                 (
                     Decryption,
                     Rsa(RsaAttrs {
@@ -422,15 +423,15 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Decryption, Ecdh(EcdhAttrs::new(NistP256r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(NistP384r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(NistP521r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(Secp256k1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(BrainpoolP256r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(BrainpoolP384r1, None))),
-                (Decryption, Ecdh(EcdhAttrs::new(BrainpoolP512r1, None))),
-                (Decryption, Eddsa(EddsaAttrs::new(Ed25519, None))),
-                (Decryption, Eddsa(EddsaAttrs::new(Cv25519, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, NistP256r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, NistP384r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, NistP521r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, Secp256k1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP256r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP384r1, None))),
+                (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP512r1, None))),
+                (Decryption, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
+                (Decryption, Ecc(EccAttrs::new(EdDSA, Cv25519, None))),
                 (
                     Authentication,
                     Rsa(RsaAttrs {
@@ -455,24 +456,24 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Authentication, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Authentication, Ecdsa(EcdsaAttrs::new(NistP384r1, None))),
-                (Authentication, Ecdsa(EcdsaAttrs::new(NistP521r1, None))),
-                (Authentication, Ecdsa(EcdsaAttrs::new(Secp256k1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
+                (Authentication, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
                 (
                     Authentication,
-                    Ecdsa(EcdsaAttrs::new(BrainpoolP256r1, None))
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP256r1, None))
                 ),
                 (
                     Authentication,
-                    Ecdsa(EcdsaAttrs::new(BrainpoolP384r1, None))
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP384r1, None))
                 ),
                 (
                     Authentication,
-                    Ecdsa(EcdsaAttrs::new(BrainpoolP512r1, None))
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP512r1, None))
                 ),
-                (Authentication, Eddsa(EddsaAttrs::new(Ed25519, None))),
-                (Authentication, Eddsa(EddsaAttrs::new(Cv25519, None))),
+                (Authentication, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
+                (Authentication, Ecc(EccAttrs::new(EdDSA, Cv25519, None))),
                 (
                     Attestation,
                     Rsa(RsaAttrs {
@@ -497,15 +498,24 @@ mod test {
                         import_format: 0
                     })
                 ),
-                (Attestation, Ecdsa(EcdsaAttrs::new(NistP256r1, None))),
-                (Attestation, Ecdsa(EcdsaAttrs::new(NistP384r1, None))),
-                (Attestation, Ecdsa(EcdsaAttrs::new(NistP521r1, None))),
-                (Attestation, Ecdsa(EcdsaAttrs::new(Secp256k1, None))),
-                (Attestation, Ecdsa(EcdsaAttrs::new(BrainpoolP256r1, None))),
-                (Attestation, Ecdsa(EcdsaAttrs::new(BrainpoolP384r1, None))),
-                (Attestation, Ecdsa(EcdsaAttrs::new(BrainpoolP512r1, None))),
-                (Attestation, Eddsa(EddsaAttrs::new(Ed25519, None))),
-                (Attestation, Eddsa(EddsaAttrs::new(Cv25519, None)))
+                (Attestation, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
+                (Attestation, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
+                (Attestation, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
+                (Attestation, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
+                (
+                    Attestation,
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP256r1, None))
+                ),
+                (
+                    Attestation,
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP384r1, None))
+                ),
+                (
+                    Attestation,
+                    Ecc(EccAttrs::new(ECDSA, BrainpoolP512r1, None))
+                ),
+                (Attestation, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
+                (Attestation, Ecc(EccAttrs::new(EdDSA, Cv25519, None)))
             ])
         );
     }
