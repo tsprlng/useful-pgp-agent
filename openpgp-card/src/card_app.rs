@@ -546,6 +546,19 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, time_cmd, false)
     }
 
+    pub fn set_fingerprint(
+        &mut self,
+        fp: [u8; 20],
+        key_type: KeyType,
+    ) -> Result<Response, OpenpgpCardError> {
+        let fp_cmd = commands::put_data(
+            &[key_type.get_fingerprint_put_tag()],
+            fp.to_vec(),
+        );
+
+        apdu::send_command(self.card(), fp_cmd, true)
+    }
+
     /// Set algorithm attributes [4.4.3.9 Algorithm Attributes]
     pub fn set_algorithm_attributes(
         &mut self,

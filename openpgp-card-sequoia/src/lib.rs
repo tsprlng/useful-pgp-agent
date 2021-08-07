@@ -5,6 +5,7 @@
 //! sequoia_openpgp data structures.
 
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::error::Error;
 use std::io;
 use std::time::SystemTime;
@@ -171,8 +172,11 @@ impl CardUploadableKey for SequoiaKey {
         ts.into()
     }
 
-    fn get_fp(&self) -> Vec<u8> {
-        self.key.fingerprint().as_bytes().to_vec()
+    fn get_fp(&self) -> [u8; 20] {
+        let fp = self.key.fingerprint();
+        assert_eq!(fp.as_bytes().len(), 20);
+
+        fp.as_bytes().try_into().unwrap()
     }
 }
 

@@ -124,7 +124,7 @@ pub trait CardUploadableKey {
     fn get_ts(&self) -> u32;
 
     /// fingerprint
-    fn get_fp(&self) -> Vec<u8>;
+    fn get_fp(&self) -> [u8; 20];
 }
 
 /// Algorithm-independent container for public key material retrieved from

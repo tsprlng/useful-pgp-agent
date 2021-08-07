@@ -40,10 +40,7 @@ pub(crate) fn gen_key_with_metadata(
 
     // calculate/store fingerprint
     let fp = fp_from_pub(&pubkey, time)?;
-    let fp_cmd =
-        commands::put_data(&[key_type.get_fingerprint_put_tag()], fp.to_vec());
-
-    apdu::send_command(card_app.card(), fp_cmd, true)?.check_ok()?;
+    card_app.set_fingerprint(fp, key_type)?.check_ok()?;
 
     Ok(())
 }
@@ -442,12 +439,10 @@ fn copy_key_to_card(
     card_app: &mut CardApp,
     key_type: KeyType,
     ts: u32,
-    fp: Vec<u8>,
+    fp: [u8; 20],
     algo: &Algo,
     key_cmd: Command,
 ) -> Result<(), OpenpgpCardError> {
-    let fp_cmd = commands::put_data(&[key_type.get_fingerprint_put_tag()], fp);
-
     // Send all the commands
 
     // FIXME: Only write algo attributes to the card if "extended
@@ -457,7 +452,8 @@ fn copy_key_to_card(
         .check_ok()?;
 
     apdu::send_command(card_app.card(), key_cmd, false)?.check_ok()?;
-    apdu::send_command(card_app.card(), fp_cmd, false)?.check_ok()?;
+
+    card_app.set_fingerprint(fp, key_type)?.check_ok()?;
 
     card_app.set_creation_time(ts, key_type)?.check_ok()?;
 
