@@ -10,13 +10,12 @@ use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
-use crate::parse::algo_attrs::{Algo, RsaAttrs};
+use crate::parse::algo_attrs::{Algo, EccAttrs, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{apdu, EccPub, PublicKeyMaterial, RSAPub};
 use crate::{
-    tlv, CardUploadableKey, EccKey, EccType, KeyType, PrivateKeyMaterial,
-    RSAKey,
+    tlv, CardUploadableKey, EccKey, KeyType, PrivateKeyMaterial, RSAKey,
 };
 
 /// `gen_key_with_metadata` calculates the fingerprint for a public key
@@ -147,7 +146,7 @@ pub(crate) fn upload_key(
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
 ) -> Result<(), OpenpgpCardError> {
-    let (algo_cmd, key_cmd) = match key.get_key()? {
+    let (algo, key_cmd) = match key.get_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
             // RSA bitsize
             // (round up to 4-bytes, in case the key has 8+ leading zeros)
@@ -156,7 +155,7 @@ pub(crate) fn upload_key(
 
             // Get suitable algorithm from card's list, or try to derive it
             // from the current algo settings on the card
-            let algo = if let Some(algo_list) = algo_list {
+            let rsa_attrs = if let Some(algo_list) = algo_list {
                 get_card_algo_rsa(algo_list, key_type, rsa_bits)
             } else {
                 // Get current settings for this KeyType and adjust the bit
@@ -178,11 +177,9 @@ pub(crate) fn upload_key(
                 }
             };
 
-            let algo_cmd = rsa_algo_attrs_cmd(key_type, rsa_bits, &algo)?;
-            let key_cmd = rsa_key_cmd(key_type, rsa_key, &algo)?;
+            let key_cmd = rsa_key_cmd(key_type, rsa_key, &rsa_attrs)?;
 
-            // Return commands
-            (algo_cmd, key_cmd)
+            (Algo::Rsa(rsa_attrs), key_cmd)
         }
         PrivateKeyMaterial::E(ecc_key) => {
             // Initially there were checks of the following form, here.
@@ -196,15 +193,15 @@ pub(crate) fn upload_key(
             //     // Error
             // }
 
-            let algo_cmd = ecc_algo_attrs_cmd(
-                key_type,
-                ecc_key.get_oid(),
-                ecc_key.get_type(),
-            );
+            let algo = Algo::Ecc(EccAttrs {
+                t: ecc_key.get_type(),
+                oid: ecc_key.get_oid().to_vec(),
+                import_format: None,
+            });
 
             let key_cmd = ecc_key_cmd(ecc_key, key_type)?;
 
-            (algo_cmd, key_cmd)
+            (algo, key_cmd)
         }
     };
 
@@ -213,7 +210,7 @@ pub(crate) fn upload_key(
         key_type,
         key.get_ts(),
         key.get_fp(),
-        algo_cmd,
+        &algo,
         key_cmd,
     )?;
 
@@ -265,7 +262,7 @@ fn check_card_algo_ecdh(
     // Get attributes
     let ecdh_algos: Vec<_> = keytype_algos
         .iter()
-        .map(|a| if let Algo::Ecdh(e) = a { Some(e) } else { None })
+        .map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
         .flatten()
         .collect();
 
@@ -289,13 +286,7 @@ fn check_card_algo_ecdsa(
     // Get attributes
     let ecdsa_algos: Vec<_> = keytype_algos
         .iter()
-        .map(|a| {
-            if let Algo::Ecdsa(e) = a {
-                Some(e)
-            } else {
-                None
-            }
-        })
+        .map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
         .flatten()
         .collect();
 
@@ -319,13 +310,7 @@ fn check_card_algo_eddsa(
     // Get attributes
     let eddsa_algos: Vec<_> = keytype_algos
         .iter()
-        .map(|a| {
-            if let Algo::Eddsa(e) = a {
-                Some(e)
-            } else {
-                None
-            }
-        })
+        .map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
         .flatten()
         .collect();
 
@@ -453,78 +438,26 @@ fn rsa_key_cmd(
     ))
 }
 
-/// Set algorithm attributes [4.4.3.9 Algorithm Attributes]
-fn rsa_algo_attrs_cmd(
-    key_type: KeyType,
-    rsa_bits: u16,
-    algo_attrs: &RsaAttrs,
-) -> Result<Command> {
-    // Algorithm ID (01 = RSA (Encrypt or Sign))
-    let mut algo_attributes = vec![0x01];
-
-    // Length of modulus n in bit
-    algo_attributes.extend(rsa_bits.to_be_bytes());
-
-    // Length of public exponent e in bit
-    algo_attributes.push(0x00);
-    algo_attributes.push(algo_attrs.len_e as u8);
-
-    // Import-Format of private key
-    // (This fn currently assumes import_format "00 = standard (e, p, q)")
-    if algo_attrs.import_format != 0 {
-        return Err(anyhow!(
-            "Unexpected RSA input format (only 0 is supported)"
-        ));
-    }
-
-    algo_attributes.push(algo_attrs.import_format);
-
-    // Command to PUT the algorithm attributes
-    Ok(commands::put_data(
-        &[key_type.get_algorithm_tag()],
-        algo_attributes,
-    ))
-}
-
-/// Set algorithm attributes [4.4.3.9 Algorithm Attributes]
-fn ecc_algo_attrs_cmd(
-    key_type: KeyType,
-    oid: &[u8],
-    ecc_type: EccType,
-) -> Command {
-    let algo_id = match ecc_type {
-        EccType::EdDSA => 0x16,
-        EccType::ECDH => 0x12,
-        EccType::ECDSA => 0x13,
-    };
-
-    let mut algo_attributes = vec![algo_id];
-    algo_attributes.extend(oid);
-    // Leave Import-Format unset, for default (pg. 35)
-
-    // Command to PUT the algorithm attributes
-    commands::put_data(&[key_type.get_algorithm_tag()], algo_attributes)
-}
-
 fn copy_key_to_card(
     card_app: &mut CardApp,
     key_type: KeyType,
     ts: u32,
     fp: Vec<u8>,
-    algo_cmd: Command,
+    algo: &Algo,
     key_cmd: Command,
 ) -> Result<(), OpenpgpCardError> {
     let fp_cmd = commands::put_data(&[key_type.get_fingerprint_put_tag()], fp);
 
     // Send all the commands
-    let card_client = card_app.card();
 
     // FIXME: Only write algo attributes to the card if "extended
     // capabilities" show that they are changeable!
-    apdu::send_command(card_client, algo_cmd, false)?.check_ok()?;
+    card_app
+        .set_algorithm_attributes(key_type, algo)?
+        .check_ok()?;
 
-    apdu::send_command(card_client, key_cmd, false)?.check_ok()?;
-    apdu::send_command(card_client, fp_cmd, false)?.check_ok()?;
+    apdu::send_command(card_app.card(), key_cmd, false)?.check_ok()?;
+    apdu::send_command(card_app.card(), fp_cmd, false)?.check_ok()?;
 
     card_app.set_creation_time(ts, key_type)?.check_ok()?;
 

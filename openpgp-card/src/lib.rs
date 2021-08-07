@@ -178,7 +178,7 @@ pub trait EccKey {
 
 /// A marker to distinguish between elliptic curve algorithms (ECDH, ECDSA,
 /// EdDSA)
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum EccType {
     ECDH,
     EdDSA,

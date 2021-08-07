@@ -18,15 +18,16 @@ use anyhow::{anyhow, Result};
 use crate::apdu::{commands, response::Response};
 use crate::errors::OpenpgpCardError;
 use crate::parse::{
-    algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
-    cardholder::CardHolder, extended_cap::ExtendedCap,
-    extended_length_info::ExtendedLengthInfo, fingerprint,
-    historical::Historical, key_generation_times, pw_status::PWStatus, KeySet,
+    algo_attrs::Algo, algo_attrs::RsaAttrs, algo_info::AlgoInfo,
+    application_id::ApplicationId, cardholder::CardHolder,
+    extended_cap::ExtendedCap, extended_length_info::ExtendedLengthInfo,
+    fingerprint, historical::Historical, key_generation_times,
+    pw_status::PWStatus, KeySet,
 };
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, keys, CardCaps, CardClientBox, CardUploadableKey, DecryptMe, Hash,
-    KeyGeneration, KeyType, PublicKeyMaterial, Sex,
+    apdu, keys, CardCaps, CardClientBox, CardUploadableKey, DecryptMe,
+    EccType, Hash, KeyGeneration, KeyType, PublicKeyMaterial, Sex,
 };
 
 pub struct CardApp {
@@ -543,6 +544,68 @@ impl CardApp {
         );
 
         apdu::send_command(&mut self.card_client, time_cmd, false)
+    }
+
+    /// Set algorithm attributes [4.4.3.9 Algorithm Attributes]
+    pub fn set_algorithm_attributes(
+        &mut self,
+        key_type: KeyType,
+        algo: &Algo,
+    ) -> Result<Response, OpenpgpCardError> {
+        // FIXME: caching?
+        let ard = self.get_app_data()?;
+
+        // FIXME: reuse "e" from card, if no algo list is available
+        let _cur_algo = Self::get_algorithm_attributes(&ard, key_type)?;
+
+        let data = match algo {
+            Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa)?,
+            Algo::Ecc(ecc) => Self::ecc_algo_attrs(&ecc.oid, ecc.t),
+            _ => unimplemented!(),
+        };
+
+        // Command to PUT the algorithm attributes
+        let cmd = commands::put_data(&[key_type.get_algorithm_tag()], data);
+
+        apdu::send_command(&mut self.card_client, cmd, false)
+    }
+
+    fn rsa_algo_attrs(algo_attrs: &RsaAttrs) -> Result<Vec<u8>> {
+        // Algorithm ID (01 = RSA (Encrypt or Sign))
+        let mut algo_attributes = vec![0x01];
+
+        // Length of modulus n in bit
+        algo_attributes.extend(algo_attrs.len_n.to_be_bytes());
+
+        // Length of public exponent e in bit
+        algo_attributes.push(0x00);
+        algo_attributes.push(algo_attrs.len_e as u8);
+
+        // Import-Format of private key
+        // (This fn currently assumes import_format "00 = standard (e, p, q)")
+        if algo_attrs.import_format != 0 {
+            return Err(anyhow!(
+                "Unexpected RSA input format (only 0 is supported)"
+            ));
+        }
+
+        algo_attributes.push(algo_attrs.import_format);
+
+        Ok(algo_attributes)
+    }
+
+    fn ecc_algo_attrs(oid: &[u8], ecc_type: EccType) -> Vec<u8> {
+        let algo_id = match ecc_type {
+            EccType::EdDSA => 0x16,
+            EccType::ECDH => 0x12,
+            EccType::ECDSA => 0x13,
+        };
+
+        let mut algo_attributes = vec![algo_id];
+        algo_attributes.extend(oid);
+        // Leave Import-Format unset, for default (pg. 35)
+
+        algo_attributes
     }
 
     pub fn upload_key(

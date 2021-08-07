@@ -9,14 +9,12 @@ use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, number::complete as number};
 
-use crate::parse;
+use crate::{parse, EccType};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Algo {
     Rsa(RsaAttrs),
-    Ecdsa(EcdsaAttrs),
-    Eddsa(EddsaAttrs),
-    Ecdh(EcdhAttrs),
+    Ecc(EccAttrs),
     Unknown(Vec<u8>),
 }
 
@@ -28,50 +26,16 @@ pub struct RsaAttrs {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct EcdsaAttrs {
-    pub curve: Curve,
+pub struct EccAttrs {
+    pub t: EccType,
     pub oid: Vec<u8>,
     pub import_format: Option<u8>,
 }
 
-impl EcdsaAttrs {
-    pub fn new(curve: Curve, import_format: Option<u8>) -> Self {
+impl EccAttrs {
+    pub fn new(t: EccType, curve: Curve, import_format: Option<u8>) -> Self {
         Self {
-            curve,
-            oid: curve.oid().to_vec(),
-            import_format,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct EddsaAttrs {
-    pub curve: Curve,
-    pub oid: Vec<u8>,
-    pub import_format: Option<u8>,
-}
-
-impl EddsaAttrs {
-    pub fn new(curve: Curve, import_format: Option<u8>) -> Self {
-        Self {
-            curve,
-            oid: curve.oid().to_vec(),
-            import_format,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct EcdhAttrs {
-    pub curve: Curve,
-    pub oid: Vec<u8>,
-    pub import_format: Option<u8>,
-}
-
-impl EcdhAttrs {
-    pub fn new(curve: Curve, import_format: Option<u8>) -> Self {
-        Self {
-            curve,
+            t,
             oid: curve.oid().to_vec(),
             import_format,
         }
@@ -219,7 +183,10 @@ fn parse_ecdh(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, import_format) =
         alt((parse_import_format, default_import_format))(input)?;
 
-    Ok((input, Algo::Ecdh(EcdhAttrs::new(curve, import_format))))
+    Ok((
+        input,
+        Algo::Ecc(EccAttrs::new(EccType::ECDH, curve, import_format)),
+    ))
 }
 
 fn parse_ecdsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
@@ -229,7 +196,10 @@ fn parse_ecdsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, import_format) =
         alt((parse_import_format, default_import_format))(input)?;
 
-    Ok((input, Algo::Ecdsa(EcdsaAttrs::new(curve, import_format))))
+    Ok((
+        input,
+        Algo::Ecc(EccAttrs::new(EccType::ECDSA, curve, import_format)),
+    ))
 }
 
 fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
@@ -239,7 +209,10 @@ fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, import_format) =
         alt((parse_import_format, default_import_format))(input)?;
 
-    Ok((input, Algo::Eddsa(EddsaAttrs::new(curve, import_format))))
+    Ok((
+        input,
+        Algo::Ecc(EccAttrs::new(EccType::EdDSA, curve, import_format)),
+    ))
 }
 
 pub(crate) fn parse(input: &[u8]) -> nom::IResult<&[u8], Algo> {
