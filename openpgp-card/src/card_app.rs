@@ -573,7 +573,7 @@ impl CardApp {
 
         let data = match algo {
             Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa)?,
-            Algo::Ecc(ecc) => Self::ecc_algo_attrs(&ecc.oid, ecc.t),
+            Algo::Ecc(ecc) => Self::ecc_algo_attrs(&ecc.oid, ecc.ecc_type),
             _ => unimplemented!(),
         };
 

@@ -191,7 +191,7 @@ pub(crate) fn upload_key(
             // }
 
             let algo = Algo::Ecc(EccAttrs {
-                t: ecc_key.get_type(),
+                ecc_type: ecc_key.get_type(),
                 oid: ecc_key.get_oid().to_vec(),
                 import_format: None,
             });

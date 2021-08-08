@@ -27,15 +27,19 @@ pub struct RsaAttrs {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct EccAttrs {
-    pub t: EccType,
+    pub ecc_type: EccType,
     pub oid: Vec<u8>,
     pub import_format: Option<u8>,
 }
 
 impl EccAttrs {
-    pub fn new(t: EccType, curve: Curve, import_format: Option<u8>) -> Self {
+    pub fn new(
+        ecc_type: EccType,
+        curve: Curve,
+        import_format: Option<u8>,
+    ) -> Self {
         Self {
-            t,
+            ecc_type,
             oid: curve.oid().to_vec(),
             import_format,
         }
