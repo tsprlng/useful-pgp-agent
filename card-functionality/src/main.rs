@@ -36,7 +36,9 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
-use openpgp_card::{KeyType, PublicKeyMaterial, Sex};
+use openpgp_card::{
+    Algo, Curve, EccAttrs, EccType, KeyType, PublicKeyMaterial, RsaAttrs, Sex,
+};
 
 use crate::cards::{TestCard, TestConfig};
 
@@ -176,6 +178,25 @@ fn test_print_caps(
 
     let eli = CardApp::get_extended_length_information(&ard)?;
     println!("eli: {:#?}", eli);
+
+    Ok(vec![])
+}
+
+fn test_print_algo_info(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let ard = ca.get_app_data()?;
+
+    let dec = CardApp::get_algorithm_attributes(&ard, KeyType::Decryption)?;
+    println!("Current algorithm for the decrypt slot: {}", dec);
+
+    println!();
+
+    let algo = ca.list_supported_algo();
+    if let Ok(Some(algo)) = algo {
+        println!("Card algorithm list:\n{}", algo);
+    }
 
     Ok(vec![])
 }
@@ -410,6 +431,9 @@ fn main() -> Result<()> {
 
         println!("Reset");
         let _ = run_test(&mut card, test_reset, &[])?;
+
+        // println!("Algo info");
+        // let _ = run_test(&mut card, test_print_algo_info, &[])?;
 
         println!("Generate key");
         let _ = run_test(&mut card, test_keygen, &[])?;
