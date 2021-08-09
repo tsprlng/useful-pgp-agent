@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Result};
+use std::fmt;
+use std::ops::{Deref, DerefMut};
 
-use apdu::response::Response;
+use apdu::{response::Response, PcscClient};
+use card_app::CardApp;
+use errors::{OpenpgpCardError, SmartcardError};
 use parse::{
-    algo_attrs::Algo, algo_info::AlgoInfo, application_id::ApplicationId,
+    algo_info::AlgoInfo, application_id::ApplicationId,
     cardholder::CardHolder, extended_cap::ExtendedCap, extended_cap::Features,
     extended_length_info::ExtendedLengthInfo, fingerprint,
     historical::Historical, pw_status::PWStatus, KeySet,
 };
 use tlv::Tlv;
-
-use crate::apdu::PcscClient;
-use crate::card_app::CardApp;
-use crate::errors::{OpenpgpCardError, SmartcardError};
-use std::ops::{Deref, DerefMut};
 
 pub mod apdu;
 mod card;
@@ -62,6 +61,139 @@ impl CardCaps {
             chaining_support,
             max_cmd_bytes,
             max_rsp_bytes,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Algo {
+    Rsa(RsaAttrs),
+    Ecc(EccAttrs),
+    Unknown(Vec<u8>),
+}
+
+impl fmt::Display for Algo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Rsa(rsa) => {
+                write!(f, "RSA {}, {} ", rsa.len_n, rsa.len_e)
+            }
+            Self::Ecc(ecc) => {
+                write!(f, "{:?} ({:?})", ecc.curve, ecc.ecc_type)
+            }
+            Self::Unknown(u) => {
+                write!(f, "Unknown: {:?}", u)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct RsaAttrs {
+    pub len_n: u16,
+    pub len_e: u16,
+    pub import_format: u8,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct EccAttrs {
+    pub ecc_type: EccType,
+    pub curve: Curve,
+    pub import_format: Option<u8>,
+}
+
+impl EccAttrs {
+    pub fn new(
+        ecc_type: EccType,
+        curve: Curve,
+        import_format: Option<u8>,
+    ) -> Self {
+        Self {
+            ecc_type,
+            curve,
+            import_format,
+        }
+    }
+
+    pub fn oid(&self) -> &[u8] {
+        self.curve.oid()
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Curve {
+    NistP256r1,
+    NistP384r1,
+    NistP521r1,
+    BrainpoolP256r1,
+    BrainpoolP384r1,
+    BrainpoolP512r1,
+    Secp256k1,
+    Ed25519,
+    Cv25519,
+    Ed448,
+    X448,
+}
+
+impl Curve {
+    pub fn oid(&self) -> &[u8] {
+        use Curve::*;
+        match self {
+            NistP256r1 => &[0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07],
+            NistP384r1 => &[0x2B, 0x81, 0x04, 0x00, 0x22],
+            NistP521r1 => &[0x2B, 0x81, 0x04, 0x00, 0x23],
+            BrainpoolP256r1 => {
+                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07]
+            }
+            BrainpoolP384r1 => {
+                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b]
+            }
+            BrainpoolP512r1 => {
+                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d]
+            }
+            Secp256k1 => &[0x2B, 0x81, 0x04, 0x00, 0x0A],
+            Ed25519 => &[0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01],
+            Cv25519 => {
+                &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01]
+            }
+            Ed448 => &[0x2b, 0x65, 0x71],
+            X448 => &[0x2b, 0x65, 0x6f],
+        }
+    }
+
+    // FIXME impl trait?
+    pub fn from(oid: &[u8]) -> Option<Self> {
+        use Curve::*;
+        match oid {
+            [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07] => {
+                Some(NistP256r1)
+            }
+            [0x2B, 0x81, 0x04, 0x00, 0x22] => Some(NistP384r1),
+            [0x2B, 0x81, 0x04, 0x00, 0x23] => Some(NistP521r1),
+
+            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07] => {
+                Some(BrainpoolP256r1)
+            }
+            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b] => {
+                Some(BrainpoolP384r1)
+            }
+            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d] => {
+                Some(BrainpoolP512r1)
+            }
+
+            [0x2B, 0x81, 0x04, 0x00, 0x0A] => Some(Secp256k1),
+
+            [0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01] => {
+                Some(Ed25519)
+            }
+            [0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01] => {
+                Some(Cv25519)
+            }
+
+            [0x2b, 0x65, 0x71] => Some(Ed448),
+            [0x2b, 0x65, 0x6f] => Some(X448),
+
+            _ => None,
         }
     }
 }
@@ -133,6 +265,14 @@ pub trait CardUploadableKey {
 pub enum PublicKeyMaterial {
     R(RSAPub),
     E(EccPub),
+    T(Tffon), // 25519
+}
+
+/// ed25519/cv25519
+#[derive(Debug)]
+pub struct Tffon {
+    /// Public key
+    pub pk: Vec<u8>,
 }
 
 /// RSA-specific container for public key material from an OpenPGP card.

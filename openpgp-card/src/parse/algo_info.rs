@@ -7,10 +7,10 @@ use anyhow::Result;
 use nom::branch::alt;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
+use std::fmt;
 
 use crate::parse::algo_attrs;
-use crate::parse::algo_attrs::Algo;
-use crate::KeyType;
+use crate::{Algo, KeyType};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AlgoInfo(Vec<(KeyType, Algo)>);
@@ -22,6 +22,21 @@ impl AlgoInfo {
             .filter(|(k, _)| *k == kt)
             .map(|(_, a)| a)
             .collect()
+    }
+}
+
+impl fmt::Display for AlgoInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (kt, a) in &self.0 {
+            let kt = match kt {
+                KeyType::Signing => "SIG",
+                KeyType::Decryption => "DEC",
+                KeyType::Authentication => "AUT",
+                KeyType::Attestation => "ATT",
+            };
+            writeln!(f, "{}: {} ", kt, a)?;
+        }
+        Ok(())
     }
 }
 
@@ -88,12 +103,10 @@ impl TryFrom<&[u8]> for AlgoInfo {
 mod test {
     use std::convert::TryFrom;
 
-    use crate::parse::algo_attrs::Algo::*;
-    use crate::parse::algo_attrs::Curve::*;
-    use crate::parse::algo_attrs::*;
     use crate::parse::algo_info::AlgoInfo;
-    use crate::EccType::*;
-    use crate::KeyType::*;
+    use crate::{
+        Algo::*, Curve::*, EccAttrs, EccType::*, KeyType::*, RsaAttrs,
+    };
 
     #[test]
     fn test_gnuk() {
