@@ -10,22 +10,47 @@ use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
-use crate::parse::algo_attrs::{Algo, EccAttrs, RsaAttrs};
 use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{apdu, EccPub, PublicKeyMaterial, RSAPub};
+use crate::{apdu, Curve, EccPub, PublicKeyMaterial, RSAPub};
 use crate::{
-    tlv, CardUploadableKey, EccKey, KeyType, PrivateKeyMaterial, RSAKey,
+    tlv, Algo, CardUploadableKey, EccAttrs, EccKey, KeyType,
+    PrivateKeyMaterial, RSAKey, RsaAttrs,
 };
 
 /// `gen_key_with_metadata` calculates the fingerprint for a public key
 /// data object
 pub(crate) fn gen_key_with_metadata(
     card_app: &mut CardApp,
-    fp_from_pub: fn(&PublicKeyMaterial, SystemTime) -> Result<[u8; 20]>,
+    fp_from_pub: fn(
+        &PublicKeyMaterial,
+        SystemTime,
+        KeyType,
+        &Algo,
+    ) -> Result<[u8; 20]>,
     key_type: KeyType,
-) -> Result<(), OpenpgpCardError> {
-    let pubkey = gen_key(card_app, key_type)?;
+    algo: Option<&Algo>,
+) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
+    // set algo on card if it's Some
+    if let Some(algo) = algo {
+        println!("set algo {:?}", algo);
+        card_app
+            .set_algorithm_attributes(key_type, algo)?
+            .check_ok()?;
+        println!("set algo done");
+    }
+
+    // algo
+    let ard = card_app.get_app_data()?; // no caching, here!
+    let algo = CardApp::get_algorithm_attributes(&ard, key_type)?;
+
+    // generate key
+    let tlv = gen_key(card_app, key_type)?;
+
+    // derive pubkey
+    let pubkey = tlv_to_pubkey(&tlv, &algo)?;
+
+    log::trace!("public {:x?}", pubkey);
 
     // set creation time
     let time = SystemTime::now();
@@ -39,13 +64,13 @@ pub(crate) fn gen_key_with_metadata(
     card_app.set_creation_time(ts, key_type)?.check_ok()?;
 
     // calculate/store fingerprint
-    let fp = fp_from_pub(&pubkey, time)?;
+    let fp = fp_from_pub(&pubkey, time, key_type, &algo)?;
     card_app.set_fingerprint(fp, key_type)?.check_ok()?;
 
-    Ok(())
+    Ok((pubkey, ts))
 }
 
-fn tlv_to_pubkey(tlv: &Tlv) -> Result<PublicKeyMaterial> {
+fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
     let n = tlv.find(&Tag::new(vec![0x81]));
     let v = tlv.find(&Tag::new(vec![0x82]));
 
@@ -61,26 +86,13 @@ fn tlv_to_pubkey(tlv: &Tlv) -> Result<PublicKeyMaterial> {
             Ok(PublicKeyMaterial::R(rsa))
         }
         (None, None, Some(ec)) => {
-            let ec = ec.serialize();
+            let data = ec.serialize();
+            println!("EC --- len {}, data {:x?}", data.len(), data);
 
-            // The public key for ECDSA/DH consists of of two raw
-            // big-endian integers with the same length as a field element
-            // each. In compliance with EN 419212 the format is 04 || x || y
-            // where the first byte (04) indicates an uncompressed raw format.
-
-            assert_eq!(ec[0], 0x4);
-
-            let len = ec.len();
-            assert_eq!(len % 2, 1); // odd number of bytes
-
-            // len 3 -> 4/2 = 2
-            let middle = (len + 1) / 2;
-            let x = ec[1..middle].to_vec();
-            let y = ec[middle..].to_vec();
-
-            let ecc = EccPub { x, y };
-
-            Ok(PublicKeyMaterial::E(ecc))
+            Ok(PublicKeyMaterial::E(EccPub {
+                data,
+                algo: algo.clone(),
+            }))
         }
 
         (_, _, _) => {
@@ -92,7 +104,7 @@ fn tlv_to_pubkey(tlv: &Tlv) -> Result<PublicKeyMaterial> {
 pub(crate) fn gen_key(
     card_app: &mut CardApp,
     key_type: KeyType,
-) -> Result<PublicKeyMaterial, OpenpgpCardError> {
+) -> Result<Tlv, OpenpgpCardError> {
     println!("gen key for {:?}", key_type);
 
     // generate key
@@ -106,11 +118,7 @@ pub(crate) fn gen_key(
 
     let tlv = Tlv::try_from(resp.data()?)?;
 
-    let pubkey = tlv_to_pubkey(&tlv)?;
-
-    log::trace!("public {:x?}", pubkey);
-
-    Ok(pubkey)
+    Ok(tlv)
 }
 
 pub(crate) fn get_pub_key(
@@ -119,17 +127,19 @@ pub(crate) fn get_pub_key(
 ) -> Result<PublicKeyMaterial, OpenpgpCardError> {
     println!("get pub key for {:?}", key_type);
 
-    let card_client = card_app.card();
+    // algo
+    let ard = card_app.get_app_data()?; // FIXME: caching
+    let algo = CardApp::get_algorithm_attributes(&ard, key_type)?;
 
     // get public key
     let crt = get_crt(key_type)?;
     let get_pub_key_cmd = commands::get_pub_key(crt.serialize().to_vec());
 
-    let resp = apdu::send_command(card_client, get_pub_key_cmd, true)?;
+    let resp = apdu::send_command(card_app.card(), get_pub_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
-    let pubkey = tlv_to_pubkey(&tlv)?;
+    let pubkey = tlv_to_pubkey(&tlv, &algo)?;
 
     Ok(pubkey)
 }
@@ -192,7 +202,7 @@ pub(crate) fn upload_key(
 
             let algo = Algo::Ecc(EccAttrs {
                 ecc_type: ecc_key.get_type(),
-                oid: ecc_key.get_oid().to_vec(),
+                curve: Curve::from(ecc_key.get_oid()).expect("unepected oid"),
                 import_format: None,
             });
 
@@ -264,7 +274,7 @@ fn check_card_algo_ecdh(
         .collect();
 
     // Check if this OID exists in the supported algorithms
-    ecdh_algos.iter().any(|e| e.oid == oid)
+    ecdh_algos.iter().any(|e| e.oid() == oid)
 }
 
 // FIXME: refactor, these checks currently pointlessly duplicate code
@@ -288,7 +298,7 @@ fn check_card_algo_ecdsa(
         .collect();
 
     // Check if this OID exists in the supported algorithms
-    ecdsa_algos.iter().any(|e| e.oid == oid)
+    ecdsa_algos.iter().any(|e| e.oid() == oid)
 }
 
 // FIXME: refactor, these checks currently pointlessly duplicate code
@@ -312,7 +322,7 @@ fn check_card_algo_eddsa(
         .collect();
 
     // Check if this OID exists in the supported algorithms
-    eddsa_algos.iter().any(|e| e.oid == oid)
+    eddsa_algos.iter().any(|e| e.oid() == oid)
 }
 
 fn ecc_key_cmd(

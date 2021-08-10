@@ -4,31 +4,32 @@
 //! This library supports using openpgp-card functionality with
 //! sequoia_openpgp data structures.
 
+use anyhow::{anyhow, Context, Result};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::error::Error;
 use std::io;
 use std::time::SystemTime;
 
-use anyhow::{anyhow, Context, Result};
 use openpgp::armor;
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use openpgp::crypto::mpi;
 use openpgp::crypto::mpi::{ProtectedMPI, MPI};
+use openpgp::packet::key::{Key4, PublicParts};
 use openpgp::packet::key::{SecretParts, UnspecifiedRole};
 use openpgp::packet::{key, Key};
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
 use openpgp::policy::StandardPolicy;
 use openpgp::serialize::stream::{Message, Signer};
+use openpgp::types::Timestamp;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::card_app::CardApp;
 use openpgp_card::{
-    errors::OpenpgpCardError, CardAdmin, CardUploadableKey, EccKey, EccType,
-    KeyType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
+    errors::OpenpgpCardError, Algo, CardAdmin, CardUploadableKey, Curve,
+    EccKey, EccType, KeyType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
 };
-use sequoia_openpgp::packet::key::{Key4, PublicParts};
-use sequoia_openpgp::types::Timestamp;
+use sequoia_openpgp::types::PublicKeyAlgorithm;
 
 mod decryptor;
 mod signer;
@@ -74,6 +75,7 @@ pub fn vka_as_uploadable_key(
 /// Helper fn: get a Key<PublicParts, UnspecifiedRole> for a PublicKeyMaterial
 pub fn public_key_material_to_key(
     pkm: &PublicKeyMaterial,
+    key_type: KeyType,
     time: SystemTime,
 ) -> Result<Key<PublicParts, UnspecifiedRole>> {
     match pkm {
@@ -83,7 +85,73 @@ pub fn public_key_material_to_key(
 
             Ok(Key::from(k4))
         }
-        _ => unimplemented!("ECC not implemented yet"),
+        PublicKeyMaterial::E(ecc) => {
+            let algo = ecc.algo.clone(); // FIXME?
+            if let Algo::Ecc(algo_ecc) = algo {
+                match key_type {
+                    KeyType::Authentication | KeyType::Signing => {
+                        if algo_ecc.curve == Curve::Ed25519 {
+                            // EdDSA
+                            let k4: Key4<
+                                key::PublicParts,
+                                key::UnspecifiedRole,
+                            > = Key4::import_public_ed25519(&ecc.data, time)?;
+
+                            println!("k4 {:?}", k4);
+
+                            Ok(Key::from(k4))
+                        } else {
+                            // ECDSA
+
+                            // The public key for ECDSA/DH consists of of two raw
+                            // big-endian integers with the same length as a field element
+                            // each. In compliance with EN 419212 the format is 04 || x || y
+                            // where the first byte (04) indicates an uncompressed raw format.
+
+                            let ec = &ecc.data;
+
+                            assert_eq!(ec[0], 0x4);
+
+                            let len = ec.len();
+                            assert_eq!(len % 2, 1); // odd number of bytes
+
+                            // ---
+
+                            let curve = match algo_ecc.curve {
+                                Curve::NistP256r1 => {
+                                    openpgp::types::Curve::NistP256
+                                }
+                                Curve::NistP384r1 => {
+                                    openpgp::types::Curve::NistP384
+                                }
+                                Curve::NistP521r1 => {
+                                    openpgp::types::Curve::NistP521
+                                }
+                                _ => unimplemented!(),
+                            };
+
+                            // NIST
+                            let k4 = Key4::new(
+                                time,
+                                PublicKeyAlgorithm::ECDSA,
+                                mpi::PublicKey::ECDSA {
+                                    curve,
+                                    q: mpi::MPI::new(&ec),
+                                },
+                            )?;
+
+                            Ok(Key::from(k4))
+                        }
+                    }
+                    KeyType::Decryption => {
+                        unimplemented!("Decryption keys not implemented yet")
+                    }
+                    _ => unimplemented!("Unsupported KeyType"),
+                }
+            } else {
+                panic!("unexpected algo {:?}", algo);
+            }
+        }
     }
 }
 

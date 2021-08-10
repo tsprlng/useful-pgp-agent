@@ -18,16 +18,15 @@ use anyhow::{anyhow, Result};
 use crate::apdu::{commands, response::Response};
 use crate::errors::OpenpgpCardError;
 use crate::parse::{
-    algo_attrs::Algo, algo_attrs::RsaAttrs, algo_info::AlgoInfo,
-    application_id::ApplicationId, cardholder::CardHolder,
-    extended_cap::ExtendedCap, extended_length_info::ExtendedLengthInfo,
-    fingerprint, historical::Historical, key_generation_times,
-    pw_status::PWStatus, KeySet,
+    algo_info::AlgoInfo, application_id::ApplicationId,
+    cardholder::CardHolder, extended_cap::ExtendedCap,
+    extended_length_info::ExtendedLengthInfo, fingerprint,
+    historical::Historical, key_generation_times, pw_status::PWStatus, KeySet,
 };
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, keys, CardCaps, CardClientBox, CardUploadableKey, DecryptMe,
-    EccType, Hash, KeyGeneration, KeyType, PublicKeyMaterial, Sex,
+    apdu, keys, Algo, CardCaps, CardClientBox, CardUploadableKey, DecryptMe,
+    EccType, Hash, KeyGeneration, KeyType, PublicKeyMaterial, RsaAttrs, Sex,
 };
 
 pub struct CardApp {
@@ -573,7 +572,7 @@ impl CardApp {
 
         let data = match algo {
             Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa)?,
-            Algo::Ecc(ecc) => Self::ecc_algo_attrs(&ecc.oid, ecc.ecc_type),
+            Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type),
             _ => unimplemented!(),
         };
 
@@ -635,14 +634,22 @@ impl CardApp {
         keys::upload_key(self, key, key_type, algo_list)
     }
 
-    // FIXME: use subset of CardUploadableKey to specify algo?
+    /// Generate a key on the card.
+    /// If the `algo` parameter is Some, then this algorithm will be set on
+    /// the card for "key_type".
     pub fn generate_key(
         &mut self,
-        fp_from_pub: fn(&PublicKeyMaterial, SystemTime) -> Result<[u8; 20]>,
+        fp_from_pub: fn(
+            &PublicKeyMaterial,
+            SystemTime,
+            KeyType,
+            &Algo,
+        ) -> Result<[u8; 20]>,
         key_type: KeyType,
-    ) -> Result<(), OpenpgpCardError> {
+        algo: Option<&Algo>,
+    ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
         // FIXME: specify algo; pass in algo list?
-        keys::gen_key_with_metadata(self, fp_from_pub, key_type)
+        keys::gen_key_with_metadata(self, fp_from_pub, key_type, algo)
     }
 
     pub fn get_pub_key(

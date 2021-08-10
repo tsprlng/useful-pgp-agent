@@ -265,14 +265,6 @@ pub trait CardUploadableKey {
 pub enum PublicKeyMaterial {
     R(RSAPub),
     E(EccPub),
-    T(Tffon), // 25519
-}
-
-/// ed25519/cv25519
-#[derive(Debug)]
-pub struct Tffon {
-    /// Public key
-    pub pk: Vec<u8>,
 }
 
 /// RSA-specific container for public key material from an OpenPGP card.
@@ -288,8 +280,8 @@ pub struct RSAPub {
 /// ECC-specific container for public key material from an OpenPGP card.
 #[derive(Debug)]
 pub struct EccPub {
-    pub x: Vec<u8>,
-    pub y: Vec<u8>,
+    pub data: Vec<u8>,
+    pub algo: Algo,
 }
 
 /// Algorithm-independent container for private key material to upload to
