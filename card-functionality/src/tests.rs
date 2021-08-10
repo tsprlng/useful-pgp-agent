@@ -1,30 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! These tests rely mainly on the card-app abstraction layer in
-//! openpgp-card. However, for crypto-operations, higher level APIs and
-//! Sequoia PGP are used.
-//!
-//! The main purpose of this test suite is to be able to test the behavior
-//! of different OpenPGP card implementation.
-//!
-//! These tests assert (and fail) in cases where a certain behavior is
-//! expected from all cards, and a card doesn't conform.
-//! However, in some aspects, card behavior is expected to diverge, and
-//! it's not ok for us to just fail and reject the card's output.
-//! Even when it contradicts the OpenPGP card spec.
-//!
-//! For such cases, these tests return a TestOutput, which is a
-//! Vec<TestResult>, to document the return values of the card in question.
-//!
-//! e.g.: the Yubikey 5 fails to handle the VERIFY command with empty data
-//! (see OpenPGP card spec, 7.2.2: "If the command is called
-//! without data, the actual access status of the addressed password is
-//! returned or the access status is set to 'not verified'").
-//!
-//! The Yubikey 5 erroneously returns Status 0x6a80 ("Incorrect parameters in
-//! the command data field").
-
 use anyhow::{Error, Result};
 use std::convert::TryInto;
 use std::time::SystemTime;
@@ -41,12 +17,10 @@ use openpgp_card::{
 };
 
 use crate::cards::{TestCard, TestConfig};
-
-mod cards;
-mod util;
+use crate::util;
 
 #[derive(Debug)]
-enum TestResult {
+pub enum TestResult {
     Status([u8; 2]),
     Text(String),
 }
@@ -69,7 +43,7 @@ pub enum TestError {
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-fn test_decrypt(
+pub fn test_decrypt(
     mut ca: &mut CardApp,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -95,7 +69,7 @@ fn test_decrypt(
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-fn test_sign(
+pub fn test_sign(
     mut ca: &mut CardApp,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -164,7 +138,7 @@ fn check_key_upload_algo_attrs() -> Result<()> {
     Ok(())
 }
 
-fn test_print_caps(
+pub fn test_print_caps(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -182,7 +156,7 @@ fn test_print_caps(
     Ok(vec![])
 }
 
-fn test_print_algo_info(
+pub fn test_print_algo_info(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -201,7 +175,7 @@ fn test_print_algo_info(
     Ok(vec![])
 }
 
-fn test_upload_keys(
+pub fn test_upload_keys(
     ca: &mut CardApp,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -228,34 +202,128 @@ fn test_upload_keys(
 }
 
 /// Generate keys for each of the three KeyTypes
-fn test_keygen(
+pub fn test_keygen(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let verify = ca.verify_pw3("12345678")?;
     verify.check_ok()?;
 
-    let fp = |pkm: &PublicKeyMaterial, ts: SystemTime| {
-        // FIXME: store creation timestamp
+    // RSA 1024, e=17
+    let rsa1k = Algo::Rsa(RsaAttrs {
+        len_n: 1024,
+        len_e: 17,
+        import_format: 0,
+    });
 
-        let key = openpgp_card_sequoia::public_key_material_to_key(pkm, ts)?;
+    // RSA 2048, e=17
+    let rsa2k = Algo::Rsa(RsaAttrs {
+        len_n: 2048,
+        len_e: 17,
+        import_format: 0,
+    });
 
-        let fp = key.fingerprint();
-        let fp = fp.as_bytes();
-        assert_eq!(fp.len(), 20);
+    // RSA 3072, e=17
+    let rsa3k = Algo::Rsa(RsaAttrs {
+        len_n: 3072,
+        len_e: 17,
+        import_format: 0,
+    });
 
-        Ok(fp.try_into().unwrap())
-    };
+    // RSA 4096, e=32
+    let rsa4k = Algo::Rsa(RsaAttrs {
+        len_n: 4096,
+        len_e: 32,
+        import_format: 0,
+    });
 
-    ca.generate_key(fp, KeyType::Signing)?;
-    ca.generate_key(fp, KeyType::Decryption)?;
-    ca.generate_key(fp, KeyType::Authentication)?;
+    // ed25519 sign
+    let ed25519 = Algo::Ecc(EccAttrs {
+        ecc_type: EccType::EdDSA,
+        curve: Curve::Ed25519,
+        import_format: None,
+    });
+
+    // cv25519 dec
+    let cv25519 = Algo::Ecc(EccAttrs {
+        ecc_type: EccType::ECDH,
+        curve: Curve::Cv25519,
+        import_format: None,
+    });
+
+    // nist256 sig, auth
+    let nist256_ecdsa = Algo::Ecc(EccAttrs {
+        ecc_type: EccType::ECDSA,
+        curve: Curve::NistP256r1,
+        import_format: None,
+    });
+
+    // nist256 dec
+    let nist256_ecdh = Algo::Ecc(EccAttrs {
+        ecc_type: EccType::ECDH,
+        curve: Curve::NistP256r1,
+        import_format: None,
+    });
+
+    let fp =
+        |pkm: &PublicKeyMaterial, ts: SystemTime, kt: KeyType, algo: &Algo| {
+            // FIXME: store creation timestamp
+
+            let key =
+                openpgp_card_sequoia::public_key_material_to_key(pkm, kt, ts)?;
+
+            let fp = key.fingerprint();
+            let fp = fp.as_bytes();
+            assert_eq!(fp.len(), 20);
+
+            Ok(fp.try_into().unwrap())
+        };
+
+    // ------
+
+    let (pkm, ts) =
+        ca.generate_key(fp, KeyType::Signing, Some(&nist256_ecdsa))?;
+    let key_sig = openpgp_card_sequoia::public_key_material_to_key(
+        &pkm,
+        KeyType::Signing,
+        SystemTime::from(Timestamp::from(ts)),
+    )?;
+
+    println!("key sig: {:?}", key_sig);
+
+    // ------
+
+    let (pkm, ts) =
+        ca.generate_key(fp, KeyType::Decryption, Some(&nist256_ecdh))?;
+    let key_dec = openpgp_card_sequoia::public_key_material_to_key(
+        &pkm,
+        KeyType::Decryption,
+        SystemTime::from(Timestamp::from(ts)),
+    )?;
+
+    println!("key dec: {:?}", key_dec);
+
+    // ------
+
+    let (pkm, ts) =
+        ca.generate_key(fp, KeyType::Authentication, Some(&nist256_ecdsa))?;
+    let key_aut = openpgp_card_sequoia::public_key_material_to_key(
+        &pkm,
+        KeyType::Authentication,
+        SystemTime::from(Timestamp::from(ts)),
+    )?;
+
+    println!("key auth: {:?}", key_aut);
+
+    // ---- make cert
+
+    unimplemented!("return Cert as text");
 
     Ok(vec![])
 }
 
 /// Construct public key based on data from the card
-fn test_get_pub(
+pub fn test_get_pub(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -266,7 +334,11 @@ fn test_get_pub(
 
     let sig = ca.get_pub_key(KeyType::Signing)?;
     let ts = Timestamp::from(key_gen.signature().unwrap().get()).into();
-    let key = openpgp_card_sequoia::public_key_material_to_key(&sig, ts)?;
+    let key = openpgp_card_sequoia::public_key_material_to_key(
+        &sig,
+        KeyType::Signing,
+        ts,
+    )?;
 
     println!(" sig key data from card -> {:x?}", key);
 
@@ -274,7 +346,11 @@ fn test_get_pub(
 
     let dec = ca.get_pub_key(KeyType::Decryption)?;
     let ts = Timestamp::from(key_gen.decryption().unwrap().get()).into();
-    let key = openpgp_card_sequoia::public_key_material_to_key(&dec, ts)?;
+    let key = openpgp_card_sequoia::public_key_material_to_key(
+        &dec,
+        KeyType::Decryption,
+        ts,
+    )?;
 
     println!(" dec key data from card -> {:x?}", key);
 
@@ -282,7 +358,11 @@ fn test_get_pub(
 
     let auth = ca.get_pub_key(KeyType::Authentication)?;
     let ts = Timestamp::from(key_gen.authentication().unwrap().get()).into();
-    let key = openpgp_card_sequoia::public_key_material_to_key(&auth, ts)?;
+    let key = openpgp_card_sequoia::public_key_material_to_key(
+        &auth,
+        KeyType::Authentication,
+        ts,
+    )?;
 
     println!(" auth key data from card -> {:x?}", key);
 
@@ -294,7 +374,7 @@ fn test_get_pub(
     Ok(vec![])
 }
 
-fn test_reset(
+pub fn test_reset(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -307,7 +387,7 @@ fn test_reset(
 ///
 /// Returns an empty TestOutput, throws errors for unexpected Status codes
 /// and for unequal field values.
-fn test_set_user_data(
+pub fn test_set_user_data(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -346,7 +426,7 @@ fn test_set_user_data(
 /// Outputs:
 /// - verify pw3 (check) -> Status
 /// - verify pw1 (check) -> Status
-fn test_verify(
+pub fn test_verify(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
@@ -397,7 +477,7 @@ fn test_verify(
     Ok(out)
 }
 
-fn run_test(
+pub fn run_test(
     card: &mut TestCard,
     t: fn(&mut CardApp, &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
@@ -407,86 +487,4 @@ fn run_test(
     let _app_id = CardApp::get_aid(&ard)?;
 
     t(&mut ca, param)
-}
-
-fn main() -> Result<()> {
-    env_logger::init();
-
-    let config = TestConfig::open("config/test-cards.toml")?;
-
-    let cards = config.get_cards();
-
-    for mut card in cards {
-        println!("** Run tests on card {:?} **", card);
-
-        println!("Get pubkey");
-        let _ = run_test(&mut card, test_get_pub, &[])?;
-
-        panic!();
-
-        // println!("Caps");
-        // let _ = run_test(&mut card, test_print_caps, &[])?;
-        //
-        // // continue; // only print caps
-
-        println!("Reset");
-        let _ = run_test(&mut card, test_reset, &[])?;
-
-        // println!("Algo info");
-        // let _ = run_test(&mut card, test_print_algo_info, &[])?;
-
-        println!("Generate key");
-        let _ = run_test(&mut card, test_keygen, &[])?;
-
-        panic!();
-
-        print!("Verify");
-        let verify_out = run_test(&mut card, test_verify, &[])?;
-        println!(" {:x?}", verify_out);
-
-        print!("Set user data");
-        let userdata_out = run_test(&mut card, test_set_user_data, &[])?;
-        println!(" {:x?}", userdata_out);
-
-        for (key, ciphertext) in [
-            ("data/rsa2k.sec", "data/encrypted_to_rsa2k.asc"),
-            ("data/rsa4k.sec", "data/encrypted_to_rsa4k.asc"),
-            ("data/25519.sec", "data/encrypted_to_25519.asc"),
-            ("data/nist256.sec", "data/encrypted_to_nist256.asc"),
-            ("data/nist521.sec", "data/encrypted_to_nist521.asc"),
-        ] {
-            // upload keys
-            print!("Upload key '{}'", key);
-            let upload_res = run_test(&mut card, test_upload_keys, &[key]);
-
-            if let Err(TestError::KeyUploadError(_file, err)) = &upload_res {
-                // The card doesn't support this key type, so skip to the
-                // next key - don't try to decrypt/sign for this key.
-
-                println!(" => Upload failed ({:?}), skip tests", err);
-
-                continue;
-            }
-
-            let upload_out = upload_res?;
-            println!(" {:x?}", upload_out);
-
-            // decrypt
-            print!("  Decrypt");
-            let dec_out =
-                run_test(&mut card, test_decrypt, &[key, ciphertext])?;
-            println!(" {:x?}", dec_out);
-
-            // sign
-            print!("  Sign");
-            let sign_out = run_test(&mut card, test_sign, &[key])?;
-            println!(" {:x?}", sign_out);
-        }
-
-        // FIXME: upload key with password
-
-        println!();
-    }
-
-    Ok(())
 }

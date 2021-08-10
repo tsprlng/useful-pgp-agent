@@ -5,8 +5,23 @@
 name = "card-functionality"
 version = "0.1.0"
 edition = "2018"
+default-run = "keygen"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "card_functionality"
+path = "src/lib.rs"
+
+[[bin]]
+name = "import"
+path = "src/import.rs"
+
+[[bin]]
+name = "keygen"
+path = "src/keygen.rs"
+
+[[bin]]
+name = "other"
+path = "src/other.rs"
 
 [dependencies]
 openpgp-card = { path = "../openpgp-card" }
