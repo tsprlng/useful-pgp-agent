@@ -106,8 +106,6 @@ pub fn public_key_material_to_key(
                                 key::UnspecifiedRole,
                             > = Key4::import_public_ed25519(&ecc.data, time)?;
 
-                            println!("k4 {:?}", k4);
-
                             Ok(Key::from(k4))
                         } else {
                             // ECDSA
@@ -132,8 +130,6 @@ pub fn public_key_material_to_key(
                             > = Key4::import_public_cv25519(
                                 &ecc.data, None, None, time,
                             )?;
-
-                            println!("k4 {:?}", k4);
 
                             Ok(Key::from(k4))
                         } else {

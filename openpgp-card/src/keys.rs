@@ -33,11 +33,9 @@ pub(crate) fn gen_key_with_metadata(
 ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
     // set algo on card if it's Some
     if let Some(algo) = algo {
-        println!("set algo {:?}", algo);
         card_app
             .set_algorithm_attributes(key_type, algo)?
             .check_ok()?;
-        println!("set algo done");
     }
 
     // algo
@@ -87,7 +85,7 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
         }
         (None, None, Some(ec)) => {
             let data = ec.serialize();
-            println!("EC --- len {}, data {:x?}", data.len(), data);
+            log::trace!("EC --- len {}, data {:x?}", data.len(), data);
 
             Ok(PublicKeyMaterial::E(EccPub {
                 data,
@@ -105,7 +103,7 @@ pub(crate) fn gen_key(
     card_app: &mut CardApp,
     key_type: KeyType,
 ) -> Result<Tlv, OpenpgpCardError> {
-    println!("gen key for {:?}", key_type);
+    println!(" Generate subkey for {:?}", key_type);
 
     // generate key
     let crt = get_crt(key_type)?;
