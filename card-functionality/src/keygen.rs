@@ -31,8 +31,16 @@ fn main() -> Result<()> {
         // println!("Algo info");
         // let _ = run_test(&mut card, test_print_algo_info, &[])?;
 
+        // Set user data because keygen expects a name (for the user id)
+        println!("Set user data");
+        let _ = run_test(&mut card, test_set_user_data, &[])?;
+
         println!("Generate key");
-        let _ = run_test(&mut card, test_keygen, &[])?;
+        let res = run_test(&mut card, test_keygen, &[])?;
+
+        if let TestResult::Text(cert) = &res[0] {
+            println!("cert\n{}", cert);
+        };
 
         // panic!();
 

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{Error, Result};
+use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::time::SystemTime;
 use thiserror::Error;
 
 use sequoia_openpgp::parse::Parse;
-use sequoia_openpgp::types::Timestamp;
-use sequoia_openpgp::Cert;
+use sequoia_openpgp::serialize::SerializeInto;
+use sequoia_openpgp::types::{SignatureType, Timestamp};
+use sequoia_openpgp::{Cert, Packet};
 
 use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
@@ -16,8 +18,13 @@ use openpgp_card::{
     Algo, Curve, EccAttrs, EccType, KeyType, PublicKeyMaterial, RsaAttrs, Sex,
 };
 
-use crate::cards::{TestCard, TestConfig};
+use crate::cards::TestCard;
 use crate::util;
+use openpgp_card_sequoia::signer::CardSigner;
+use sequoia_openpgp::packet::key::{KeyRole, PrimaryRole, SubordinateRole};
+use sequoia_openpgp::packet::signature::SignatureBuilder;
+use sequoia_openpgp::packet::UserID;
+use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum TestResult {
@@ -40,6 +47,9 @@ pub enum TestError {
 
     #[error(transparent)]
     Other(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
+
+    #[error(transparent)]
+    Utf8Error(#[from] FromUtf8Error),
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
@@ -289,8 +299,6 @@ pub fn test_keygen(
         SystemTime::from(Timestamp::from(ts)),
     )?;
 
-    println!("key sig: {:?}", key_sig);
-
     // ------
 
     let (pkm, ts) =
@@ -300,8 +308,6 @@ pub fn test_keygen(
         KeyType::Decryption,
         SystemTime::from(Timestamp::from(ts)),
     )?;
-
-    println!("key dec: {:?}", key_dec);
 
     // ------
 
@@ -313,13 +319,104 @@ pub fn test_keygen(
         SystemTime::from(Timestamp::from(ts)),
     )?;
 
-    println!("key auth: {:?}", key_aut);
-
     // ---- make cert
 
-    unimplemented!("return Cert as text");
+    let mut pp = vec![];
 
-    Ok(vec![])
+    // 1) use the signing key as primary key
+    let pri = PrimaryRole::convert_key(key_sig.clone());
+    pp.push(Packet::from(pri));
+
+    // 2) add decryption key as subkey
+    let sub_dec = SubordinateRole::convert_key(key_dec);
+    pp.push(Packet::from(sub_dec.clone()));
+
+    // Temporary version of the cert
+    let cert = Cert::try_from(pp.clone())?;
+
+    // 3) make binding, sign with card -> add
+    {
+        let signing_builder =
+            SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?;
+
+        // Allow signing on the card
+        let res = ca.verify_pw1_for_signing("123456")?;
+        res.check_ok()?;
+
+        // Card-backed signer for bindings
+        let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
+
+        let signing_bsig: Packet = sub_dec
+            .bind(&mut card_signer, &cert, signing_builder)?
+            .into();
+
+        pp.push(signing_bsig);
+    }
+
+    // 4) add auth subkey
+    let sub_aut = SubordinateRole::convert_key(key_aut);
+    pp.push(Packet::from(sub_aut.clone()));
+
+    // 5) make, sign binding -> add
+    {
+        let signing_builder =
+            SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?;
+
+        // Allow signing on the card
+        let res = ca.verify_pw1_for_signing("123456")?;
+        res.check_ok()?;
+
+        // Card-backed signer for bindings
+        let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
+
+        let signing_bsig: Packet = sub_aut
+            .bind(&mut card_signer, &cert, signing_builder)?
+            .into();
+
+        pp.push(signing_bsig);
+    }
+
+    // 6) add user id from name / email
+    let cardholder = ca.get_cardholder_related_data()?;
+
+    // FIXME: process name field? accept email as argument?!
+    let uid: UserID = cardholder.name.expect("expecting name on card").into();
+
+    pp.push(uid.clone().into());
+
+    // 7) make, sign binding -> add
+    {
+        let signing_builder =
+            SignatureBuilder::new(SignatureType::PositiveCertification)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?;
+
+        // Allow signing on the card
+        let res = ca.verify_pw1_for_signing("123456")?;
+        res.check_ok()?;
+
+        // Card-backed signer for bindings
+        let mut card_signer = CardSigner::with_pubkey(ca, key_sig);
+
+        let signing_bsig: Packet =
+            uid.bind(&mut card_signer, &cert, signing_builder)?.into();
+
+        pp.push(signing_bsig);
+    }
+
+    // -- process resulting Vec<Packets> as a Cert
+
+    let cert = Cert::try_from(pp)?;
+
+    let armored = String::from_utf8(cert.armored().to_vec()?)?;
+
+    let res = TestResult::Text(armored);
+
+    Ok(vec![res])
 }
 
 /// Construct public key based on data from the card
