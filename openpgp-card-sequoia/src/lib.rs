@@ -32,7 +32,7 @@ use openpgp_card::{
 use sequoia_openpgp::types::PublicKeyAlgorithm;
 
 mod decryptor;
-mod signer;
+pub mod signer;
 
 /// Shorthand for public key data
 pub(crate) type PublicKey = Key<key::PublicParts, key::UnspecifiedRole>;
@@ -88,6 +88,15 @@ pub fn public_key_material_to_key(
         PublicKeyMaterial::E(ecc) => {
             let algo = ecc.algo.clone(); // FIXME?
             if let Algo::Ecc(algo_ecc) = algo {
+                let curve = match algo_ecc.curve {
+                    Curve::NistP256r1 => openpgp::types::Curve::NistP256,
+                    Curve::NistP384r1 => openpgp::types::Curve::NistP384,
+                    Curve::NistP521r1 => openpgp::types::Curve::NistP521,
+                    Curve::Ed25519 => openpgp::types::Curve::Ed25519,
+                    Curve::Cv25519 => openpgp::types::Curve::Cv25519,
+                    c => unimplemented!("unhandled curve: {:?}", c),
+                };
+
                 match key_type {
                     KeyType::Authentication | KeyType::Signing => {
                         if algo_ecc.curve == Curve::Ed25519 {
@@ -102,41 +111,12 @@ pub fn public_key_material_to_key(
                             Ok(Key::from(k4))
                         } else {
                             // ECDSA
-
-                            // The public key for ECDSA/DH consists of of two raw
-                            // big-endian integers with the same length as a field element
-                            // each. In compliance with EN 419212 the format is 04 || x || y
-                            // where the first byte (04) indicates an uncompressed raw format.
-
-                            let ec = &ecc.data;
-
-                            assert_eq!(ec[0], 0x4);
-
-                            let len = ec.len();
-                            assert_eq!(len % 2, 1); // odd number of bytes
-
-                            // ---
-
-                            let curve = match algo_ecc.curve {
-                                Curve::NistP256r1 => {
-                                    openpgp::types::Curve::NistP256
-                                }
-                                Curve::NistP384r1 => {
-                                    openpgp::types::Curve::NistP384
-                                }
-                                Curve::NistP521r1 => {
-                                    openpgp::types::Curve::NistP521
-                                }
-                                _ => unimplemented!(),
-                            };
-
-                            // NIST
                             let k4 = Key4::new(
                                 time,
                                 PublicKeyAlgorithm::ECDSA,
                                 mpi::PublicKey::ECDSA {
                                     curve,
-                                    q: mpi::MPI::new(&ec),
+                                    q: mpi::MPI::new(&ecc.data),
                                 },
                             )?;
 
@@ -144,7 +124,36 @@ pub fn public_key_material_to_key(
                         }
                     }
                     KeyType::Decryption => {
-                        unimplemented!("Decryption keys not implemented yet")
+                        if algo_ecc.curve == Curve::Cv25519 {
+                            // EdDSA
+                            let k4: Key4<
+                                key::PublicParts,
+                                key::UnspecifiedRole,
+                            > = Key4::import_public_cv25519(
+                                &ecc.data, None, None, time,
+                            )?;
+
+                            println!("k4 {:?}", k4);
+
+                            Ok(Key::from(k4))
+                        } else {
+                            // FIXME: just defining `hash` and `sym` is not
+                            // ok when a cert already exists
+
+                            // ECDH
+                            let k4 = Key4::new(
+                                time,
+                                PublicKeyAlgorithm::ECDH,
+                                mpi::PublicKey::ECDH {
+                                    curve,
+                                    q: mpi::MPI::new(&ecc.data),
+                                    hash: Default::default(),
+                                    sym: Default::default(),
+                                },
+                            )?;
+
+                            Ok(Key::from(k4))
+                        }
                     }
                     _ => unimplemented!("Unsupported KeyType"),
                 }

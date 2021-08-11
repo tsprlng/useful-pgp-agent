@@ -16,7 +16,7 @@ use openpgp_card::Hash;
 
 use crate::PublicKey;
 
-pub(crate) struct CardSigner<'a> {
+pub struct CardSigner<'a> {
     /// The OpenPGP card (authenticated to allow signing operations)
     ca: &'a mut CardApp,
 
@@ -58,10 +58,7 @@ impl<'a> CardSigner<'a> {
             if keys.len() == 1 {
                 let public = keys[0].clone();
 
-                Ok(CardSigner {
-                    ca,
-                    public: public.role_as_unspecified().clone(),
-                })
+                Ok(Self::with_pubkey(ca, public))
             } else {
                 Err(OpenpgpCardError::InternalError(anyhow!(
                     "Failed to find a matching (sub)key in cert"
@@ -73,6 +70,13 @@ impl<'a> CardSigner<'a> {
                 from the card"
             )))
         }
+    }
+
+    pub fn with_pubkey(
+        ca: &'a mut CardApp,
+        public: PublicKey,
+    ) -> CardSigner<'a> {
+        CardSigner { ca, public }
     }
 }
 
