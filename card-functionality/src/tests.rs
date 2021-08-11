@@ -339,7 +339,12 @@ pub fn test_keygen(
         let signing_builder =
             SignatureBuilder::new(SignatureType::SubkeyBinding)
                 .set_signature_creation_time(SystemTime::now())?
-                .set_key_validity_period(std::time::Duration::new(0, 0))?;
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(
+                    KeyFlags::empty()
+                        .set_storage_encryption()
+                        .set_transport_encryption(),
+                )?;
 
         // Allow signing on the card
         let res = ca.verify_pw1_for_signing("123456")?;
@@ -364,7 +369,8 @@ pub fn test_keygen(
         let signing_builder =
             SignatureBuilder::new(SignatureType::SubkeyBinding)
                 .set_signature_creation_time(SystemTime::now())?
-                .set_key_validity_period(std::time::Duration::new(0, 0))?;
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(KeyFlags::empty().set_authentication())?;
 
         // Allow signing on the card
         let res = ca.verify_pw1_for_signing("123456")?;
@@ -393,7 +399,11 @@ pub fn test_keygen(
         let signing_builder =
             SignatureBuilder::new(SignatureType::PositiveCertification)
                 .set_signature_creation_time(SystemTime::now())?
-                .set_key_validity_period(std::time::Duration::new(0, 0))?;
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(
+                    // Flags for primary key
+                    KeyFlags::empty().set_signing().set_certification(),
+                )?;
 
         // Allow signing on the card
         let res = ca.verify_pw1_for_signing("123456")?;
