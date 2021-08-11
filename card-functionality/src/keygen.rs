@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
+use std::str::FromStr;
 
 use card_functionality::cards::TestConfig;
 use card_functionality::tests::*;
+use card_functionality::util;
+use sequoia_openpgp::Cert;
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -28,8 +31,8 @@ fn main() -> Result<()> {
         println!("Reset");
         let _ = run_test(&mut card, test_reset, &[])?;
 
-        // println!("Algo info");
-        // let _ = run_test(&mut card, test_print_algo_info, &[])?;
+        println!("Algo info");
+        let _ = run_test(&mut card, test_print_algo_info, &[])?;
 
         // Set user data because keygen expects a name (for the user id)
         println!("Set user data");
@@ -39,10 +42,22 @@ fn main() -> Result<()> {
         let res = run_test(&mut card, test_keygen, &[])?;
 
         if let TestResult::Text(cert) = &res[0] {
-            println!("cert\n{}", cert);
-        };
+            // sign
+            print!("  Sign");
+            let sign_out = run_test(&mut card, test_sign, &[cert])?;
+            println!(" {:x?}", sign_out);
 
-        // panic!();
+            // decrypt
+            let c = Cert::from_str(cert)?;
+            let ciphertext = util::encrypt_to("Hello world!\n", &c)?;
+
+            print!("  Decrypt");
+            let dec_out =
+                run_test(&mut card, test_decrypt, &[cert, &ciphertext])?;
+            println!(" {:x?}", dec_out);
+        } else {
+            panic!("Didn't get back a Cert from test_keygen");
+        };
 
         println!();
     }

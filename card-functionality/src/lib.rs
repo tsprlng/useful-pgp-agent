@@ -3,4 +3,4 @@
 
 pub mod cards;
 pub mod tests;
-mod util;
+pub mod util;

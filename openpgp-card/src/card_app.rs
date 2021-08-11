@@ -643,7 +643,6 @@ impl CardApp {
             &PublicKeyMaterial,
             SystemTime,
             KeyType,
-            &Algo,
         ) -> Result<[u8; 20]>,
         key_type: KeyType,
         algo: Option<&Algo>,

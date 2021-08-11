@@ -4,12 +4,17 @@
 use anyhow::{Error, Result};
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::str::FromStr;
+use std::string::FromUtf8Error;
 use std::time::SystemTime;
 use thiserror::Error;
 
+use sequoia_openpgp::packet::key::{KeyRole, PrimaryRole, SubordinateRole};
+use sequoia_openpgp::packet::signature::SignatureBuilder;
+use sequoia_openpgp::packet::UserID;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::serialize::SerializeInto;
-use sequoia_openpgp::types::{SignatureType, Timestamp};
+use sequoia_openpgp::types::{KeyFlags, SignatureType, Timestamp};
 use sequoia_openpgp::{Cert, Packet};
 
 use openpgp_card::card_app::CardApp;
@@ -17,14 +22,10 @@ use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
 use openpgp_card::{
     Algo, Curve, EccAttrs, EccType, KeyType, PublicKeyMaterial, RsaAttrs, Sex,
 };
+use openpgp_card_sequoia::signer::CardSigner;
 
 use crate::cards::TestCard;
 use crate::util;
-use openpgp_card_sequoia::signer::CardSigner;
-use sequoia_openpgp::packet::key::{KeyRole, PrimaryRole, SubordinateRole};
-use sequoia_openpgp::packet::signature::SignatureBuilder;
-use sequoia_openpgp::packet::UserID;
-use std::string::FromUtf8Error;
 
 #[derive(Debug)]
 pub enum TestResult {
@@ -63,9 +64,8 @@ pub fn test_decrypt(
         "test_decrypt needs filenames for 'cert' and 'encrypted'"
     );
 
-    let cert = Cert::from_file(param[0])?;
-    let msg =
-        std::fs::read_to_string(param[1]).expect("Unable to read ciphertext");
+    let cert = Cert::from_str(param[0])?;
+    let msg = param[1].to_string();
 
     let res = ca.verify_pw1("123456")?;
     res.check_ok()?;
@@ -88,7 +88,7 @@ pub fn test_sign(
     let res = ca.verify_pw1_for_signing("123456")?;
     res.check_ok()?;
 
-    let cert = Cert::from_file(param[0])?;
+    let cert = Cert::from_str(param[0])?;
 
     let msg = "Hello world, I am signed.";
     let sig = openpgp_card_sequoia::sign(&mut ca, &cert, &mut msg.as_bytes())?;
@@ -219,6 +219,8 @@ pub fn test_keygen(
     let verify = ca.verify_pw3("12345678")?;
     verify.check_ok()?;
 
+    // ---------------
+
     // RSA 1024, e=17
     let rsa1k = Algo::Rsa(RsaAttrs {
         len_n: 1024,
@@ -227,9 +229,16 @@ pub fn test_keygen(
     });
 
     // RSA 2048, e=17
-    let rsa2k = Algo::Rsa(RsaAttrs {
+    let rsa2k_17 = Algo::Rsa(RsaAttrs {
         len_n: 2048,
         len_e: 17,
+        import_format: 0,
+    });
+
+    // RSA 2048, e=32
+    let rsa2k_32 = Algo::Rsa(RsaAttrs {
+        len_n: 2048,
+        len_e: 32,
         import_format: 0,
     });
 
@@ -240,21 +249,28 @@ pub fn test_keygen(
         import_format: 0,
     });
 
+    // RSA 4096, e=17
+    let rsa4k_17 = Algo::Rsa(RsaAttrs {
+        len_n: 4096,
+        len_e: 17,
+        import_format: 0,
+    });
+
     // RSA 4096, e=32
-    let rsa4k = Algo::Rsa(RsaAttrs {
+    let rsa4k_32 = Algo::Rsa(RsaAttrs {
         len_n: 4096,
         len_e: 32,
         import_format: 0,
     });
 
-    // ed25519 sign
+    // ed25519 (sign)
     let ed25519 = Algo::Ecc(EccAttrs {
         ecc_type: EccType::EdDSA,
         curve: Curve::Ed25519,
         import_format: None,
     });
 
-    // cv25519 dec
+    // cv25519 (dec)
     let cv25519 = Algo::Ecc(EccAttrs {
         ecc_type: EccType::ECDH,
         curve: Curve::Cv25519,
@@ -275,24 +291,48 @@ pub fn test_keygen(
         import_format: None,
     });
 
-    let fp =
-        |pkm: &PublicKeyMaterial, ts: SystemTime, kt: KeyType, algo: &Algo| {
-            // FIXME: store creation timestamp
+    // ---------------
 
-            let key =
-                openpgp_card_sequoia::public_key_material_to_key(pkm, kt, ts)?;
+    // -- RSA (e=17) [YK4, YK5]
+    // let dec_algo = &rsa2k_17;
+    // let sig_algo = &rsa2k_17;
 
-            let fp = key.fingerprint();
-            let fp = fp.as_bytes();
-            assert_eq!(fp.len(), 20);
+    // let dec_algo = &rsa4k_17;
+    // let sig_algo = &rsa4k_17;
 
-            Ok(fp.try_into().unwrap())
-        };
+    // -- RSA (e=32) [YK5, Floss3.4, Gnuk1.2]
+    // let dec_algo = &rsa2k_32;
+    // let sig_algo = &rsa2k_32;
+
+    let dec_algo = &rsa4k_32;
+    let sig_algo = &rsa4k_32;
+
+    // -- NIST 256
+    // let dec_algo = &nist256_ecdh;
+    // let sig_algo = &nist256_ecdsa;
+
+    // -- Curve 25519
+    // let dec_algo = &cv25519;
+    // let sig_algo = &ed25519;
+
+    // ---------------
+
+    let fp = |pkm: &PublicKeyMaterial, ts: SystemTime, kt: KeyType| {
+        // FIXME: store creation timestamp
+
+        let key =
+            openpgp_card_sequoia::public_key_material_to_key(pkm, kt, ts)?;
+
+        let fp = key.fingerprint();
+        let fp = fp.as_bytes();
+        assert_eq!(fp.len(), 20);
+
+        Ok(fp.try_into().unwrap())
+    };
 
     // ------
 
-    let (pkm, ts) =
-        ca.generate_key(fp, KeyType::Signing, Some(&nist256_ecdsa))?;
+    let (pkm, ts) = ca.generate_key(fp, KeyType::Signing, Some(sig_algo))?;
     let key_sig = openpgp_card_sequoia::public_key_material_to_key(
         &pkm,
         KeyType::Signing,
@@ -302,7 +342,7 @@ pub fn test_keygen(
     // ------
 
     let (pkm, ts) =
-        ca.generate_key(fp, KeyType::Decryption, Some(&nist256_ecdh))?;
+        ca.generate_key(fp, KeyType::Decryption, Some(dec_algo))?;
     let key_dec = openpgp_card_sequoia::public_key_material_to_key(
         &pkm,
         KeyType::Decryption,
@@ -312,7 +352,7 @@ pub fn test_keygen(
     // ------
 
     let (pkm, ts) =
-        ca.generate_key(fp, KeyType::Authentication, Some(&nist256_ecdsa))?;
+        ca.generate_key(fp, KeyType::Authentication, Some(sig_algo))?;
     let key_aut = openpgp_card_sequoia::public_key_material_to_key(
         &pkm,
         KeyType::Authentication,

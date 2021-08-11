@@ -46,15 +46,23 @@ fn main() -> Result<()> {
             let upload_out = upload_res?;
             println!(" {:x?}", upload_out);
 
+            let key = std::fs::read_to_string(key)
+                .expect("Unable to read ciphertext");
+
             // decrypt
             print!("  Decrypt");
-            let dec_out =
-                run_test(&mut card, test_decrypt, &[key, ciphertext])?;
+            let msg = std::fs::read_to_string(ciphertext).expect(&format![
+                "Unable to read ciphertext from file {}",
+                ciphertext
+            ]);
+
+            let dec_out = run_test(&mut card, test_decrypt, &[&key, &msg])?;
             println!(" {:x?}", dec_out);
 
             // sign
             print!("  Sign");
-            let sign_out = run_test(&mut card, test_sign, &[key])?;
+
+            let sign_out = run_test(&mut card, test_sign, &[&key])?;
             println!(" {:x?}", sign_out);
         }
 

@@ -26,7 +26,6 @@ pub(crate) fn gen_key_with_metadata(
         &PublicKeyMaterial,
         SystemTime,
         KeyType,
-        &Algo,
     ) -> Result<[u8; 20]>,
     key_type: KeyType,
     algo: Option<&Algo>,
@@ -62,7 +61,7 @@ pub(crate) fn gen_key_with_metadata(
     card_app.set_creation_time(ts, key_type)?.check_ok()?;
 
     // calculate/store fingerprint
-    let fp = fp_from_pub(&pubkey, time, key_type, &algo)?;
+    let fp = fp_from_pub(&pubkey, time, key_type)?;
     card_app.set_fingerprint(fp, key_type)?.check_ok()?;
 
     Ok((pubkey, ts))
