@@ -555,7 +555,7 @@ impl CardApp {
             fp.to_vec(),
         );
 
-        apdu::send_command(self.card(), fp_cmd, true)
+        apdu::send_command(self.card(), fp_cmd, false)
     }
 
     /// Set algorithm attributes [4.4.3.9 Algorithm Attributes]
