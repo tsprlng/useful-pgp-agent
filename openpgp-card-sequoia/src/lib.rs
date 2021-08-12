@@ -15,21 +15,27 @@ use openpgp::armor;
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use openpgp::crypto::mpi;
 use openpgp::crypto::mpi::{ProtectedMPI, MPI};
+use openpgp::packet::key::KeyRole;
 use openpgp::packet::key::{Key4, PublicParts};
+use openpgp::packet::key::{PrimaryRole, SubordinateRole};
 use openpgp::packet::key::{SecretParts, UnspecifiedRole};
+use openpgp::packet::signature::SignatureBuilder;
+use openpgp::packet::UserID;
 use openpgp::packet::{key, Key};
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
 use openpgp::policy::StandardPolicy;
 use openpgp::serialize::stream::{Message, Signer};
 use openpgp::types::Timestamp;
+use openpgp::types::{KeyFlags, PublicKeyAlgorithm, SignatureType};
+use openpgp::{Cert, Packet};
 use sequoia_openpgp as openpgp;
 
+use crate::signer::CardSigner;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::{
     errors::OpenpgpCardError, Algo, CardAdmin, CardUploadableKey, Curve,
     EccKey, EccType, KeyType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
 };
-use sequoia_openpgp::types::PublicKeyAlgorithm;
 
 mod decryptor;
 pub mod signer;
@@ -158,6 +164,118 @@ pub fn public_key_material_to_key(
             }
         }
     }
+}
+
+/// Create a Cert from the three subkeys on a card.
+/// (Calling this multiple times will result in different Certs!)
+///
+/// FIXME: make dec/auth keys optional
+///
+/// FIXME: accept optional metadata for user_id(s)?
+pub fn make_cert(
+    ca: &mut CardApp,
+    key_sig: Key<PublicParts, UnspecifiedRole>,
+    key_dec: Key<PublicParts, UnspecifiedRole>,
+    key_aut: Key<PublicParts, UnspecifiedRole>,
+) -> Result<Cert> {
+    let mut pp = vec![];
+
+    // 1) use the signing key as primary key
+    let pri = PrimaryRole::convert_key(key_sig.clone());
+    pp.push(Packet::from(pri));
+
+    // 2) add decryption key as subkey
+    let sub_dec = SubordinateRole::convert_key(key_dec);
+    pp.push(Packet::from(sub_dec.clone()));
+
+    // Temporary version of the cert
+    let cert = Cert::try_from(pp.clone())?;
+
+    // 3) make binding, sign with card -> add
+    {
+        let signing_builder =
+            SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(
+                    KeyFlags::empty()
+                        .set_storage_encryption()
+                        .set_transport_encryption(),
+                )?;
+
+        // Allow signing on the card
+        let res = ca.verify_pw1_for_signing("123456")?;
+        res.check_ok()?;
+
+        // Card-backed signer for bindings
+        let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
+
+        let signing_bsig: Packet = sub_dec
+            .bind(&mut card_signer, &cert, signing_builder)?
+            .into();
+
+        pp.push(signing_bsig);
+    }
+
+    // 4) add auth subkey
+    let sub_aut = SubordinateRole::convert_key(key_aut);
+    pp.push(Packet::from(sub_aut.clone()));
+
+    // 5) make, sign binding -> add
+    {
+        let signing_builder =
+            SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(KeyFlags::empty().set_authentication())?;
+
+        // Allow signing on the card
+        let res = ca.verify_pw1_for_signing("123456")?;
+        res.check_ok()?;
+
+        // Card-backed signer for bindings
+        let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
+
+        let signing_bsig: Packet = sub_aut
+            .bind(&mut card_signer, &cert, signing_builder)?
+            .into();
+
+        pp.push(signing_bsig);
+    }
+
+    // 6) add user id from name / email
+    let cardholder = ca.get_cardholder_related_data()?;
+
+    // FIXME: process name field? accept email as argument?!
+    let uid: UserID = cardholder.name.expect("expecting name on card").into();
+
+    pp.push(uid.clone().into());
+
+    // 7) make, sign binding -> add
+    {
+        let signing_builder =
+            SignatureBuilder::new(SignatureType::PositiveCertification)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(
+                    // Flags for primary key
+                    KeyFlags::empty().set_signing().set_certification(),
+                )?;
+
+        // Allow signing on the card
+        let res = ca.verify_pw1_for_signing("123456")?;
+        res.check_ok()?;
+
+        // Card-backed signer for bindings
+        let mut card_signer = CardSigner::with_pubkey(ca, key_sig);
+
+        let signing_bsig: Packet =
+            uid.bind(&mut card_signer, &cert, signing_builder)?.into();
+
+        pp.push(signing_bsig);
+    }
+
+    Cert::try_from(pp)
 }
 
 /// Implement the `CardUploadableKey` trait that openpgp-card uses to
@@ -326,7 +444,7 @@ impl EccKey for SqEccKey {
 /// more intent.
 pub fn upload_from_cert_yolo(
     oca: &mut CardAdmin,
-    cert: &sequoia_openpgp::Cert,
+    cert: &openpgp::Cert,
     key_type: KeyType,
     password: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
@@ -370,7 +488,7 @@ pub fn upload_key(
 
 pub fn decrypt(
     ca: &mut CardApp,
-    cert: &sequoia_openpgp::Cert,
+    cert: &openpgp::Cert,
     msg: Vec<u8>,
 ) -> Result<Vec<u8>> {
     let mut decrypted = Vec::new();
@@ -392,7 +510,7 @@ pub fn decrypt(
 
 pub fn sign(
     ca: &mut CardApp,
-    cert: &sequoia_openpgp::Cert,
+    cert: &openpgp::Cert,
     input: &mut dyn io::Read,
 ) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;

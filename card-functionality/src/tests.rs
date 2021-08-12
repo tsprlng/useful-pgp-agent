@@ -9,9 +9,11 @@ use std::string::FromUtf8Error;
 use std::time::SystemTime;
 use thiserror::Error;
 
-use sequoia_openpgp::packet::key::{KeyRole, PrimaryRole, SubordinateRole};
+use sequoia_openpgp::packet::key::{
+    KeyRole, PrimaryRole, PublicParts, SubordinateRole, UnspecifiedRole,
+};
 use sequoia_openpgp::packet::signature::SignatureBuilder;
-use sequoia_openpgp::packet::UserID;
+use sequoia_openpgp::packet::{Key, UserID};
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::types::{KeyFlags, SignatureType, Timestamp};
@@ -22,7 +24,7 @@ use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
 use openpgp_card::{
     Algo, Curve, EccAttrs, EccType, KeyType, PublicKeyMaterial, RsaAttrs, Sex,
 };
-use openpgp_card_sequoia::signer::CardSigner;
+use openpgp_card_sequoia::{make_cert, signer::CardSigner};
 
 use crate::cards::TestCard;
 use crate::util;
@@ -359,109 +361,7 @@ pub fn test_keygen(
         SystemTime::from(Timestamp::from(ts)),
     )?;
 
-    // ---- make cert
-
-    let mut pp = vec![];
-
-    // 1) use the signing key as primary key
-    let pri = PrimaryRole::convert_key(key_sig.clone());
-    pp.push(Packet::from(pri));
-
-    // 2) add decryption key as subkey
-    let sub_dec = SubordinateRole::convert_key(key_dec);
-    pp.push(Packet::from(sub_dec.clone()));
-
-    // Temporary version of the cert
-    let cert = Cert::try_from(pp.clone())?;
-
-    // 3) make binding, sign with card -> add
-    {
-        let signing_builder =
-            SignatureBuilder::new(SignatureType::SubkeyBinding)
-                .set_signature_creation_time(SystemTime::now())?
-                .set_key_validity_period(std::time::Duration::new(0, 0))?
-                .set_key_flags(
-                    KeyFlags::empty()
-                        .set_storage_encryption()
-                        .set_transport_encryption(),
-                )?;
-
-        // Allow signing on the card
-        let res = ca.verify_pw1_for_signing("123456")?;
-        res.check_ok()?;
-
-        // Card-backed signer for bindings
-        let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
-
-        let signing_bsig: Packet = sub_dec
-            .bind(&mut card_signer, &cert, signing_builder)?
-            .into();
-
-        pp.push(signing_bsig);
-    }
-
-    // 4) add auth subkey
-    let sub_aut = SubordinateRole::convert_key(key_aut);
-    pp.push(Packet::from(sub_aut.clone()));
-
-    // 5) make, sign binding -> add
-    {
-        let signing_builder =
-            SignatureBuilder::new(SignatureType::SubkeyBinding)
-                .set_signature_creation_time(SystemTime::now())?
-                .set_key_validity_period(std::time::Duration::new(0, 0))?
-                .set_key_flags(KeyFlags::empty().set_authentication())?;
-
-        // Allow signing on the card
-        let res = ca.verify_pw1_for_signing("123456")?;
-        res.check_ok()?;
-
-        // Card-backed signer for bindings
-        let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
-
-        let signing_bsig: Packet = sub_aut
-            .bind(&mut card_signer, &cert, signing_builder)?
-            .into();
-
-        pp.push(signing_bsig);
-    }
-
-    // 6) add user id from name / email
-    let cardholder = ca.get_cardholder_related_data()?;
-
-    // FIXME: process name field? accept email as argument?!
-    let uid: UserID = cardholder.name.expect("expecting name on card").into();
-
-    pp.push(uid.clone().into());
-
-    // 7) make, sign binding -> add
-    {
-        let signing_builder =
-            SignatureBuilder::new(SignatureType::PositiveCertification)
-                .set_signature_creation_time(SystemTime::now())?
-                .set_key_validity_period(std::time::Duration::new(0, 0))?
-                .set_key_flags(
-                    // Flags for primary key
-                    KeyFlags::empty().set_signing().set_certification(),
-                )?;
-
-        // Allow signing on the card
-        let res = ca.verify_pw1_for_signing("123456")?;
-        res.check_ok()?;
-
-        // Card-backed signer for bindings
-        let mut card_signer = CardSigner::with_pubkey(ca, key_sig);
-
-        let signing_bsig: Packet =
-            uid.bind(&mut card_signer, &cert, signing_builder)?.into();
-
-        pp.push(signing_bsig);
-    }
-
-    // -- process resulting Vec<Packets> as a Cert
-
-    let cert = Cert::try_from(pp)?;
-
+    let cert = make_cert(ca, key_sig, key_dec, key_aut)?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
     let res = TestResult::Text(armored);
