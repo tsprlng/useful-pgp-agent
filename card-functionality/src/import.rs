@@ -51,10 +51,13 @@ fn main() -> Result<()> {
 
             // decrypt
             print!("  Decrypt");
-            let msg = std::fs::read_to_string(ciphertext).expect(&format![
-                "Unable to read ciphertext from file {}",
-                ciphertext
-            ]);
+            let msg =
+                std::fs::read_to_string(ciphertext).unwrap_or_else(|_| {
+                    panic!(
+                        "Unable to read ciphertext from file {}",
+                        ciphertext
+                    )
+                });
 
             let dec_out = run_test(&mut card, test_decrypt, &[&key, &msg])?;
             println!(" {:x?}", dec_out);
