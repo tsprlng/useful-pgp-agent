@@ -65,6 +65,110 @@ impl CardCaps {
     }
 }
 
+/// Algorithms for key generation.
+///
+/// RSA variants require "number of bits in 'e'" as parameter.
+///
+/// There are (at least) two common supported values for e:
+///  e=17 [YK4, YK5]
+///  e=32 [YK5, Floss3.4, Gnuk1.2]
+#[derive(Clone, Copy, Debug)]
+pub enum AlgoSimple {
+    RSA1k(u16),
+    RSA2k(u16),
+    RSA3k(u16),
+    RSA4k(u16),
+    NIST256,
+    NIST384,
+    NIST521,
+    Curve25519,
+}
+
+impl From<&str> for AlgoSimple {
+    fn from(algo: &str) -> Self {
+        use AlgoSimple::*;
+
+        match algo {
+            "RSA2k/17" => RSA2k(17),
+            "RSA2k/32" => RSA2k(32),
+            "RSA3k/17" => RSA3k(17),
+            "RSA3k/32" => RSA3k(32),
+            "RSA4k/17" => RSA4k(17),
+            "RSA4k/32" => RSA4k(32),
+            "NIST256" => NIST256,
+            "NIST384" => NIST384,
+            "NIST521" => NIST521,
+            "Curve25519" => Curve25519,
+            _ => panic!("unexpected algo {}", algo),
+        }
+    }
+}
+
+impl AlgoSimple {
+    fn get(&self, kt: KeyType) -> Algo {
+        let et = match kt {
+            KeyType::Signing | KeyType::Authentication => EccType::ECDSA,
+            KeyType::Decryption => EccType::ECDH,
+            _ => unimplemented!(),
+        };
+
+        match self {
+            Self::RSA1k(e) => Algo::Rsa(RsaAttrs {
+                len_n: 1024,
+                len_e: *e,
+                import_format: 0,
+            }),
+            Self::RSA2k(e) => Algo::Rsa(RsaAttrs {
+                len_n: 2048,
+                len_e: *e,
+                import_format: 0,
+            }),
+            Self::RSA3k(e) => Algo::Rsa(RsaAttrs {
+                len_n: 3072,
+                len_e: *e,
+                import_format: 0,
+            }),
+            Self::RSA4k(e) => Algo::Rsa(RsaAttrs {
+                len_n: 4096,
+                len_e: *e,
+                import_format: 0,
+            }),
+            Self::NIST256 => Algo::Ecc(EccAttrs {
+                curve: Curve::NistP256r1,
+                ecc_type: et,
+                import_format: None,
+            }),
+            Self::NIST384 => Algo::Ecc(EccAttrs {
+                curve: Curve::NistP384r1,
+                ecc_type: et,
+                import_format: None,
+            }),
+            Self::NIST521 => Algo::Ecc(EccAttrs {
+                curve: Curve::NistP521r1,
+                ecc_type: et,
+                import_format: None,
+            }),
+            Self::Curve25519 => Algo::Ecc(EccAttrs {
+                curve: match kt {
+                    KeyType::Signing | KeyType::Authentication => {
+                        Curve::Ed25519
+                    }
+                    KeyType::Decryption => Curve::Cv25519,
+                    _ => unimplemented!(),
+                },
+                ecc_type: match kt {
+                    KeyType::Signing | KeyType::Authentication => {
+                        EccType::EdDSA
+                    }
+                    KeyType::Decryption => EccType::ECDH,
+                    _ => unimplemented!(),
+                },
+                import_format: None,
+            }),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Algo {
     Rsa(RsaAttrs),

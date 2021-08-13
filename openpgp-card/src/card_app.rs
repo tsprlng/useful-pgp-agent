@@ -25,8 +25,9 @@ use crate::parse::{
 };
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, keys, Algo, CardCaps, CardClientBox, CardUploadableKey, DecryptMe,
-    EccType, Hash, KeyGeneration, KeyType, PublicKeyMaterial, RsaAttrs, Sex,
+    apdu, keys, Algo, AlgoSimple, CardCaps, CardClientBox, CardUploadableKey,
+    DecryptMe, EccType, Hash, KeyGeneration, KeyType, PublicKeyMaterial,
+    RsaAttrs, Sex,
 };
 
 pub struct CardApp {
@@ -635,6 +636,7 @@ impl CardApp {
     }
 
     /// Generate a key on the card.
+    ///
     /// If the `algo` parameter is Some, then this algorithm will be set on
     /// the card for "key_type".
     pub fn generate_key(
@@ -647,8 +649,23 @@ impl CardApp {
         key_type: KeyType,
         algo: Option<&Algo>,
     ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
-        // FIXME: specify algo; pass in algo list?
         keys::gen_key_with_metadata(self, fp_from_pub, key_type, algo)
+    }
+
+    /// Generate a key on the card.
+    /// Use a simplified algo selector enum.
+    pub fn generate_key_simple(
+        &mut self,
+        fp_from_pub: fn(
+            &PublicKeyMaterial,
+            SystemTime,
+            KeyType,
+        ) -> Result<[u8; 20]>,
+        key_type: KeyType,
+        algo: AlgoSimple,
+    ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
+        let algo = algo.get(key_type);
+        self.generate_key(fp_from_pub, key_type, Some(&algo))
     }
 
     pub fn get_pub_key(
