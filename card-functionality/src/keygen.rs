@@ -40,7 +40,11 @@ fn main() -> Result<()> {
 
         let algos = {
             let config = card.get_config();
-            config.keygen.clone()
+            if let Some(keygen) = &config.keygen {
+                keygen.clone()
+            } else {
+                vec![]
+            }
         };
 
         for algo in algos {
