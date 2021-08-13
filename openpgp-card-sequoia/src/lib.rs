@@ -86,10 +86,9 @@ pub fn public_key_material_to_key(
 ) -> Result<Key<PublicParts, UnspecifiedRole>> {
     match pkm {
         PublicKeyMaterial::R(rsa) => {
-            let k4: Key4<key::PublicParts, key::UnspecifiedRole> =
-                Key4::import_public_rsa(&rsa.v, &rsa.n, Some(time))?;
+            let k4 = Key4::import_public_rsa(&rsa.v, &rsa.n, Some(time))?;
 
-            Ok(Key::from(k4))
+            Ok(k4.into())
         }
         PublicKeyMaterial::E(ecc) => {
             let algo = ecc.algo.clone(); // FIXME?
@@ -107,10 +106,8 @@ pub fn public_key_material_to_key(
                     KeyType::Authentication | KeyType::Signing => {
                         if algo_ecc.curve == Curve::Ed25519 {
                             // EdDSA
-                            let k4: Key4<
-                                key::PublicParts,
-                                key::UnspecifiedRole,
-                            > = Key4::import_public_ed25519(&ecc.data, time)?;
+                            let k4 =
+                                Key4::import_public_ed25519(&ecc.data, time)?;
 
                             Ok(Key::from(k4))
                         } else {
@@ -124,20 +121,17 @@ pub fn public_key_material_to_key(
                                 },
                             )?;
 
-                            Ok(Key::from(k4))
+                            Ok(k4.into())
                         }
                     }
                     KeyType::Decryption => {
                         if algo_ecc.curve == Curve::Cv25519 {
                             // EdDSA
-                            let k4: Key4<
-                                key::PublicParts,
-                                key::UnspecifiedRole,
-                            > = Key4::import_public_cv25519(
+                            let k4 = Key4::import_public_cv25519(
                                 &ecc.data, None, None, time,
                             )?;
 
-                            Ok(Key::from(k4))
+                            Ok(k4.into())
                         } else {
                             // FIXME: just defining `hash` and `sym` is not
                             // ok when a cert already exists
@@ -154,7 +148,7 @@ pub fn public_key_material_to_key(
                                 },
                             )?;
 
-                            Ok(Key::from(k4))
+                            Ok(k4.into())
                         }
                     }
                     _ => unimplemented!("Unsupported KeyType"),
