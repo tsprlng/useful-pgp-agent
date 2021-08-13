@@ -9,7 +9,7 @@ use card_functionality::tests::*;
 fn main() -> Result<()> {
     env_logger::init();
 
-    let config = TestConfig::open("config/test-cards.toml")?;
+    let config = TestConfig::load("config/test-cards.toml")?;
 
     let cards = config.get_cards();
 

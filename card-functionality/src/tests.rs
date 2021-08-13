@@ -2,31 +2,23 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{Error, Result};
-use std::convert::TryFrom;
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
-use std::time::SystemTime;
 use thiserror::Error;
 
-use sequoia_openpgp::packet::key::{
-    KeyRole, PrimaryRole, PublicParts, SubordinateRole, UnspecifiedRole,
-};
-use sequoia_openpgp::packet::signature::SignatureBuilder;
-use sequoia_openpgp::packet::{Key, UserID};
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::serialize::SerializeInto;
-use sequoia_openpgp::types::{KeyFlags, SignatureType, Timestamp};
-use sequoia_openpgp::{Cert, Packet};
+use sequoia_openpgp::types::Timestamp;
+use sequoia_openpgp::Cert;
 
 use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
-use openpgp_card::{
-    Algo, Curve, EccAttrs, EccType, KeyType, PublicKeyMaterial, RsaAttrs, Sex,
+use openpgp_card::{AlgoSimple, KeyType, Sex};
+use openpgp_card_sequoia::{
+    make_cert, public_key_material_to_key, public_to_fingerprint,
 };
-use openpgp_card_sequoia::{make_cert, signer::CardSigner};
 
-use crate::cards::TestCard;
+use crate::cards::TestCardApp;
 use crate::util;
 
 #[derive(Debug)]
@@ -216,150 +208,47 @@ pub fn test_upload_keys(
 /// Generate keys for each of the three KeyTypes
 pub fn test_keygen(
     ca: &mut CardApp,
-    _param: &[&str],
+    param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let verify = ca.verify_pw3("12345678")?;
     verify.check_ok()?;
 
-    // ---------------
+    // Generate all three subkeys on card
+    let algo = param[0];
 
-    // RSA 1024, e=17
-    let rsa1k = Algo::Rsa(RsaAttrs {
-        len_n: 1024,
-        len_e: 17,
-        import_format: 0,
-    });
+    let alg = AlgoSimple::from(algo);
 
-    // RSA 2048, e=17
-    let rsa2k_17 = Algo::Rsa(RsaAttrs {
-        len_n: 2048,
-        len_e: 17,
-        import_format: 0,
-    });
-
-    // RSA 2048, e=32
-    let rsa2k_32 = Algo::Rsa(RsaAttrs {
-        len_n: 2048,
-        len_e: 32,
-        import_format: 0,
-    });
-
-    // RSA 3072, e=17
-    let rsa3k = Algo::Rsa(RsaAttrs {
-        len_n: 3072,
-        len_e: 17,
-        import_format: 0,
-    });
-
-    // RSA 4096, e=17
-    let rsa4k_17 = Algo::Rsa(RsaAttrs {
-        len_n: 4096,
-        len_e: 17,
-        import_format: 0,
-    });
-
-    // RSA 4096, e=32
-    let rsa4k_32 = Algo::Rsa(RsaAttrs {
-        len_n: 4096,
-        len_e: 32,
-        import_format: 0,
-    });
-
-    // ed25519 (sign)
-    let ed25519 = Algo::Ecc(EccAttrs {
-        ecc_type: EccType::EdDSA,
-        curve: Curve::Ed25519,
-        import_format: None,
-    });
-
-    // cv25519 (dec)
-    let cv25519 = Algo::Ecc(EccAttrs {
-        ecc_type: EccType::ECDH,
-        curve: Curve::Cv25519,
-        import_format: None,
-    });
-
-    // nist256 sig, auth
-    let nist256_ecdsa = Algo::Ecc(EccAttrs {
-        ecc_type: EccType::ECDSA,
-        curve: Curve::NistP256r1,
-        import_format: None,
-    });
-
-    // nist256 dec
-    let nist256_ecdh = Algo::Ecc(EccAttrs {
-        ecc_type: EccType::ECDH,
-        curve: Curve::NistP256r1,
-        import_format: None,
-    });
-
-    // ---------------
-
-    // -- RSA (e=17) [YK4, YK5]
-    // let dec_algo = &rsa2k_17;
-    // let sig_algo = &rsa2k_17;
-
-    // let dec_algo = &rsa4k_17;
-    // let sig_algo = &rsa4k_17;
-
-    // -- RSA (e=32) [YK5, Floss3.4, Gnuk1.2]
-    // let dec_algo = &rsa2k_32;
-    // let sig_algo = &rsa2k_32;
-
-    let dec_algo = &rsa4k_32;
-    let sig_algo = &rsa4k_32;
-
-    // -- NIST 256
-    // let dec_algo = &nist256_ecdh;
-    // let sig_algo = &nist256_ecdsa;
-
-    // -- Curve 25519
-    // let dec_algo = &cv25519;
-    // let sig_algo = &ed25519;
-
-    // ---------------
-
-    let fp = |pkm: &PublicKeyMaterial, ts: SystemTime, kt: KeyType| {
-        // FIXME: store creation timestamp
-
-        let key =
-            openpgp_card_sequoia::public_key_material_to_key(pkm, kt, ts)?;
-
-        let fp = key.fingerprint();
-        let fp = fp.as_bytes();
-        assert_eq!(fp.len(), 20);
-
-        Ok(fp.try_into().unwrap())
-    };
-
-    // ------
-
-    let (pkm, ts) = ca.generate_key(fp, KeyType::Signing, Some(sig_algo))?;
-    let key_sig = openpgp_card_sequoia::public_key_material_to_key(
+    let (pkm, ts) =
+        ca.generate_key_simple(public_to_fingerprint, KeyType::Signing, alg)?;
+    let key_sig = public_key_material_to_key(
         &pkm,
         KeyType::Signing,
-        SystemTime::from(Timestamp::from(ts)),
+        Timestamp::from(ts).into(),
     )?;
 
-    // ------
-
-    let (pkm, ts) =
-        ca.generate_key(fp, KeyType::Decryption, Some(dec_algo))?;
-    let key_dec = openpgp_card_sequoia::public_key_material_to_key(
+    let (pkm, ts) = ca.generate_key_simple(
+        public_to_fingerprint,
+        KeyType::Decryption,
+        alg,
+    )?;
+    let key_dec = public_key_material_to_key(
         &pkm,
         KeyType::Decryption,
-        SystemTime::from(Timestamp::from(ts)),
+        Timestamp::from(ts).into(),
     )?;
 
-    // ------
-
-    let (pkm, ts) =
-        ca.generate_key(fp, KeyType::Authentication, Some(sig_algo))?;
-    let key_aut = openpgp_card_sequoia::public_key_material_to_key(
+    let (pkm, ts) = ca.generate_key_simple(
+        public_to_fingerprint,
+        KeyType::Authentication,
+        alg,
+    )?;
+    let key_aut = public_key_material_to_key(
         &pkm,
         KeyType::Authentication,
-        SystemTime::from(Timestamp::from(ts)),
+        Timestamp::from(ts).into(),
     )?;
+
+    // Generate a Cert for this set of generated keys
 
     let cert = make_cert(ca, key_sig, key_dec, key_aut)?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
@@ -525,11 +414,11 @@ pub fn test_verify(
 }
 
 pub fn run_test(
-    card: &mut TestCard,
+    card: &mut TestCardApp,
     t: fn(&mut CardApp, &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut ca = card.open()?;
+    let mut ca = card.get_card_app()?;
     let ard = ca.get_app_data()?;
     let _app_id = CardApp::get_aid(&ard)?;
 

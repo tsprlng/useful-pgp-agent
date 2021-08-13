@@ -10,22 +10,27 @@
 # You should configure your set of test-card identifiers and store your
 # configuration in that location.
 #
-# Usually you will want to test cards via the pcsc transport, which talks
+# Usually you will want to test cards via the pcsc backend, which talks
 # to smartcards via the standard PCSC lite middleware
 # (https://pcsclite.apdu.fr/).
 #
-# An alternative scdc transport is provided. It talks to smartcards via
+# An alternative scdc backend is provided. It talks to smartcards via
 # scdaemon (which is part of the GnuPG system).
-# The scdc transport is not recommended for use by default, it is offered
+# The scdc backend is not recommended for use by default, it is offered
 # for experimental use only.
 #
 # (However, note that emulated Gnuk can currently only be accessed via scdc)
 
-pcsc = [
-    "0006:12345678", # Yubikey 5
-    "0005:0000A835", # FLOSS Card 3.4
-]
+[card.gnuk_emu]
+#backend.pcsc = "FFFE:F1420A7A"
+backend.scdc = "D276000124010200FFFEF1420A7A0000"
+config.keygen = ["RSA2k/32", "NIST256", "Curve25519"]
 
-scdc = [
-    "D276000124010200FFFEF1420A7A0000", # Gnuk emulated
+[card.yubikey5]
+backend.pcsc = "0006:16019180"
+#backend.scdc = "D2760001240103040006160191800000"
+config.keygen = [
+    "RSA2k/17", "RSA3k/17", "RSA4k/17",
+    "NIST256", "NIST384", "NIST521",
+    "Curve25519"
 ]

@@ -6,11 +6,77 @@
 
 use anyhow::{anyhow, Result};
 use serde_derive::Deserialize;
+use std::collections::BTreeMap;
 
 use openpgp_card::apdu::PcscClient;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::CardClientBox;
 use openpgp_card_scdc::ScdClient;
+
+#[derive(Debug, Deserialize)]
+pub struct TestConfig {
+    card: BTreeMap<String, Card>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Card {
+    backend: BTreeMap<String, String>,
+    config: Config,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Config {
+    pub keygen: Vec<String>,
+}
+
+/// An "opened" card, via one particular backend, with test-metadata
+#[derive(Debug)]
+pub struct TestCardApp {
+    name: String,
+    tc: TestCard,
+    config: Config,
+}
+
+impl TestCardApp {
+    pub(crate) fn get_card_app(&mut self) -> Result<CardApp> {
+        self.tc.open()
+    }
+
+    pub fn get_config(&self) -> &Config {
+        &self.config
+    }
+}
+
+impl TestConfig {
+    pub fn load(file: &str) -> Result<Self> {
+        let config_file = std::fs::read_to_string(file)?;
+
+        let config: Self = toml::from_str(&config_file)?;
+        Ok(config)
+    }
+
+    pub fn get_cards(self) -> Vec<TestCardApp> {
+        let mut cards = vec![];
+
+        for (name, card) in self.card {
+            for (backend, id) in &card.backend {
+                let tc: TestCard = match backend.as_str() {
+                    "pcsc" => TestCard::Pcsc(id.to_string()),
+                    "scdc" => TestCard::Scdc(id.to_string()),
+                    _ => panic!("unexpected backend {}", backend),
+                };
+
+                cards.push(TestCardApp {
+                    name: name.clone(),
+                    tc,
+                    config: card.config.clone(),
+                })
+            }
+        }
+
+        cards
+    }
+}
 
 #[derive(Debug)]
 pub enum TestCard {
@@ -63,38 +129,5 @@ impl TestCard {
                 Ok(ca)
             }
         }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TestConfig {
-    pcsc: Option<Vec<String>>,
-    scdc: Option<Vec<String>>,
-}
-
-impl TestConfig {
-    pub fn open(file: &str) -> Result<Self> {
-        let config_file = std::fs::read_to_string(file)?;
-
-        let config: Self = toml::from_str(&config_file)?;
-        Ok(config)
-    }
-
-    pub fn get_cards(&self) -> Vec<TestCard> {
-        let mut cards = vec![];
-
-        if let Some(pcsc) = &self.pcsc {
-            for card in pcsc {
-                cards.push(TestCard::Pcsc(card.to_string()));
-            }
-        }
-
-        if let Some(scdc) = &self.scdc {
-            for card in scdc {
-                cards.push(TestCard::Scdc(card.to_string()));
-            }
-        }
-
-        cards
     }
 }

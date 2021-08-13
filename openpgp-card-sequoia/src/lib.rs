@@ -531,3 +531,21 @@ pub fn sign(
 
     String::from_utf8(buffer).context("Failed to convert signature to utf8")
 }
+
+/// Mapping function to get a fingerprint from "PublicKeyMaterial +
+/// timestamp + KeyType" (intended for use with `CardApp.generate_key()`).
+pub fn public_to_fingerprint(
+    pkm: &PublicKeyMaterial,
+    ts: SystemTime,
+    kt: KeyType,
+) -> Result<[u8; 20]> {
+    // Transform PublicKeyMaterial into a Sequoia Key
+    let key = public_key_material_to_key(pkm, kt, ts)?;
+
+    // Get fingerprint from the Sequoia Key
+    let fp = key.fingerprint();
+    let fp = fp.as_bytes();
+
+    assert_eq!(fp.len(), 20);
+    Ok(fp.try_into()?)
+}
