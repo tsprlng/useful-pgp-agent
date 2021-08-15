@@ -27,6 +27,7 @@ pub struct Card {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub keygen: Option<Vec<String>>,
+    pub import: Option<Vec<String>>,
 }
 
 /// An "opened" card, via one particular backend, with test-metadata

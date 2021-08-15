@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
+use std::str::FromStr;
+
+use sequoia_openpgp::Cert;
 
 use card_functionality::cards::TestConfig;
 use card_functionality::tests::*;
+use card_functionality::util;
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -23,16 +27,20 @@ fn main() -> Result<()> {
         let userdata_out = run_test(&mut card, test_set_user_data, &[])?;
         println!(" {:x?}", userdata_out);
 
-        for (key, ciphertext) in [
-            ("data/rsa2k.sec", "data/encrypted_to_rsa2k.asc"),
-            ("data/rsa4k.sec", "data/encrypted_to_rsa4k.asc"),
-            ("data/25519.sec", "data/encrypted_to_25519.asc"),
-            ("data/nist256.sec", "data/encrypted_to_nist256.asc"),
-            ("data/nist521.sec", "data/encrypted_to_nist521.asc"),
-        ] {
+        let key_files = {
+            let config = card.get_config();
+            if let Some(import) = &config.import {
+                import.clone()
+            } else {
+                vec![]
+            }
+        };
+
+        for key_file in &key_files {
             // upload keys
-            print!("Upload key '{}'", key);
-            let upload_res = run_test(&mut card, test_upload_keys, &[key]);
+            print!("Upload key '{}'", key_file);
+            let upload_res =
+                run_test(&mut card, test_upload_keys, &[key_file]);
 
             if let Err(TestError::KeyUploadError(_file, err)) = &upload_res {
                 // The card doesn't support this key type, so skip to the
@@ -46,20 +54,17 @@ fn main() -> Result<()> {
             let upload_out = upload_res?;
             println!(" {:x?}", upload_out);
 
-            let key = std::fs::read_to_string(key)
+            let key = std::fs::read_to_string(key_file)
                 .expect("Unable to read ciphertext");
 
             // decrypt
             print!("  Decrypt");
-            let msg =
-                std::fs::read_to_string(ciphertext).unwrap_or_else(|_| {
-                    panic!(
-                        "Unable to read ciphertext from file {}",
-                        ciphertext
-                    )
-                });
 
-            let dec_out = run_test(&mut card, test_decrypt, &[&key, &msg])?;
+            let c = Cert::from_str(&key)?;
+            let ciphertext = util::encrypt_to("Hello world!\n", &c)?;
+
+            let dec_out =
+                run_test(&mut card, test_decrypt, &[&key, &ciphertext])?;
             println!(" {:x?}", dec_out);
 
             // sign

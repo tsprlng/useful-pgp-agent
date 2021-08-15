@@ -25,6 +25,8 @@
 #backend.pcsc = "FFFE:F1420A7A"
 backend.scdc = "D276000124010200FFFEF1420A7A0000"
 config.keygen = ["RSA2k/32", "NIST256", "Curve25519"]
+config.import = ["data/rsa2k.sec", "data/rsa4k.sec",
+    "data/25519.sec", "data/nist256.sec", "data/nist521.sec"]
 
 [card.yubikey5]
 backend.pcsc = "0006:16019180"
@@ -34,3 +36,5 @@ config.keygen = [
     "NIST256", "NIST384", "NIST521",
     "Curve25519"
 ]
+config.import = ["data/rsa2k.sec", "data/rsa4k.sec",
+    "data/25519.sec", "data/nist256.sec", "data/nist521.sec"]
