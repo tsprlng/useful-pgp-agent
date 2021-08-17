@@ -46,6 +46,10 @@ impl TestCardApp {
     pub fn get_config(&self) -> &Config {
         &self.config
     }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl TestConfig {

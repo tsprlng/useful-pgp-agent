@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let cards = config.get_cards();
 
     for mut card in cards {
-        println!("** Run tests on card {:?} **", card);
+        println!("** Run tests on card '{}' **", card.get_name());
 
         println!("Reset");
         let _ = run_test(&mut card, test_reset, &[])?;
