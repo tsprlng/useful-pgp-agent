@@ -9,8 +9,9 @@ use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 use std::fmt;
 
+use crate::algorithm::AlgoInfo;
 use crate::parse::algo_attrs;
-use crate::{Algo, AlgoInfo, KeyType};
+use crate::{Algo, KeyType};
 
 impl AlgoInfo {
     pub fn get_by_keytype(&self, kt: KeyType) -> Vec<&Algo> {
@@ -100,10 +101,9 @@ impl TryFrom<&[u8]> for AlgoInfo {
 mod test {
     use std::convert::TryFrom;
 
+    use crate::algorithm::{Algo::*, Curve::*, EccAttrs, RsaAttrs};
     use crate::parse::algo_info::AlgoInfo;
-    use crate::{
-        Algo::*, Curve::*, EccAttrs, EccType::*, KeyType::*, RsaAttrs,
-    };
+    use crate::{EccType::*, KeyType::*};
 
     #[test]
     fn test_gnuk() {

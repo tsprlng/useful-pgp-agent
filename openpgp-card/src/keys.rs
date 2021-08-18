@@ -4,17 +4,18 @@
 //! Generate and import keys
 
 use anyhow::{anyhow, Result};
+use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{apdu, Curve, EccPub, PublicKeyMaterial, RSAPub};
 use crate::{
-    tlv, Algo, AlgoInfo, CardUploadableKey, EccAttrs, EccKey, KeyType,
-    PrivateKeyMaterial, RSAKey, RsaAttrs,
+    apdu, tlv, CardUploadableKey, EccKey, EccPub, KeyType, PrivateKeyMaterial,
+    PublicKeyMaterial, RSAKey, RSAPub,
 };
 
 /// `gen_key_with_metadata` calculates the fingerprint for a public key
@@ -198,7 +199,7 @@ pub(crate) fn upload_key(
 
             let algo = Algo::Ecc(EccAttrs {
                 ecc_type: ecc_key.get_type(),
-                curve: Curve::from(ecc_key.get_oid()).expect("unepected oid"),
+                curve: Curve::try_from(ecc_key.get_oid())?,
                 import_format: None,
             });
 

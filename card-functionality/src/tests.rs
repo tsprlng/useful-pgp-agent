@@ -11,9 +11,10 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::types::Timestamp;
 use sequoia_openpgp::Cert;
 
+use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
-use openpgp_card::{AlgoSimple, KeyType, Sex};
+use openpgp_card::{KeyType, Sex};
 use openpgp_card_sequoia::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
 };

@@ -7,9 +7,9 @@ use anyhow::Result;
 
 use crate::tlv::tag::Tag;
 use crate::tlv::{Tlv, TlvEntry};
-use crate::{CardHolder, Sex};
+use crate::{Cardholder, Sex};
 
-impl TryFrom<&[u8]> for CardHolder {
+impl TryFrom<&[u8]> for Cardholder {
     type Error = anyhow::Error;
 
     fn try_from(data: &[u8]) -> Result<Self> {
@@ -34,6 +34,6 @@ impl TryFrom<&[u8]> for CardHolder {
             .filter(|v| v.len() == 1)
             .map(|v| Sex::from(v[0]));
 
-        Ok(CardHolder { name, lang, sex })
+        Ok(Cardholder { name, lang, sex })
     }
 }

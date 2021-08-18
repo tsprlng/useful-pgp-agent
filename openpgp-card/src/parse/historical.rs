@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::errors::OpenpgpCardError;
-use crate::{CardCapabilities, CardSeviceData, Historical};
+use crate::{CardCapabilities, CardServiceData, Historical};
 use anyhow::{anyhow, Result};
 
 impl CardCapabilities {
@@ -33,7 +33,7 @@ impl CardCapabilities {
     }
 }
 
-impl CardSeviceData {
+impl CardServiceData {
     pub fn from(data: u8) -> Self {
         let select_by_full_df_name = data & 0x80 != 0;
         let select_by_partial_df_name = data & 0x40 != 0;
@@ -120,7 +120,7 @@ impl Historical {
             // It's unclear if these status bytes are ever useful to process.
 
             let cc = cc.map(CardCapabilities::from);
-            let csd = csd.map(CardSeviceData::from);
+            let csd = csd.map(CardServiceData::from);
 
             Ok(Self { cib, csd, cc, sib })
         } else {

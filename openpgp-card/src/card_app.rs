@@ -15,16 +15,16 @@ use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 
+use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
 use crate::errors::OpenpgpCardError;
 use crate::parse::{fingerprint, key_generation_times};
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, keys, Algo, AlgoInfo, AlgoSimple, ApplicationId, CardCaps,
-    CardClientBox, CardHolder, CardUploadableKey, DecryptMe, EccType,
-    ExtendedCap, ExtendedLengthInfo, Fingerprint, Hash, Historical,
-    KeyGeneration, KeySet, KeyType, PWStatus, PublicKeyMaterial, RsaAttrs,
-    Sex,
+    apdu, keys, ApplicationId, CardCaps, CardClientBox, CardUploadableKey,
+    Cardholder, DecryptMe, EccType, ExtendedCap, ExtendedLengthInfo,
+    Fingerprint, Hash, Historical, KeyGeneration, KeySet, KeyType, PWStatus,
+    PublicKeyMaterial, Sex,
 };
 
 pub struct ARD(Tlv);
@@ -281,12 +281,12 @@ impl CardApp {
     }
 
     // --- cardholder related data (65) ---
-    pub fn get_cardholder_related_data(&mut self) -> Result<CardHolder> {
+    pub fn get_cardholder_related_data(&mut self) -> Result<Cardholder> {
         let crd = commands::cardholder_related_data();
         let resp = apdu::send_command(&mut self.card_client, crd, true)?;
         resp.check_ok()?;
 
-        CardHolder::try_from(resp.data()?)
+        Cardholder::try_from(resp.data()?)
     }
 
     // --- security support template (7a) ---
@@ -446,7 +446,7 @@ impl CardApp {
 
     // --- sign ---
 
-    /// Sign the message in `hash`, on the card.
+    /// Sign `hash`, on the card.
     pub fn signature_for_hash(
         &mut self,
         hash: Hash,
@@ -515,7 +515,7 @@ impl CardApp {
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<Response, OpenpgpCardError> {
-        let put_sex = commands::put_sex(sex.as_u8());
+        let put_sex = commands::put_sex((&sex).into());
         apdu::send_command(self.card_client.borrow_mut(), put_sex, false)
     }
 
@@ -623,6 +623,8 @@ impl CardApp {
         algo_attributes
     }
 
+    /// Upload an existing private key to the card.
+    /// (This implicitly sets the algorithm info, fingerprint and timestamp)
     pub fn upload_key(
         &mut self,
         key: Box<dyn CardUploadableKey>,
@@ -666,7 +668,7 @@ impl CardApp {
         key_type: KeyType,
         algo: AlgoSimple,
     ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
-        let algo = algo.get(key_type);
+        let algo = algo.to_algo(key_type);
         self.generate_key(fp_from_pub, key_type, Some(&algo))
     }
 

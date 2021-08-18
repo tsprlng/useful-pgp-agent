@@ -31,14 +31,14 @@ use openpgp::types::{KeyFlags, PublicKeyAlgorithm, SignatureType};
 use openpgp::{Cert, Packet};
 use sequoia_openpgp as openpgp;
 
+use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
 use openpgp_card::apdu::response::Response;
 use openpgp_card::card_app::{CardApp, ARD};
 use openpgp_card::{
-    errors::OpenpgpCardError, Algo, AlgoInfo, ApplicationId, CardClientBox,
-    CardHolder, CardUploadableKey, Curve, DecryptMe, EccKey, EccType,
-    ExtendedCap, ExtendedLengthInfo, Features, Fingerprint, Hash, Historical,
-    KeySet, KeyType, PWStatus, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
-    Sex,
+    errors::OpenpgpCardError, ApplicationId, CardClientBox, CardUploadableKey,
+    Cardholder, DecryptMe, EccKey, EccType, ExtendedCap, ExtendedLengthInfo,
+    Features, Fingerprint, Hash, Historical, KeySet, KeyType, PWStatus,
+    PrivateKeyMaterial, PublicKeyMaterial, RSAKey, Sex,
 };
 
 use crate::signer::CardSigner;
@@ -678,7 +678,7 @@ impl CardBase {
     }
 
     // --- cardholder related data (65) ---
-    pub fn get_cardholder_related_data(&mut self) -> Result<CardHolder> {
+    pub fn get_cardholder_related_data(&mut self) -> Result<Cardholder> {
         self.card_app.get_cardholder_related_data()
     }
 
