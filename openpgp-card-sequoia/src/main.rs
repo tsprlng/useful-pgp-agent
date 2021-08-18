@@ -11,7 +11,7 @@ use sequoia_openpgp::Cert;
 use openpgp_card::card_app::CardApp;
 use openpgp_card::KeyType;
 use openpgp_card_pcsc::PcscClient;
-use openpgp_card_scdc::ScdClient;
+// use openpgp_card_scdc::ScdClient;
 
 use openpgp_card_sequoia::CardBase;
 
