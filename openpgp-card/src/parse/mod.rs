@@ -15,14 +15,8 @@ pub mod historical;
 pub mod key_generation_times;
 pub mod pw_status;
 
+use crate::KeySet;
 use anyhow::{anyhow, Error};
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct KeySet<T> {
-    signature: Option<T>,
-    decryption: Option<T>,
-    authentication: Option<T>,
-}
 
 impl<T> From<(Option<T>, Option<T>, Option<T>)> for KeySet<T> {
     fn from(tuple: (Option<T>, Option<T>, Option<T>)) -> Self {

@@ -151,6 +151,9 @@ pub enum SmartcardError {
     #[error("The requested card '{0}' was not found.")]
     CardNotFound(String),
 
+    #[error("Couldn't select the OpenPGP card application")]
+    SelectOpenPGPCardFailed,
+
     #[error("Failed to connect to the card: {0}")]
     SmartCardConnectionError(String),
 

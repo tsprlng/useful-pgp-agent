@@ -17,18 +17,17 @@ use anyhow::{anyhow, Result};
 
 use crate::apdu::{commands, response::Response};
 use crate::errors::OpenpgpCardError;
-use crate::parse::{
-    algo_info::AlgoInfo, application_id::ApplicationId,
-    cardholder::CardHolder, extended_cap::ExtendedCap,
-    extended_length_info::ExtendedLengthInfo, fingerprint,
-    historical::Historical, key_generation_times, pw_status::PWStatus, KeySet,
-};
+use crate::parse::{fingerprint, key_generation_times};
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{
-    apdu, keys, Algo, AlgoSimple, CardCaps, CardClientBox, CardUploadableKey,
-    DecryptMe, EccType, Hash, KeyGeneration, KeyType, PublicKeyMaterial,
-    RsaAttrs, Sex,
+    apdu, keys, Algo, AlgoInfo, AlgoSimple, ApplicationId, CardCaps,
+    CardClientBox, CardHolder, CardUploadableKey, DecryptMe, EccType,
+    ExtendedCap, ExtendedLengthInfo, Fingerprint, Hash, Historical,
+    KeyGeneration, KeySet, KeyType, PWStatus, PublicKeyMaterial, RsaAttrs,
+    Sex,
 };
+
+pub struct ARD(Tlv);
 
 pub struct CardApp {
     card_client: CardClientBox,
@@ -39,7 +38,7 @@ impl CardApp {
         Self { card_client }
     }
 
-    pub(crate) fn take_card(self) -> CardClientBox {
+    pub fn take_card(self) -> CardClientBox {
         self.card_client
     }
 
@@ -47,7 +46,7 @@ impl CardApp {
     ///
     /// Also initializes the underlying CardClient with the caps - some
     /// implementations may need this information.
-    pub fn init_caps(&mut self, ard: &Tlv) -> Result<()> {
+    pub fn init_caps(&mut self, ard: &ARD) -> Result<()> {
         // Determine chaining/extended length support from card
         // metadata and cache this information in CardApp (as a
         // CardCaps)
@@ -98,23 +97,24 @@ impl CardApp {
 
     /// Load "application related data".
     ///
-    /// This is done once, after opening the OpenPGP card applet
-    /// (the data is stored in the OpenPGPCard object).
-    pub fn get_app_data(&mut self) -> Result<Tlv> {
+    /// This data should probably cached in a higher layer, some parts of
+    /// it are needed regularly, and it will not usually change, during
+    /// normal use of a card.
+    pub fn get_app_data(&mut self) -> Result<ARD> {
         let ad = commands::get_application_data();
         let resp = apdu::send_command(&mut self.card_client, ad, true)?;
         let entry = TlvEntry::from(resp.data()?, true)?;
 
         log::debug!(" App data TlvEntry: {:x?}", entry);
 
-        Ok(Tlv(Tag::from([0x6E]), entry))
+        Ok(ARD(Tlv(Tag::from([0x6E]), entry)))
     }
 
     // --- pieces of application related data ---
 
-    pub fn get_aid(ard: &Tlv) -> Result<ApplicationId, OpenpgpCardError> {
+    pub fn get_aid(ard: &ARD) -> Result<ApplicationId, OpenpgpCardError> {
         // get from cached "application related data"
-        let aid = ard.find(&Tag::from([0x4F]));
+        let aid = ard.0.find(&Tag::from([0x4F]));
 
         if let Some(aid) = aid {
             Ok(ApplicationId::try_from(&aid.serialize()[..])?)
@@ -123,9 +123,9 @@ impl CardApp {
         }
     }
 
-    pub fn get_historical(ard: &Tlv) -> Result<Historical, OpenpgpCardError> {
+    pub fn get_historical(ard: &ARD) -> Result<Historical, OpenpgpCardError> {
         // get from cached "application related data"
-        let hist = ard.find(&Tag::from([0x5F, 0x52]));
+        let hist = ard.0.find(&Tag::from([0x5F, 0x52]));
 
         if let Some(hist) = hist {
             log::debug!("Historical bytes: {:x?}", hist);
@@ -136,10 +136,10 @@ impl CardApp {
     }
 
     pub fn get_extended_length_information(
-        ard: &Tlv,
+        ard: &ARD,
     ) -> Result<Option<ExtendedLengthInfo>> {
         // get from cached "application related data"
-        let eli = ard.find(&Tag::from([0x7F, 0x66]));
+        let eli = ard.0.find(&Tag::from([0x7F, 0x66]));
 
         log::debug!("Extended length information: {:x?}", eli);
 
@@ -161,10 +161,10 @@ impl CardApp {
     }
 
     pub fn get_extended_capabilities(
-        ard: &Tlv,
+        ard: &ARD,
     ) -> Result<ExtendedCap, OpenpgpCardError> {
         // get from cached "application related data"
-        let ecap = ard.find(&Tag::from([0xc0]));
+        let ecap = ard.0.find(&Tag::from([0xc0]));
 
         if let Some(ecap) = ecap {
             Ok(ExtendedCap::try_from(&ecap.serialize()[..])?)
@@ -174,11 +174,11 @@ impl CardApp {
     }
 
     pub fn get_algorithm_attributes(
-        ard: &Tlv,
+        ard: &ARD,
         key_type: KeyType,
     ) -> Result<Algo> {
         // get from cached "application related data"
-        let aa = ard.find(&Tag::from([key_type.get_algorithm_tag()]));
+        let aa = ard.0.find(&Tag::from([key_type.get_algorithm_tag()]));
 
         if let Some(aa) = aa {
             Algo::try_from(&aa.serialize()[..])
@@ -191,9 +191,9 @@ impl CardApp {
     }
 
     /// PW status Bytes
-    pub fn get_pw_status_bytes(ard: &Tlv) -> Result<PWStatus> {
+    pub fn get_pw_status_bytes(ard: &ARD) -> Result<PWStatus> {
         // get from cached "application related data"
-        let psb = ard.find(&Tag::from([0xc4]));
+        let psb = ard.0.find(&Tag::from([0xc4]));
 
         if let Some(psb) = psb {
             let pws = PWStatus::try_from(&psb.serialize())?;
@@ -207,10 +207,10 @@ impl CardApp {
     }
 
     pub fn get_fingerprints(
-        ard: &Tlv,
-    ) -> Result<KeySet<fingerprint::Fingerprint>, OpenpgpCardError> {
+        ard: &ARD,
+    ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
         // Get from cached "application related data"
-        let fp = ard.find(&Tag::from([0xc5]));
+        let fp = ard.0.find(&Tag::from([0xc5]));
 
         if let Some(fp) = fp {
             let fp = fingerprint::from(&fp.serialize())?;
@@ -230,9 +230,9 @@ impl CardApp {
     }
 
     pub fn get_key_generation_times(
-        ard: &Tlv,
+        ard: &ARD,
     ) -> Result<KeySet<KeyGeneration>, OpenpgpCardError> {
-        let kg = ard.find(&Tag::from([0xCD]));
+        let kg = ard.0.find(&Tag::from([0xCD]));
 
         if let Some(kg) = kg {
             let kg = key_generation_times::from(&kg.serialize())?;
@@ -290,12 +290,14 @@ impl CardApp {
     }
 
     // --- security support template (7a) ---
-    pub fn get_security_support_template(&mut self) -> Result<Tlv> {
+    // FIXME: parse data into a proper data structure
+    pub fn get_security_support_template(&mut self) -> Result<Vec<u8>> {
         let sst = commands::get_security_support_template();
         let resp = apdu::send_command(&mut self.card_client, sst, true)?;
         resp.check_ok()?;
 
-        Tlv::try_from(resp.data()?)
+        let tlv = Tlv::try_from(resp.data()?)?;
+        Ok(tlv.serialize())
     }
 
     // DO "Algorithm Information" (0xFA)
@@ -430,7 +432,7 @@ impl CardApp {
 
     /// Run decryption operation on the smartcard
     /// (7.2.11 PSO: DECIPHER)
-    pub(crate) fn pso_decipher(
+    pub fn pso_decipher(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
@@ -483,7 +485,7 @@ impl CardApp {
 
     /// Run signing operation on the smartcard
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    pub(crate) fn compute_digital_signature(
+    pub fn compute_digital_signature(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {

@@ -5,24 +5,7 @@ use anyhow::Result;
 use nom::{bytes::complete as bytes, number::complete as number};
 use std::convert::TryFrom;
 
-use crate::parse;
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct ApplicationId {
-    pub application: u8,
-
-    // GnuPG says:
-    // if (app->appversion >= 0x0200)
-    // app->app_local->extcap.is_v2 = 1;
-    //
-    // if (app->appversion >= 0x0300)
-    // app->app_local->extcap.is_v3 = 1;
-    pub version: u16,
-
-    pub manufacturer: u16,
-
-    pub serial: u32,
-}
+use crate::{parse, ApplicationId};
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationId> {
     let (input, _) = bytes::tag([0xd2, 0x76, 0x0, 0x1, 0x24])(input)?;

@@ -8,9 +8,8 @@ use anyhow::{anyhow, Result};
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
-use openpgp_card::apdu::PcscClient;
 use openpgp_card::card_app::CardApp;
-use openpgp_card::CardClientBox;
+use openpgp_card_pcsc::PcscClient;
 use openpgp_card_scdc::ScdClient;
 
 #[derive(Debug, Deserialize)]
@@ -98,13 +97,8 @@ impl TestCard {
                 let res = ScdClient::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
-                for card in PcscClient::list_cards()? {
-                    let card_client = Box::new(card) as CardClientBox;
+                for card_client in PcscClient::list_cards()? {
                     let mut ca = CardApp::new(card_client);
-
-                    // Select OpenPGP applet
-                    let res = ca.select()?;
-                    res.check_ok()?;
 
                     // Set Card Capabilities (chaining, command length, ..)
                     let ard = ca.get_app_data()?;

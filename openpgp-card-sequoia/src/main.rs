@@ -8,8 +8,12 @@ use anyhow::Result;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::{CardBase, KeyType};
+use openpgp_card::KeyType;
 use openpgp_card_scdc::ScdClient;
+
+use openpgp_card::card_app::CardApp;
+use openpgp_card_pcsc::PcscClient;
+use openpgp_card_sequoia::CardBase;
 
 // Filename of test key and test message to use:
 
@@ -230,9 +234,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!("The following OpenPGP cards are connected to your system:");
 
-        let cards = openpgp_card::CardBase::list_cards_pcsc()?;
+        let cards = PcscClient::list_cards()?;
         for c in cards {
-            println!(" '{}'", c.get_aid()?.ident());
+            let mut ca = CardApp::new(c);
+
+            let ard = ca.get_app_data()?;
+            let app_id = CardApp::get_aid(&ard)?;
+
+            let ident = app_id.ident();
+            println!(" '{}'", ident);
         }
     }
 

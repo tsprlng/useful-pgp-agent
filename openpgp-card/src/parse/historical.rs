@@ -2,14 +2,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::errors::OpenpgpCardError;
+use crate::{CardCapabilities, CardSeviceData, Historical};
 use anyhow::{anyhow, Result};
-
-#[derive(Debug)]
-pub struct CardCapabilities {
-    command_chaining: bool,
-    extended_lc_le: bool,
-    extended_length_information: bool,
-}
 
 impl CardCapabilities {
     pub fn get_command_chaining(&self) -> bool {
@@ -39,16 +33,6 @@ impl CardCapabilities {
     }
 }
 
-#[derive(Debug)]
-pub struct CardSeviceData {
-    select_by_full_df_name: bool,
-    select_by_partial_df_name: bool,
-    dos_available_in_ef_dir: bool,
-    dos_available_in_ef_atr_info: bool,
-    access_services: [bool; 3],
-    mf: bool,
-}
-
 impl CardSeviceData {
     pub fn from(data: u8) -> Self {
         let select_by_full_df_name = data & 0x80 != 0;
@@ -68,21 +52,6 @@ impl CardSeviceData {
             mf,
         }
     }
-}
-
-#[derive(Debug)]
-pub struct Historical {
-    // category indicator byte
-    cib: u8,
-
-    // Card service data (31)
-    csd: Option<CardSeviceData>,
-
-    // Card Capabilities (73)
-    cc: Option<CardCapabilities>,
-
-    // status indicator byte (o-card 3.4.1, pg 44)
-    sib: u8,
 }
 
 impl Historical {

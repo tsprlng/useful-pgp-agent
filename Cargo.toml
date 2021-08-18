@@ -6,6 +6,7 @@
 members = [
     "openpgp-card",
     "openpgp-card-sequoia",
+    "pcsc",
     "scdc",
     "card-functionality",
 ]

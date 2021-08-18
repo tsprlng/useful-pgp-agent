@@ -7,14 +7,7 @@ use anyhow::Result;
 
 use crate::tlv::tag::Tag;
 use crate::tlv::{Tlv, TlvEntry};
-use crate::Sex;
-
-#[derive(Debug)]
-pub struct CardHolder {
-    pub name: Option<String>,
-    pub lang: Option<Vec<[char; 2]>>,
-    pub sex: Option<Sex>,
-}
+use crate::{CardHolder, Sex};
 
 impl TryFrom<&[u8]> for CardHolder {
     type Error = anyhow::Error;

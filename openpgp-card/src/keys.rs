@@ -10,11 +10,10 @@ use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::errors::OpenpgpCardError;
-use crate::parse::algo_info::AlgoInfo;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{apdu, Curve, EccPub, PublicKeyMaterial, RSAPub};
 use crate::{
-    tlv, Algo, CardUploadableKey, EccAttrs, EccKey, KeyType,
+    tlv, Algo, AlgoInfo, CardUploadableKey, EccAttrs, EccKey, KeyType,
     PrivateKeyMaterial, RSAKey, RsaAttrs,
 };
 

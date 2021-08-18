@@ -2,20 +2,17 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 [package]
-name = "openpgp-card"
-description = "A client implementation for the OpenPGP card specification"
+name = "openpgp-card-pcsc"
+description = "PCSC OpenPGP card backend, for use with the openpgp-card crate"
+authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
 version = "0.0.1"
-authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 edition = "2018"
 repository = "https://gitlab.com/hkos/openpgp-card"
-documentation = "https://docs.rs/crate/openpgp-card"
+documentation = "https://docs.rs/crate/openpgp-card-pcsc"
 
 [dependencies]
-nom = "6"
-hex-literal = "0.3"
+openpgp-card = { path = "../openpgp-card" }
+pcsc = "2"
 anyhow = "1"
-thiserror = "1"
-env_logger = "0.8"
 log = "0.4"
-chrono = "0.4"

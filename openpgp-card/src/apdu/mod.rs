@@ -5,16 +5,16 @@ pub mod command;
 pub mod commands;
 pub mod response;
 
-use anyhow::{anyhow, Result};
-use pcsc::Card;
+use anyhow::Result;
 use std::convert::TryFrom;
 
 use crate::apdu::command::Command;
 use crate::apdu::response::Response;
-use crate::card;
-use crate::card_app::CardApp;
-use crate::errors::{OcErrorStatus, OpenpgpCardError, SmartcardError};
-use crate::{CardBase, CardCaps, CardClient, CardClientBox};
+use crate::errors::{OcErrorStatus, OpenpgpCardError};
+use crate::CardClientBox;
+
+// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
+const MAX_BUFFER_SIZE: usize = 264;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) enum Le {
@@ -121,7 +121,7 @@ fn send_command_low_level(
     log::debug!(" -> full APDU command: {:x?}", cmd);
 
     let buf_size = if !ext_support || ext == Le::Short {
-        pcsc::MAX_BUFFER_SIZE
+        MAX_BUFFER_SIZE
     } else {
         max_rsp_bytes
     };
@@ -196,70 +196,5 @@ fn send_command_low_level(
         log::debug!(" <- APDU response: {:x?}", resp);
 
         Ok(resp)
-    }
-}
-
-pub struct PcscClient {
-    card: Card,
-    card_caps: Option<CardCaps>,
-}
-
-impl PcscClient {
-    fn new(card: Card) -> Self {
-        Self {
-            card,
-            card_caps: None,
-        }
-    }
-
-    pub fn list_cards() -> Result<Vec<PcscClient>> {
-        Ok(card::get_cards()
-            .map_err(|err| anyhow!(err))?
-            .into_iter()
-            .map(PcscClient::new)
-            .collect())
-    }
-
-    /// Take a PCSC Card object and try to open the OpenPGP card applet.
-    /// If successful, wrap and return the resulting CardClient as a
-    /// CardBase object (which involves caching the "application related
-    /// data").
-    pub fn open(card: Card) -> Result<CardBase, OpenpgpCardError> {
-        let card_client = PcscClient::new(card);
-        let ccb = Box::new(card_client) as CardClientBox;
-
-        let mut ca = CardApp::new(ccb);
-        let resp = ca.select()?;
-
-        if resp.is_ok() {
-            CardBase::open_card(ca.take_card())
-        } else {
-            Err(anyhow!("Couldn't open OpenPGP application").into())
-        }
-    }
-}
-
-impl CardClient for PcscClient {
-    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>> {
-        let mut resp_buffer = vec![0; buf_size];
-
-        let resp = self.card.transmit(cmd, &mut resp_buffer).map_err(|e| {
-            OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
-                "Transmit failed: {:?}",
-                e
-            )))
-        })?;
-
-        log::debug!(" <- APDU response: {:x?}", resp);
-
-        Ok(resp.to_vec())
-    }
-
-    fn init_caps(&mut self, caps: CardCaps) {
-        self.card_caps = Some(caps);
-    }
-
-    fn get_caps(&self) -> Option<&CardCaps> {
-        self.card_caps.as_ref()
     }
 }

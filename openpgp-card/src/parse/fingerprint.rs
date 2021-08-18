@@ -7,9 +7,7 @@ use std::fmt;
 
 use crate::errors::OpenpgpCardError;
 use crate::parse::KeySet;
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct Fingerprint([u8; 20]);
+use crate::Fingerprint;
 
 impl From<[u8; 20]> for Fingerprint {
     fn from(data: [u8; 20]) -> Self {

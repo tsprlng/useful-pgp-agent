@@ -10,10 +10,7 @@ use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 use std::fmt;
 
 use crate::parse::algo_attrs;
-use crate::{Algo, KeyType};
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct AlgoInfo(Vec<(KeyType, Algo)>);
+use crate::{Algo, AlgoInfo, KeyType};
 
 impl AlgoInfo {
     pub fn get_by_keytype(&self, kt: KeyType) -> Vec<&Algo> {

@@ -2,20 +2,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::errors::OpenpgpCardError;
+use crate::PWStatus;
 use anyhow::anyhow;
-
-#[derive(Debug)]
-pub struct PWStatus {
-    pub(crate) pw1_cds_multi: bool,
-    pub(crate) pw1_derived: bool,
-    pub(crate) pw1_len: u8,
-    pub(crate) rc_len: u8,
-    pub(crate) pw3_derived: bool,
-    pub(crate) pw3_len: u8,
-    pub(crate) err_count_pw1: u8,
-    pub(crate) err_count_rst: u8,
-    pub(crate) err_count_pw3: u8,
-}
 
 impl PWStatus {
     pub fn try_from(input: &[u8]) -> Result<Self, OpenpgpCardError> {

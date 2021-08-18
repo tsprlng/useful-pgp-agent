@@ -8,28 +8,7 @@ use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct ExtendedCap {
-    pub features: HashSet<Features>,
-    sm: u8,
-    max_len_challenge: u16,
-    max_len_cardholder_cert: u16,
-    pub max_len_special_do: u16,
-    pin_2_format: bool,
-    mse_command: bool,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Features {
-    SecureMessaging,
-    GetChallenge,
-    KeyImport,
-    PwStatusChange,
-    PrivateUseDOs,
-    AlgoAttrsChangeable,
-    Aes,
-    KdfDo,
-}
+use crate::{ExtendedCap, Features};
 
 fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<Features>> {
     combinator::map(number::u8, |b| {

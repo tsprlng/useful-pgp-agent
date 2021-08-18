@@ -3,14 +3,17 @@
 
 [package]
 name = "openpgp-card-scdc"
-description = "Experimental SCDaemon Client, intended for use with the openpgp-card crate"
+description = "Experimental SCDaemon Client, for use with the openpgp-card crate"
+authors = ["Heiko Schaefer <heiko@schaefer.name>"]
+license = "MIT OR Apache-2.0"
 version = "0.0.1"
 edition = "2018"
+repository = "https://gitlab.com/hkos/openpgp-card"
+documentation = "https://docs.rs/crate/openpgp-card-scdc"
 
 [dependencies]
 openpgp-card = { path = "../openpgp-card" }
 sequoia-ipc = {  git = "https://gitlab.com/sequoia-pgp/sequoia.git" }
-libc = "0.2"
 hex = "0.4"
 anyhow = "1"
 futures = "0.3"
