@@ -9,13 +9,25 @@ This crate implements a client library for the
 [OpenPGP card](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf)
 specification, in Rust.
 
-This library is OpenPGP implementation-agnostic. Its communication with 
-the card is based on simple data structures, derived from the formats 
-defined in the OpenPGP card specification.
+This library provides low level, OpenPGP implementation-agnostic access to 
+OpenPGP cards. Its communication with cards is based on simple data 
+structures that closely match the formats defined in the OpenPGP card 
+specification.
+
+**Card access backends**
+
+This crate doesn't contain code to talk to cards, The trait `CardClient` 
+needs to be implemented for access to cards.
+
+The crates
+[openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
+and the experimental crate
+[openpgp-card-scdc](https://gitlab.com/hkos/openpgp-card/-/tree/main/scdc)
+provide implementations of `CardClient` for use with this crate.
 
 **Sequoia PGP wrapper**
 
 See the companion crate
 [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
-for a convenient wrapper to use this library with
+for a high level wrapper to use this library with
 [Sequoia PGP](https://sequoia-pgp.org/).
