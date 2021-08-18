@@ -1,18 +1,18 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use anyhow::Result;
 use std::env;
 use std::error::Error;
 
-use anyhow::Result;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
+use openpgp_card::card_app::CardApp;
 use openpgp_card::KeyType;
+use openpgp_card_pcsc::PcscClient;
 use openpgp_card_scdc::ScdClient;
 
-use openpgp_card::card_app::CardApp;
-use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::CardBase;
 
 // Filename of test key and test message to use:
@@ -32,16 +32,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Ident of the OpenPGP Card that will be used for tests.
     let test_card_ident = env::var("TEST_CARD_IDENT");
 
-    // "serial" for opening a specific card through scdaemon
-    let test_card_serial = env::var("TEST_CARD_SERIAL")?;
+    // // "serial" for opening a specific card through scdaemon
+    // let test_card_serial = env::var("TEST_CARD_SERIAL")?;
 
     if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
-        // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
-        let mut oc = CardBase::open_card(ScdClient::open_by_serial(
-            None,
-            &test_card_serial,
-        )?)?;
+        let mut oc =
+            CardBase::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+
+        // let mut oc = CardBase::open_card(ScdClient::open_by_serial(
+        //     None,
+        //     &test_card_serial,
+        // )?)?;
 
         // card metadata
 
@@ -152,11 +154,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
 
-        // let mut oc = CardBase::open_by_ident(&test_card_ident)?;
-        let mut oc = CardBase::open_card(ScdClient::open_by_serial(
-            None,
-            &test_card_serial,
-        )?)?;
+        let mut oc =
+            CardBase::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+
+        // let mut oc = CardBase::open_card(ScdClient::open_by_serial(
+        //     None,
+        //     &test_card_serial,
+        // )?)?;
 
         let app_id = oc.get_aid()?;
 
@@ -196,11 +200,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        // let oc = CardBase::open_by_ident(&test_card_ident)?;
-        let oc = CardBase::open_card(ScdClient::open_by_serial(
-            None,
-            &test_card_serial,
-        )?)?;
+        let oc =
+            CardBase::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+
+        // let oc = CardBase::open_card(ScdClient::open_by_serial(
+        //     None,
+        //     &test_card_serial,
+        // )?)?;
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
