@@ -6,7 +6,7 @@ use anyhow::Result;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Debug)]
-pub struct Command {
+pub(crate) struct Command {
     // Class byte (CLA)
     pub cla: u8,
 

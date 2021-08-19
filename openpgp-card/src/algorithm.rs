@@ -1,6 +1,14 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Data structures that define OpenPGP algorithms.
+//!
+//! [`Algo`] and its components model "Algorithm Attributes" as described in
+//! the OpenPGP card specification.
+//!
+//! [`AlgoSimple`] offers a shorthand for specifying an algorithm,
+//! specifically for key generation on the card.
+
 use crate::{EccType, KeyType};
 use anyhow::anyhow;
 use std::convert::TryFrom;
@@ -111,9 +119,24 @@ impl AlgoSimple {
     }
 }
 
+/// "Algorithm Information"
+///
+/// Modern cards provide a list of supported algorithms for each key type.
+/// The list specifies which "Algorithm Attributes" can be set for key
+/// generation or key import.
+///
+/// (This feature was introduced in OpenPGP card v3.4)
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AlgoInfo(pub(crate) Vec<(KeyType, Algo)>);
 
+/// "Algorithm Attributes"
+///
+/// An `Algo` describes the algorithm settings for a key on the card.
+///
+/// This setting specifies the data format of:
+/// - Key import
+/// - Key generation
+/// - Export of public key data from the card (e.g. after key generation)
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Algo {
     Rsa(RsaAttrs),
@@ -137,6 +160,7 @@ impl fmt::Display for Algo {
     }
 }
 
+/// RSA specific attributes of [`Algo`] ("Algorithm Attributes")
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RsaAttrs {
     pub len_n: u16,
@@ -144,6 +168,7 @@ pub struct RsaAttrs {
     pub import_format: u8,
 }
 
+/// ECC specific attributes of [`Algo`] ("Algorithm Attributes")
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct EccAttrs {
     pub ecc_type: EccType,

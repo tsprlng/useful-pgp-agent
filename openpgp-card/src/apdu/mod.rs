@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-pub mod command;
-pub mod commands;
+//! Commands and responses to commands ("Application Protocol Data Unit")
+
+pub(crate) mod command;
+pub(crate) mod commands;
 pub mod response;
 
 use anyhow::Result;

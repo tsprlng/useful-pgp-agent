@@ -341,16 +341,8 @@ fn ecc_key_cmd(
     // "Extended header list (DO 4D)" (contains the three inner TLV)
     let ehl = Tlv(Tag(vec![0x4d]), TlvEntry::C(vec![crt, cpkt, cpk]));
 
-    // The key import uses a PUT DATA command with odd INS (DB) and an
-    // Extended header list (DO 4D) as described in ISO 7816-8
-
-    Ok(Command::new(
-        0x00,
-        0xDB,
-        0x3F,
-        0xFF,
-        ehl.serialize().to_vec(),
-    ))
+    // key import command
+    Ok(commands::key_import(ehl.serialize().to_vec()))
 }
 
 fn get_crt(key_type: KeyType) -> Result<Tlv, OpenpgpCardError> {
@@ -430,16 +422,8 @@ fn rsa_key_cmd(
     // "Extended header list (DO 4D)"
     let ehl = Tlv(Tag(vec![0x4d]), TlvEntry::C(vec![crt, cpkt, cpk]));
 
-    // The key import uses a PUT DATA command with odd INS (DB) and an
-    // Extended header list (DO 4D) as described in ISO 7816-8
-
-    Ok(Command::new(
-        0x00,
-        0xDB,
-        0x3F,
-        0xFF,
-        ehl.serialize().to_vec(),
-    ))
+    // key import command
+    Ok(commands::key_import(ehl.serialize().to_vec()))
 }
 
 fn copy_key_to_card(
