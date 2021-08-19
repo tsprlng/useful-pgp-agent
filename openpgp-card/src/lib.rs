@@ -1,9 +1,32 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::algorithm::Algo;
+//! Access library for
+//! [OpenPGP card](https://en.wikipedia.org/wiki/OpenPGP_card)
+//! devices (such as Gnuk, Yubikey, or Java smartcards running an OpenPGP
+//! card application).
+//!
+//! This library aims to offer
+//! - access to all features in the OpenPGP card specification,
+//! - without relying on a particular OpenPGP implementation.
+//!
+//! The [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
+//! crate offers a higher level wrapper based on the
+//! [Sequoia PGP](https://sequoia-pgp.org/) implementation.
+//!
+//! This library doesn't itself implement a means to access cards. Instead,
+//! users need to supply an implementation of the [`CardClient`] trait, for
+//! access to cards.
+//!
+//! The companion crate
+//! [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
+//! offers a backend that uses [pcsclite](https://pcsclite.apdu.fr/) to
+//! communicate with smartcards.
+
 use anyhow::Result;
 use std::collections::HashSet;
+
+use crate::algorithm::Algo;
 
 pub mod algorithm;
 pub mod apdu;
@@ -31,8 +54,10 @@ pub trait CardClient {
     /// the card's capabilities have been initialized.
     fn init_caps(&mut self, caps: CardCaps);
 
-    /// Request the card's capabilities - apdu serialization makes use of
-    /// this information (e.g. to determine if extended length can be used)
+    /// Request the card's capabilities
+    ///
+    /// (apdu serialization makes use of this information, e.g. to
+    /// determine if extended length can be used)
     fn get_caps(&self) -> Option<&CardCaps>;
 
     /// If a CardClient implementation introduces an additional,
