@@ -1,8 +1,18 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Error types that are used by this crate.
+//!
+//! [`OpenpgpCardError`] is a wrapper enum for all error types that are used.
+//!
+//! The two main cases are:
+//! - [`SmartcardError`], for problems on the reader/smartcard layer
+//! - [`OcErrorStatus`] which models error statuses reported by the OpenPGP
+//! card application
+
 use thiserror::Error;
 
+/// Enum that wraps the different error types that this crate can return
 #[derive(Error, Debug)]
 pub enum OpenpgpCardError {
     #[error("Error interacting with smartcard {0}")]
@@ -30,6 +40,7 @@ impl From<anyhow::Error> for OpenpgpCardError {
     }
 }
 
+/// OpenPGP card "Status Byte" errors
 #[derive(Error, Debug)]
 pub enum OcErrorStatus {
     #[error("Selected file or DO in termination state")]
@@ -101,6 +112,7 @@ pub enum OcErrorStatus {
     #[error("Unknown OpenPGP card status: [{0}, {1}]")]
     UnknownStatus(u8, u8),
 
+    /// This code is not an OpenPGP card status value
     #[error("Unexpected response length: {0}")]
     ResponseLength(usize),
 }
@@ -137,6 +149,7 @@ impl From<(u8, u8)> for OcErrorStatus {
     }
 }
 
+/// Errors on the smartcard/reader layer
 #[derive(Error, Debug)]
 pub enum SmartcardError {
     #[error("Failed to create a pcsc smartcard context {0}")]
