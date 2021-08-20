@@ -38,7 +38,7 @@ pub struct TestCardApp {
 }
 
 impl TestCardApp {
-    pub(crate) fn get_card_app(&mut self) -> Result<CardApp> {
+    pub(crate) fn get_card_app(&self) -> Result<CardApp> {
         self.tc.open()
     }
 
@@ -59,7 +59,7 @@ impl TestConfig {
         Ok(config)
     }
 
-    pub fn get_cards(self) -> Vec<TestCardApp> {
+    pub fn into_cardapps(self) -> Vec<TestCardApp> {
         let mut cards = vec![];
 
         for (name, card) in self.card {

@@ -15,7 +15,7 @@ fn main() -> Result<()> {
 
     let config = TestConfig::load("config/test-cards.toml")?;
 
-    let cards = config.get_cards();
+    let cards = config.into_cardapps();
 
     for mut card in cards {
         println!("** Run tests on card '{}' **", card.get_name());
