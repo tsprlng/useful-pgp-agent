@@ -379,7 +379,7 @@ pub fn test_verify(
     if let Err(OpenpgpCardError::OcStatus(s)) = res {
         assert_eq!(s, OcErrorStatus::SecurityStatusNotSatisfied);
     } else {
-        panic!();
+        panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
 
     ca.verify_pw3("12345678")?;
