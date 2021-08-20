@@ -32,9 +32,7 @@ pub(crate) fn gen_key_with_metadata(
 ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
     // set algo on card if it's Some
     if let Some(algo) = algo {
-        card_app
-            .set_algorithm_attributes(key_type, algo)?
-            .check_ok()?;
+        card_app.set_algorithm_attributes(key_type, algo)?;
     }
 
     // algo
@@ -58,11 +56,11 @@ pub(crate) fn gen_key_with_metadata(
         .map_err(|e| OpenpgpCardError::InternalError(anyhow!(e)))?
         .as_secs() as u32;
 
-    card_app.set_creation_time(ts, key_type)?.check_ok()?;
+    card_app.set_creation_time(ts, key_type)?;
 
     // calculate/store fingerprint
     let fp = fp_from_pub(&pubkey, time, key_type)?;
-    card_app.set_fingerprint(fp, key_type)?.check_ok()?;
+    card_app.set_fingerprint(fp, key_type)?;
 
     Ok((pubkey, ts))
 }
@@ -438,15 +436,13 @@ fn copy_key_to_card(
 
     // FIXME: Only write algo attributes to the card if "extended
     // capabilities" show that they are changeable!
-    card_app
-        .set_algorithm_attributes(key_type, algo)?
-        .check_ok()?;
+    card_app.set_algorithm_attributes(key_type, algo)?;
 
     apdu::send_command(card_app.card(), key_cmd, false)?.check_ok()?;
 
-    card_app.set_fingerprint(fp, key_type)?.check_ok()?;
+    card_app.set_fingerprint(fp, key_type)?;
 
-    card_app.set_creation_time(ts, key_type)?.check_ok()?;
+    card_app.set_creation_time(ts, key_type)?;
 
     Ok(())
 }

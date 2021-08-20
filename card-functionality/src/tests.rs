@@ -24,7 +24,8 @@ use crate::util;
 
 #[derive(Debug)]
 pub enum TestResult {
-    Status([u8; 2]),
+    Status(OcErrorStatus),
+    StatusOk,
     Text(String),
 }
 
@@ -62,8 +63,7 @@ pub fn test_decrypt(
     let cert = Cert::from_str(param[0])?;
     let msg = param[1].to_string();
 
-    let res = ca.verify_pw1("123456")?;
-    res.check_ok()?;
+    ca.verify_pw1("123456")?;
 
     let res = openpgp_card_sequoia::decrypt(&mut ca, &cert, msg.into_bytes())?;
     let plain = String::from_utf8_lossy(&res);
@@ -80,8 +80,7 @@ pub fn test_sign(
 ) -> Result<TestOutput, TestError> {
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
 
-    let res = ca.verify_pw1_for_signing("123456")?;
-    res.check_ok()?;
+    ca.verify_pw1_for_signing("123456")?;
 
     let cert = Cert::from_str(param[0])?;
 
@@ -190,8 +189,7 @@ pub fn test_upload_keys(
         "test_upload_keys needs a filename for 'cert'"
     );
 
-    let verify = ca.verify_pw3("12345678")?;
-    verify.check_ok()?;
+    ca.verify_pw3("12345678")?;
 
     let cert = Cert::from_file(param[0])?;
 
@@ -211,8 +209,7 @@ pub fn test_keygen(
     ca: &mut CardApp,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let verify = ca.verify_pw3("12345678")?;
-    verify.check_ok()?;
+    ca.verify_pw3("12345678")?;
 
     // Generate all three subkeys on card
     let algo = param[0];
@@ -328,24 +325,19 @@ pub fn test_set_user_data(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let res = ca.verify_pw3("12345678")?;
-    res.check_ok()?;
+    ca.verify_pw3("12345678")?;
 
     // name
-    let res = ca.set_name("Bar<<Foo")?;
-    res.check_ok()?;
+    ca.set_name("Bar<<Foo")?;
 
     // lang
-    let res = ca.set_lang("deen")?;
-    res.check_ok()?;
+    ca.set_lang("deen")?;
 
     // sex
-    let res = ca.set_sex(Sex::Female)?;
-    res.check_ok()?;
+    ca.set_sex(Sex::Female)?;
 
     // url
-    let res = ca.set_url("https://duckduckgo.com/")?;
-    res.check_ok()?;
+    ca.set_url("https://duckduckgo.com/")?;
 
     // read all the fields back again, expect equal data
     let ch = ca.get_cardholder_related_data()?;
@@ -382,31 +374,46 @@ pub fn test_verify(
     let mut out = vec![];
 
     // try to set name without verify, assert result is not ok!
-    let res = ca.set_name("Notverified<<Hello")?;
-    assert_eq!(res.status(), [0x69, 0x82]); // "Security status not satisfied"
+    let res = ca.set_name("Notverified<<Hello");
 
-    let res = ca.verify_pw3("12345678")?;
-    res.check_ok()?;
+    if let Err(OpenpgpCardError::OcStatus(s)) = res {
+        assert_eq!(s, OcErrorStatus::SecurityStatusNotSatisfied);
+    } else {
+        panic!();
+    }
 
-    let check = ca.check_pw3()?;
-    // don't "check_ok()" - yubikey5 returns an error code!
-    out.push(TestResult::Status(check.status()));
+    ca.verify_pw3("12345678")?;
 
-    let res = ca.set_name("Admin<<Hello")?;
-    res.check_ok()?;
+    match ca.check_pw3() {
+        Err(OpenpgpCardError::OcStatus(s)) => {
+            // e.g. yubikey5 returns an error status!
+            out.push(TestResult::Status(s));
+        }
+        Err(_) => {
+            panic!("unexpected error");
+        }
+        Ok(_) => out.push(TestResult::StatusOk),
+    }
+
+    ca.set_name("Admin<<Hello")?;
 
     let cardholder = ca.get_cardholder_related_data()?;
     assert_eq!(cardholder.name, Some("Admin<<Hello".to_string()));
 
-    let res = ca.verify_pw1("123456")?;
-    res.check_ok()?;
+    ca.verify_pw1("123456")?;
 
-    let check = ca.check_pw3()?;
-    // don't "check_ok()" - yubikey5 returns an error code
-    out.push(TestResult::Status(check.status()));
+    match ca.check_pw3() {
+        Err(OpenpgpCardError::OcStatus(s)) => {
+            // e.g. yubikey5 returns an error status!
+            out.push(TestResult::Status(s));
+        }
+        Err(_) => {
+            panic!("unexpected error");
+        }
+        Ok(_) => out.push(TestResult::StatusOk),
+    }
 
-    let res = ca.set_name("There<<Hello")?;
-    res.check_ok()?;
+    ca.set_name("There<<Hello")?;
 
     let cardholder = ca.get_cardholder_related_data()?;
     assert_eq!(cardholder.name, Some("There<<Hello".to_string()));

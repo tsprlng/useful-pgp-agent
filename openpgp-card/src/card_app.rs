@@ -11,6 +11,7 @@
 
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
@@ -90,7 +91,8 @@ impl CardApp {
     /// "Select" the OpenPGP card application
     pub fn select(&mut self) -> Result<Response, OpenpgpCardError> {
         let select_openpgp = commands::select_openpgp();
-        apdu::send_command(&mut self.card_client, select_openpgp, false)
+        apdu::send_command(&mut self.card_client, select_openpgp, false)?
+            .try_into()
     }
 
     // --- application data ---
@@ -323,8 +325,8 @@ impl CardApp {
             let verify = commands::verify_pw1_81([0x40; 8].to_vec());
             let resp =
                 apdu::send_command(&mut self.card_client, verify, false)?;
-            if !(resp.status() == [0x69, 0x82]
-                || resp.status() == [0x69, 0x83])
+            if !(resp.status() == (0x69, 0x82)
+                || resp.status() == (0x69, 0x83))
             {
                 return Err(anyhow!("Unexpected status for reset, at pw1."));
             }
@@ -337,8 +339,8 @@ impl CardApp {
             let resp =
                 apdu::send_command(&mut self.card_client, verify, false)?;
 
-            if !(resp.status() == [0x69, 0x82]
-                || resp.status() == [0x69, 0x83])
+            if !(resp.status() == (0x69, 0x82)
+                || resp.status() == (0x69, 0x83))
             {
                 return Err(anyhow!("Unexpected status for reset, at pw3."));
             }
@@ -367,12 +369,12 @@ impl CardApp {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
-        apdu::send_command(&mut self.card_client, verify, false)
+        apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
     pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
         let verify = commands::verify_pw1_82(vec![]);
-        apdu::send_command(&mut self.card_client, verify, false)
+        apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
     pub fn verify_pw1(
@@ -382,12 +384,12 @@ impl CardApp {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
-        apdu::send_command(&mut self.card_client, verify, false)
+        apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
     pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
         let verify = commands::verify_pw3(vec![]);
-        apdu::send_command(&mut self.card_client, verify, false)
+        apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
     pub fn verify_pw3(
@@ -397,7 +399,7 @@ impl CardApp {
         assert!(pin.len() >= 8); // FIXME: Err
 
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
-        apdu::send_command(&mut self.card_client, verify, false)
+        apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
     // --- decrypt ---
@@ -503,7 +505,7 @@ impl CardApp {
         name: &str,
     ) -> Result<Response, OpenpgpCardError> {
         let put_name = commands::put_name(name.as_bytes().to_vec());
-        apdu::send_command(&mut self.card_client, put_name, false)
+        apdu::send_command(&mut self.card_client, put_name, false)?.try_into()
     }
 
     pub fn set_lang(
@@ -511,12 +513,14 @@ impl CardApp {
         lang: &str,
     ) -> Result<Response, OpenpgpCardError> {
         let put_lang = commands::put_lang(lang.as_bytes().to_vec());
-        apdu::send_command(self.card_client.borrow_mut(), put_lang, false)
+        apdu::send_command(self.card_client.borrow_mut(), put_lang, false)?
+            .try_into()
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<Response, OpenpgpCardError> {
         let put_sex = commands::put_sex((&sex).into());
-        apdu::send_command(self.card_client.borrow_mut(), put_sex, false)
+        apdu::send_command(self.card_client.borrow_mut(), put_sex, false)?
+            .try_into()
     }
 
     pub fn set_url(
@@ -524,7 +528,7 @@ impl CardApp {
         url: &str,
     ) -> Result<Response, OpenpgpCardError> {
         let put_url = commands::put_url(url.as_bytes().to_vec());
-        apdu::send_command(&mut self.card_client, put_url, false)
+        apdu::send_command(&mut self.card_client, put_url, false)?.try_into()
     }
 
     pub fn set_creation_time(
@@ -545,7 +549,7 @@ impl CardApp {
             time_value,
         );
 
-        apdu::send_command(&mut self.card_client, time_cmd, false)
+        apdu::send_command(&mut self.card_client, time_cmd, false)?.try_into()
     }
 
     pub fn set_fingerprint(
@@ -558,7 +562,7 @@ impl CardApp {
             fp.to_vec(),
         );
 
-        apdu::send_command(self.card(), fp_cmd, false)
+        apdu::send_command(self.card(), fp_cmd, false)?.try_into()
     }
 
     /// Set algorithm attributes [4.4.3.9 Algorithm Attributes]
@@ -582,7 +586,7 @@ impl CardApp {
         // Command to PUT the algorithm attributes
         let cmd = commands::put_data(&[key_type.get_algorithm_tag()], data);
 
-        apdu::send_command(&mut self.card_client, cmd, false)
+        apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
     }
 
     fn rsa_algo_attrs(algo_attrs: &RsaAttrs) -> Result<Vec<u8>> {

@@ -204,8 +204,7 @@ pub fn make_cert(
                 )?;
 
         // Allow signing on the card
-        let res = ca.verify_pw1_for_signing("123456")?;
-        res.check_ok()?;
+        ca.verify_pw1_for_signing("123456")?;
 
         // Card-backed signer for bindings
         let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
@@ -230,8 +229,7 @@ pub fn make_cert(
                 .set_key_flags(KeyFlags::empty().set_authentication())?;
 
         // Allow signing on the card
-        let res = ca.verify_pw1_for_signing("123456")?;
-        res.check_ok()?;
+        ca.verify_pw1_for_signing("123456")?;
 
         // Card-backed signer for bindings
         let mut card_signer = CardSigner::with_pubkey(ca, key_sig.clone());
@@ -263,8 +261,7 @@ pub fn make_cert(
                 )?;
 
         // Allow signing on the card
-        let res = ca.verify_pw1_for_signing("123456")?;
-        res.check_ok()?;
+        ca.verify_pw1_for_signing("123456")?;
 
         // Card-backed signer for bindings
         let mut card_signer = CardSigner::with_pubkey(ca, key_sig);
@@ -714,15 +711,11 @@ impl CardBase {
     ) -> Result<CardSign, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
-        let res = self.card_app.verify_pw1_for_signing(pin);
-
-        if let Ok(resp) = res {
-            if resp.is_ok() {
-                return Ok(CardSign { oc: self });
-            }
+        if self.card_app.verify_pw1_for_signing(pin).is_ok() {
+            Ok(CardSign { oc: self })
+        } else {
+            Err(self)
         }
-
-        Err(self)
     }
 
     pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
@@ -732,15 +725,11 @@ impl CardBase {
     pub fn verify_pw1(mut self, pin: &str) -> Result<CardUser, CardBase> {
         assert!(pin.len() >= 6); // FIXME: Err
 
-        let res = self.card_app.verify_pw1(pin);
-
-        if let Ok(resp) = res {
-            if resp.is_ok() {
-                return Ok(CardUser { oc: self });
-            }
+        if self.card_app.verify_pw1(pin).is_ok() {
+            Ok(CardUser { oc: self })
+        } else {
+            Err(self)
         }
-
-        Err(self)
     }
 
     pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
@@ -750,15 +739,11 @@ impl CardBase {
     pub fn verify_pw3(mut self, pin: &str) -> Result<CardAdmin, CardBase> {
         assert!(pin.len() >= 8); // FIXME: Err
 
-        let res = self.card_app.verify_pw3(pin);
-
-        if let Ok(resp) = res {
-            if resp.is_ok() {
-                return Ok(CardAdmin { oc: self });
-            }
+        if self.card_app.verify_pw3(pin).is_ok() {
+            Ok(CardAdmin { oc: self })
+        } else {
+            Err(self)
         }
-
-        Err(self)
     }
 }
 

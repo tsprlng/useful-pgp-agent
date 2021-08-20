@@ -41,7 +41,7 @@ impl From<anyhow::Error> for OpenpgpCardError {
 }
 
 /// OpenPGP card "Status Byte" errors
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum OcErrorStatus {
     #[error("Selected file or DO in termination state")]
     TerminationState,

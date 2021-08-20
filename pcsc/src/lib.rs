@@ -99,9 +99,7 @@ impl PcscClient {
         let ccb = Box::new(card_client) as CardClientBox;
 
         let mut ca = CardApp::new(ccb);
-        let resp = ca.select()?;
-
-        if resp.is_ok() {
+        if ca.select().is_ok() {
             Ok(ca)
         } else {
             Err(OpenpgpCardError::Smartcard(

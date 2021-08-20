@@ -11,7 +11,7 @@ use anyhow::Result;
 use std::convert::TryFrom;
 
 use crate::apdu::command::Command;
-use crate::apdu::response::Response;
+use crate::apdu::response::RawResponse;
 use crate::errors::{OcErrorStatus, OpenpgpCardError};
 use crate::CardClientBox;
 
@@ -33,20 +33,20 @@ pub(crate) fn send_command(
     card_client: &mut CardClientBox,
     cmd: Command,
     expect_reply: bool,
-) -> Result<Response, OpenpgpCardError> {
-    let mut resp = Response::try_from(send_command_low_level(
+) -> Result<RawResponse, OpenpgpCardError> {
+    let mut resp = RawResponse::try_from(send_command_low_level(
         card_client,
         cmd,
         expect_reply,
     )?)?;
 
-    while resp.status()[0] == 0x61 {
+    while resp.status().0 == 0x61 {
         // More data is available for this command from the card
 
         log::debug!(" response was truncated, getting more data");
 
         // Get additional data
-        let next = Response::try_from(send_command_low_level(
+        let next = RawResponse::try_from(send_command_low_level(
             card_client,
             commands::get_response(),
             expect_reply,
