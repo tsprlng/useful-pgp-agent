@@ -4,18 +4,28 @@
 use crate::errors::{OcErrorStatus, OpenpgpCardError};
 use std::convert::TryFrom;
 
-/// APDU Response
+/// Response from the card to a command.
+///
+/// This object contains pure payload, without the status bytes.
+/// Creating a `Response` object is only possible when the response from
+/// the card showed an "ok" status code (if the status bytes were no ok,
+/// you will receive an Error, never a Response).
+#[derive(Debug)]
+pub struct Response {
+    data: Vec<u8>,
+}
+
+/// "Raw" APDU Response, including the status bytes.
+///
+/// This type is used for processing inside the openpgp-card crate
+/// (raw responses with a non-ok status sometimes need to be processed e.g.
+/// when a response is sent from the card in "chained" format).
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub(crate) struct RawResponse {
     data: Vec<u8>,
     sw1: u8,
     sw2: u8,
-}
-
-#[derive(Debug)]
-pub struct Response {
-    data: Vec<u8>,
 }
 
 impl TryFrom<RawResponse> for Response {
@@ -67,22 +77,6 @@ impl RawResponse {
     /// Is the response status "ok"? (0x90, 0x00)
     pub fn is_ok(&self) -> bool {
         self.status() == (0x90, 0x00)
-    }
-}
-
-impl<'a> TryFrom<&[u8]> for RawResponse {
-    type Error = OcErrorStatus;
-
-    fn try_from(buf: &[u8]) -> Result<Self, OcErrorStatus> {
-        let n = buf.len();
-        if n < 2 {
-            return Err(OcErrorStatus::ResponseLength(buf.len()));
-        }
-        Ok(RawResponse {
-            data: buf[..n - 2].into(),
-            sw1: buf[n - 2],
-            sw2: buf[n - 1],
-        })
     }
 }
 
