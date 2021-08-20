@@ -8,8 +8,7 @@ use std::error::Error;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::card_app::CardApp;
-use openpgp_card::KeyType;
+use openpgp_card::{CardApp, KeyType};
 use openpgp_card_pcsc::PcscClient;
 // use openpgp_card_scdc::ScdClient;
 
@@ -241,7 +240,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let mut ca = CardApp::new(c);
 
             let ard = ca.get_app_data()?;
-            let app_id = CardApp::get_aid(&ard)?;
+            let app_id = ard.get_aid()?;
 
             let ident = app_id.ident();
             println!(" '{}'", ident);

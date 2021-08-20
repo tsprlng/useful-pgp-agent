@@ -4,9 +4,8 @@
 use anyhow::{anyhow, Result};
 use pcsc::{Card, Context, Error, Protocols, Scope, ShareMode};
 
-use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OpenpgpCardError, SmartcardError};
-use openpgp_card::{CardCaps, CardClient, CardClientBox};
+use openpgp_card::{CardApp, CardCaps, CardClient, CardClientBox};
 
 pub struct PcscClient {
     card: Card,
@@ -131,7 +130,7 @@ impl PcscClient {
         ident: &str,
     ) -> Result<Option<CardClientBox>, OpenpgpCardError> {
         let ard = ca.get_app_data()?;
-        let aid = CardApp::get_aid(&ard)?;
+        let aid = ard.get_aid()?;
 
         if aid.ident() == ident {
             Ok(Some(ca.take_card()))

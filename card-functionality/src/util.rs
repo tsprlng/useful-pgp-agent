@@ -18,8 +18,7 @@ use sequoia_openpgp::serialize::stream::{
 };
 use sequoia_openpgp::Cert;
 
-use openpgp_card::card_app::CardApp;
-use openpgp_card::KeyType;
+use openpgp_card::{CardApp, KeyType};
 use openpgp_card_sequoia::vka_as_uploadable_key;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();

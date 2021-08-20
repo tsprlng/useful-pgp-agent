@@ -16,10 +16,9 @@ use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::DecryptMe;
+use openpgp_card::{CardApp, DecryptMe};
 
 use crate::PublicKey;
-use openpgp_card::card_app::CardApp;
 
 pub(crate) struct CardDecryptor<'a> {
     /// The OpenPGP card (authenticated to allow decryption operations)
@@ -41,7 +40,7 @@ impl<'a> CardDecryptor<'a> {
     ) -> Result<CardDecryptor<'a>, OpenpgpCardError> {
         // Get the fingerprint for the decryption key from the card.
         let ard = ca.get_app_data()?;
-        let fps = CardApp::get_fingerprints(&ard)?;
+        let fps = ard.get_fingerprints()?;
         let fp = fps.decryption();
 
         if let Some(fp) = fp {

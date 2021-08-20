@@ -10,9 +10,8 @@ use openpgp::policy::Policy;
 use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
-use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::Hash;
+use openpgp_card::{CardApp, Hash};
 
 use crate::PublicKey;
 
@@ -36,7 +35,7 @@ impl<'a> CardSigner<'a> {
     ) -> Result<CardSigner<'a>, OpenpgpCardError> {
         // Get the fingerprint for the signing key from the card.
         let ard = ca.get_app_data()?;
-        let fps = CardApp::get_fingerprints(&ard)?;
+        let fps = ard.get_fingerprints()?;
         let fp = fps.signature();
 
         if let Some(fp) = fp {

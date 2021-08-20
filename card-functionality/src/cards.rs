@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
-use openpgp_card::card_app::CardApp;
+use openpgp_card::CardApp;
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_scdc::ScdClient;
 
@@ -102,7 +102,7 @@ impl TestCard {
 
                     // Set Card Capabilities (chaining, command length, ..)
                     let ard = ca.get_app_data()?;
-                    let app_id = CardApp::get_aid(&ard)?;
+                    let app_id = ard.get_aid()?;
 
                     if app_id.ident().as_str() == ident {
                         ca.init_caps(&ard)?;

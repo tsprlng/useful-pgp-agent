@@ -32,13 +32,12 @@ use openpgp::{Cert, Packet};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
-use openpgp_card::apdu::response::Response;
-use openpgp_card::card_app::{CardApp, ARD};
 use openpgp_card::{
-    errors::OpenpgpCardError, ApplicationId, CardClientBox, CardUploadableKey,
-    Cardholder, DecryptMe, EccKey, EccType, ExtendedCap, ExtendedLengthInfo,
-    Features, Fingerprint, Hash, Historical, KeySet, KeyType, PWStatus,
-    PrivateKeyMaterial, PublicKeyMaterial, RSAKey, Sex,
+    errors::OpenpgpCardError, ApplicationId, ApplicationRelatedData, CardApp,
+    CardClientBox, CardUploadableKey, Cardholder, DecryptMe, EccKey, EccType,
+    ExtendedCap, ExtendedLengthInfo, Features, Fingerprint, Hash, Historical,
+    KeySet, KeyType, PWStatus, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
+    Response, Sex,
 };
 
 use crate::signer::CardSigner;
@@ -558,11 +557,11 @@ pub struct CardBase {
     //
     // FIXME: Should be invalidated when changing data on the card!
     // (e.g. uploading keys, etc)
-    ard: ARD,
+    ard: ApplicationRelatedData,
 }
 
 impl CardBase {
-    pub fn new(card_app: CardApp, ard: ARD) -> Self {
+    pub fn new(card_app: CardApp, ard: ApplicationRelatedData) -> Self {
         Self { card_app, ard }
     }
 
@@ -590,22 +589,22 @@ impl CardBase {
     ///
     /// This is done once, after opening the OpenPGP card applet
     /// (the data is stored in the OpenPGPCard object).
-    fn get_app_data(&mut self) -> Result<ARD> {
+    fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
         self.card_app.get_app_data()
     }
 
     pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
-        CardApp::get_aid(&self.ard)
+        self.ard.get_aid()
     }
 
     pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
-        CardApp::get_historical(&self.ard)
+        self.ard.get_historical()
     }
 
     pub fn get_extended_length_information(
         &self,
     ) -> Result<Option<ExtendedLengthInfo>> {
-        CardApp::get_extended_length_information(&self.ard)
+        self.ard.get_extended_length_information()
     }
 
     pub fn get_general_feature_management() -> Option<bool> {
@@ -619,22 +618,22 @@ impl CardBase {
     pub fn get_extended_capabilities(
         &self,
     ) -> Result<ExtendedCap, OpenpgpCardError> {
-        CardApp::get_extended_capabilities(&self.ard)
+        self.ard.get_extended_capabilities()
     }
 
     pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
-        CardApp::get_algorithm_attributes(&self.ard, key_type)
+        self.ard.get_algorithm_attributes(key_type)
     }
 
     /// PW status Bytes
     pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
-        CardApp::get_pw_status_bytes(&self.ard)
+        self.ard.get_pw_status_bytes()
     }
 
     pub fn get_fingerprints(
         &self,
     ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
-        CardApp::get_fingerprints(&self.ard)
+        self.ard.get_fingerprints()
     }
 
     pub fn get_ca_fingerprints(&self) {

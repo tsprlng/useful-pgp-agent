@@ -10,10 +10,6 @@
 //! - access to all features in the OpenPGP card specification,
 //! - without relying on a particular OpenPGP implementation.
 //!
-//! The [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
-//! crate offers a higher level wrapper based on the
-//! [Sequoia PGP](https://sequoia-pgp.org/) implementation.
-//!
 //! This library doesn't itself implement a means to access cards. Instead,
 //! users need to supply an implementation of the [`CardClient`] trait, for
 //! access to cards.
@@ -22,6 +18,10 @@
 //! [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
 //! offers a backend that uses [pcsclite](https://pcsclite.apdu.fr/) to
 //! communicate with smartcards.
+//!
+//! The [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
+//! crate offers a higher level wrapper based on the
+//! [Sequoia PGP](https://sequoia-pgp.org/) implementation.
 
 use anyhow::Result;
 use std::collections::HashSet;
@@ -29,12 +29,16 @@ use std::collections::HashSet;
 use crate::algorithm::Algo;
 
 pub mod algorithm;
-pub mod apdu;
-pub mod card_app;
+mod apdu;
+mod card_app;
 pub mod errors;
 mod keys;
 mod parse;
 mod tlv;
+
+pub use crate::apdu::response::Response;
+pub use crate::card_app::ApplicationRelatedData;
+pub use crate::card_app::CardApp;
 
 /// The CardClient trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate

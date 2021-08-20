@@ -37,7 +37,7 @@ pub(crate) fn gen_key_with_metadata(
 
     // algo
     let ard = card_app.get_app_data()?; // no caching, here!
-    let algo = CardApp::get_algorithm_attributes(&ard, key_type)?;
+    let algo = ard.get_algorithm_attributes(key_type)?;
 
     // generate key
     let tlv = gen_key(card_app, key_type)?;
@@ -124,7 +124,7 @@ pub(crate) fn get_pub_key(
 
     // algo
     let ard = card_app.get_app_data()?; // FIXME: caching
-    let algo = CardApp::get_algorithm_attributes(&ard, key_type)?;
+    let algo = ard.get_algorithm_attributes(key_type)?;
 
     // get public key
     let crt = get_crt(key_type)?;
@@ -166,7 +166,7 @@ pub(crate) fn upload_key(
                 // FIXME: caching?
                 let ard = card_app.get_app_data()?;
 
-                let algo = CardApp::get_algorithm_attributes(&ard, key_type)?;
+                let algo = ard.get_algorithm_attributes(key_type)?;
 
                 if let Algo::Rsa(mut rsa) = algo {
                     rsa.len_n = rsa_bits;

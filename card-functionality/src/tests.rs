@@ -12,9 +12,8 @@ use sequoia_openpgp::types::Timestamp;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::card_app::CardApp;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
-use openpgp_card::{KeyType, Sex};
+use openpgp_card::{CardApp, KeyType, Sex};
 use openpgp_card_sequoia::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
 };
@@ -100,7 +99,7 @@ fn check_key_upload_metadata(
     let ard = ca.get_app_data()?;
 
     // check fingerprints
-    let card_fp = CardApp::get_fingerprints(&ard)?;
+    let card_fp = ard.get_fingerprints()?;
 
     let sig = card_fp.signature().expect("signature fingerprint");
     assert_eq!(format!("{:X}", sig), meta[0].0);
@@ -114,7 +113,7 @@ fn check_key_upload_metadata(
     assert_eq!(format!("{:X}", auth), meta[2].0);
 
     // get_key_generation_times
-    let card_kg = CardApp::get_key_generation_times(&ard)?;
+    let card_kg = ard.get_key_generation_times()?;
 
     let sig: u32 =
         card_kg.signature().expect("signature creation time").into();
@@ -148,13 +147,13 @@ pub fn test_print_caps(
 ) -> Result<TestOutput, TestError> {
     let ard = ca.get_app_data()?;
 
-    let hist = CardApp::get_historical(&ard)?;
+    let hist = ard.get_historical()?;
     println!("hist: {:#?}", hist);
 
-    let ecap = CardApp::get_extended_capabilities(&ard)?;
+    let ecap = ard.get_extended_capabilities()?;
     println!("ecap: {:#?}", ecap);
 
-    let eli = CardApp::get_extended_length_information(&ard)?;
+    let eli = ard.get_extended_length_information()?;
     println!("eli: {:#?}", eli);
 
     Ok(vec![])
@@ -166,7 +165,7 @@ pub fn test_print_algo_info(
 ) -> Result<TestOutput, TestError> {
     let ard = ca.get_app_data()?;
 
-    let dec = CardApp::get_algorithm_attributes(&ard, KeyType::Decryption)?;
+    let dec = ard.get_algorithm_attributes(KeyType::Decryption)?;
     println!("Current algorithm for the decrypt slot: {}", dec);
 
     println!();
@@ -262,7 +261,7 @@ pub fn test_get_pub(
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let ard = ca.get_app_data()?;
-    let key_gen = CardApp::get_key_generation_times(&ard)?;
+    let key_gen = ard.get_key_generation_times()?;
 
     // --
 
@@ -428,7 +427,7 @@ pub fn run_test(
 ) -> Result<TestOutput, TestError> {
     let mut ca = card.get_card_app()?;
     let ard = ca.get_app_data()?;
-    let _app_id = CardApp::get_aid(&ard)?;
+    let _app_id = ard.get_aid()?;
 
     t(&mut ca, param)
 }

@@ -1,14 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Direct, low-level, access to OpenPGP card functionality.
-//!
-//! No checks are performed here (e.g. for valid data lengths).
-//! Such checks should be performed on a higher layer, if needed.
-//!
-//! Also, no caching of data is done here. If necessary, caching should
-//! be done on a higher layer.
-
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -28,8 +20,149 @@ use crate::{
     PublicKeyMaterial, Sex,
 };
 
-pub struct ARD(Tlv);
+/// Application Related Data
+///
+/// The "application related data" DO contains a set of DOs.
+/// This struct offers read access to these DOs.
+///
+/// Note that when any of the information in this DO changes on the card, you
+/// need to read ApplicationRelatedData from the card again to receive the
+/// current values.
+pub struct ApplicationRelatedData(Tlv);
 
+impl ApplicationRelatedData {
+    pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
+        // get from cached "application related data"
+        let aid = self.0.find(&Tag::from([0x4F]));
+
+        if let Some(aid) = aid {
+            Ok(ApplicationId::try_from(&aid.serialize()[..])?)
+        } else {
+            Err(anyhow!("Couldn't get Application ID.").into())
+        }
+    }
+
+    pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
+        // get from cached "application related data"
+        let hist = self.0.find(&Tag::from([0x5F, 0x52]));
+
+        if let Some(hist) = hist {
+            log::debug!("Historical bytes: {:x?}", hist);
+            Historical::from(&hist.serialize())
+        } else {
+            Err(anyhow!("Failed to get historical bytes.").into())
+        }
+    }
+
+    pub fn get_extended_length_information(
+        &self,
+    ) -> Result<Option<ExtendedLengthInfo>> {
+        // get from cached "application related data"
+        let eli = self.0.find(&Tag::from([0x7F, 0x66]));
+
+        log::debug!("Extended length information: {:x?}", eli);
+
+        if let Some(eli) = eli {
+            // The card has returned extended length information
+            Ok(Some(ExtendedLengthInfo::from(&eli.serialize()[..])?))
+        } else {
+            // The card didn't return this (optional) DO. That is ok.
+            Ok(None)
+        }
+    }
+
+    pub fn get_general_feature_management() -> Option<bool> {
+        unimplemented!()
+    }
+
+    pub fn get_discretionary_data_objects() {
+        unimplemented!()
+    }
+
+    pub fn get_extended_capabilities(
+        &self,
+    ) -> Result<ExtendedCap, OpenpgpCardError> {
+        // get from cached "application related data"
+        let ecap = self.0.find(&Tag::from([0xc0]));
+
+        if let Some(ecap) = ecap {
+            Ok(ExtendedCap::try_from(&ecap.serialize()[..])?)
+        } else {
+            Err(anyhow!("Failed to get extended capabilities.").into())
+        }
+    }
+
+    pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
+        // get from cached "application related data"
+        let aa = self.0.find(&Tag::from([key_type.get_algorithm_tag()]));
+
+        if let Some(aa) = aa {
+            Algo::try_from(&aa.serialize()[..])
+        } else {
+            Err(anyhow!(
+                "Failed to get algorithm attributes for {:?}.",
+                key_type
+            ))
+        }
+    }
+
+    /// PW status Bytes
+    pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
+        // get from cached "application related data"
+        let psb = self.0.find(&Tag::from([0xc4]));
+
+        if let Some(psb) = psb {
+            let pws = PWStatus::try_from(&psb.serialize())?;
+
+            log::debug!("PW Status: {:x?}", pws);
+
+            Ok(pws)
+        } else {
+            Err(anyhow!("Failed to get PW status Bytes."))
+        }
+    }
+
+    pub fn get_fingerprints(
+        &self,
+    ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
+        // Get from cached "application related data"
+        let fp = self.0.find(&Tag::from([0xc5]));
+
+        if let Some(fp) = fp {
+            let fp = fingerprint::from(&fp.serialize())?;
+
+            log::debug!("Fp: {:x?}", fp);
+
+            Ok(fp)
+        } else {
+            Err(anyhow!("Failed to get fingerprints.").into())
+        }
+    }
+
+    pub fn get_key_generation_times(
+        &self,
+    ) -> Result<KeySet<KeyGeneration>, OpenpgpCardError> {
+        let kg = self.0.find(&Tag::from([0xCD]));
+
+        if let Some(kg) = kg {
+            let kg = key_generation_times::from(&kg.serialize())?;
+
+            log::debug!("Key generation: {:x?}", kg);
+
+            Ok(kg)
+        } else {
+            Err(anyhow!("Failed to get key generation times.").into())
+        }
+    }
+}
+
+/// Direct, low-level, access to OpenPGP card functionality.
+///
+/// No checks are performed here (e.g. for valid data lengths).
+/// Such checks should be performed on a higher layer, if needed.
+///
+/// Also, no caching of data is done here. If necessary, caching should
+/// be done on a higher layer.
 pub struct CardApp {
     card_client: CardClientBox,
 }
@@ -47,7 +180,7 @@ impl CardApp {
     ///
     /// Also initializes the underlying CardClient with the caps - some
     /// implementations may need this information.
-    pub fn init_caps(&mut self, ard: &ARD) -> Result<()> {
+    pub fn init_caps(&mut self, ard: &ApplicationRelatedData) -> Result<()> {
         // Determine chaining/extended length support from card
         // metadata and cache this information in CardApp (as a
         // CardCaps)
@@ -55,20 +188,19 @@ impl CardApp {
         let mut ext_support = false;
         let mut chaining_support = false;
 
-        if let Ok(hist) = CardApp::get_historical(ard) {
+        if let Ok(hist) = ard.get_historical() {
             if let Some(cc) = hist.get_card_capabilities() {
                 chaining_support = cc.get_command_chaining();
                 ext_support = cc.get_extended_lc_le();
             }
         }
 
-        let (max_cmd_bytes, max_rsp_bytes) = if let Ok(Some(eli)) =
-            CardApp::get_extended_length_information(ard)
-        {
-            (eli.max_command_bytes, eli.max_response_bytes)
-        } else {
-            (255, 255)
-        };
+        let (max_cmd_bytes, max_rsp_bytes) =
+            if let Ok(Some(eli)) = ard.get_extended_length_information() {
+                (eli.max_command_bytes, eli.max_response_bytes)
+            } else {
+                (255, 255)
+            };
 
         let caps = CardCaps {
             ext_support,
@@ -102,149 +234,20 @@ impl CardApp {
     /// This data should probably cached in a higher layer, some parts of
     /// it are needed regularly, and it will not usually change, during
     /// normal use of a card.
-    pub fn get_app_data(&mut self) -> Result<ARD> {
+    pub fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
         let ad = commands::get_application_data();
         let resp = apdu::send_command(&mut self.card_client, ad, true)?;
         let entry = TlvEntry::from(resp.data()?, true)?;
 
         log::debug!(" App data TlvEntry: {:x?}", entry);
 
-        Ok(ARD(Tlv(Tag::from([0x6E]), entry)))
-    }
-
-    // --- pieces of application related data ---
-
-    pub fn get_aid(ard: &ARD) -> Result<ApplicationId, OpenpgpCardError> {
-        // get from cached "application related data"
-        let aid = ard.0.find(&Tag::from([0x4F]));
-
-        if let Some(aid) = aid {
-            Ok(ApplicationId::try_from(&aid.serialize()[..])?)
-        } else {
-            Err(anyhow!("Couldn't get Application ID.").into())
-        }
-    }
-
-    pub fn get_historical(ard: &ARD) -> Result<Historical, OpenpgpCardError> {
-        // get from cached "application related data"
-        let hist = ard.0.find(&Tag::from([0x5F, 0x52]));
-
-        if let Some(hist) = hist {
-            log::debug!("Historical bytes: {:x?}", hist);
-            Historical::from(&hist.serialize())
-        } else {
-            Err(anyhow!("Failed to get historical bytes.").into())
-        }
-    }
-
-    pub fn get_extended_length_information(
-        ard: &ARD,
-    ) -> Result<Option<ExtendedLengthInfo>> {
-        // get from cached "application related data"
-        let eli = ard.0.find(&Tag::from([0x7F, 0x66]));
-
-        log::debug!("Extended length information: {:x?}", eli);
-
-        if let Some(eli) = eli {
-            // The card has returned extended length information
-            Ok(Some(ExtendedLengthInfo::from(&eli.serialize()[..])?))
-        } else {
-            // The card didn't return this (optional) DO. That is ok.
-            Ok(None)
-        }
-    }
-
-    pub fn get_general_feature_management() -> Option<bool> {
-        unimplemented!()
-    }
-
-    pub fn get_discretionary_data_objects() {
-        unimplemented!()
-    }
-
-    pub fn get_extended_capabilities(
-        ard: &ARD,
-    ) -> Result<ExtendedCap, OpenpgpCardError> {
-        // get from cached "application related data"
-        let ecap = ard.0.find(&Tag::from([0xc0]));
-
-        if let Some(ecap) = ecap {
-            Ok(ExtendedCap::try_from(&ecap.serialize()[..])?)
-        } else {
-            Err(anyhow!("Failed to get extended capabilities.").into())
-        }
-    }
-
-    pub fn get_algorithm_attributes(
-        ard: &ARD,
-        key_type: KeyType,
-    ) -> Result<Algo> {
-        // get from cached "application related data"
-        let aa = ard.0.find(&Tag::from([key_type.get_algorithm_tag()]));
-
-        if let Some(aa) = aa {
-            Algo::try_from(&aa.serialize()[..])
-        } else {
-            Err(anyhow!(
-                "Failed to get algorithm attributes for {:?}.",
-                key_type
-            ))
-        }
-    }
-
-    /// PW status Bytes
-    pub fn get_pw_status_bytes(ard: &ARD) -> Result<PWStatus> {
-        // get from cached "application related data"
-        let psb = ard.0.find(&Tag::from([0xc4]));
-
-        if let Some(psb) = psb {
-            let pws = PWStatus::try_from(&psb.serialize())?;
-
-            log::debug!("PW Status: {:x?}", pws);
-
-            Ok(pws)
-        } else {
-            Err(anyhow!("Failed to get PW status Bytes."))
-        }
-    }
-
-    pub fn get_fingerprints(
-        ard: &ARD,
-    ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
-        // Get from cached "application related data"
-        let fp = ard.0.find(&Tag::from([0xc5]));
-
-        if let Some(fp) = fp {
-            let fp = fingerprint::from(&fp.serialize())?;
-
-            log::debug!("Fp: {:x?}", fp);
-
-            Ok(fp)
-        } else {
-            Err(anyhow!("Failed to get fingerprints.").into())
-        }
+        Ok(ApplicationRelatedData(Tlv(Tag::from([0x6E]), entry)))
     }
 
     // ---
 
     pub fn get_ca_fingerprints() {
         unimplemented!()
-    }
-
-    pub fn get_key_generation_times(
-        ard: &ARD,
-    ) -> Result<KeySet<KeyGeneration>, OpenpgpCardError> {
-        let kg = ard.0.find(&Tag::from([0xCD]));
-
-        if let Some(kg) = kg {
-            let kg = key_generation_times::from(&kg.serialize())?;
-
-            log::debug!("Key generation: {:x?}", kg);
-
-            Ok(kg)
-        } else {
-            Err(anyhow!("Failed to get key generation times.").into())
-        }
     }
 
     pub fn get_key_information() {
@@ -575,7 +578,7 @@ impl CardApp {
         let ard = self.get_app_data()?;
 
         // FIXME: reuse "e" from card, if no algo list is available
-        let _cur_algo = Self::get_algorithm_attributes(&ard, key_type)?;
+        let _cur_algo = ard.get_algorithm_attributes(key_type)?;
 
         let data = match algo {
             Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa)?,
