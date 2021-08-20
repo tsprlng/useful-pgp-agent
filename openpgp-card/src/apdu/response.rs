@@ -8,9 +8,9 @@ use std::convert::TryFrom;
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct Response {
-    pub(self) data: Vec<u8>,
-    pub(self) sw1: u8,
-    pub(self) sw2: u8,
+    data: Vec<u8>,
+    sw1: u8,
+    sw2: u8,
 }
 
 impl Response {
@@ -44,6 +44,11 @@ impl Response {
     pub fn status(&self) -> [u8; 2] {
         [self.sw1, self.sw2]
     }
+
+    /// Is the response status "ok"? [0x90, 0x00]
+    pub fn is_ok(&self) -> bool {
+        self.status() == [0x90, 0x00]
+    }
 }
 
 impl<'a> TryFrom<&[u8]> for Response {
@@ -74,13 +79,6 @@ impl TryFrom<Vec<u8>> for Response {
             .ok_or_else(|| OcErrorStatus::ResponseLength(data.len()))?;
 
         Ok(Response { data, sw1, sw2 })
-    }
-}
-
-impl Response {
-    /// Is the response (0x90 0x00)?
-    pub fn is_ok(&self) -> bool {
-        self.sw1 == 0x90 && self.sw2 == 0x00
     }
 }
 
