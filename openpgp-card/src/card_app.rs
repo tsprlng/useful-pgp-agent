@@ -31,6 +31,7 @@ use crate::{
 pub struct ApplicationRelatedData(Tlv);
 
 impl ApplicationRelatedData {
+    /// Application identifier (AID), ISO 7816-4
     pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
         // get from cached "application related data"
         let aid = self.0.find(&Tag::from([0x4F]));
@@ -42,6 +43,7 @@ impl ApplicationRelatedData {
         }
     }
 
+    /// Historical bytes
     pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
         // get from cached "application related data"
         let hist = self.0.find(&Tag::from([0x5F, 0x52]));
@@ -54,6 +56,8 @@ impl ApplicationRelatedData {
         }
     }
 
+    /// Extended length information (ISO 7816-4) with maximum number of
+    /// bytes for command and response.
     pub fn get_extended_length_information(
         &self,
     ) -> Result<Option<ExtendedLengthInfo>> {
@@ -79,6 +83,7 @@ impl ApplicationRelatedData {
         unimplemented!()
     }
 
+    /// Extended Capabilities
     pub fn get_extended_capabilities(
         &self,
     ) -> Result<ExtendedCap, OpenpgpCardError> {
@@ -92,6 +97,7 @@ impl ApplicationRelatedData {
         }
     }
 
+    /// Algorithm attributes (for each key type)
     pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
         // get from cached "application related data"
         let aa = self.0.find(&Tag::from([key_type.get_algorithm_tag()]));
@@ -122,6 +128,8 @@ impl ApplicationRelatedData {
         }
     }
 
+    /// Fingerprint, per key type.
+    /// Zero bytes indicate a not defined private key.
     pub fn get_fingerprints(
         &self,
     ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
@@ -139,6 +147,7 @@ impl ApplicationRelatedData {
         }
     }
 
+    /// Generation dates/times of key pairs
     pub fn get_key_generation_times(
         &self,
     ) -> Result<KeySet<KeyGeneration>, OpenpgpCardError> {
@@ -168,10 +177,12 @@ pub struct CardApp {
 }
 
 impl CardApp {
+    /// Create a CardApp object based on a [`CardClientBox`].
     pub fn new(card_client: CardClientBox) -> Self {
         Self { card_client }
     }
 
+    /// Take the CardClientBox out of a CardApp
     pub fn take_card(self) -> CardClientBox {
         self.card_client
     }

@@ -377,6 +377,7 @@ pub struct PWStatus {
     pub(crate) err_count_pw3: u8,
 }
 
+/// Fingerprint
 #[derive(Clone, Eq, PartialEq)]
 pub struct Fingerprint([u8; 20]);
 
