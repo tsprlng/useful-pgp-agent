@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::errors::OpenpgpCardError;
-use crate::PWStatus;
 use anyhow::anyhow;
+
+use crate::card_data::PWStatus;
+use crate::errors::OpenpgpCardError;
 
 impl PWStatus {
     pub fn try_from(input: &[u8]) -> Result<Self, OpenpgpCardError> {

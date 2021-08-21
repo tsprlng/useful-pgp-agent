@@ -5,9 +5,8 @@ use anyhow::anyhow;
 use nom::{bytes::complete as bytes, combinator, sequence};
 use std::fmt;
 
+use crate::card_data::{Fingerprint, KeySet};
 use crate::errors::OpenpgpCardError;
-use crate::parse::KeySet;
-use crate::Fingerprint;
 
 impl From<[u8; 20]> for Fingerprint {
     fn from(data: [u8; 20]) -> Self {

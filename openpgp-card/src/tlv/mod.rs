@@ -8,6 +8,7 @@ use nom::{bytes::complete as bytes, combinator};
 pub mod length;
 pub mod tag;
 
+use crate::card_data::complete;
 use tag::Tag;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -54,7 +55,7 @@ impl Tlv {
     }
 
     pub fn try_from(input: &[u8]) -> Result<Self> {
-        crate::parse::complete(Tlv::parse(input))
+        complete(Tlv::parse(input))
     }
 }
 
@@ -94,7 +95,7 @@ impl TlvEntry {
     }
 
     pub fn from(data: &[u8], constructed: bool) -> Result<Self> {
-        crate::parse::complete(Self::parse(data, constructed))
+        complete(Self::parse(data, constructed))
     }
 
     pub fn serialize(&self) -> Vec<u8> {

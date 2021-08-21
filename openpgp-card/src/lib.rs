@@ -24,20 +24,18 @@
 //! [Sequoia PGP](https://sequoia-pgp.org/) implementation.
 
 use anyhow::Result;
-use std::collections::HashSet;
 
 use crate::algorithm::Algo;
 
 pub mod algorithm;
 mod apdu;
 mod card_app;
+pub mod card_data;
 pub mod errors;
 mod keys;
-mod parse;
 mod tlv;
 
 pub use crate::apdu::response::Response;
-pub use crate::card_app::ApplicationRelatedData;
 pub use crate::card_app::CardApp;
 
 /// The CardClient trait defines communication with an OpenPGP card via a
@@ -106,16 +104,6 @@ impl CardCaps {
             max_cmd_bytes,
             max_rsp_bytes,
         }
-    }
-}
-
-/// An OpenPGP key generation Time
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct KeyGeneration(u32);
-
-impl KeyGeneration {
-    pub fn get(&self) -> u32 {
-        self.0
     }
 }
 
@@ -238,156 +226,6 @@ pub enum DecryptMe<'a> {
 }
 
 // ----------
-
-/// Application identifier (AID)
-#[derive(Debug, Eq, PartialEq)]
-pub struct ApplicationId {
-    pub application: u8,
-
-    // GnuPG says:
-    // if (app->appversion >= 0x0200)
-    // app->app_local->extcap.is_v2 = 1;
-    //
-    // if (app->appversion >= 0x0300)
-    // app->app_local->extcap.is_v3 = 1;
-    pub version: u16,
-
-    pub manufacturer: u16,
-
-    pub serial: u32,
-}
-
-/// Card Capabilities (73)
-#[derive(Debug)]
-pub struct CardCapabilities {
-    command_chaining: bool,
-    extended_lc_le: bool,
-    extended_length_information: bool,
-}
-
-/// Card service data (31)
-#[derive(Debug)]
-pub struct CardServiceData {
-    select_by_full_df_name: bool,
-    select_by_partial_df_name: bool,
-    dos_available_in_ef_dir: bool,
-    dos_available_in_ef_atr_info: bool,
-    access_services: [bool; 3],
-    mf: bool,
-}
-
-/// Historical Bytes
-#[derive(Debug)]
-pub struct Historical {
-    /// category indicator byte
-    cib: u8,
-
-    /// Card service data (31)
-    csd: Option<CardServiceData>,
-
-    /// Card Capabilities (73)
-    cc: Option<CardCapabilities>,
-
-    /// status indicator byte (o-card 3.4.1, pg 44)
-    sib: u8,
-}
-
-/// Extended Capabilities
-#[derive(Debug, Eq, PartialEq)]
-pub struct ExtendedCap {
-    pub features: HashSet<Features>,
-    sm: u8,
-    max_len_challenge: u16,
-    max_len_cardholder_cert: u16,
-    pub max_len_special_do: u16,
-    pin_2_format: bool,
-    mse_command: bool,
-}
-
-/// Features (first byte of Extended Capabilities)
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Features {
-    SecureMessaging,
-    GetChallenge,
-    KeyImport,
-    PwStatusChange,
-    PrivateUseDOs,
-    AlgoAttrsChangeable,
-    Aes,
-    KdfDo,
-}
-
-/// Extended length information
-#[derive(Debug, Eq, PartialEq)]
-pub struct ExtendedLengthInfo {
-    pub max_command_bytes: u16,
-    pub max_response_bytes: u16,
-}
-
-/// Cardholder Related Data
-#[derive(Debug)]
-pub struct Cardholder {
-    pub name: Option<String>,
-    pub lang: Option<Vec<[char; 2]>>,
-    pub sex: Option<Sex>,
-}
-
-/// Sex (according to ISO 5218)
-#[derive(Debug, PartialEq)]
-pub enum Sex {
-    NotKnown,
-    Male,
-    Female,
-    NotApplicable,
-}
-
-impl From<&Sex> for u8 {
-    fn from(sex: &Sex) -> u8 {
-        match sex {
-            Sex::NotKnown => 0x30,
-            Sex::Male => 0x31,
-            Sex::Female => 0x32,
-            Sex::NotApplicable => 0x39,
-        }
-    }
-}
-
-impl From<u8> for Sex {
-    fn from(s: u8) -> Self {
-        match s {
-            0x31 => Sex::Male,
-            0x32 => Sex::Female,
-            0x39 => Sex::NotApplicable,
-            _ => Sex::NotKnown,
-        }
-    }
-}
-
-/// PW status Bytes
-#[derive(Debug)]
-pub struct PWStatus {
-    pub(crate) pw1_cds_multi: bool,
-    pub(crate) pw1_derived: bool,
-    pub(crate) pw1_len: u8,
-    pub(crate) rc_len: u8,
-    pub(crate) pw3_derived: bool,
-    pub(crate) pw3_len: u8,
-    pub(crate) err_count_pw1: u8,
-    pub(crate) err_count_rst: u8,
-    pub(crate) err_count_pw3: u8,
-}
-
-/// Fingerprint
-#[derive(Clone, Eq, PartialEq)]
-pub struct Fingerprint([u8; 20]);
-
-/// A KeySet binds together a triple of information about each Key on a card
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct KeySet<T> {
-    signature: Option<T>,
-    decryption: Option<T>,
-    authentication: Option<T>,
-}
 
 /// Enum to identify the Key-slots on an OpenPGP card
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

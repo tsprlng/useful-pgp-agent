@@ -8,6 +8,7 @@ use std::error::Error;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
+use openpgp_card::card_data::Sex;
 use openpgp_card::{CardApp, KeyType};
 use openpgp_card_pcsc::PcscClient;
 // use openpgp_card_scdc::ScdClient;
@@ -108,8 +109,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let res = oc_admin.set_name("Bar<<Foo")?;
                 println!("set name {:x?}", res);
 
-                let res =
-                    oc_admin.set_sex(openpgp_card::Sex::NotApplicable)?;
+                let res = oc_admin.set_sex(Sex::NotApplicable)?;
                 println!("set sex {:x?}", res);
 
                 let res = oc_admin.set_lang("en")?;

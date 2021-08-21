@@ -5,9 +5,9 @@ use anyhow::anyhow;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use nom::{combinator, number::complete as number, sequence};
 
+use crate::card_data::KeyGeneration;
+use crate::card_data::KeySet;
 use crate::errors::OpenpgpCardError;
-use crate::parse::KeySet;
-use crate::KeyGeneration;
 
 impl From<KeyGeneration> for DateTime<Utc> {
     fn from(kg: KeyGeneration) -> Self {

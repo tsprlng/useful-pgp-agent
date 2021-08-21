@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::errors::OpenpgpCardError;
-use crate::parse;
 use anyhow::Result;
 use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
-use crate::{ExtendedCap, Features};
+use crate::card_data::complete;
+use crate::card_data::{ExtendedCap, Features};
+use crate::errors::OpenpgpCardError;
 
 fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<Features>> {
     combinator::map(number::u8, |b| {
@@ -61,7 +61,7 @@ impl TryFrom<&[u8]> for ExtendedCap {
     type Error = OpenpgpCardError;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
-        let ec = parse::complete(parse(input))?;
+        let ec = complete(parse(input))?;
 
         Ok(Self {
             features: ec.0,
@@ -77,7 +77,7 @@ impl TryFrom<&[u8]> for ExtendedCap {
 
 #[cfg(test)]
 mod test {
-    use crate::parse::extended_cap::{ExtendedCap, Features};
+    use crate::card_data::extended_cap::{ExtendedCap, Features};
     use hex_literal::hex;
     use std::collections::HashSet;
     use std::convert::TryFrom;

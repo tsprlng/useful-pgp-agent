@@ -5,7 +5,7 @@ use anyhow::Result;
 use nom::{bytes::complete as bytes, number::complete as number};
 use std::convert::TryFrom;
 
-use crate::{parse, ApplicationId};
+use crate::card_data::{complete, ApplicationId};
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationId> {
     let (input, _) = bytes::tag([0xd2, 0x76, 0x0, 0x1, 0x24])(input)?;
@@ -33,7 +33,7 @@ impl TryFrom<&[u8]> for ApplicationId {
     type Error = anyhow::Error;
 
     fn try_from(data: &[u8]) -> Result<Self> {
-        parse::complete(parse(data))
+        complete(parse(data))
     }
 }
 

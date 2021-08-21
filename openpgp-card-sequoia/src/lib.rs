@@ -32,12 +32,15 @@ use openpgp::{Cert, Packet};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
+use openpgp_card::card_data::{
+    ApplicationId, ApplicationRelatedData, Cardholder, ExtendedCap,
+    ExtendedLengthInfo, Features, Fingerprint, Historical, KeySet, PWStatus,
+    Sex,
+};
 use openpgp_card::{
-    errors::OpenpgpCardError, ApplicationId, ApplicationRelatedData, CardApp,
-    CardClientBox, CardUploadableKey, Cardholder, DecryptMe, EccKey, EccType,
-    ExtendedCap, ExtendedLengthInfo, Features, Fingerprint, Hash, Historical,
-    KeySet, KeyType, PWStatus, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
-    Response, Sex,
+    errors::OpenpgpCardError, CardApp, CardClientBox, CardUploadableKey,
+    DecryptMe, EccKey, EccType, Hash, KeyType, PrivateKeyMaterial,
+    PublicKeyMaterial, RSAKey, Response,
 };
 
 use crate::signer::CardSigner;

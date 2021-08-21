@@ -5,9 +5,9 @@ use std::convert::TryFrom;
 
 use anyhow::Result;
 
+use crate::card_data::{Cardholder, Sex};
 use crate::tlv::tag::Tag;
 use crate::tlv::{Tlv, TlvEntry};
-use crate::{Cardholder, Sex};
 
 impl TryFrom<&[u8]> for Cardholder {
     type Error = anyhow::Error;

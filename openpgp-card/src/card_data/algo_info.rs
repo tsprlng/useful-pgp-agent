@@ -10,7 +10,7 @@ use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 use std::fmt;
 
 use crate::algorithm::AlgoInfo;
-use crate::parse::algo_attrs;
+use crate::card_data::{algo_attrs, complete};
 use crate::{Algo, KeyType};
 
 impl AlgoInfo {
@@ -91,7 +91,7 @@ impl TryFrom<&[u8]> for AlgoInfo {
     type Error = anyhow::Error;
 
     fn try_from(input: &[u8]) -> Result<Self> {
-        Ok(AlgoInfo(crate::parse::complete(parse(input))?))
+        Ok(AlgoInfo(complete(parse(input))?))
     }
 }
 
@@ -101,8 +101,7 @@ impl TryFrom<&[u8]> for AlgoInfo {
 mod test {
     use std::convert::TryFrom;
 
-    use crate::algorithm::{Algo::*, Curve::*, EccAttrs, RsaAttrs};
-    use crate::parse::algo_info::AlgoInfo;
+    use crate::algorithm::{Algo::*, AlgoInfo, Curve::*, EccAttrs, RsaAttrs};
     use crate::{EccType::*, KeyType::*};
 
     #[test]

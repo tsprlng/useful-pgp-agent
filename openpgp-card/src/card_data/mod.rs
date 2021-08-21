@@ -1,0 +1,363 @@
+// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+//! Data structures for OpenPGP card data
+
+use anyhow::{anyhow, Error, Result};
+use std::collections::HashSet;
+use std::convert::TryFrom;
+
+use crate::algorithm::Algo;
+use crate::errors::OpenpgpCardError;
+use crate::tlv::{tag::Tag, Tlv};
+use crate::KeyType;
+
+mod algo_attrs;
+mod algo_info;
+mod application_id;
+mod cardholder;
+mod extended_cap;
+mod extended_length_info;
+mod fingerprint;
+mod historical;
+mod key_generation_times;
+mod pw_status;
+
+/// Application Related Data
+///
+/// The "application related data" DO contains a set of DOs.
+/// This struct offers read access to these DOs.
+///
+/// Note that when any of the information in this DO changes on the card, you
+/// need to read ApplicationRelatedData from the card again to receive the
+/// current values.
+pub struct ApplicationRelatedData(pub(crate) Tlv);
+
+impl ApplicationRelatedData {
+    /// Application identifier (AID), ISO 7816-4
+    pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
+        // get from cached "application related data"
+        let aid = self.0.find(&Tag::from([0x4F]));
+
+        if let Some(aid) = aid {
+            Ok(ApplicationId::try_from(&aid.serialize()[..])?)
+        } else {
+            Err(anyhow!("Couldn't get Application ID.").into())
+        }
+    }
+
+    /// Historical bytes
+    pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
+        // get from cached "application related data"
+        let hist = self.0.find(&Tag::from([0x5F, 0x52]));
+
+        if let Some(hist) = hist {
+            log::debug!("Historical bytes: {:x?}", hist);
+            Historical::from(&hist.serialize())
+        } else {
+            Err(anyhow!("Failed to get historical bytes.").into())
+        }
+    }
+
+    /// Extended length information (ISO 7816-4) with maximum number of
+    /// bytes for command and response.
+    pub fn get_extended_length_information(
+        &self,
+    ) -> Result<Option<ExtendedLengthInfo>> {
+        // get from cached "application related data"
+        let eli = self.0.find(&Tag::from([0x7F, 0x66]));
+
+        log::debug!("Extended length information: {:x?}", eli);
+
+        if let Some(eli) = eli {
+            // The card has returned extended length information
+            Ok(Some(ExtendedLengthInfo::from(&eli.serialize()[..])?))
+        } else {
+            // The card didn't return this (optional) DO. That is ok.
+            Ok(None)
+        }
+    }
+
+    pub fn get_general_feature_management() -> Option<bool> {
+        unimplemented!()
+    }
+
+    pub fn get_discretionary_data_objects() {
+        unimplemented!()
+    }
+
+    /// Extended Capabilities
+    pub fn get_extended_capabilities(
+        &self,
+    ) -> Result<ExtendedCap, OpenpgpCardError> {
+        // get from cached "application related data"
+        let ecap = self.0.find(&Tag::from([0xc0]));
+
+        if let Some(ecap) = ecap {
+            Ok(ExtendedCap::try_from(&ecap.serialize()[..])?)
+        } else {
+            Err(anyhow!("Failed to get extended capabilities.").into())
+        }
+    }
+
+    /// Algorithm attributes (for each key type)
+    pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
+        // get from cached "application related data"
+        let aa = self.0.find(&Tag::from([key_type.get_algorithm_tag()]));
+
+        if let Some(aa) = aa {
+            Algo::try_from(&aa.serialize()[..])
+        } else {
+            Err(anyhow!(
+                "Failed to get algorithm attributes for {:?}.",
+                key_type
+            ))
+        }
+    }
+
+    /// PW status Bytes
+    pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
+        // get from cached "application related data"
+        let psb = self.0.find(&Tag::from([0xc4]));
+
+        if let Some(psb) = psb {
+            let pws = PWStatus::try_from(&psb.serialize())?;
+
+            log::debug!("PW Status: {:x?}", pws);
+
+            Ok(pws)
+        } else {
+            Err(anyhow!("Failed to get PW status Bytes."))
+        }
+    }
+
+    /// Fingerprint, per key type.
+    /// Zero bytes indicate a not defined private key.
+    pub fn get_fingerprints(
+        &self,
+    ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
+        // Get from cached "application related data"
+        let fp = self.0.find(&Tag::from([0xc5]));
+
+        if let Some(fp) = fp {
+            let fp = fingerprint::from(&fp.serialize())?;
+
+            log::debug!("Fp: {:x?}", fp);
+
+            Ok(fp)
+        } else {
+            Err(anyhow!("Failed to get fingerprints.").into())
+        }
+    }
+
+    /// Generation dates/times of key pairs
+    pub fn get_key_generation_times(
+        &self,
+    ) -> Result<KeySet<KeyGeneration>, OpenpgpCardError> {
+        let kg = self.0.find(&Tag::from([0xCD]));
+
+        if let Some(kg) = kg {
+            let kg = key_generation_times::from(&kg.serialize())?;
+
+            log::debug!("Key generation: {:x?}", kg);
+
+            Ok(kg)
+        } else {
+            Err(anyhow!("Failed to get key generation times.").into())
+        }
+    }
+}
+
+/// An OpenPGP key generation Time
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct KeyGeneration(u32);
+
+impl KeyGeneration {
+    pub fn get(&self) -> u32 {
+        self.0
+    }
+}
+
+/// Application identifier (AID)
+#[derive(Debug, Eq, PartialEq)]
+pub struct ApplicationId {
+    pub application: u8,
+
+    // GnuPG says:
+    // if (app->appversion >= 0x0200)
+    // app->app_local->extcap.is_v2 = 1;
+    //
+    // if (app->appversion >= 0x0300)
+    // app->app_local->extcap.is_v3 = 1;
+    pub version: u16,
+
+    pub manufacturer: u16,
+
+    pub serial: u32,
+}
+
+/// Card Capabilities (73)
+#[derive(Debug)]
+pub struct CardCapabilities {
+    command_chaining: bool,
+    extended_lc_le: bool,
+    extended_length_information: bool,
+}
+
+/// Card service data (31)
+#[derive(Debug)]
+pub struct CardServiceData {
+    select_by_full_df_name: bool,
+    select_by_partial_df_name: bool,
+    dos_available_in_ef_dir: bool,
+    dos_available_in_ef_atr_info: bool,
+    access_services: [bool; 3],
+    mf: bool,
+}
+
+/// Historical Bytes
+#[derive(Debug)]
+pub struct Historical {
+    /// category indicator byte
+    cib: u8,
+
+    /// Card service data (31)
+    csd: Option<CardServiceData>,
+
+    /// Card Capabilities (73)
+    cc: Option<CardCapabilities>,
+
+    /// status indicator byte (o-card 3.4.1, pg 44)
+    sib: u8,
+}
+
+/// Extended Capabilities
+#[derive(Debug, Eq, PartialEq)]
+pub struct ExtendedCap {
+    pub features: HashSet<Features>,
+    sm: u8,
+    max_len_challenge: u16,
+    max_len_cardholder_cert: u16,
+    pub max_len_special_do: u16,
+    pin_2_format: bool,
+    mse_command: bool,
+}
+
+/// Features (first byte of Extended Capabilities)
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum Features {
+    SecureMessaging,
+    GetChallenge,
+    KeyImport,
+    PwStatusChange,
+    PrivateUseDOs,
+    AlgoAttrsChangeable,
+    Aes,
+    KdfDo,
+}
+
+/// Extended length information
+#[derive(Debug, Eq, PartialEq)]
+pub struct ExtendedLengthInfo {
+    pub max_command_bytes: u16,
+    pub max_response_bytes: u16,
+}
+
+/// Cardholder Related Data
+#[derive(Debug)]
+pub struct Cardholder {
+    pub name: Option<String>,
+    pub lang: Option<Vec<[char; 2]>>,
+    pub sex: Option<Sex>,
+}
+
+/// Sex (according to ISO 5218)
+#[derive(Debug, PartialEq)]
+pub enum Sex {
+    NotKnown,
+    Male,
+    Female,
+    NotApplicable,
+}
+
+impl From<&Sex> for u8 {
+    fn from(sex: &Sex) -> u8 {
+        match sex {
+            Sex::NotKnown => 0x30,
+            Sex::Male => 0x31,
+            Sex::Female => 0x32,
+            Sex::NotApplicable => 0x39,
+        }
+    }
+}
+
+impl From<u8> for Sex {
+    fn from(s: u8) -> Self {
+        match s {
+            0x31 => Sex::Male,
+            0x32 => Sex::Female,
+            0x39 => Sex::NotApplicable,
+            _ => Sex::NotKnown,
+        }
+    }
+}
+
+/// PW status Bytes
+#[derive(Debug)]
+pub struct PWStatus {
+    pub(crate) pw1_cds_multi: bool,
+    pub(crate) pw1_derived: bool,
+    pub(crate) pw1_len: u8,
+    pub(crate) rc_len: u8,
+    pub(crate) pw3_derived: bool,
+    pub(crate) pw3_len: u8,
+    pub(crate) err_count_pw1: u8,
+    pub(crate) err_count_rst: u8,
+    pub(crate) err_count_pw3: u8,
+}
+
+/// Fingerprint
+#[derive(Clone, Eq, PartialEq)]
+pub struct Fingerprint([u8; 20]);
+
+/// A KeySet binds together a triple of information about each Key on a card
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct KeySet<T> {
+    signature: Option<T>,
+    decryption: Option<T>,
+    authentication: Option<T>,
+}
+
+impl<T> From<(Option<T>, Option<T>, Option<T>)> for KeySet<T> {
+    fn from(tuple: (Option<T>, Option<T>, Option<T>)) -> Self {
+        Self {
+            signature: tuple.0,
+            decryption: tuple.1,
+            authentication: tuple.2,
+        }
+    }
+}
+
+impl<T> KeySet<T> {
+    pub fn signature(&self) -> Option<&T> {
+        self.signature.as_ref()
+    }
+
+    pub fn decryption(&self) -> Option<&T> {
+        self.decryption.as_ref()
+    }
+
+    pub fn authentication(&self) -> Option<&T> {
+        self.authentication.as_ref()
+    }
+}
+
+pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, Error> {
+    let (rem, output) =
+        result.map_err(|err| anyhow!("Parsing failed: {:?}", err))?;
+    if rem.is_empty() {
+        Ok(output)
+    } else {
+        Err(anyhow!("Parsing incomplete -- trailing data: {:x?}", rem))
+    }
+}

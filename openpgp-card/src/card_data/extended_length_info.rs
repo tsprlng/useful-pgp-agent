@@ -4,7 +4,7 @@
 use anyhow::Result;
 use nom::{bytes::complete::tag, number::complete as number, sequence};
 
-use crate::{parse, ExtendedLengthInfo};
+use crate::card_data::{complete, ExtendedLengthInfo};
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
     let (input, (_, cmd, _, resp)) =
@@ -20,7 +20,7 @@ fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
 
 impl ExtendedLengthInfo {
     pub fn from(input: &[u8]) -> Result<Self> {
-        let eli = parse::complete(parse(input))?;
+        let eli = complete(parse(input))?;
 
         Ok(Self {
             max_command_bytes: eli.0,
