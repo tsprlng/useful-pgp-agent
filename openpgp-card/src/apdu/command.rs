@@ -32,7 +32,7 @@ impl Command {
     }
 
     pub(crate) fn serialize(&self, ext: Le) -> Result<Vec<u8>> {
-        // Set OpenPGP card spec, chapter 7 (pg 47)
+        // See OpenPGP card spec, chapter 7 (pg 47)
 
         // FIXME: 1) get "ext" information (how long can commands and
         // responses be),
