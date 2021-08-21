@@ -78,11 +78,11 @@ impl ApplicationRelatedData {
         }
     }
 
-    pub fn get_general_feature_management() -> Option<bool> {
+    fn get_general_feature_management() -> Option<bool> {
         unimplemented!()
     }
 
-    pub fn get_discretionary_data_objects() {
+    fn get_discretionary_data_objects() {
         unimplemented!()
     }
 
