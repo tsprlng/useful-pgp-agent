@@ -18,7 +18,7 @@ use crate::errors::OpenpgpCardError;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
 use crate::{apdu, keys, CardCaps, CardClientBox, KeyType};
 
-/// Direct, low-level, access to OpenPGP card functionality.
+/// Low-level access to OpenPGP card functionality.
 ///
 /// No checks are performed here (e.g. for valid data lengths).
 /// Such checks should be performed on a higher layer, if needed.

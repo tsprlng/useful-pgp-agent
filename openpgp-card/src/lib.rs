@@ -41,7 +41,7 @@ pub use crate::card_app::CardApp;
 
 /// The CardClient trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate
-/// openpgp-card-pcsc).
+/// [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)).
 pub trait CardClient {
     /// Transmit the command data in `cmd` to the card.
     ///
@@ -71,9 +71,13 @@ pub trait CardClient {
     }
 }
 
+/// A boxed CardClient (which is Send+Sync).
 pub type CardClientBox = Box<dyn CardClient + Send + Sync>;
 
-/// Information about the capabilities of the card.
+/// Configuration of the capabilities of the card.
+///
+/// This configuration is used to determine e.g. if chaining or extended
+/// length can be used when communicating with the card.
 ///
 /// (This configuration is retrieved from card metadata, specifically from
 /// "Card Capabilities" and "Extended length information")

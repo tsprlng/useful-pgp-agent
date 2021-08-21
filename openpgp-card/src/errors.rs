@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Error types that are used by this crate.
+//! Error types used by this crate.
 //!
 //! [`OpenpgpCardError`] is a wrapper enum for all error types that are used.
 //!
-//! The two main cases are:
+//! The two main classes of errors are:
 //! - [`SmartcardError`], for problems on the reader/smartcard layer
-//! - [`OcErrorStatus`] which models error statuses reported by the OpenPGP
+//! - [`OcErrorStatus`], which models error statuses reported by the OpenPGP
 //! card application
 
 use thiserror::Error;

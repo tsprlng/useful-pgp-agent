@@ -352,6 +352,7 @@ impl<T> KeySet<T> {
     }
 }
 
+/// nom parsing helper
 pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, Error> {
     let (rem, output) =
         result.map_err(|err| anyhow!("Parsing failed: {:?}", err))?;
