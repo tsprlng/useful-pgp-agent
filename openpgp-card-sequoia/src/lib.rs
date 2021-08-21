@@ -35,7 +35,7 @@ use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
 use openpgp_card::card_do::{
     ApplicationId, ApplicationRelatedData, Cardholder, ExtendedCap,
     ExtendedLengthInfo, Features, Fingerprint, Historical, KeySet, PWStatus,
-    Sex,
+    SecuritySupportTemplate, Sex,
 };
 use openpgp_card::crypto_data::{
     CardUploadableKey, Cryptogram, EccKey, EccType, Hash, PrivateKeyMaterial,
@@ -684,7 +684,9 @@ impl CardBase {
     }
 
     // --- security support template (7a) ---
-    pub fn get_security_support_template(&mut self) -> Result<Vec<u8>> {
+    pub fn get_security_support_template(
+        &mut self,
+    ) -> Result<SecuritySupportTemplate> {
         self.card_app.get_security_support_template()
     }
 

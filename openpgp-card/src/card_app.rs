@@ -10,7 +10,9 @@ use anyhow::{anyhow, Result};
 
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
-use crate::card_do::{ApplicationRelatedData, Cardholder, Sex};
+use crate::card_do::{
+    ApplicationRelatedData, Cardholder, SecuritySupportTemplate, Sex,
+};
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
 };
@@ -159,14 +161,30 @@ impl CardApp {
     }
 
     // --- security support template (7a) ---
-    // FIXME: parse data into a proper data structure
-    pub fn get_security_support_template(&mut self) -> Result<Vec<u8>> {
+    pub fn get_security_support_template(
+        &mut self,
+    ) -> Result<SecuritySupportTemplate> {
         let sst = commands::get_security_support_template();
         let resp = apdu::send_command(&mut self.card_client, sst, true)?;
         resp.check_ok()?;
 
         let tlv = Tlv::try_from(resp.data()?)?;
-        Ok(tlv.serialize())
+        let res = tlv
+            .find(&Tag::from([0x93]))
+            .ok_or(anyhow!("Couldn't get SecuritySupportTemplate DO"))?;
+
+        if let TlvEntry::S(data) = res {
+            let mut data = data.to_vec();
+            assert_eq!(data.len(), 3);
+
+            data.insert(0, 0); // prepend a zero
+            let data: [u8; 4] = data.try_into().unwrap();
+
+            let dsc: u32 = u32::from_be_bytes(data);
+            Ok(SecuritySupportTemplate { dsc })
+        } else {
+            Err(anyhow!("Failed to process SecuritySupportTemplate"))
+        }
     }
 
     // DO "Algorithm Information" (0xFA)

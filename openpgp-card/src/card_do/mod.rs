@@ -168,6 +168,19 @@ impl ApplicationRelatedData {
     }
 }
 
+#[derive(Debug)]
+pub struct SecuritySupportTemplate {
+    // Digital signature counter [3 bytes]
+    // (counts usage of Compute Digital Signature command)
+    pub(crate) dsc: u32,
+}
+
+impl SecuritySupportTemplate {
+    pub fn get_signature_count(&self) -> u32 {
+        self.dsc
+    }
+}
+
 /// An OpenPGP key generation Time
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KeyGeneration(u32);
