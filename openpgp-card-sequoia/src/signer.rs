@@ -10,8 +10,9 @@ use openpgp::policy::Policy;
 use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
+use openpgp_card::crypto_data::Hash;
 use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::{CardApp, Hash};
+use openpgp_card::CardApp;
 
 use crate::PublicKey;
 

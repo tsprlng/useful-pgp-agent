@@ -11,7 +11,7 @@ use nom::{branch, bytes::complete as bytes, number::complete as number};
 
 use crate::algorithm::{Algo, Curve, EccAttrs, RsaAttrs};
 use crate::card_data::complete;
-use crate::EccType;
+use crate::crypto_data::EccType;
 
 fn parse_oid_cv25519(input: &[u8]) -> nom::IResult<&[u8], Curve> {
     map(tag(Curve::Cv25519.oid()), |_| Curve::Cv25519)(input)

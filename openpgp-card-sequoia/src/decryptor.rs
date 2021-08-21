@@ -15,8 +15,9 @@ use openpgp::types::{Curve, SymmetricAlgorithm};
 use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
+use openpgp_card::crypto_data::Cryptogram;
 use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::{CardApp, DecryptMe};
+use openpgp_card::CardApp;
 
 use crate::PublicKey;
 
@@ -92,7 +93,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
     ) -> openpgp::Result<crypto::SessionKey> {
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
-                let dm = DecryptMe::RSA(ct.value());
+                let dm = Cryptogram::RSA(ct.value());
                 let dec = self.ca.decrypt(dm)?;
 
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
@@ -104,10 +105,10 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
             ) => {
                 let dm = if curve == &Curve::Cv25519 {
                     // Ephemeral key without header byte 0x40
-                    DecryptMe::ECDH(&e.value()[1..])
+                    Cryptogram::ECDH(&e.value()[1..])
                 } else {
                     // NIST curves: ephemeral key with header byte
-                    DecryptMe::ECDH(e.value())
+                    Cryptogram::ECDH(e.value())
                 };
 
                 // Decryption operation on the card

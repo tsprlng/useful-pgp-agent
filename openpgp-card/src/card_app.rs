@@ -11,12 +11,12 @@ use anyhow::{anyhow, Result};
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
 use crate::card_data::{ApplicationRelatedData, Cardholder, Sex};
+use crate::crypto_data::{
+    CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
+};
 use crate::errors::OpenpgpCardError;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{
-    apdu, keys, CardCaps, CardClientBox, CardUploadableKey, DecryptMe,
-    EccType, Hash, KeyType, PublicKeyMaterial,
-};
+use crate::{apdu, keys, CardCaps, CardClientBox, KeyType};
 
 /// Direct, low-level, access to OpenPGP card functionality.
 ///
@@ -274,17 +274,17 @@ impl CardApp {
     /// Decrypt the ciphertext in `dm`, on the card.
     pub fn decrypt(
         &mut self,
-        dm: DecryptMe,
+        dm: Cryptogram,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         match dm {
-            DecryptMe::RSA(message) => {
+            Cryptogram::RSA(message) => {
                 let mut data = vec![0x0];
                 data.extend_from_slice(message);
 
                 // Call the card to decrypt `data`
                 self.pso_decipher(data)
             }
-            DecryptMe::ECDH(eph) => {
+            Cryptogram::ECDH(eph) => {
                 // External Public Key
                 let epk = Tlv(Tag(vec![0x86]), TlvEntry::S(eph.to_vec()));
 

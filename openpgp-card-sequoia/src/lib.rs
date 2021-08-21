@@ -37,10 +37,12 @@ use openpgp_card::card_data::{
     ExtendedLengthInfo, Features, Fingerprint, Historical, KeySet, PWStatus,
     Sex,
 };
+use openpgp_card::crypto_data::{
+    CardUploadableKey, Cryptogram, EccKey, EccType, Hash, PrivateKeyMaterial,
+    PublicKeyMaterial, RSAKey,
+};
 use openpgp_card::{
-    errors::OpenpgpCardError, CardApp, CardClientBox, CardUploadableKey,
-    DecryptMe, EccKey, EccType, Hash, KeyType, PrivateKeyMaterial,
-    PublicKeyMaterial, RSAKey, Response,
+    errors::OpenpgpCardError, CardApp, CardClientBox, KeyType, Response,
 };
 
 use crate::signer::CardSigner;
@@ -775,7 +777,7 @@ impl CardUser {
     /// Decrypt the ciphertext in `dm`, on the card.
     pub fn decrypt(
         &mut self,
-        dm: DecryptMe,
+        dm: Cryptogram,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         self.card_app.decrypt(dm)
     }

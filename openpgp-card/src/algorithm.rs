@@ -9,7 +9,9 @@
 //! [`AlgoSimple`] offers a shorthand for specifying an algorithm,
 //! specifically for key generation on the card.
 
-use crate::{EccType, KeyType};
+use crate::crypto_data::EccType;
+use crate::KeyType;
+
 use anyhow::anyhow;
 use std::convert::TryFrom;
 use std::fmt;
@@ -119,7 +121,7 @@ impl AlgoSimple {
     }
 }
 
-/// "Algorithm Information"
+/// Algorithm Information
 ///
 /// Modern cards provide a list of supported algorithms for each key type.
 /// The list specifies which "Algorithm Attributes" can be set for key
@@ -129,7 +131,7 @@ impl AlgoSimple {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AlgoInfo(pub(crate) Vec<(KeyType, Algo)>);
 
-/// "Algorithm Attributes"
+/// Algorithm Attributes
 ///
 /// An `Algo` describes the algorithm settings for a key on the card.
 ///

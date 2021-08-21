@@ -11,12 +11,13 @@ use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
+use crate::crypto_data::{
+    CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
+    RSAKey, RSAPub,
+};
 use crate::errors::OpenpgpCardError;
 use crate::tlv::{tag::Tag, Tlv, TlvEntry};
-use crate::{
-    apdu, tlv, CardUploadableKey, EccKey, EccPub, KeyType, PrivateKeyMaterial,
-    PublicKeyMaterial, RSAKey, RSAPub,
-};
+use crate::{apdu, tlv, KeyType};
 
 /// `gen_key_with_metadata` calculates the fingerprint for a public key
 /// data object

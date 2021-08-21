@@ -102,7 +102,8 @@ mod test {
     use std::convert::TryFrom;
 
     use crate::algorithm::{Algo::*, AlgoInfo, Curve::*, EccAttrs, RsaAttrs};
-    use crate::{EccType::*, KeyType::*};
+    use crate::crypto_data::EccType::*;
+    use crate::KeyType::*;
 
     #[test]
     fn test_gnuk() {
