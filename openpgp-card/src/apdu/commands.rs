@@ -16,29 +16,43 @@ pub(crate) fn select_openpgp() -> Command {
     )
 }
 
+/// 7.2.6 GET DATA
+/// ('tag' must consist of either one or two bytes)
+fn get_data(tag: &[u8]) -> Command {
+    assert!(!tag.is_empty() && tag.len() <= 2);
+
+    let (p1, p2) = if tag.len() == 2 {
+        (tag[0], tag[1])
+    } else {
+        (0, tag[0])
+    };
+
+    Command::new(0x00, 0xCA, p1, p2, vec![])
+}
+
 /// Get DO "Application related data"
 pub(crate) fn get_application_data() -> Command {
-    Command::new(0x00, 0xCA, 0x00, 0x6E, vec![])
+    get_data(&[0x6E])
 }
 
 /// Get DO "Uniform resource locator"
 pub(crate) fn get_url() -> Command {
-    Command::new(0x00, 0xCA, 0x5F, 0x50, vec![])
+    get_data(&[0x5F, 0x50])
 }
 
 /// Get DO "Cardholder related data"
 pub(crate) fn cardholder_related_data() -> Command {
-    Command::new(0x00, 0xCA, 0x00, 0x65, vec![])
+    get_data(&[0x65])
 }
 
 /// Get DO "Security support template"
 pub(crate) fn get_security_support_template() -> Command {
-    Command::new(0x00, 0xCA, 0x00, 0x7A, vec![])
+    get_data(&[0x7A])
 }
 
 /// Get DO "List of supported Algorithm attributes"
 pub(crate) fn get_algo_list() -> Command {
-    Command::new(0x00, 0xCA, 0x00, 0xFA, vec![])
+    get_data(&[0xFA])
 }
 
 /// GET RESPONSE
