@@ -123,7 +123,7 @@ pub enum KeyType {
 
 impl KeyType {
     /// Get C1/C2/C3/DA values for this KeyTypes, to use as Tag
-    pub fn get_algorithm_tag(&self) -> u8 {
+    fn get_algorithm_tag(&self) -> u8 {
         use KeyType::*;
 
         match self {
@@ -138,7 +138,7 @@ impl KeyType {
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// fingerprint information from the card uses the combined Tag C5)
-    pub fn get_fingerprint_put_tag(&self) -> u8 {
+    fn get_fingerprint_put_tag(&self) -> u8 {
         use KeyType::*;
 
         match self {
@@ -153,7 +153,7 @@ impl KeyType {
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// timestamp information from the card uses the combined Tag CD)
-    pub fn get_timestamp_put_tag(&self) -> u8 {
+    fn get_timestamp_put_tag(&self) -> u8 {
         use KeyType::*;
 
         match self {
