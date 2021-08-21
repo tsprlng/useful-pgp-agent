@@ -11,7 +11,7 @@ use anyhow::{anyhow, Result};
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
 use crate::card_do::{
-    ApplicationRelatedData, Cardholder, SecuritySupportTemplate, Sex,
+    ApplicationRelatedData, Cardholder, PWStatus, SecuritySupportTemplate, Sex,
 };
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
@@ -448,6 +448,28 @@ impl CardApp {
         );
 
         apdu::send_command(self.card(), fp_cmd, false)?.try_into()
+    }
+
+    /// Set PW Status Bytes.
+    ///
+    /// If `long` is false, send 1 byte to the card, otherwise 4.
+    /// According to the spec, length information should not be changed.
+    ///
+    /// So, effectively, with 'long == false' the setting `pw1_cds_multi`
+    /// can be changed.
+    /// With 'long == true', the settings `pw1_pin_block` and `pw3_pin_block`
+    /// can also be changed.
+    ///
+    /// (See OpenPGP card spec, pg. 28)
+    pub fn set_pw_status_bytes(
+        &mut self,
+        pw_status: &PWStatus,
+        long: bool,
+    ) -> Result<Response, OpenpgpCardError> {
+        let data = pw_status.serialize_for_put(long);
+
+        let cmd = commands::put_pw_status(data);
+        apdu::send_command(self.card(), cmd, false)?.try_into()
     }
 
     /// Set algorithm attributes [4.4.3.9 Algorithm Attributes]

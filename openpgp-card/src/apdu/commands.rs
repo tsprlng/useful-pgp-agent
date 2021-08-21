@@ -118,6 +118,11 @@ pub(crate) fn put_url(url: Vec<u8>) -> Command {
     put_data(&[0x5f, 0x50], url)
 }
 
+/// PUT DO "PW status bytes"
+pub(crate) fn put_pw_status(data: Vec<u8>) -> Command {
+    put_data(&[0xc4], data)
+}
+
 /// Change PW1 (user pin).
 /// This can be used to reset the counter and set a pin.
 pub(crate) fn change_pw1(pin: Vec<u8>) -> Command {

@@ -352,6 +352,31 @@ pub fn test_set_user_data(
     Ok(vec![])
 }
 
+pub fn test_pw_status(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let mut out = vec![];
+
+    let ard = ca.get_app_data()?;
+    let mut pws = ard.get_pw_status_bytes()?;
+
+    println!("pws {:?}", pws);
+
+    ca.verify_pw3("12345678")?;
+
+    pws.set_pw1_cds_multi(true);
+    pws.set_pw1_pin_block(true);
+
+    ca.set_pw_status_bytes(&pws, false)?;
+
+    let ard = ca.get_app_data()?;
+    let pws = ard.get_pw_status_bytes()?;
+    println!("pws {:?}", pws);
+
+    Ok(out)
+}
+
 /// Outputs:
 /// - verify pw3 (check) -> Status
 /// - verify pw1 (check) -> Status

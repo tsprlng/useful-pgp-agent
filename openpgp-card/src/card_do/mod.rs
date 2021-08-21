@@ -319,14 +319,26 @@ impl From<u8> for Sex {
 #[derive(Debug)]
 pub struct PWStatus {
     pub(crate) pw1_cds_multi: bool,
-    pub(crate) pw1_derived: bool,
+    pub(crate) pw1_pin_block: bool,
     pub(crate) pw1_len: u8,
     pub(crate) rc_len: u8,
-    pub(crate) pw3_derived: bool,
+    pub(crate) pw3_pin_block: bool,
     pub(crate) pw3_len: u8,
     pub(crate) err_count_pw1: u8,
     pub(crate) err_count_rst: u8,
     pub(crate) err_count_pw3: u8,
+}
+
+impl PWStatus {
+    pub fn set_pw1_cds_multi(&mut self, val: bool) {
+        self.pw1_cds_multi = val;
+    }
+    pub fn set_pw1_pin_block(&mut self, val: bool) {
+        self.pw1_pin_block = val;
+    }
+    pub fn set_pw3_pin_block(&mut self, val: bool) {
+        self.pw3_pin_block = val;
+    }
 }
 
 /// Fingerprint

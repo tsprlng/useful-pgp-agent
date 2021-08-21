@@ -36,9 +36,13 @@ fn main() -> Result<()> {
         //
         // panic!();
 
-        print!("Verify");
-        let verify_out = run_test(&mut card, test_verify, &[])?;
-        println!(" {:x?}", verify_out);
+        // print!("Verify");
+        // let verify_out = run_test(&mut card, test_verify, &[])?;
+        // println!(" {:x?}", verify_out);
+
+        print!("PW Status bytes");
+        let pw_out = run_test(&mut card, test_pw_status, &[])?;
+        println!(" {:x?}", pw_out);
 
         println!();
     }
