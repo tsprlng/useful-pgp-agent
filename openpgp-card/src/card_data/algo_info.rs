@@ -9,9 +9,9 @@ use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 use std::fmt;
 
-use crate::algorithm::AlgoInfo;
+use crate::algorithm::{Algo, AlgoInfo};
 use crate::card_data::{algo_attrs, complete};
-use crate::{Algo, KeyType};
+use crate::KeyType;
 
 impl AlgoInfo {
     pub fn get_by_keytype(&self, kt: KeyType) -> Vec<&Algo> {

@@ -25,8 +25,6 @@
 
 use anyhow::Result;
 
-use crate::algorithm::Algo;
-
 pub mod algorithm;
 mod apdu;
 mod card_app;
