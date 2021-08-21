@@ -12,7 +12,7 @@ use sequoia_openpgp::types::Timestamp;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::card_data::Sex;
+use openpgp_card::card_do::Sex;
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
 use openpgp_card::{CardApp, KeyType};
 use openpgp_card_sequoia::{

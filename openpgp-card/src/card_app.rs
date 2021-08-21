@@ -10,7 +10,7 @@ use anyhow::{anyhow, Result};
 
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
-use crate::card_data::{ApplicationRelatedData, Cardholder, Sex};
+use crate::card_do::{ApplicationRelatedData, Cardholder, Sex};
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
 };

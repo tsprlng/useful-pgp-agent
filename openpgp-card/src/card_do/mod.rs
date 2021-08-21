@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Data structures for OpenPGP card data
+//! OpenPGP card data objects (DO)
 
 use anyhow::{anyhow, Error, Result};
 use std::collections::HashSet;

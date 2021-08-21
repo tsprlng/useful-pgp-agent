@@ -4,7 +4,7 @@
 use anyhow::Result;
 use nom::{bytes::complete::tag, number::complete as number, sequence};
 
-use crate::card_data::{complete, ExtendedLengthInfo};
+use crate::card_do::{complete, ExtendedLengthInfo};
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
     let (input, (_, cmd, _, resp)) =

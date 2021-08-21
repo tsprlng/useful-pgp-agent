@@ -8,7 +8,7 @@ use std::error::Error;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::card_data::Sex;
+use openpgp_card::card_do::Sex;
 use openpgp_card::{CardApp, KeyType};
 use openpgp_card_pcsc::PcscClient;
 // use openpgp_card_scdc::ScdClient;

@@ -32,7 +32,7 @@ use openpgp::{Cert, Packet};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
-use openpgp_card::card_data::{
+use openpgp_card::card_do::{
     ApplicationId, ApplicationRelatedData, Cardholder, ExtendedCap,
     ExtendedLengthInfo, Features, Fingerprint, Historical, KeySet, PWStatus,
     Sex,

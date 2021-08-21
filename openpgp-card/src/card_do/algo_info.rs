@@ -10,7 +10,7 @@ use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 use std::fmt;
 
 use crate::algorithm::{Algo, AlgoInfo};
-use crate::card_data::{algo_attrs, complete};
+use crate::card_do::{algo_attrs, complete};
 use crate::KeyType;
 
 impl AlgoInfo {

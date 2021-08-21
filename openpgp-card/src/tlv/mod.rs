@@ -8,7 +8,7 @@ use nom::{bytes::complete as bytes, combinator};
 pub mod length;
 pub mod tag;
 
-use crate::card_data::complete;
+use crate::card_do::complete;
 use tag::Tag;
 
 #[derive(Debug, Eq, PartialEq)]

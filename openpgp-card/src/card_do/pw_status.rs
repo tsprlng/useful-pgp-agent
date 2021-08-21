@@ -3,7 +3,7 @@
 
 use anyhow::anyhow;
 
-use crate::card_data::PWStatus;
+use crate::card_do::PWStatus;
 use crate::errors::OpenpgpCardError;
 
 impl PWStatus {

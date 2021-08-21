@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::card_data::{CardCapabilities, CardServiceData, Historical};
+use crate::card_do::{CardCapabilities, CardServiceData, Historical};
 use crate::errors::OpenpgpCardError;
 use anyhow::{anyhow, Result};
 

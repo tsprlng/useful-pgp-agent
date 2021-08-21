@@ -28,7 +28,7 @@ use anyhow::Result;
 pub mod algorithm;
 mod apdu;
 mod card_app;
-pub mod card_data;
+pub mod card_do;
 pub mod crypto_data;
 pub mod errors;
 mod keys;

@@ -6,8 +6,8 @@ use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
-use crate::card_data::complete;
-use crate::card_data::{ExtendedCap, Features};
+use crate::card_do::complete;
+use crate::card_do::{ExtendedCap, Features};
 use crate::errors::OpenpgpCardError;
 
 fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<Features>> {
@@ -77,7 +77,7 @@ impl TryFrom<&[u8]> for ExtendedCap {
 
 #[cfg(test)]
 mod test {
-    use crate::card_data::extended_cap::{ExtendedCap, Features};
+    use crate::card_do::extended_cap::{ExtendedCap, Features};
     use hex_literal::hex;
     use std::collections::HashSet;
     use std::convert::TryFrom;

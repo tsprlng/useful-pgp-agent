@@ -5,7 +5,7 @@ use anyhow::Result;
 use nom::{bytes::complete as bytes, number::complete as number};
 use std::convert::TryFrom;
 
-use crate::card_data::{complete, ApplicationId};
+use crate::card_do::{complete, ApplicationId};
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationId> {
     let (input, _) = bytes::tag([0xd2, 0x76, 0x0, 0x1, 0x24])(input)?;

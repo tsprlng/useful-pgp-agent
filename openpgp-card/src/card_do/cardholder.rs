@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 
 use anyhow::Result;
 
-use crate::card_data::{Cardholder, Sex};
+use crate::card_do::{Cardholder, Sex};
 use crate::tlv::tag::Tag;
 use crate::tlv::{Tlv, TlvEntry};
 
