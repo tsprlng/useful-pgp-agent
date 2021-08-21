@@ -158,27 +158,3 @@ impl KeyType {
         }
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::tlv::tag::Tag;
-    use super::tlv::{Tlv, TlvEntry};
-
-    #[test]
-    fn test_tlv() {
-        let cpkt = Tlv(
-            Tag(vec![0x7F, 0x48]),
-            TlvEntry::S(vec![
-                0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93, 0x82, 0x01, 0x00,
-            ]),
-        );
-
-        assert_eq!(
-            cpkt.serialize(),
-            vec![
-                0x7F, 0x48, 0x0A, 0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93,
-                0x82, 0x01, 0x00,
-            ]
-        );
-    }
-}

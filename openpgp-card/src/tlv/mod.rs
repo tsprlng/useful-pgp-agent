@@ -120,6 +120,23 @@ mod test {
     use hex_literal::hex;
 
     #[test]
+    fn test_tlv0() {
+        let cpkt = Tlv(
+            Tag(vec![0x7F, 0x48]),
+            TlvEntry::S(vec![
+                0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93, 0x82, 0x01, 0x00,
+            ]),
+        );
+
+        assert_eq!(
+            cpkt.serialize(),
+            vec![
+                0x7F, 0x48, 0x0A, 0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93,
+                0x82, 0x01, 0x00,
+            ]
+        );
+    }
+    #[test]
     fn test_tlv() -> Result<()> {
         // From OpenPGP card spec § 7.2.6
         let data =
