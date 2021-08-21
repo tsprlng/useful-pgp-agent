@@ -197,9 +197,9 @@ impl CardClient for ScdClient {
         let hex = hex::encode(cmd);
 
         let ext = if self.card_caps.is_some()
-            && self.card_caps.unwrap().ext_support
+            && self.card_caps.unwrap().get_ext_support()
         {
-            format!("--exlen={} ", self.card_caps.unwrap().max_rsp_bytes)
+            format!("--exlen={} ", self.card_caps.unwrap().get_max_rsp_bytes())
         } else {
             "".to_string()
         };

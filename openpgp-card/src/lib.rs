@@ -84,31 +84,25 @@ pub type CardClientBox = Box<dyn CardClient + Send + Sync>;
 #[derive(Clone, Copy, Debug)]
 pub struct CardCaps {
     /// Extended Lc and Le fields
-    pub ext_support: bool,
+    ext_support: bool,
 
     /// Command chaining
-    pub chaining_support: bool,
+    chaining_support: bool,
 
     /// Maximum number of bytes in a command APDU
-    pub max_cmd_bytes: u16,
+    max_cmd_bytes: u16,
 
     /// Maximum number of bytes in a response APDU
-    pub max_rsp_bytes: u16,
+    max_rsp_bytes: u16,
 }
 
 impl CardCaps {
-    pub fn new(
-        ext_support: bool,
-        chaining_support: bool,
-        max_cmd_bytes: u16,
-        max_rsp_bytes: u16,
-    ) -> CardCaps {
-        Self {
-            ext_support,
-            chaining_support,
-            max_cmd_bytes,
-            max_rsp_bytes,
-        }
+    pub fn get_ext_support(&self) -> bool {
+        self.ext_support
+    }
+
+    pub fn get_max_rsp_bytes(&self) -> u16 {
+        self.max_rsp_bytes
     }
 }
 
