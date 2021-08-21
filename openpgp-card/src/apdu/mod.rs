@@ -157,7 +157,7 @@ fn send_command_low_level(
             log::debug!(" <- APDU chunk response: {:x?}", &resp);
 
             if resp.len() < 2 {
-                return Err(OcErrorStatus::ResponseLength(resp.len()).into());
+                return Err(OpenpgpCardError::ResponseLength(resp.len()));
             }
 
             if !last {

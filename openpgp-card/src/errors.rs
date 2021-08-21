@@ -24,6 +24,9 @@ pub enum OpenpgpCardError {
     #[error("Command too long ({0} bytes)")]
     CommandTooLong(usize),
 
+    #[error("Unexpected response length: {0}")]
+    ResponseLength(usize),
+
     #[error("Internal error {0}")]
     InternalError(anyhow::Error),
 }
@@ -111,10 +114,6 @@ pub enum OcErrorStatus {
 
     #[error("Unknown OpenPGP card status: [{0}, {1}]")]
     UnknownStatus(u8, u8),
-
-    /// This code is not an OpenPGP card status value
-    #[error("Unexpected response length: {0}")]
-    ResponseLength(usize),
 }
 
 impl From<(u8, u8)> for OcErrorStatus {

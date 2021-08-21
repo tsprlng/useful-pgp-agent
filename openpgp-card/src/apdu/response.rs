@@ -81,15 +81,15 @@ impl RawResponse {
 }
 
 impl TryFrom<Vec<u8>> for RawResponse {
-    type Error = OcErrorStatus;
+    type Error = OpenpgpCardError;
 
-    fn try_from(mut data: Vec<u8>) -> Result<Self, OcErrorStatus> {
+    fn try_from(mut data: Vec<u8>) -> Result<Self, Self::Error> {
         let sw2 = data
             .pop()
-            .ok_or_else(|| OcErrorStatus::ResponseLength(data.len()))?;
+            .ok_or_else(|| OpenpgpCardError::ResponseLength(data.len()))?;
         let sw1 = data
             .pop()
-            .ok_or_else(|| OcErrorStatus::ResponseLength(data.len()))?;
+            .ok_or_else(|| OpenpgpCardError::ResponseLength(data.len()))?;
 
         Ok(RawResponse { data, sw1, sw2 })
     }
