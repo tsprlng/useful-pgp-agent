@@ -31,6 +31,14 @@ impl Command {
         }
     }
 
+    fn encode_len(len: u16, ext: Le) -> Vec<u8> {
+        if len > 0xff || ext == Le::Long {
+            vec![0, (len as u16 >> 8) as u8, (len as u16 & 255) as u8]
+        } else {
+            vec![len as u8]
+        }
+    }
+
     pub(crate) fn serialize(&self, ext: Le) -> Result<Vec<u8>> {
         // See OpenPGP card spec, chapter 7 (pg 47)
 
@@ -39,15 +47,7 @@ impl Command {
         // FIXME: 2) decide on long vs. short encoding for both Lc and Le
         // (must be the same)
 
-        let data_len = if self.data.len() as u16 > 0xff || ext == Le::Long {
-            vec![
-                0,
-                (self.data.len() as u16 >> 8) as u8,
-                (self.data.len() as u16 & 255) as u8,
-            ]
-        } else {
-            vec![self.data.len() as u8]
-        };
+        let data_len = Self::encode_len(self.data.len() as u16, ext);
 
         let mut buf = vec![self.cla, self.ins, self.p1, self.p2];
 
