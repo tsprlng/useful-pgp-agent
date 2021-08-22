@@ -40,9 +40,13 @@ fn main() -> Result<()> {
         // let verify_out = run_test(&mut card, test_verify, &[])?;
         // println!(" {:x?}", verify_out);
 
-        print!("PW Status bytes");
-        let pw_out = run_test(&mut card, test_pw_status, &[])?;
-        println!(" {:x?}", pw_out);
+        // print!("PW Status bytes");
+        // let pw_out = run_test(&mut card, test_pw_status, &[])?;
+        // println!(" {:x?}", pw_out);
+
+        print!("Private data");
+        let priv_out = run_test(&mut card, test_private_data, &[])?;
+        println!(" {:x?}", priv_out);
 
         println!();
     }

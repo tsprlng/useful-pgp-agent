@@ -35,6 +35,11 @@ pub(crate) fn get_application_data() -> Command {
     get_data(&[0x6E])
 }
 
+/// Get DO "private use"
+pub(crate) fn get_private_do(num: u8) -> Command {
+    get_data(&[0x01, num])
+}
+
 /// Get DO "Uniform resource locator"
 pub(crate) fn get_url() -> Command {
     get_data(&[0x5F, 0x50])
@@ -96,6 +101,11 @@ pub(crate) fn put_data(tag: &[u8], data: Vec<u8>) -> Command {
         (0, tag[0])
     };
     Command::new(0x00, 0xda, p1, p2, data)
+}
+
+/// Put DO "private use"
+pub(crate) fn put_private_do(num: u8, data: Vec<u8>) -> Command {
+    put_data(&[0x01, num], data)
 }
 
 /// PUT DO Name

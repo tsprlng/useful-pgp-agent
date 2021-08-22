@@ -93,7 +93,7 @@ impl CardApp {
             .try_into()
     }
 
-    // --- application data ---
+    // --- get data ---
 
     /// Load "application related data".
     ///
@@ -110,7 +110,15 @@ impl CardApp {
         Ok(ApplicationRelatedData(Tlv(Tag::from([0x6E]), entry)))
     }
 
-    // ---
+    /// Get data from "private use" DO, `num` must be between 1 and 4.
+    pub fn get_private(&mut self, num: u8) -> Result<Vec<u8>> {
+        assert!(num >= 1 && num <= 4);
+
+        let cmd = commands::get_private_do(num);
+        let resp = apdu::send_command(&mut self.card_client, cmd, true)?;
+
+        Ok(resp.data()?.to_vec())
+    }
 
     pub fn get_ca_fingerprints() {
         unimplemented!()
@@ -384,6 +392,19 @@ impl CardApp {
     }
 
     // --- admin ---
+
+    /// Set data of "private use" DO, `num` must be between 1 and 4.
+    /// Access condition:
+    /// - 1/3 need PW1 (82)
+    /// - 2/4 need PW3
+    pub fn set_private(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>> {
+        assert!(num >= 1 && num <= 4);
+
+        let cmd = commands::put_private_do(num, data);
+        let resp = apdu::send_command(&mut self.card_client, cmd, true)?;
+
+        Ok(resp.data()?.to_vec())
+    }
 
     pub fn set_name(
         &mut self,
