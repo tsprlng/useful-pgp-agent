@@ -7,8 +7,10 @@
 //! card application).
 //!
 //! This library aims to offer
-//! - access to all features in the OpenPGP card specification,
-//! - without relying on a particular OpenPGP implementation.
+//! - access to all features in the OpenPGP
+//! [card specification](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf),
+//! - without relying on a particular
+//! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
 //! This library doesn't itself implement a means to access cards. Instead,
 //! users need to supply an implementation of the [`CardClient`] trait, for
