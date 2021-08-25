@@ -8,6 +8,8 @@
 use anyhow::Result;
 
 use crate::algorithm::Algo;
+use crate::card_do::Fingerprint;
+use crate::errors::OpenpgpCardError;
 
 /// A hash value that can be signed by the card.
 pub enum Hash<'a> {
@@ -67,7 +69,7 @@ pub trait CardUploadableKey {
     fn get_ts(&self) -> u32;
 
     /// fingerprint
-    fn get_fp(&self) -> [u8; 20];
+    fn get_fp(&self) -> Result<Fingerprint, OpenpgpCardError>;
 }
 
 /// Algorithm-independent container for private key material to upload to

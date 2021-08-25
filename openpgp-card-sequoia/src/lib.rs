@@ -364,11 +364,9 @@ impl CardUploadableKey for SequoiaKey {
         ts.into()
     }
 
-    fn get_fp(&self) -> [u8; 20] {
+    fn get_fp(&self) -> Result<Fingerprint, OpenpgpCardError> {
         let fp = self.key.fingerprint();
-        assert_eq!(fp.as_bytes().len(), 20);
-
-        fp.as_bytes().try_into().unwrap()
+        fp.as_bytes().try_into()
     }
 }
 
@@ -539,16 +537,13 @@ pub fn public_to_fingerprint(
     pkm: &PublicKeyMaterial,
     ts: SystemTime,
     kt: KeyType,
-) -> Result<[u8; 20]> {
+) -> Result<Fingerprint, OpenpgpCardError> {
     // Transform PublicKeyMaterial into a Sequoia Key
     let key = public_key_material_to_key(pkm, kt, ts)?;
 
     // Get fingerprint from the Sequoia Key
     let fp = key.fingerprint();
-    let fp = fp.as_bytes();
-
-    assert_eq!(fp.len(), 20);
-    Ok(fp.try_into()?)
+    fp.as_bytes().try_into()
 }
 
 // --------

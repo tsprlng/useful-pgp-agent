@@ -11,6 +11,7 @@ use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
+use crate::card_do::Fingerprint;
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
     RSAKey, RSAPub,
@@ -27,7 +28,7 @@ pub(crate) fn gen_key_with_metadata(
         &PublicKeyMaterial,
         SystemTime,
         KeyType,
-    ) -> Result<[u8; 20]>,
+    ) -> Result<Fingerprint, OpenpgpCardError>,
     key_type: KeyType,
     algo: Option<&Algo>,
 ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
@@ -210,7 +211,7 @@ pub(crate) fn upload_key(
         card_app,
         key_type,
         key.get_ts(),
-        key.get_fp(),
+        key.get_fp()?,
         &algo,
         key_cmd,
     )?;
@@ -427,7 +428,7 @@ fn copy_key_to_card(
     card_app: &mut CardApp,
     key_type: KeyType,
     ts: u32,
-    fp: [u8; 20],
+    fp: Fingerprint,
     algo: &Algo,
     key_cmd: Command,
 ) -> Result<(), OpenpgpCardError> {

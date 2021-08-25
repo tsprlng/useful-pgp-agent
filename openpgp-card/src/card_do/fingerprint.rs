@@ -3,6 +3,8 @@
 
 use anyhow::anyhow;
 use nom::{bytes::complete as bytes, combinator, sequence};
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::fmt;
 
 use crate::card_do::{Fingerprint, KeySet};
@@ -11,6 +13,24 @@ use crate::errors::OpenpgpCardError;
 impl From<[u8; 20]> for Fingerprint {
     fn from(data: [u8; 20]) -> Self {
         Self(data)
+    }
+}
+
+impl TryFrom<&[u8]> for Fingerprint {
+    type Error = OpenpgpCardError;
+
+    fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
+        log::trace!(
+            "Fingerprint from input: {:x?}, len {}",
+            input,
+            input.len()
+        );
+
+        // FIXME: return error
+        assert_eq!(input.len(), 20);
+
+        let array: [u8; 20] = input.try_into().unwrap();
+        Ok(array.into())
     }
 }
 

@@ -11,7 +11,8 @@ use anyhow::{anyhow, Result};
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
 use crate::card_do::{
-    ApplicationRelatedData, Cardholder, PWStatus, SecuritySupportTemplate, Sex,
+    ApplicationRelatedData, Cardholder, Fingerprint, PWStatus,
+    SecuritySupportTemplate, Sex,
 };
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
@@ -487,12 +488,12 @@ impl CardApp {
 
     pub fn set_fingerprint(
         &mut self,
-        fp: [u8; 20],
+        fp: Fingerprint,
         key_type: KeyType,
     ) -> Result<Response, OpenpgpCardError> {
         let fp_cmd = commands::put_data(
             &[key_type.get_fingerprint_put_tag()],
-            fp.to_vec(),
+            fp.as_bytes().to_vec(),
         );
 
         apdu::send_command(self.card(), fp_cmd, false)?.try_into()
@@ -620,7 +621,7 @@ impl CardApp {
             &PublicKeyMaterial,
             SystemTime,
             KeyType,
-        ) -> Result<[u8; 20]>,
+        ) -> Result<Fingerprint, OpenpgpCardError>,
         key_type: KeyType,
         algo: Option<&Algo>,
     ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
@@ -635,7 +636,7 @@ impl CardApp {
             &PublicKeyMaterial,
             SystemTime,
             KeyType,
-        ) -> Result<[u8; 20]>,
+        ) -> Result<Fingerprint, OpenpgpCardError>,
         key_type: KeyType,
         algo: AlgoSimple,
     ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
