@@ -15,6 +15,12 @@ pub struct Response {
     data: Vec<u8>,
 }
 
+impl Response {
+    pub fn get_data(&self) -> &[u8] {
+        &self.data
+    }
+}
+
 /// "Raw" APDU Response, including the status bytes.
 ///
 /// This type is used for processing inside the openpgp-card crate
