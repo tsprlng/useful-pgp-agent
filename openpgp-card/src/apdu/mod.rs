@@ -130,21 +130,25 @@ fn send_command_low_level(
 
     log::trace!("buf_size {}", buf_size);
 
-    if chaining_support && !cmd.data.is_empty() {
+    if chaining_support && !cmd.get_data().is_empty() {
         // Send command in chained mode
 
         log::debug!("chained command mode");
 
         // Break up payload into chunks that fit into one command, each
-        let chunks: Vec<_> = cmd.data.chunks(max_cmd_bytes).collect();
+        let chunks: Vec<_> = cmd.get_data().chunks(max_cmd_bytes).collect();
 
         for (i, d) in chunks.iter().enumerate() {
             let last = i == chunks.len() - 1;
-            let partial = Command {
-                cla: if last { 0x00 } else { 0x10 },
-                data: d.to_vec(),
-                ..cmd
-            };
+
+            let cla = if last { 0x00 } else { 0x10 };
+            let partial = Command::new(
+                cla,
+                cmd.get_ins(),
+                cmd.get_p1(),
+                cmd.get_p2(),
+                d.to_vec(),
+            );
 
             let serialized = partial
                 .serialize(ext)

@@ -8,17 +8,17 @@ use anyhow::Result;
 #[derive(Clone, Debug)]
 pub(crate) struct Command {
     // Class byte (CLA)
-    pub cla: u8,
+    cla: u8,
 
     // Instruction byte (INS)
-    pub ins: u8,
+    ins: u8,
 
     // Parameter bytes (P1/P2)
-    pub p1: u8,
-    pub p2: u8,
+    p1: u8,
+    p2: u8,
 
     // NOTE: data must be smaller than 64 kbyte
-    pub data: Vec<u8>,
+    data: Vec<u8>,
 }
 
 impl Command {
@@ -32,6 +32,22 @@ impl Command {
             p2,
             data,
         }
+    }
+
+    pub(crate) fn get_ins(&self) -> u8 {
+        self.ins
+    }
+
+    pub(crate) fn get_p1(&self) -> u8 {
+        self.p1
+    }
+
+    pub(crate) fn get_p2(&self) -> u8 {
+        self.p2
+    }
+
+    pub(crate) fn get_data(&self) -> &[u8] {
+        &self.data
     }
 
     fn encode_len(len: u16, ext: Le) -> Vec<u8> {
