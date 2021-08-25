@@ -17,11 +17,14 @@ pub(crate) struct Command {
     pub p1: u8,
     pub p2: u8,
 
+    // NOTE: data must be smaller than 64 kbyte
     pub data: Vec<u8>,
 }
 
 impl Command {
     pub fn new(cla: u8, ins: u8, p1: u8, p2: u8, data: Vec<u8>) -> Self {
+        assert!(data.len() < 0x10000, "'data' too big, must be <64 kbyte");
+
         Command {
             cla,
             ins,
