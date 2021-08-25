@@ -13,7 +13,7 @@ documentation = "https://docs.rs/crate/openpgp-card-scdc"
 
 [dependencies]
 openpgp-card = { path = "../openpgp-card" }
-sequoia-ipc = {  git = "https://gitlab.com/sequoia-pgp/sequoia.git" }
+sequoia-ipc = { git = "https://gitlab.com/sequoia-pgp/sequoia.git", branch = "main" }
 hex = "0.4"
 anyhow = "1"
 futures = "0.3"
