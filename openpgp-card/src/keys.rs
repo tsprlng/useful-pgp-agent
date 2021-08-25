@@ -101,8 +101,6 @@ pub(crate) fn gen_key(
     card_app: &mut CardApp,
     key_type: KeyType,
 ) -> Result<Tlv, OpenpgpCardError> {
-    println!(" Generate subkey for {:?}", key_type);
-
     // generate key
     let crt = get_crt(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());

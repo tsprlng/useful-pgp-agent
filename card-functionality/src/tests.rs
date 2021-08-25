@@ -216,6 +216,7 @@ pub fn test_keygen(
 
     let alg = AlgoSimple::from(algo);
 
+    println!(" Generate subkey for Signing");
     let (pkm, ts) =
         ca.generate_key_simple(public_to_fingerprint, KeyType::Signing, alg)?;
     let key_sig = public_key_material_to_key(
@@ -224,6 +225,7 @@ pub fn test_keygen(
         Timestamp::from(ts).into(),
     )?;
 
+    println!(" Generate subkey for Decryption");
     let (pkm, ts) = ca.generate_key_simple(
         public_to_fingerprint,
         KeyType::Decryption,
@@ -235,6 +237,7 @@ pub fn test_keygen(
         Timestamp::from(ts).into(),
     )?;
 
+    println!(" Generate subkey for Authentication");
     let (pkm, ts) = ca.generate_key_simple(
         public_to_fingerprint,
         KeyType::Authentication,
