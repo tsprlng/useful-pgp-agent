@@ -140,7 +140,7 @@ impl ApplicationRelatedData {
         let fp = self.0.find(&Tag::from([0xc5]));
 
         if let Some(fp) = fp {
-            let fp = fingerprint::from(&fp.serialize())?;
+            let fp = fingerprint::to_keyset(&fp.serialize())?;
 
             log::debug!("Fp: {:x?}", fp);
 

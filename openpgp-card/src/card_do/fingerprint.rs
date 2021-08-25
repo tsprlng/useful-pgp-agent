@@ -82,7 +82,10 @@ fn fingerprints(input: &[u8]) -> nom::IResult<&[u8], KeySet<Fingerprint>> {
     )
 }
 
-pub fn from(input: &[u8]) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
+/// Parse three fingerprints from the card into a KeySet of Fingerprints
+pub(crate) fn to_keyset(
+    input: &[u8],
+) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
     log::trace!("Fingerprint from input: {:x?}, len {}", input, input.len());
 
     // The input may be longer than 3 fingerprint, don't fail if it hasn't
