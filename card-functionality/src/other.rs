@@ -21,12 +21,12 @@ fn main() -> Result<()> {
         //
         // panic!();
 
-        println!("Caps");
-        let _ = run_test(&mut card, test_print_caps, &[])?;
+        // println!("Caps");
+        // let _ = run_test(&mut card, test_print_caps, &[])?;
         // continue; // only print caps
 
-        // println!("Reset");
-        // let _ = run_test(&mut card, test_reset, &[])?;
+        println!("Reset");
+        let _ = run_test(&mut card, test_reset, &[])?;
 
         // println!("Algo info");
         // let _ = run_test(&mut card, test_print_algo_info, &[])?;
@@ -44,10 +44,13 @@ fn main() -> Result<()> {
         // let pw_out = run_test(&mut card, test_pw_status, &[])?;
         // println!(" {:x?}", pw_out);
 
-        print!("Private data");
-        let priv_out = run_test(&mut card, test_private_data, &[])?;
-        println!(" {:x?}", priv_out);
+        // print!("Private data");
+        // let priv_out = run_test(&mut card, test_private_data, &[])?;
+        // println!(" {:x?}", priv_out);
 
+        print!("Cardholder Cert");
+        let cardh_out = run_test(&mut card, test_cardholder_cert, &[])?;
+        println!(" {:x?}", cardh_out);
         println!();
     }
 

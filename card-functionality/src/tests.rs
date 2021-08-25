@@ -385,6 +385,65 @@ pub fn test_private_data(
     Ok(out)
 }
 
+pub fn test_cardholder_cert(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let mut out = vec![];
+
+    println!();
+
+    match ca.get_cardholder_certificate() {
+        Ok(res) => out
+            .push(TestResult::Text(format!("got cert {:x?}", res.get_data()))),
+        Err(e) => {
+            out.push(TestResult::Text(format!(
+                "get_cardholder_certificate failed: {:?}",
+                e
+            )));
+            return Ok(out);
+        }
+    };
+
+    ca.verify_pw3("12345678")?;
+
+    let data = "Foo bar baz!".as_bytes();
+
+    match ca.set_cardholder_certificate(data.to_vec()) {
+        Ok(resp) => out.push(TestResult::Text("set cert ok".to_string())),
+        Err(e) => {
+            out.push(TestResult::Text(format!(
+                "set_cardholder_certificate: {:?}",
+                e
+            )));
+            return Ok(out);
+        }
+    }
+
+    let res = ca.get_cardholder_certificate()?;
+    out.push(TestResult::Text("get cert ok".to_string()));
+
+    if res.get_data() != data {
+        out.push(TestResult::Text(format!(
+            "get after set doesn't match original data: {:x?}",
+            data
+        )));
+        return Ok(out);
+    };
+
+    // try using slot 2
+
+    match ca.select_data(2, &[0x7F, 0x21]) {
+        Ok(res) => out.push(TestResult::Text("select_data ok".to_string())),
+        Err(e) => {
+            out.push(TestResult::Text(format!("select_data: {:?}", e)));
+            return Ok(out);
+        }
+    }
+
+    Ok(out)
+}
+
 pub fn test_pw_status(
     ca: &mut CardApp,
     _param: &[&str],
