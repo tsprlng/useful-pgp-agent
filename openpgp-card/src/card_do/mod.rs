@@ -248,12 +248,12 @@ pub struct Historical {
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedCap {
     pub features: HashSet<Features>,
-    sm: u8,
+    sm_algo: u8,
     max_len_challenge: u16,
     max_len_cardholder_cert: u16,
     pub max_len_special_do: u16,
-    pin_2_format: bool,
-    mse_command: bool,
+    pin_block_2_format_support: bool,
+    mse_command_support: bool,
 }
 
 /// Features (first byte of Extended Capabilities)

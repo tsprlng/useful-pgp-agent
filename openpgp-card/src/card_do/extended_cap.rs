@@ -65,12 +65,12 @@ impl TryFrom<&[u8]> for ExtendedCap {
 
         Ok(Self {
             features: ec.0,
-            sm: ec.1,
+            sm_algo: ec.1,
             max_len_challenge: ec.2,
             max_len_cardholder_cert: ec.3,
             max_len_special_do: ec.4,
-            pin_2_format: ec.5 == 1, // FIXME: error if != 0|1
-            mse_command: ec.6 == 1,  // FIXME: error if != 0|1
+            pin_block_2_format_support: ec.5 == 1, // FIXME: error if != 0|1
+            mse_command_support: ec.6 == 1,        // FIXME: error if != 0|1
         })
     }
 }
@@ -99,12 +99,12 @@ mod test {
                     Features::AlgoAttrsChangeable,
                     Features::KdfDo
                 ]),
-                sm: 0x0,
+                sm_algo: 0x0,
                 max_len_challenge: 0xbfe,
                 max_len_cardholder_cert: 0x800,
                 max_len_special_do: 0xff,
-                pin_2_format: false,
-                mse_command: false,
+                pin_block_2_format_support: false,
+                mse_command_support: false,
             }
         );
     }
