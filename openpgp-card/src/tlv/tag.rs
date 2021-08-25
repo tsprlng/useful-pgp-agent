@@ -96,24 +96,26 @@ pub(super) fn tag(input: &[u8]) -> nom::IResult<&[u8], Tag> {
 
 #[cfg(test)]
 mod test {
+    use super::tag;
+
     #[test]
     fn test_tag() {
-        let (_, tag) = super::tag(&[0x0f]).unwrap();
-        assert_eq!(tag.0, &[0x0f]);
-        let (_, tag) = super::tag(&[0x0f, 0x4f]).unwrap();
-        assert_eq!(tag.0, &[0x0f]);
-        let (_, tag) = super::tag(&[0x4f]).unwrap();
-        assert_eq!(tag.0, &[0x4f]);
-        let (_, tag) = super::tag(&[0x5f, 0x1f]).unwrap();
-        assert_eq!(tag.0, &[0x5f, 0x1f]);
-        let (_, tag) = super::tag(&[0x5f, 0x2d]).unwrap();
-        assert_eq!(tag.0, &[0x5f, 0x2d]);
-        let (_, tag) = super::tag(&[0x5f, 0x35]).unwrap();
-        assert_eq!(tag.0, &[0x5f, 0x35]);
-        let (_, tag) = super::tag(&[0x5f, 0x35, 0x35]).unwrap();
-        assert_eq!(tag.0, &[0x5f, 0x35]);
-        let (_, tag) = super::tag(&[0x5f, 0x35, 0x2d]).unwrap();
-        assert_eq!(tag.0, &[0x5f, 0x35]);
-        assert!(super::tag(&[0x5f]).is_err());
+        let (_, t) = tag(&[0x0f]).unwrap();
+        assert_eq!(t.0, &[0x0f]);
+        let (_, t) = tag(&[0x0f, 0x4f]).unwrap();
+        assert_eq!(t.0, &[0x0f]);
+        let (_, t) = tag(&[0x4f]).unwrap();
+        assert_eq!(t.0, &[0x4f]);
+        let (_, t) = tag(&[0x5f, 0x1f]).unwrap();
+        assert_eq!(t.0, &[0x5f, 0x1f]);
+        let (_, t) = tag(&[0x5f, 0x2d]).unwrap();
+        assert_eq!(t.0, &[0x5f, 0x2d]);
+        let (_, t) = tag(&[0x5f, 0x35]).unwrap();
+        assert_eq!(t.0, &[0x5f, 0x35]);
+        let (_, t) = tag(&[0x5f, 0x35, 0x35]).unwrap();
+        assert_eq!(t.0, &[0x5f, 0x35]);
+        let (_, t) = tag(&[0x5f, 0x35, 0x2d]).unwrap();
+        assert_eq!(t.0, &[0x5f, 0x35]);
+        assert!(tag(&[0x5f]).is_err());
     }
 }
