@@ -195,7 +195,18 @@ impl CardApp {
         }
     }
 
-    // DO "Algorithm Information" (0xFA)
+    /// Get cardholder certificate (each for AUT, DEC and SIG).
+    ///
+    /// Call select_data() before calling this fn, to select a particular
+    /// certificate (if the card supports multiple certificates).
+    pub fn get_cardholder_certificate(
+        &mut self,
+    ) -> Result<Response, OpenpgpCardError> {
+        let cmd = commands::get_cardholder_certificate();
+        apdu::send_command(&mut self.card_client, cmd, true)?.try_into()
+    }
+
+    /// DO "Algorithm Information" (0xFA)
     pub fn list_supported_algo(&mut self) -> Result<Option<AlgoInfo>> {
         let resp = apdu::send_command(
             &mut self.card_client,
@@ -206,6 +217,22 @@ impl CardApp {
 
         let ai = AlgoInfo::try_from(resp.data()?)?;
         Ok(Some(ai))
+    }
+
+    pub fn select_data(
+        &mut self,
+        num: u8,
+        tag: &[u8],
+    ) -> Result<Response, OpenpgpCardError> {
+        let tlv = Tlv(
+            Tag(vec![0x60]),
+            TlvEntry::C(vec![Tlv(Tag(vec![0x5c]), TlvEntry::S(tag.to_vec()))]),
+        );
+
+        let data = tlv.serialize();
+
+        let cmd = commands::select_data(num, data);
+        apdu::send_command(&mut self.card_client, cmd, true)?.try_into()
     }
 
     // ----------
@@ -491,6 +518,18 @@ impl CardApp {
 
         let cmd = commands::put_pw_status(data);
         apdu::send_command(self.card(), cmd, false)?.try_into()
+    }
+
+    /// Set cardholder certificate (for AUT, DEC or SIG).
+    ///
+    /// Call select_data() before calling this fn, to select a particular
+    /// certificate (if the card supports multiple certificates).
+    pub fn set_cardholder_certificate(
+        &mut self,
+        data: Vec<u8>,
+    ) -> Result<Response, OpenpgpCardError> {
+        let cmd = commands::put_cardholder_certificate(data);
+        apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
     }
 
     /// Set algorithm attributes [4.4.3.9 Algorithm Attributes]

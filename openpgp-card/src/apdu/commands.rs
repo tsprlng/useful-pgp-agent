@@ -30,32 +30,37 @@ fn get_data(tag: &[u8]) -> Command {
     Command::new(0x00, 0xCA, p1, p2, vec![])
 }
 
-/// Get DO "Application related data"
+/// GET DO "Application related data"
 pub(crate) fn get_application_data() -> Command {
     get_data(&[0x6E])
 }
 
-/// Get DO "private use"
+/// GET DO "private use"
 pub(crate) fn get_private_do(num: u8) -> Command {
     get_data(&[0x01, num])
 }
 
-/// Get DO "Uniform resource locator"
+/// GET DO "Uniform resource locator"
 pub(crate) fn get_url() -> Command {
     get_data(&[0x5F, 0x50])
 }
 
-/// Get DO "Cardholder related data"
+/// GET DO "Cardholder related data"
 pub(crate) fn cardholder_related_data() -> Command {
     get_data(&[0x65])
 }
 
-/// Get DO "Security support template"
+/// GET DO "Security support template"
 pub(crate) fn get_security_support_template() -> Command {
     get_data(&[0x7A])
 }
 
-/// Get DO "List of supported Algorithm attributes"
+/// GET DO "Cardholder certificate"
+pub(crate) fn get_cardholder_certificate() -> Command {
+    get_data(&[0x7F, 0x21])
+}
+
+/// GET DO "List of supported Algorithm attributes"
 pub(crate) fn get_algo_list() -> Command {
     get_data(&[0xFA])
 }
@@ -63,6 +68,11 @@ pub(crate) fn get_algo_list() -> Command {
 /// GET RESPONSE
 pub(crate) fn get_response() -> Command {
     Command::new(0x00, 0xC0, 0x00, 0x00, vec![])
+}
+
+/// SELECT DATA
+pub(crate) fn select_data(num: u8, data: Vec<u8>) -> Command {
+    Command::new(0x00, 0xA5, num, 0x04, data)
 }
 
 /// VERIFY pin for PW1 (81)
@@ -103,7 +113,7 @@ pub(crate) fn put_data(tag: &[u8], data: Vec<u8>) -> Command {
     Command::new(0x00, 0xda, p1, p2, data)
 }
 
-/// Put DO "private use"
+/// PUT DO "private use"
 pub(crate) fn put_private_do(num: u8, data: Vec<u8>) -> Command {
     put_data(&[0x01, num], data)
 }
@@ -131,6 +141,11 @@ pub(crate) fn put_url(url: Vec<u8>) -> Command {
 /// PUT DO "PW status bytes"
 pub(crate) fn put_pw_status(data: Vec<u8>) -> Command {
     put_data(&[0xc4], data)
+}
+
+/// PUT DO "Cardholder certificate"
+pub(crate) fn put_cardholder_certificate(data: Vec<u8>) -> Command {
+    put_data(&[0x7F, 0x21], data)
 }
 
 /// Change PW1 (user pin).
