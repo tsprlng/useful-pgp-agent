@@ -121,26 +121,27 @@ impl CardApp {
         Ok(resp.data()?.to_vec())
     }
 
-    pub fn get_ca_fingerprints() {
+    fn get_ca_fingerprints() {
         unimplemented!()
     }
 
-    pub fn get_key_information() {
+    fn get_key_information() {
         unimplemented!()
     }
 
-    pub fn get_uif_pso_cds() {
+    fn get_uif_pso_cds() {
         unimplemented!()
     }
 
-    pub fn get_uif_pso_dec() {
+    fn get_uif_pso_dec() {
         unimplemented!()
     }
 
-    pub fn get_uif_pso_aut() {
+    fn get_uif_pso_aut() {
         unimplemented!()
     }
-    pub fn get_uif_attestation() {
+
+    fn get_uif_attestation() {
         unimplemented!()
     }
 
