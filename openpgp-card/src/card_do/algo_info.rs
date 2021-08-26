@@ -128,60 +128,18 @@ mod test {
         assert_eq!(
             ai,
             AlgoInfo(vec![
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
+                (Signing, Rsa(RsaAttrs::new(2048, 32, 0))),
+                (Signing, Rsa(RsaAttrs::new(4096, 32, 0))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
                 (Signing, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
+                (Decryption, Rsa(RsaAttrs::new(2048, 32, 0))),
+                (Decryption, Rsa(RsaAttrs::new(4096, 32, 0))),
                 (Decryption, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, Cv25519, None))),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
+                (Authentication, Rsa(RsaAttrs::new(2048, 32, 0))),
+                (Authentication, Rsa(RsaAttrs::new(4096, 32, 0))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, Secp256k1, None))),
                 (Authentication, Ecc(EccAttrs::new(EdDSA, Ed25519, None)))
@@ -222,90 +180,27 @@ mod test {
         assert_eq!(
             ai,
             AlgoInfo(vec![
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 3072,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
+                (Signing, Rsa(RsaAttrs::new(2048, 32, 0))),
+                (Signing, Rsa(RsaAttrs::new(3072, 32, 0))),
+                (Signing, Rsa(RsaAttrs::new(4096, 32, 0))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP256r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP384r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP512r1, None))),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 3072,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
+                (Decryption, Rsa(RsaAttrs::new(2048, 32, 0))),
+                (Decryption, Rsa(RsaAttrs::new(3072, 32, 0))),
+                (Decryption, Rsa(RsaAttrs::new(4096, 32, 0))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, NistP256r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, NistP384r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, NistP521r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP256r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP384r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP512r1, None))),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 3072,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 32,
-                        import_format: 0
-                    })
-                ),
+                (Authentication, Rsa(RsaAttrs::new(2048, 32, 0))),
+                (Authentication, Rsa(RsaAttrs::new(3072, 32, 0))),
+                (Authentication, Rsa(RsaAttrs::new(4096, 32, 0))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
@@ -376,30 +271,9 @@ mod test {
         assert_eq!(
             ai,
             AlgoInfo(vec![
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 3072,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Signing,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
+                (Signing, Rsa(RsaAttrs::new(2048, 17, 0))),
+                (Signing, Rsa(RsaAttrs::new(3072, 17, 0))),
+                (Signing, Rsa(RsaAttrs::new(4096, 17, 0))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
@@ -409,30 +283,9 @@ mod test {
                 (Signing, Ecc(EccAttrs::new(ECDSA, BrainpoolP512r1, None))),
                 (Signing, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
                 (Signing, Ecc(EccAttrs::new(EdDSA, Cv25519, None))),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 3072,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Decryption,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
+                (Decryption, Rsa(RsaAttrs::new(2048, 17, 0))),
+                (Decryption, Rsa(RsaAttrs::new(3072, 17, 0))),
+                (Decryption, Rsa(RsaAttrs::new(4096, 17, 0))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, NistP256r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, NistP384r1, None))),
                 (Decryption, Ecc(EccAttrs::new(ECDH, NistP521r1, None))),
@@ -442,30 +295,9 @@ mod test {
                 (Decryption, Ecc(EccAttrs::new(ECDH, BrainpoolP512r1, None))),
                 (Decryption, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
                 (Decryption, Ecc(EccAttrs::new(EdDSA, Cv25519, None))),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 3072,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Authentication,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
+                (Authentication, Rsa(RsaAttrs::new(2048, 17, 0))),
+                (Authentication, Rsa(RsaAttrs::new(3072, 17, 0))),
+                (Authentication, Rsa(RsaAttrs::new(4096, 17, 0))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
                 (Authentication, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
@@ -484,30 +316,9 @@ mod test {
                 ),
                 (Authentication, Ecc(EccAttrs::new(EdDSA, Ed25519, None))),
                 (Authentication, Ecc(EccAttrs::new(EdDSA, Cv25519, None))),
-                (
-                    Attestation,
-                    Rsa(RsaAttrs {
-                        len_n: 2048,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Attestation,
-                    Rsa(RsaAttrs {
-                        len_n: 3072,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
-                (
-                    Attestation,
-                    Rsa(RsaAttrs {
-                        len_n: 4096,
-                        len_e: 17,
-                        import_format: 0
-                    })
-                ),
+                (Attestation, Rsa(RsaAttrs::new(2048, 17, 0))),
+                (Attestation, Rsa(RsaAttrs::new(3072, 17, 0))),
+                (Attestation, Rsa(RsaAttrs::new(4096, 17, 0))),
                 (Attestation, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
                 (Attestation, Ecc(EccAttrs::new(ECDSA, NistP384r1, None))),
                 (Attestation, Ecc(EccAttrs::new(ECDSA, NistP521r1, None))),
