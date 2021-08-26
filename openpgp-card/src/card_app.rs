@@ -98,8 +98,8 @@ impl CardApp {
 
     /// Load "application related data".
     ///
-    /// This data should probably cached in a higher layer, some parts of
-    /// it are needed regularly, and it will not usually change, during
+    /// This data should probably be cached in a higher layer. Some parts of
+    /// it are needed regularly, and it will not usually change during
     /// normal use of a card.
     pub fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
         let ad = commands::get_application_data();
