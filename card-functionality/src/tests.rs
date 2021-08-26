@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{Error, Result};
+use std::convert::TryInto;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use thiserror::Error;
@@ -345,9 +346,12 @@ pub fn test_set_user_data(
     // read all the fields back again, expect equal data
     let ch = ca.get_cardholder_related_data()?;
 
-    assert_eq!(ch.name, Some("Bar<<Foo".to_string()));
-    assert_eq!(ch.lang, Some(vec![['d', 'e'], ['e', 'n']]));
-    assert_eq!(ch.sex, Some(Sex::Female));
+    assert_eq!(ch.name(), Some("Bar<<Foo"));
+    assert_eq!(
+        ch.lang().expect("Language setting is None"),
+        &[['d', 'e'], ['e', 'n']]
+    );
+    assert_eq!(ch.sex(), Some(Sex::Female));
 
     let url = ca.get_url()?;
     assert_eq!(url, "https://duckduckgo.com/".to_string());
@@ -518,7 +522,7 @@ pub fn test_verify(
     ca.set_name("Admin<<Hello")?;
 
     let cardholder = ca.get_cardholder_related_data()?;
-    assert_eq!(cardholder.name, Some("Admin<<Hello".to_string()));
+    assert_eq!(cardholder.name(), Some("Admin<<Hello"));
 
     ca.verify_pw1("123456")?;
 
@@ -536,7 +540,7 @@ pub fn test_verify(
     ca.set_name("There<<Hello")?;
 
     let cardholder = ca.get_cardholder_related_data()?;
-    assert_eq!(cardholder.name, Some("There<<Hello".to_string()));
+    assert_eq!(cardholder.name(), Some("There<<Hello"));
 
     Ok(out)
 }

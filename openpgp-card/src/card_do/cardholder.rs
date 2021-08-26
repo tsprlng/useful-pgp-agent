@@ -9,6 +9,20 @@ use crate::card_do::{Cardholder, Sex};
 use crate::tlv::tag::Tag;
 use crate::tlv::{Tlv, TlvEntry};
 
+impl Cardholder {
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    pub fn lang(&self) -> Option<&[[char; 2]]> {
+        self.lang.as_deref()
+    }
+
+    pub fn sex(&self) -> Option<Sex> {
+        self.sex
+    }
+}
+
 impl TryFrom<&[u8]> for Cardholder {
     type Error = anyhow::Error;
 

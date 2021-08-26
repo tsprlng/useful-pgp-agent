@@ -38,12 +38,20 @@ impl TryFrom<&[u8]> for ApplicationId {
 }
 
 impl ApplicationId {
-    pub fn serial(&self) -> u32 {
-        self.serial
+    pub fn application(&self) -> u8 {
+        self.application
+    }
+
+    pub fn version(&self) -> u16 {
+        self.version
     }
 
     pub fn manufacturer(&self) -> u16 {
         self.manufacturer
+    }
+
+    pub fn serial(&self) -> u32 {
+        self.serial
     }
 
     /// This ident is constructed as the concatenation of manufacturer

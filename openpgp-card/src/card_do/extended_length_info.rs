@@ -19,6 +19,14 @@ fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
 }
 
 impl ExtendedLengthInfo {
+    pub fn max_command_bytes(&self) -> u16 {
+        self.max_command_bytes
+    }
+
+    pub fn max_response_bytes(&self) -> u16 {
+        self.max_response_bytes
+    }
+
     pub fn from(input: &[u8]) -> Result<Self> {
         let eli = complete(parse(input))?;
 

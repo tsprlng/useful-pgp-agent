@@ -108,17 +108,44 @@ pub enum PublicKeyMaterial {
 #[derive(Debug)]
 pub struct RSAPub {
     /// Modulus (a number denoted as n coded on x bytes)
-    pub n: Vec<u8>,
+    n: Vec<u8>,
 
     /// Public exponent (a number denoted as v, e.g. 65537 dec.)
-    pub v: Vec<u8>,
+    v: Vec<u8>,
+}
+
+impl RSAPub {
+    pub fn new(n: Vec<u8>, v: Vec<u8>) -> Self {
+        Self { n, v }
+    }
+
+    pub fn n(&self) -> &[u8] {
+        &self.n
+    }
+
+    pub fn v(&self) -> &[u8] {
+        &self.v
+    }
 }
 
 /// ECC-specific container for public key material from an OpenPGP card.
 #[derive(Debug)]
 pub struct EccPub {
-    pub data: Vec<u8>,
-    pub algo: Algo,
+    data: Vec<u8>,
+    algo: Algo,
+}
+
+impl EccPub {
+    pub fn new(data: Vec<u8>, algo: Algo) -> Self {
+        Self { data, algo }
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+    pub fn algo(&self) -> &Algo {
+        &self.algo
+    }
 }
 
 /// A marker to distinguish between elliptic curve algorithms (ECDH, ECDSA,

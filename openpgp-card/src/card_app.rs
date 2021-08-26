@@ -64,7 +64,7 @@ impl CardApp {
 
         let (max_cmd_bytes, max_rsp_bytes) =
             if let Ok(Some(eli)) = ard.get_extended_length_information() {
-                (eli.max_command_bytes, eli.max_response_bytes)
+                (eli.max_command_bytes(), eli.max_response_bytes())
             } else {
                 (255, 255)
             };
@@ -548,7 +548,7 @@ impl CardApp {
 
         let data = match algo {
             Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa)?,
-            Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type),
+            Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
             _ => unimplemented!(),
         };
 
@@ -563,21 +563,21 @@ impl CardApp {
         let mut algo_attributes = vec![0x01];
 
         // Length of modulus n in bit
-        algo_attributes.extend(&algo_attrs.len_n.to_be_bytes());
+        algo_attributes.extend(&algo_attrs.len_n().to_be_bytes());
 
         // Length of public exponent e in bit
         algo_attributes.push(0x00);
-        algo_attributes.push(algo_attrs.len_e as u8);
+        algo_attributes.push(algo_attrs.len_e() as u8);
 
         // Import-Format of private key
         // (This fn currently assumes import_format "00 = standard (e, p, q)")
-        if algo_attrs.import_format != 0 {
+        if algo_attrs.import_format() != 0 {
             return Err(anyhow!(
                 "Unexpected RSA input format (only 0 is supported)"
             ));
         }
 
-        algo_attributes.push(algo_attrs.import_format);
+        algo_attributes.push(algo_attrs.import_format());
 
         Ok(algo_attributes)
     }
@@ -641,7 +641,7 @@ impl CardApp {
         key_type: KeyType,
         algo: AlgoSimple,
     ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
-        let algo = algo.to_algo(key_type);
+        let algo = algo.get_algo(key_type);
         self.generate_key(fp_from_pub, key_type, Some(&algo))
     }
 

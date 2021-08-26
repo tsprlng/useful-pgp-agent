@@ -86,14 +86,7 @@ fn parse_rsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, len_e) = number::be_u16(input)?;
     let (input, import_format) = number::u8(input)?;
 
-    Ok((
-        input,
-        Algo::Rsa(RsaAttrs {
-            len_n,
-            len_e,
-            import_format,
-        }),
-    ))
+    Ok((input, Algo::Rsa(RsaAttrs::new(len_n, len_e, import_format))))
 }
 
 fn parse_import_format(input: &[u8]) -> nom::IResult<&[u8], Option<u8>> {

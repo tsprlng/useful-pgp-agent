@@ -75,21 +75,15 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
 
     match (n, v, ec) {
         (Some(n), Some(v), None) => {
-            let rsa = RSAPub {
-                n: n.serialize(),
-                v: v.serialize(),
-            };
-
+            let rsa = RSAPub::new(n.serialize(), v.serialize());
             Ok(PublicKeyMaterial::R(rsa))
         }
         (None, None, Some(ec)) => {
             let data = ec.serialize();
             log::trace!("EC --- len {}, data {:x?}", data.len(), data);
 
-            Ok(PublicKeyMaterial::E(EccPub {
-                data,
-                algo: algo.clone(),
-            }))
+            let ecc = EccPub::new(data, algo.clone());
+            Ok(PublicKeyMaterial::E(ecc))
         }
 
         (_, _, _) => {
@@ -168,10 +162,8 @@ pub(crate) fn upload_key(
 
                 let algo = ard.get_algorithm_attributes(key_type)?;
 
-                if let Algo::Rsa(mut rsa) = algo {
-                    rsa.len_n = rsa_bits;
-
-                    rsa
+                if let Algo::Rsa(rsa) = algo {
+                    RsaAttrs::new(rsa_bits, rsa.len_e(), rsa.import_format())
                 } else {
                     // We don't expect a card to support non-RSA algos when
                     // it can't provide an algorithm list.
@@ -195,11 +187,11 @@ pub(crate) fn upload_key(
             //     // Error
             // }
 
-            let algo = Algo::Ecc(EccAttrs {
-                ecc_type: ecc_key.get_type(),
-                curve: Curve::try_from(ecc_key.get_oid())?,
-                import_format: None,
-            });
+            let algo = Algo::Ecc(EccAttrs::new(
+                ecc_key.get_type(),
+                Curve::try_from(ecc_key.get_oid())?,
+                None,
+            ));
 
             let key_cmd = ecc_key_cmd(ecc_key, key_type)?;
 
@@ -239,8 +231,10 @@ fn get_card_algo_rsa(
         .collect();
 
     // Filter card algorithms by rsa bitlength of the key we want to upload
-    let algo: Vec<_> =
-        rsa_algos.iter().filter(|&a| a.len_n == rsa_bits).collect();
+    let algo: Vec<_> = rsa_algos
+        .iter()
+        .filter(|&a| a.len_n() == rsa_bits)
+        .collect();
 
     // FIXME: handle error if no algo found
     let algo = *algo[0];
@@ -375,7 +369,7 @@ fn rsa_key_cmd(
     let mut value = vec![];
 
     // Length of e in bytes, rounding up from the bit value in algo.
-    let len_e_bytes = ((algo_attrs.len_e + 7) / 8) as u8;
+    let len_e_bytes = ((algo_attrs.len_e() + 7) / 8) as u8;
 
     value.push(0x91);
     // len_e in bytes has a value of 3-4, it doesn't need TLV encoding
@@ -383,8 +377,8 @@ fn rsa_key_cmd(
 
     // len_p and len_q are len_n/2 (value from card algorithm list).
     // transform unit from bits to bytes.
-    let len_p_bytes: u16 = algo_attrs.len_n / 2 / 8;
-    let len_q_bytes: u16 = algo_attrs.len_n / 2 / 8;
+    let len_p_bytes: u16 = algo_attrs.len_n() / 2 / 8;
+    let len_q_bytes: u16 = algo_attrs.len_n() / 2 / 8;
 
     value.push(0x92);
     // len p in bytes, TLV-encoded

@@ -57,7 +57,7 @@ impl From<&str> for AlgoSimple {
 }
 
 impl AlgoSimple {
-    pub(crate) fn to_algo(&self, kt: KeyType) -> Algo {
+    pub(crate) fn get_algo(&self, kt: KeyType) -> Algo {
         let et = match kt {
             KeyType::Signing | KeyType::Authentication => EccType::ECDSA,
             KeyType::Decryption => EccType::ECDH,
@@ -165,17 +165,39 @@ impl fmt::Display for Algo {
 /// RSA specific attributes of [`Algo`] ("Algorithm Attributes")
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RsaAttrs {
-    pub len_n: u16,
-    pub len_e: u16,
-    pub import_format: u8,
+    len_n: u16,
+    len_e: u16,
+    import_format: u8,
+}
+
+impl RsaAttrs {
+    pub fn new(len_n: u16, len_e: u16, import_format: u8) -> Self {
+        RsaAttrs {
+            len_n,
+            len_e,
+            import_format,
+        }
+    }
+
+    pub fn len_n(&self) -> u16 {
+        self.len_n
+    }
+
+    pub fn len_e(&self) -> u16 {
+        self.len_e
+    }
+
+    pub fn import_format(&self) -> u8 {
+        self.import_format
+    }
 }
 
 /// ECC specific attributes of [`Algo`] ("Algorithm Attributes")
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct EccAttrs {
-    pub ecc_type: EccType,
-    pub curve: Curve,
-    pub import_format: Option<u8>,
+    ecc_type: EccType,
+    curve: Curve,
+    import_format: Option<u8>,
 }
 
 impl EccAttrs {
@@ -189,6 +211,14 @@ impl EccAttrs {
             curve,
             import_format,
         }
+    }
+
+    pub fn ecc_type(&self) -> EccType {
+        self.ecc_type
+    }
+
+    pub fn curve(&self) -> Curve {
+        self.curve
     }
 
     pub fn oid(&self) -> &[u8] {

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! This library supports using openpgp-card functionality with
-//! sequoia_openpgp data structures.
+//! This is a higher-level wrapper around the openpgp-card crate.
+//! It uses sequoia_openpgp for OpenPGP operations.
 
 use anyhow::{anyhow, Context, Result};
 use std::convert::TryFrom;
@@ -96,14 +96,14 @@ pub fn public_key_material_to_key(
 ) -> Result<Key<PublicParts, UnspecifiedRole>> {
     match pkm {
         PublicKeyMaterial::R(rsa) => {
-            let k4 = Key4::import_public_rsa(&rsa.v, &rsa.n, Some(time))?;
+            let k4 = Key4::import_public_rsa(rsa.v(), rsa.n(), Some(time))?;
 
             Ok(k4.into())
         }
         PublicKeyMaterial::E(ecc) => {
-            let algo = ecc.algo.clone(); // FIXME?
+            let algo = ecc.algo().clone(); // FIXME?
             if let Algo::Ecc(algo_ecc) = algo {
-                let curve = match algo_ecc.curve {
+                let curve = match algo_ecc.curve() {
                     Curve::NistP256r1 => openpgp::types::Curve::NistP256,
                     Curve::NistP384r1 => openpgp::types::Curve::NistP384,
                     Curve::NistP521r1 => openpgp::types::Curve::NistP521,
@@ -114,10 +114,10 @@ pub fn public_key_material_to_key(
 
                 match key_type {
                     KeyType::Authentication | KeyType::Signing => {
-                        if algo_ecc.curve == Curve::Ed25519 {
+                        if algo_ecc.curve() == Curve::Ed25519 {
                             // EdDSA
                             let k4 =
-                                Key4::import_public_ed25519(&ecc.data, time)?;
+                                Key4::import_public_ed25519(ecc.data(), time)?;
 
                             Ok(Key::from(k4))
                         } else {
@@ -127,7 +127,7 @@ pub fn public_key_material_to_key(
                                 PublicKeyAlgorithm::ECDSA,
                                 mpi::PublicKey::ECDSA {
                                     curve,
-                                    q: mpi::MPI::new(&ecc.data),
+                                    q: mpi::MPI::new(ecc.data()),
                                 },
                             )?;
 
@@ -135,10 +135,13 @@ pub fn public_key_material_to_key(
                         }
                     }
                     KeyType::Decryption => {
-                        if algo_ecc.curve == Curve::Cv25519 {
+                        if algo_ecc.curve() == Curve::Cv25519 {
                             // EdDSA
                             let k4 = Key4::import_public_cv25519(
-                                &ecc.data, None, None, time,
+                                ecc.data(),
+                                None,
+                                None,
+                                time,
                             )?;
 
                             Ok(k4.into())
@@ -152,7 +155,7 @@ pub fn public_key_material_to_key(
                                 PublicKeyAlgorithm::ECDH,
                                 mpi::PublicKey::ECDH {
                                     curve,
-                                    q: mpi::MPI::new(&ecc.data),
+                                    q: mpi::MPI::new(ecc.data()),
                                     hash: Default::default(),
                                     sym: Default::default(),
                                 },
@@ -249,7 +252,8 @@ pub fn make_cert(
     let cardholder = ca.get_cardholder_related_data()?;
 
     // FIXME: process name field? accept email as argument?!
-    let uid: UserID = cardholder.name.expect("expecting name on card").into();
+    let uid: UserID =
+        cardholder.name().expect("expecting name on card").into();
 
     pp.push(uid.clone().into());
 
@@ -690,7 +694,7 @@ impl CardBase {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
         let ec = self.get_extended_capabilities()?;
-        if !ec.features.contains(&Features::AlgoAttrsChangeable) {
+        if !ec.features().contains(&Features::AlgoAttrsChangeable) {
             // Algorithm attributes can not be changed,
             // list_supported_algo is not supported
             return Ok(None);
@@ -896,7 +900,7 @@ impl CardAdmin {
         // Check for max len
         let ec = self.get_extended_capabilities()?;
 
-        if url.len() < ec.max_len_special_do as usize {
+        if url.len() < ec.max_len_special_do() as usize {
             self.card_app.set_url(url)
         } else {
             Err(anyhow!("URL too long").into())

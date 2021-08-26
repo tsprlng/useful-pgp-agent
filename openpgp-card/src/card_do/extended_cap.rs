@@ -57,6 +57,16 @@ fn parse(
     )))(input)
 }
 
+impl ExtendedCap {
+    pub fn features(&self) -> HashSet<Features> {
+        self.features.clone()
+    }
+
+    pub fn max_len_special_do(&self) -> u16 {
+        self.max_len_special_do
+    }
+}
+
 impl TryFrom<&[u8]> for ExtendedCap {
     type Error = OpenpgpCardError;
 

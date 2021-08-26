@@ -153,7 +153,7 @@ impl ApplicationRelatedData {
     /// Generation dates/times of key pairs
     pub fn get_key_generation_times(
         &self,
-    ) -> Result<KeySet<KeyGeneration>, OpenpgpCardError> {
+    ) -> Result<KeySet<KeyGenerationTime>, OpenpgpCardError> {
         let kg = self.0.find(&Tag::from([0xCD]));
 
         if let Some(kg) = kg {
@@ -183,9 +183,9 @@ impl SecuritySupportTemplate {
 
 /// An OpenPGP key generation Time
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct KeyGeneration(u32);
+pub struct KeyGenerationTime(u32);
 
-impl KeyGeneration {
+impl KeyGenerationTime {
     pub fn get(&self) -> u32 {
         self.0
     }
@@ -194,19 +194,10 @@ impl KeyGeneration {
 /// Application identifier (AID)
 #[derive(Debug, Eq, PartialEq)]
 pub struct ApplicationId {
-    pub application: u8,
-
-    // GnuPG says:
-    // if (app->appversion >= 0x0200)
-    // app->app_local->extcap.is_v2 = 1;
-    //
-    // if (app->appversion >= 0x0300)
-    // app->app_local->extcap.is_v3 = 1;
-    pub version: u16,
-
-    pub manufacturer: u16,
-
-    pub serial: u32,
+    application: u8,
+    version: u16,
+    manufacturer: u16,
+    serial: u32,
 }
 
 /// Card Capabilities (73)
@@ -247,11 +238,11 @@ pub struct Historical {
 /// Extended Capabilities
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedCap {
-    pub features: HashSet<Features>,
+    features: HashSet<Features>,
     sm_algo: u8,
     max_len_challenge: u16,
     max_len_cardholder_cert: u16,
-    pub max_len_special_do: u16,
+    max_len_special_do: u16,
     pin_block_2_format_support: bool,
     mse_command_support: bool,
 }
@@ -272,20 +263,20 @@ pub enum Features {
 /// Extended length information
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedLengthInfo {
-    pub max_command_bytes: u16,
-    pub max_response_bytes: u16,
+    max_command_bytes: u16,
+    max_response_bytes: u16,
 }
 
 /// Cardholder Related Data
 #[derive(Debug)]
 pub struct Cardholder {
-    pub name: Option<String>,
-    pub lang: Option<Vec<[char; 2]>>,
-    pub sex: Option<Sex>,
+    name: Option<String>,
+    lang: Option<Vec<[char; 2]>>,
+    sex: Option<Sex>,
 }
 
 /// Sex (according to ISO 5218)
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Sex {
     NotKnown,
     Male,
