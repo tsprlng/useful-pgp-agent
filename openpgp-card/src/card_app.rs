@@ -4,15 +4,14 @@
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::time::SystemTime;
 
 use anyhow::{anyhow, Result};
 
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
 use crate::card_do::{
-    ApplicationRelatedData, Cardholder, Fingerprint, PWStatus,
-    SecuritySupportTemplate, Sex,
+    ApplicationRelatedData, Cardholder, Fingerprint, KeyGenerationTime,
+    PWStatus, SecuritySupportTemplate, Sex,
 };
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
@@ -473,11 +472,12 @@ impl CardApp {
 
     pub fn set_creation_time(
         &mut self,
-        time: u32,
+        time: KeyGenerationTime,
         key_type: KeyType,
     ) -> Result<Response, OpenpgpCardError> {
         // Timestamp update
         let time_value: Vec<u8> = time
+            .get()
             .to_be_bytes()
             .iter()
             .skip_while(|&&e| e == 0)
@@ -625,12 +625,12 @@ impl CardApp {
         &mut self,
         fp_from_pub: fn(
             &PublicKeyMaterial,
-            SystemTime,
+            KeyGenerationTime,
             KeyType,
         ) -> Result<Fingerprint, OpenpgpCardError>,
         key_type: KeyType,
         algo: Option<&Algo>,
-    ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
+    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), OpenpgpCardError> {
         keys::gen_key_with_metadata(self, fp_from_pub, key_type, algo)
     }
 
@@ -640,12 +640,12 @@ impl CardApp {
         &mut self,
         fp_from_pub: fn(
             &PublicKeyMaterial,
-            SystemTime,
+            KeyGenerationTime,
             KeyType,
         ) -> Result<Fingerprint, OpenpgpCardError>,
         key_type: KeyType,
         algo: AlgoSimple,
-    ) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
+    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), OpenpgpCardError> {
         let algo = algo.get_algo(key_type);
         self.generate_key(fp_from_pub, key_type, Some(&algo))
     }

@@ -11,7 +11,7 @@ use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
-use crate::card_do::Fingerprint;
+use crate::card_do::{Fingerprint, KeyGenerationTime};
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
     RSAKey, RSAPub,
@@ -26,12 +26,12 @@ pub(crate) fn gen_key_with_metadata(
     card_app: &mut CardApp,
     fp_from_pub: fn(
         &PublicKeyMaterial,
-        SystemTime,
+        KeyGenerationTime,
         KeyType,
     ) -> Result<Fingerprint, OpenpgpCardError>,
     key_type: KeyType,
     algo: Option<&Algo>,
-) -> Result<(PublicKeyMaterial, u32), OpenpgpCardError> {
+) -> Result<(PublicKeyMaterial, KeyGenerationTime), OpenpgpCardError> {
     // set algo on card if it's Some
     if let Some(algo) = algo {
         card_app.set_algorithm_attributes(key_type, algo)?;
@@ -58,10 +58,12 @@ pub(crate) fn gen_key_with_metadata(
         .map_err(|e| OpenpgpCardError::InternalError(anyhow!(e)))?
         .as_secs() as u32;
 
+    let ts = ts.into();
+
     card_app.set_creation_time(ts, key_type)?;
 
     // calculate/store fingerprint
-    let fp = fp_from_pub(&pubkey, time, key_type)?;
+    let fp = fp_from_pub(&pubkey, ts, key_type)?;
     card_app.set_fingerprint(fp, key_type)?;
 
     Ok((pubkey, ts))
@@ -421,7 +423,7 @@ fn rsa_key_cmd(
 fn copy_key_to_card(
     card_app: &mut CardApp,
     key_type: KeyType,
-    ts: u32,
+    ts: KeyGenerationTime,
     fp: Fingerprint,
     algo: &Algo,
     key_cmd: Command,

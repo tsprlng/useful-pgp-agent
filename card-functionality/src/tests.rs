@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{Error, Result};
-use std::convert::TryInto;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::serialize::SerializeInto;
-use sequoia_openpgp::types::Timestamp;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::card_do::Sex;
+use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
 use openpgp_card::{CardApp, KeyType};
 use openpgp_card_sequoia::{
@@ -96,7 +94,7 @@ pub fn test_sign(
 
 fn check_key_upload_metadata(
     ca: &mut CardApp,
-    meta: &[(String, u32)],
+    meta: &[(String, KeyGenerationTime)],
 ) -> Result<()> {
     let ard = ca.get_app_data()?;
 
@@ -117,21 +115,16 @@ fn check_key_upload_metadata(
     // get_key_generation_times
     let card_kg = ard.get_key_generation_times()?;
 
-    let sig: u32 =
-        card_kg.signature().expect("signature creation time").into();
-    assert_eq!(sig, meta[0].1);
+    let sig = card_kg.signature().expect("signature creation time");
+    assert_eq!(sig, &meta[0].1);
 
-    let dec: u32 = card_kg
-        .decryption()
-        .expect("decryption creation time")
-        .into();
-    assert_eq!(dec, meta[1].1);
+    let dec = card_kg.decryption().expect("decryption creation time");
+    assert_eq!(dec, &meta[1].1);
 
-    let auth: u32 = card_kg
+    let auth = card_kg
         .authentication()
-        .expect("authentication creation time")
-        .into();
-    assert_eq!(auth, meta[2].1);
+        .expect("authentication creation time");
+    assert_eq!(auth, &meta[2].1);
 
     Ok(())
 }
@@ -220,11 +213,7 @@ pub fn test_keygen(
     println!(" Generate subkey for Signing");
     let (pkm, ts) =
         ca.generate_key_simple(public_to_fingerprint, KeyType::Signing, alg)?;
-    let key_sig = public_key_material_to_key(
-        &pkm,
-        KeyType::Signing,
-        Timestamp::from(ts).into(),
-    )?;
+    let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
 
     println!(" Generate subkey for Decryption");
     let (pkm, ts) = ca.generate_key_simple(
@@ -232,11 +221,7 @@ pub fn test_keygen(
         KeyType::Decryption,
         alg,
     )?;
-    let key_dec = public_key_material_to_key(
-        &pkm,
-        KeyType::Decryption,
-        Timestamp::from(ts).into(),
-    )?;
+    let key_dec = public_key_material_to_key(&pkm, KeyType::Decryption, ts)?;
 
     println!(" Generate subkey for Authentication");
     let (pkm, ts) = ca.generate_key_simple(
@@ -244,11 +229,8 @@ pub fn test_keygen(
         KeyType::Authentication,
         alg,
     )?;
-    let key_aut = public_key_material_to_key(
-        &pkm,
-        KeyType::Authentication,
-        Timestamp::from(ts).into(),
-    )?;
+    let key_aut =
+        public_key_material_to_key(&pkm, KeyType::Authentication, ts)?;
 
     // Generate a Cert for this set of generated keys
 
@@ -271,7 +253,7 @@ pub fn test_get_pub(
     // --
 
     let sig = ca.get_pub_key(KeyType::Signing)?;
-    let ts = Timestamp::from(key_gen.signature().unwrap().get()).into();
+    let ts = key_gen.signature().unwrap().get().into();
     let key = openpgp_card_sequoia::public_key_material_to_key(
         &sig,
         KeyType::Signing,
@@ -283,7 +265,7 @@ pub fn test_get_pub(
     // --
 
     let dec = ca.get_pub_key(KeyType::Decryption)?;
-    let ts = Timestamp::from(key_gen.decryption().unwrap().get()).into();
+    let ts = key_gen.decryption().unwrap().get().into();
     let key = openpgp_card_sequoia::public_key_material_to_key(
         &dec,
         KeyType::Decryption,
@@ -295,7 +277,7 @@ pub fn test_get_pub(
     // --
 
     let auth = ca.get_pub_key(KeyType::Authentication)?;
-    let ts = Timestamp::from(key_gen.authentication().unwrap().get()).into();
+    let ts = key_gen.authentication().unwrap().get().into();
     let key = openpgp_card_sequoia::public_key_material_to_key(
         &auth,
         KeyType::Authentication,

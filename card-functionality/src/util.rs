@@ -18,6 +18,7 @@ use sequoia_openpgp::serialize::stream::{
 };
 use sequoia_openpgp::Cert;
 
+use openpgp_card::card_do::KeyGenerationTime;
 use openpgp_card::{CardApp, KeyType};
 use openpgp_card_sequoia::vka_as_uploadable_key;
 
@@ -26,7 +27,7 @@ pub const SP: &StandardPolicy = &StandardPolicy::new();
 pub(crate) fn upload_subkeys(
     ca: &mut CardApp,
     cert: &Cert,
-) -> Result<Vec<(String, u32)>> {
+) -> Result<Vec<(String, KeyGenerationTime)>> {
     let mut out = vec![];
 
     for kt in [
@@ -45,7 +46,7 @@ pub(crate) fn upload_subkeys(
             .unwrap()
             .as_secs() as u32;
 
-        out.push((fp, creation));
+        out.push((fp, creation.into()));
 
         // upload key
         let cuk = vka_as_uploadable_key(vka, None);

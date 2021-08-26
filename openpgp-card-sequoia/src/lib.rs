@@ -34,8 +34,8 @@ use sequoia_openpgp as openpgp;
 use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
 use openpgp_card::card_do::{
     ApplicationId, ApplicationRelatedData, Cardholder, ExtendedCap,
-    ExtendedLengthInfo, Features, Fingerprint, Historical, KeySet, PWStatus,
-    SecuritySupportTemplate, Sex,
+    ExtendedLengthInfo, Features, Fingerprint, Historical, KeyGenerationTime,
+    KeySet, PWStatus, SecuritySupportTemplate, Sex,
 };
 use openpgp_card::crypto_data::{
     CardUploadableKey, Cryptogram, EccKey, EccType, Hash, PrivateKeyMaterial,
@@ -92,8 +92,10 @@ pub fn vka_as_uploadable_key(
 pub fn public_key_material_to_key(
     pkm: &PublicKeyMaterial,
     key_type: KeyType,
-    time: SystemTime,
+    time: KeyGenerationTime,
 ) -> Result<Key<PublicParts, UnspecifiedRole>> {
+    let time = Timestamp::from(time.get()).into();
+
     match pkm {
         PublicKeyMaterial::R(rsa) => {
             let k4 = Key4::import_public_rsa(rsa.v(), rsa.n(), Some(time))?;
@@ -362,9 +364,11 @@ impl CardUploadableKey for SequoiaKey {
 
     /// Number of non-leap seconds since January 1, 1970 0:00:00 UTC
     /// (aka "UNIX timestamp")
-    fn get_ts(&self) -> u32 {
+    fn get_ts(&self) -> KeyGenerationTime {
         let ts: Timestamp = Timestamp::try_from(self.key.creation_time())
             .expect("Creation time cannot be converted into u32 timestamp");
+        let ts: u32 = ts.into();
+
         ts.into()
     }
 
@@ -539,11 +543,11 @@ pub fn sign(
 /// timestamp + KeyType" (intended for use with `CardApp.generate_key()`).
 pub fn public_to_fingerprint(
     pkm: &PublicKeyMaterial,
-    ts: SystemTime,
+    time: KeyGenerationTime,
     kt: KeyType,
 ) -> Result<Fingerprint, OpenpgpCardError> {
     // Transform PublicKeyMaterial into a Sequoia Key
-    let key = public_key_material_to_key(pkm, kt, ts)?;
+    let key = public_key_material_to_key(pkm, kt, time)?;
 
     // Get fingerprint from the Sequoia Key
     let fp = key.fingerprint();

@@ -182,7 +182,7 @@ impl SecuritySupportTemplate {
 }
 
 /// An OpenPGP key generation Time
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct KeyGenerationTime(u32);
 
 impl KeyGenerationTime {
