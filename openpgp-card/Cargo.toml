@@ -5,7 +5,7 @@
 name = "openpgp-card"
 description = "A client implementation for the OpenPGP card specification"
 license = "MIT OR Apache-2.0"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 edition = "2018"
 repository = "https://gitlab.com/hkos/openpgp-card"
