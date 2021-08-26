@@ -66,7 +66,6 @@ impl fmt::Debug for Fingerprint {
 fn fingerprint(input: &[u8]) -> nom::IResult<&[u8], Option<Fingerprint>> {
     combinator::map(bytes::take(20u8), |i: &[u8]| {
         if i.iter().any(|&c| c > 0) {
-            use std::convert::TryInto;
             // We requested 20 bytes, so we can unwrap here
             let i: [u8; 20] = i.try_into().unwrap();
             Some(i.into())
