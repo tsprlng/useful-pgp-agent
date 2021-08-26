@@ -111,9 +111,11 @@ impl CardApp {
         Ok(ApplicationRelatedData(Tlv(Tag::from([0x6E]), entry)))
     }
 
-    /// Get data from "private use" DO, `num` must be between 1 and 4.
+    /// Get data from "private use" DO.
+    ///
+    /// `num` must be between 1 and 4.
     pub fn get_private(&mut self, num: u8) -> Result<Vec<u8>> {
-        assert!(num >= 1 && num <= 4);
+        assert!((1..=4).contains(&num));
 
         let cmd = commands::get_private_do(num);
         let resp = apdu::send_command(&mut self.card_client, cmd, true)?;
@@ -179,9 +181,9 @@ impl CardApp {
         resp.check_ok()?;
 
         let tlv = Tlv::try_from(resp.data()?)?;
-        let res = tlv
-            .find(&Tag::from([0x93]))
-            .ok_or(anyhow!("Couldn't get SecuritySupportTemplate DO"))?;
+        let res = tlv.find(&Tag::from([0x93])).ok_or_else(|| {
+            anyhow!("Couldn't get SecuritySupportTemplate DO")
+        })?;
 
         if let TlvEntry::S(data) = res {
             let mut data = data.to_vec();
@@ -422,12 +424,15 @@ impl CardApp {
 
     // --- admin ---
 
-    /// Set data of "private use" DO, `num` must be between 1 and 4.
+    /// Set data of "private use" DO.
+    ///
+    /// `num` must be between 1 and 4.
+    ///
     /// Access condition:
     /// - 1/3 need PW1 (82)
     /// - 2/4 need PW3
     pub fn set_private(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>> {
-        assert!(num >= 1 && num <= 4);
+        assert!((1..=4).contains(&num));
 
         let cmd = commands::put_private_do(num, data);
         let resp = apdu::send_command(&mut self.card_client, cmd, true)?;
