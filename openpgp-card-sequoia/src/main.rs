@@ -78,8 +78,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         let sst = oc.get_security_support_template()?;
         println!("sst {:x?}", sst);
 
-        let ai = oc.list_supported_algo()?;
-        println!("ai {:#?}", ai);
+        match oc.list_supported_algo() {
+            Ok(Some(ai)) => println!("algo information {:#?}", ai),
+            Ok(None) => println!(" no algo information found"),
+            Err(e) => println!(" error getting algo information: {:?}", e),
+        }
 
         let algo = oc.get_algorithm_attributes(KeyType::Signing)?;
         println!("algo sig {:?}", algo);
