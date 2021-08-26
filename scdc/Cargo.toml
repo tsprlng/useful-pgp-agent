@@ -12,7 +12,7 @@ repository = "https://gitlab.com/hkos/openpgp-card"
 documentation = "https://docs.rs/crate/openpgp-card-scdc"
 
 [dependencies]
-openpgp-card = { path = "../openpgp-card" }
+openpgp-card = { path = "../openpgp-card", version = "0.0.3" }
 sequoia-ipc = "0.26"
 hex = "0.4"
 anyhow = "1"
