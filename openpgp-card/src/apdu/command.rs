@@ -22,7 +22,13 @@ pub(crate) struct Command {
 }
 
 impl Command {
+    /// Create an APDU Command.
+    ///
+    /// `data` must be smaller than 64 kbyte. If a larger `data` is passed,
+    /// this fn will panic.
     pub fn new(cla: u8, ins: u8, p1: u8, p2: u8, data: Vec<u8>) -> Self {
+        // This constructor is the only place it gets set, so it's
+        // sufficient to check it here.
         assert!(data.len() < 0x10000, "'data' too big, must be <64 kbyte");
 
         Command {
