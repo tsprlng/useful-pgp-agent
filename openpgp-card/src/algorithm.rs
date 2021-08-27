@@ -25,6 +25,7 @@ use std::fmt;
 ///  e=17 [YK4, YK5]
 ///  e=32 [YK5, Floss3.4, Gnuk1.2]
 #[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
 pub enum AlgoSimple {
     RSA1k(u16),
     RSA2k(u16),
@@ -140,6 +141,7 @@ pub struct AlgoInfo(pub(crate) Vec<(KeyType, Algo)>);
 /// - Key generation
 /// - Export of public key data from the card (e.g. after key generation)
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Algo {
     Rsa(RsaAttrs),
     Ecc(EccAttrs),
@@ -227,6 +229,7 @@ impl EccAttrs {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Curve {
     NistP256r1,
     NistP384r1,
