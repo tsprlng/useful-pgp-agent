@@ -88,9 +88,11 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
             Ok(PublicKeyMaterial::E(ecc))
         }
 
-        (_, _, _) => {
-            unimplemented!()
-        }
+        (_, _, _) => Err(anyhow!(
+            "Unexpected public key material from card {:?}",
+            tlv
+        )
+        .into()),
     }
 }
 
