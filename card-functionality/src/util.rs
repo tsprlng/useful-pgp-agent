@@ -30,12 +30,12 @@ pub(crate) fn upload_subkeys(
 ) -> Result<Vec<(String, KeyGenerationTime)>> {
     let mut out = vec![];
 
-    for kt in [
+    for kt in &[
         KeyType::Signing,
         KeyType::Decryption,
         KeyType::Authentication,
     ] {
-        let vka = get_subkey(cert, kt)?;
+        let vka = get_subkey(cert, *kt)?;
 
         // store fingerprint as return-value
         let fp = vka.fingerprint().to_hex();
@@ -50,7 +50,7 @@ pub(crate) fn upload_subkeys(
 
         // upload key
         let cuk = vka_as_uploadable_key(vka, None);
-        let _ = ca.upload_key(cuk, kt)?;
+        ca.upload_key(cuk, *kt)?;
     }
 
     Ok(out)

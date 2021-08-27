@@ -309,12 +309,12 @@ impl CardUploadableKey for SequoiaKey {
 
         let secret_key_material = unenc.map(|mpis| mpis.clone());
 
-        match (&self.public, secret_key_material) {
+        match (self.public.clone(), secret_key_material) {
             (
                 mpi::PublicKey::RSA { e, n },
                 mpi::SecretKeyMaterial::RSA { d: _, p, q, u: _ },
             ) => {
-                let sq_rsa = SqRSA::new(e.clone(), n.clone(), p, q);
+                let sq_rsa = SqRSA::new(e, n, p, q);
 
                 Ok(PrivateKeyMaterial::R(Box::new(sq_rsa)))
             }

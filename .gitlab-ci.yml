@@ -1,8 +1,6 @@
 # SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 # SPDX-License-Identifier: CC0-1.0
 
-image: rust:latest
-
 reuse:
   image:
     name: fsfe/reuse:latest
@@ -12,15 +10,28 @@ reuse:
 
 cargo-test:
   stage: test
+  image: rust:latest
+  before_script:
+    - mkdir -p /run/user/$UID
+    - apt update -y -qq
+    - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
+    - apt clean
+  script:
+    - cargo test
+
+cargo-test-debian-stable:
+  stage: test
+  image: debian:stable
   before_script:
     - mkdir -p /run/user/$UID
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git rustc cargo clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
   script:
-  - cargo test
+    - cargo test
 
 cargo-fmt:
+  image: rust:latest
   script:
     - rustup component add rustfmt
     - cargo fmt -- --check
