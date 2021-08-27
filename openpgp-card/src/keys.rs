@@ -224,7 +224,7 @@ pub(crate) fn upload_key(
     Ok(())
 }
 
-// FIXME: refactor, these checks currently pointlessly duplicate code
+// Look up RsaAttrs parameters in algo_list based on key_type and rsa_bits
 fn get_card_algo_rsa(
     algo_list: AlgoInfo,
     key_type: KeyType,
@@ -255,8 +255,8 @@ fn get_card_algo_rsa(
     algo.clone()
 }
 
-// FIXME: refactor, these checks currently pointlessly duplicate code
-fn check_card_algo_ecdh(
+// Check if `oid` is supported for `key_type` in algo_list.
+fn check_card_algo_ecc(
     algo_list: AlgoInfo,
     key_type: KeyType,
     oid: &[u8],
@@ -269,62 +269,14 @@ fn check_card_algo_ecdh(
     let keytype_algos: Vec<_> = algo_list.get_by_keytype(key_type);
 
     // Get attributes
-    let ecdh_algos: Vec<_> = keytype_algos
+    let ecc_algos: Vec<_> = keytype_algos
         .iter()
         .map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
         .flatten()
         .collect();
 
-    // Check if this OID exists in the supported algorithms
-    ecdh_algos.iter().any(|e| e.oid() == oid)
-}
-
-// FIXME: refactor, these checks currently pointlessly duplicate code
-fn check_card_algo_ecdsa(
-    algo_list: AlgoInfo,
-    key_type: KeyType,
-    oid: &[u8],
-) -> bool {
-    // Find suitable algorithm parameters (from card's list of algorithms).
-    // FIXME: handle "no list available" (older cards?)
-    // (Current algo parameters of the key slot should be used, then (?))
-
-    // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_list.get_by_keytype(key_type);
-
-    // Get attributes
-    let ecdsa_algos: Vec<_> = keytype_algos
-        .iter()
-        .map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
-        .flatten()
-        .collect();
-
-    // Check if this OID exists in the supported algorithms
-    ecdsa_algos.iter().any(|e| e.oid() == oid)
-}
-
-// FIXME: refactor, these checks currently pointlessly duplicate code
-fn check_card_algo_eddsa(
-    algo_list: AlgoInfo,
-    key_type: KeyType,
-    oid: &[u8],
-) -> bool {
-    // Find suitable algorithm parameters (from card's list of algorithms).
-    // FIXME: handle "no list available" (older cards?)
-    // (Current algo parameters of the key slot should be used, then (?))
-
-    // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_list.get_by_keytype(key_type);
-
-    // Get attributes
-    let eddsa_algos: Vec<_> = keytype_algos
-        .iter()
-        .map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
-        .flatten()
-        .collect();
-
-    // Check if this OID exists in the supported algorithms
-    eddsa_algos.iter().any(|e| e.oid() == oid)
+    // Check if this OID exists in the algorithm information for key_type
+    ecc_algos.iter().any(|e| e.oid() == oid)
 }
 
 fn ecc_key_cmd(
