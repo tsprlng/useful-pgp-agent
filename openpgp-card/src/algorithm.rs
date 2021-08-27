@@ -60,9 +60,10 @@ impl From<&str> for AlgoSimple {
 impl AlgoSimple {
     pub(crate) fn get_algo(&self, kt: KeyType) -> Algo {
         let et = match kt {
-            KeyType::Signing | KeyType::Authentication => EccType::ECDSA,
+            KeyType::Signing
+            | KeyType::Authentication
+            | KeyType::Attestation => EccType::ECDSA,
             KeyType::Decryption => EccType::ECDH,
-            _ => unimplemented!(),
         };
 
         match self {
@@ -103,18 +104,16 @@ impl AlgoSimple {
             }),
             Self::Curve25519 => Algo::Ecc(EccAttrs {
                 curve: match kt {
-                    KeyType::Signing | KeyType::Authentication => {
-                        Curve::Ed25519
-                    }
+                    KeyType::Signing
+                    | KeyType::Authentication
+                    | KeyType::Attestation => Curve::Ed25519,
                     KeyType::Decryption => Curve::Cv25519,
-                    _ => unimplemented!(),
                 },
                 ecc_type: match kt {
-                    KeyType::Signing | KeyType::Authentication => {
-                        EccType::EdDSA
-                    }
+                    KeyType::Signing
+                    | KeyType::Authentication
+                    | KeyType::Attestation => EccType::EdDSA,
                     KeyType::Decryption => EccType::ECDH,
-                    _ => unimplemented!(),
                 },
                 import_format: None,
             }),
