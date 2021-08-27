@@ -153,25 +153,37 @@ pub(crate) fn upload_key(
             let rsa_bits =
                 (((rsa_key.get_n().len() * 8 + 31) / 32) * 32) as u16;
 
-            // Get suitable algorithm from card's list, or try to derive it
-            // from the current algo settings on the card
+            // Figure out suitable RSA algorithm parameters:
+
+            // Does the card offer a list of algorithms?
             let rsa_attrs = if let Some(algo_list) = algo_list {
+                // Yes -> Look up the parameters for key_type and rsa_bits.
                 get_card_algo_rsa(algo_list, key_type, rsa_bits)
             } else {
-                // Get current settings for this KeyType and adjust the bit
-                // length.
+                // No -> Get the current algorithm attributes for key_type.
 
                 // FIXME: caching?
                 let ard = card_app.get_app_data()?;
-
                 let algo = ard.get_algorithm_attributes(key_type)?;
 
+                // Is the algorithm on the card currently set to RSA?
                 if let Algo::Rsa(rsa) = algo {
+                    // If so, use the algorithm parameters from the card and
+                    // adjust the bit length based on the user-provided key.
                     RsaAttrs::new(rsa_bits, rsa.len_e(), rsa.import_format())
                 } else {
-                    // We don't expect a card to support non-RSA algos when
-                    // it can't provide an algorithm list.
-                    unimplemented!("Unexpected: current algo is not RSA");
+                    // The card doesn't provide an algorithm list, and the
+                    // current algorithm on the card is not RSA.
+                    //
+                    // So we 'guess' a value for len_e (some cards only
+                    // support 17, others only support 32).
+
+                    // [If this approach turns out to be insufficient, we
+                    // need to determine the model of the card and use a
+                    // list of which RSA parameters that model of card
+                    // supports]
+
+                    RsaAttrs::new(rsa_bits, 32, 0)
                 }
             };
 
@@ -180,17 +192,14 @@ pub(crate) fn upload_key(
             (Algo::Rsa(rsa_attrs), key_cmd)
         }
         PrivateKeyMaterial::E(ecc_key) => {
-            // Initially there were checks of the following form, here.
-            // However, some cards seem to report erroneous
-            // information about supported algorithms.
-            // (e.g. Yk5 reports support of EdDSA over Cv25519/Ed25519,
-            // but not ECDH).
+            // Derive Algo from the key we're importing, and see if the
+            // card returns an error.
 
-            // if !check_card_algo_*(algo_list.unwrap(),
-            //                       key_type, ecc_key.get_oid()) {
-            //     // Error
-            // }
-
+            // (Looking up a suitable algorithm in the card's "Algorithm
+            // Information" seems to do more harm than good, because some
+            // cards report erroneous information about supported
+            // algorithms - e.g. Yubikey 5 reports support for EdDSA over
+            // Cv25519 and Ed25519, but not ECDH).
             let algo = Algo::Ecc(EccAttrs::new(
                 ecc_key.get_type(),
                 Curve::try_from(ecc_key.get_oid())?,
