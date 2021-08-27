@@ -108,6 +108,7 @@ impl CardCaps {
 
 /// Enum to identify the Key-slots on an OpenPGP card
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum KeyType {
     Signing,
     Decryption,
