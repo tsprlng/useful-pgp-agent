@@ -6,6 +6,7 @@
 use anyhow::{anyhow, Error, Result};
 use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use crate::algorithm::Algo;
 use crate::errors::OpenpgpCardError;
@@ -53,7 +54,7 @@ impl ApplicationRelatedData {
 
         if let Some(hist) = hist {
             log::debug!("Historical bytes: {:x?}", hist);
-            Historical::from(&hist.serialize())
+            (hist.serialize().as_slice()).try_into()
         } else {
             Err(anyhow!("Failed to get historical bytes.").into())
         }

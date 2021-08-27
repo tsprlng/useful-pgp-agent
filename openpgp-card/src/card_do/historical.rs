@@ -4,6 +4,7 @@
 use crate::card_do::{CardCapabilities, CardServiceData, Historical};
 use crate::errors::OpenpgpCardError;
 use anyhow::{anyhow, Result};
+use std::convert::TryFrom;
 
 impl CardCapabilities {
     pub fn get_command_chaining(&self) -> bool {
@@ -17,8 +18,10 @@ impl CardCapabilities {
     pub fn get_extended_length_information(&self) -> bool {
         self.extended_length_information
     }
+}
 
-    pub fn from(data: [u8; 3]) -> Self {
+impl From<[u8; 3]> for CardCapabilities {
+    fn from(data: [u8; 3]) -> Self {
         let byte3 = data[2];
 
         let command_chaining = byte3 & 0x80 != 0;
@@ -33,8 +36,8 @@ impl CardCapabilities {
     }
 }
 
-impl CardServiceData {
-    pub fn from(data: u8) -> Self {
+impl From<u8> for CardServiceData {
+    fn from(data: u8) -> Self {
         let select_by_full_df_name = data & 0x80 != 0;
         let select_by_partial_df_name = data & 0x40 != 0;
         let dos_available_in_ef_dir = data & 0x20 != 0;
@@ -70,8 +73,12 @@ impl Historical {
     pub fn get_card_capabilities(&self) -> Option<&CardCapabilities> {
         self.cc.as_ref()
     }
+}
 
-    pub fn from(data: &[u8]) -> Result<Self, OpenpgpCardError> {
+impl TryFrom<&[u8]> for Historical {
+    type Error = OpenpgpCardError;
+
+    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
         let len = data.len();
 
         if len < 4 {
@@ -189,6 +196,7 @@ impl Historical {
 mod test {
     use super::*;
     use anyhow::Result;
+    use std::convert::TryInto;
 
     #[test]
     fn test_split_tl() {
@@ -201,8 +209,9 @@ mod test {
     #[test]
     fn test_gnuk() -> Result<()> {
         // gnuk 1.2 stable
-        let data = [0x0, 0x31, 0x84, 0x73, 0x80, 0x1, 0x80, 0x5, 0x90, 0x0];
-        let hist = Historical::from(&data[..])?;
+        let data: &[u8] =
+            &[0x0, 0x31, 0x84, 0x73, 0x80, 0x1, 0x80, 0x5, 0x90, 0x0];
+        let hist: Historical = data.try_into()?;
 
         assert_eq!(
             hist,
@@ -231,8 +240,9 @@ mod test {
     #[test]
     fn test_floss34() -> Result<()> {
         // floss shop openpgp smartcard 3.4
-        let data = [0x0, 0x31, 0xf5, 0x73, 0xc0, 0x1, 0x60, 0x5, 0x90, 0x0];
-        let hist = Historical::from(&data[..])?;
+        let data: &[u8] =
+            &[0x0, 0x31, 0xf5, 0x73, 0xc0, 0x1, 0x60, 0x5, 0x90, 0x0];
+        let hist: Historical = data.try_into()?;
 
         assert_eq!(
             hist,
@@ -261,8 +271,8 @@ mod test {
     #[test]
     fn test_yk5() -> Result<()> {
         // yubikey 5
-        let data = [0x0, 0x73, 0x0, 0x0, 0xe0, 0x5, 0x90, 0x0];
-        let hist = Historical::from(&data[..])?;
+        let data: &[u8] = &[0x0, 0x73, 0x0, 0x0, 0xe0, 0x5, 0x90, 0x0];
+        let hist: Historical = data.try_into()?;
 
         assert_eq!(
             hist,
@@ -284,8 +294,8 @@ mod test {
     #[test]
     fn test_yk4() -> Result<()> {
         // yubikey 4
-        let data = [0x0, 0x73, 0x0, 0x0, 0x80, 0x5, 0x90, 0x0];
-        let hist = Historical::from(&data[..])?;
+        let data: &[u8] = &[0x0, 0x73, 0x0, 0x0, 0x80, 0x5, 0x90, 0x0];
+        let hist: Historical = data.try_into()?;
 
         assert_eq!(
             hist,
@@ -307,11 +317,11 @@ mod test {
     #[test]
     fn test_yk_neo() -> Result<()> {
         // yubikey neo
-        let data = [
+        let data: &[u8] = &[
             0x0, 0x73, 0x0, 0x0, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
             0x0, 0x0,
         ];
-        let hist = Historical::from(&data[..])?;
+        let hist: Historical = data.try_into()?;
 
         assert_eq!(
             hist,
