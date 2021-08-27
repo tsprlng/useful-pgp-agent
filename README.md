@@ -28,7 +28,7 @@ The project consists of a number of crates:
 ```mermaid
 graph BT
     OP["openpgp-card-pcsc <br/> (pcsclite backend)"] --> OC
-    OS["openpgp-card-scdc <br/> (scdaemon backend)"] --> OC["openpgp-card </br> (low level API)"]
+    OS["openpgp-card-scdc <br/> (scdaemon backend)"] --> OC["openpgp-card <br/> (low level API)"]
     OC --> OCS["openpgp-card-sequoia <br/> (high level, sequoia based API)"]
     OC -.-> U1[non-sequoia/low level user application]
     OCS -.-> U2[sequoia-based user application]
