@@ -201,7 +201,7 @@ pub struct ApplicationId {
 }
 
 /// Card Capabilities (73)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CardCapabilities {
     command_chaining: bool,
     extended_lc_le: bool,
@@ -209,7 +209,7 @@ pub struct CardCapabilities {
 }
 
 /// Card service data (31)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CardServiceData {
     select_by_full_df_name: bool,
     select_by_partial_df_name: bool,
@@ -220,7 +220,7 @@ pub struct CardServiceData {
 }
 
 /// Historical Bytes
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Historical {
     /// category indicator byte
     cib: u8,

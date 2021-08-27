@@ -54,80 +54,279 @@ impl CardServiceData {
     }
 }
 
+/// Split a compact-tlv "TL" (tag + length) into a 4-bit 'tag' and 4-bit
+/// 'length'.
+///
+/// The COMPACT-TLV format has a Tag in the first nibble of a byte (bit
+/// 5-8) and a length in the second nibble (bit 1-4).
+fn split_tl(tl: u8) -> (u8, u8) {
+    let tag = (tl & 0xf0) >> 4;
+    let len = tl & 0x0f;
+
+    (tag, len)
+}
+
 impl Historical {
     pub fn get_card_capabilities(&self) -> Option<&CardCapabilities> {
         self.cc.as_ref()
     }
 
     pub fn from(data: &[u8]) -> Result<Self, OpenpgpCardError> {
-        if data[0] == 0 {
+        let len = data.len();
+
+        if len < 4 {
+            // historical bytes cannot be this short
+
+            return Err(anyhow!(format!(
+                "Historical bytes too short ({} bytes), must be >= 4",
+                len
+            ))
+            .into());
+        }
+
+        if data[0] != 0 {
             // The OpenPGP application assumes a category indicator byte
             // set to '00' (o-card 3.4.1, pg 44)
 
-            let len = data.len();
-            let cib = data[0];
-            let mut csd = None;
-            let mut cc = None;
+            return Err(anyhow!(
+                "Unexpected category indicator in historical bytes"
+            )
+            .into());
+        }
 
-            // COMPACT - TLV data objects [ISO 12.1.1.2]
-            let mut ctlv = data[1..len - 3].to_vec();
-            while !ctlv.is_empty() {
-                match ctlv[0] {
-                    0x31 => {
-                        csd = Some(ctlv[1]);
-                        ctlv.drain(0..2);
-                    }
-                    0x73 => {
-                        cc = Some([ctlv[1], ctlv[2], ctlv[3]]);
-                        ctlv.drain(0..4);
-                    }
-                    0 => {
-                        ctlv.drain(0..1);
-                    }
-                    _ => unimplemented!("unexpected tlv in historical bytes"),
-                }
+        // category indicator byte
+        let cib = data[0];
+
+        // Card service data byte
+        let mut csd = None;
+
+        // Card capabilities
+        let mut cc = None;
+
+        // get information from "COMPACT-TLV data objects" [ISO 12.1.1.2]
+        let mut ctlv = data[1..len - 3].to_vec();
+        while !ctlv.is_empty() {
+            let (t, l) = split_tl(ctlv[0]);
+
+            // ctlv must still contain at least 1 + l bytes
+            // (1 byte for the tl, plus `l` bytes of data for this ctlv)
+            // (e.g. len = 4 -> tl + 3byte data)
+            if ctlv.len() < (1 + l as usize) {
+                return Err(anyhow!(
+                    "Illegal length value in Historical Bytes TL {} len {} \
+                    l {}",
+                    ctlv[0],
+                    ctlv.len(),
+                    l
+                )
+                .into());
             }
 
-            let sib = match data[len - 3] {
-                0 => {
-                    // Card does not offer life cycle management, commands
-                    // TERMINATE DF and ACTIVATE FILE are not supported
-                    0
+            match (t, l) {
+                (0x3, 0x1) => {
+                    csd = Some(ctlv[1]);
+                    ctlv.drain(0..2);
                 }
-                3 => {
-                    // Initialisation state
-                    // OpenPGP application can be reset to default values with
-                    // an ACTIVATE FILE command
-                    3
+                (0x7, 0x3) => {
+                    cc = Some([ctlv[1], ctlv[2], ctlv[3]]);
+                    ctlv.drain(0..4);
                 }
-                5 => {
-                    // Operational state (activated)
-                    // Card supports life cycle management, commands TERMINATE
-                    // DF and ACTIVATE FILE are available
-                    5
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "unexpected status indicator in \
-                        historical bytes"
-                    )
-                    .into());
-                }
-            };
+                (_, _) => {
+                    // Log other unexpected CTLV entries.
 
-            // Ignore final two bytes: according to the spec, they should
-            // show [0x90, 0x0] - but Yubikey Neo shows [0x0, 0x0].
-            // It's unclear if these status bytes are ever useful to process.
-
-            let cc = cc.map(CardCapabilities::from);
-            let csd = csd.map(CardServiceData::from);
-
-            Ok(Self { cib, csd, cc, sib })
-        } else {
-            Err(anyhow!("Unexpected category indicator in historical bytes")
-                .into())
+                    // (e.g. yubikey neo returns historical bytes as:
+                    // "[0, 73, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]")
+                    log::trace!(
+                        "historical bytes: ignored (tag {}, len {})",
+                        t,
+                        l
+                    );
+                    ctlv.drain(0..(l as usize + 1));
+                }
+            }
         }
+
+        // status indicator byte
+        let sib = match data[len - 3] {
+            0 => {
+                // Card does not offer life cycle management, commands
+                // TERMINATE DF and ACTIVATE FILE are not supported
+                0
+            }
+            3 => {
+                // Initialisation state
+                // OpenPGP application can be reset to default values with
+                // an ACTIVATE FILE command
+                3
+            }
+            5 => {
+                // Operational state (activated)
+                // Card supports life cycle management, commands TERMINATE
+                // DF and ACTIVATE FILE are available
+                5
+            }
+            _ => {
+                return Err(anyhow!(
+                    "unexpected status indicator in historical bytes"
+                )
+                .into());
+            }
+        };
+
+        // Ignore final two (status) bytes:
+        // according to the spec, they 'normally' show [0x90, 0x0] - but
+        // Yubikey Neo shows [0x0, 0x0].
+        // It's unclear if these status bytes are ever useful to process?
+
+        let cc = cc.map(CardCapabilities::from);
+        let csd = csd.map(CardServiceData::from);
+
+        Ok(Self { cib, csd, cc, sib })
     }
 }
 
-// FIXME: add tests
+#[cfg(test)]
+mod test {
+    use super::*;
+    use anyhow::Result;
+
+    #[test]
+    fn test_split_tl() {
+        assert_eq!(split_tl(0x31), (3, 1));
+        assert_eq!(split_tl(0x73), (7, 3));
+        assert_eq!(split_tl(0x00), (0, 0));
+        assert_eq!(split_tl(0xff), (0xf, 0xf));
+    }
+
+    #[test]
+    fn test_gnuk() -> Result<()> {
+        // gnuk 1.2 stable
+        let data = [0x0, 0x31, 0x84, 0x73, 0x80, 0x1, 0x80, 0x5, 0x90, 0x0];
+        let hist = Historical::from(&data[..])?;
+
+        assert_eq!(
+            hist,
+            Historical {
+                cib: 0,
+                csd: Some(CardServiceData {
+                    select_by_full_df_name: true,
+                    select_by_partial_df_name: false,
+                    dos_available_in_ef_dir: false,
+                    dos_available_in_ef_atr_info: false,
+                    access_services: [false, true, false,],
+                    mf: false,
+                }),
+                cc: Some(CardCapabilities {
+                    command_chaining: true,
+                    extended_lc_le: false,
+                    extended_length_information: false,
+                }),
+                sib: 5
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_floss34() -> Result<()> {
+        // floss shop openpgp smartcard 3.4
+        let data = [0x0, 0x31, 0xf5, 0x73, 0xc0, 0x1, 0x60, 0x5, 0x90, 0x0];
+        let hist = Historical::from(&data[..])?;
+
+        assert_eq!(
+            hist,
+            Historical {
+                cib: 0,
+                csd: Some(CardServiceData {
+                    select_by_full_df_name: true,
+                    select_by_partial_df_name: true,
+                    dos_available_in_ef_dir: true,
+                    dos_available_in_ef_atr_info: true,
+                    access_services: [false, true, false,],
+                    mf: true,
+                },),
+                cc: Some(CardCapabilities {
+                    command_chaining: false,
+                    extended_lc_le: true,
+                    extended_length_information: true,
+                },),
+                sib: 5,
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_yk5() -> Result<()> {
+        // yubikey 5
+        let data = [0x0, 0x73, 0x0, 0x0, 0xe0, 0x5, 0x90, 0x0];
+        let hist = Historical::from(&data[..])?;
+
+        assert_eq!(
+            hist,
+            Historical {
+                cib: 0,
+                csd: None,
+                cc: Some(CardCapabilities {
+                    command_chaining: true,
+                    extended_lc_le: true,
+                    extended_length_information: true,
+                },),
+                sib: 5,
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_yk4() -> Result<()> {
+        // yubikey 4
+        let data = [0x0, 0x73, 0x0, 0x0, 0x80, 0x5, 0x90, 0x0];
+        let hist = Historical::from(&data[..])?;
+
+        assert_eq!(
+            hist,
+            Historical {
+                cib: 0,
+                csd: None,
+                cc: Some(CardCapabilities {
+                    command_chaining: true,
+                    extended_lc_le: false,
+                    extended_length_information: false,
+                },),
+                sib: 5,
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_yk_neo() -> Result<()> {
+        // yubikey neo
+        let data = [
+            0x0, 0x73, 0x0, 0x0, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x0, 0x0,
+        ];
+        let hist = Historical::from(&data[..])?;
+
+        assert_eq!(
+            hist,
+            Historical {
+                cib: 0,
+                csd: None,
+                cc: Some(CardCapabilities {
+                    command_chaining: true,
+                    extended_lc_le: false,
+                    extended_length_information: false
+                }),
+                sib: 0
+            }
+        );
+
+        Ok(())
+    }
+}
