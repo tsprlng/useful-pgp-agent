@@ -195,6 +195,19 @@ pub(crate) fn upload_key(
             // Derive Algo from the key we're importing, and see if the
             // card returns an error.
 
+            // If we have an algo_list, refuse upload if oid is now allowed.
+            if let Some(algo_list) = algo_list {
+                let oid = ecc_key.get_oid();
+                if !check_card_algo_ecc(algo_list, key_type, oid) {
+                    // If oid is not in algo_list, return error.
+                    return Err(anyhow!(
+                        "Oid {:?} unsupported according to algo_list",
+                        oid
+                    )
+                    .into());
+                }
+            }
+
             // (Looking up a suitable algorithm in the card's "Algorithm
             // Information" seems to do more harm than good, because some
             // cards report erroneous information about supported
