@@ -11,17 +11,35 @@ specification, in Rust.
 
 The project consists of a number of crates:
 - [openpgp-card](https://crates.io/crates/openpgp-card), which offers an 
-  implementation-agnostic, relatively low level OpenPGP card client API. It 
-  can be used with any PGP implementation.
+  implementation-agnostic, relatively low level OpenPGP card client API.
+  It is PGP implementation agnostic.
 - [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia),
-  adds a higher level API and functionality to conveniently use the 
-  openpgp-card library with [Sequoia PGP](https://sequoia-pgp.org/).
+  a higher level API for conveniently using openpgp-card with
+  [Sequoia PGP](https://sequoia-pgp.org/).
 - [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc),
   a backend to communicate with smartcards via pcsc.
 - [openpgp-card-scdc](https://gitlab.com/hkos/openpgp-card/-/tree/main/scdc),
   a backend to communicate with smartcards via an scdaemon instance.
 - [openpgp-card-tests](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality),
   a testsuite to run OpenPGP card operations on smartcards.
+
+**Architecture**
+
+```mermaid
+graph BT
+    OP["openpgp-card-pcsc <br/> (backend)"] --> OC
+    OS["openpgp-card-scdc <br/> (backend)"] --> OC["openpgp-card </br> (low level API)"]
+    OC --> OCS["openpgp-card-sequoia <br/> (high level, sequoia based API)"]
+    OC -.-> U1[non-sequoia/low level user application]
+    OCS -.-> U2[sequoia-based user application]
+
+classDef userApp stroke-dasharray: 5 5;
+class U1,U2 userApp;
+```
+
+The backends implement very simple transport functionality. They can send 
+APDU commands and receive responses. All OpenPGP card-specific logic, 
+as well as command chaining are handled in `openpgp-card`.
 
 **Acknowledgements**
 
