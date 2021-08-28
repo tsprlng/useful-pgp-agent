@@ -7,19 +7,19 @@ use nom::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Tag(pub Vec<u8>);
+pub struct Tag(Vec<u8>);
 
 impl Tag {
-    pub fn new(t: Vec<u8>) -> Self {
-        Self(t)
-    }
-
     pub fn is_constructed(&self) -> bool {
         if self.0.is_empty() {
             false
         } else {
             self.0[0] & 0x20 != 0
         }
+    }
+
+    pub fn get(&self) -> &[u8] {
+        &self.0
     }
 }
 

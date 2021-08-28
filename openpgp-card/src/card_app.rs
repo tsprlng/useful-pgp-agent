@@ -17,7 +17,7 @@ use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
 };
 use crate::errors::OpenpgpCardError;
-use crate::tlv::{tag::Tag, Tlv, TlvEntry};
+use crate::tlv::{tag::Tag, Tlv, Value};
 use crate::{apdu, keys, CardCaps, CardClientBox, KeyType};
 
 /// Low-level access to OpenPGP card functionality.
@@ -103,11 +103,11 @@ impl CardApp {
     pub fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
         let ad = commands::get_application_data();
         let resp = apdu::send_command(&mut self.card_client, ad, true)?;
-        let entry = TlvEntry::from(resp.data()?, true)?;
+        let value = Value::from(resp.data()?, true)?;
 
-        log::debug!(" App data TlvEntry: {:x?}", entry);
+        log::debug!(" App data Value: {:x?}", value);
 
-        Ok(ApplicationRelatedData(Tlv(Tag::from([0x6E]), entry)))
+        Ok(ApplicationRelatedData(Tlv::new(Tag::from([0x6E]), value)))
     }
 
     /// Get data from "private use" DO.
@@ -180,11 +180,11 @@ impl CardApp {
         resp.check_ok()?;
 
         let tlv = Tlv::try_from(resp.data()?)?;
-        let res = tlv.find(&Tag::from([0x93])).ok_or_else(|| {
+        let res = tlv.find(&[0x93].into()).ok_or_else(|| {
             anyhow!("Couldn't get SecuritySupportTemplate DO")
         })?;
 
-        if let TlvEntry::S(data) = res {
+        if let Value::S(data) = res {
             let mut data = data.to_vec();
             assert_eq!(data.len(), 3);
 
@@ -227,9 +227,9 @@ impl CardApp {
         num: u8,
         tag: &[u8],
     ) -> Result<Response, OpenpgpCardError> {
-        let tlv = Tlv(
-            Tag(vec![0x60]),
-            TlvEntry::C(vec![Tlv(Tag(vec![0x5c]), TlvEntry::S(tag.to_vec()))]),
+        let tlv = Tlv::new(
+            [0x60],
+            Value::C(vec![Tlv::new([0x5c], Value::S(tag.to_vec()))]),
         );
 
         let data = tlv.serialize();
@@ -342,13 +342,13 @@ impl CardApp {
             }
             Cryptogram::ECDH(eph) => {
                 // External Public Key
-                let epk = Tlv(Tag(vec![0x86]), TlvEntry::S(eph.to_vec()));
+                let epk = Tlv::new([0x86], Value::S(eph.to_vec()));
 
                 // Public Key DO
-                let pkdo = Tlv(Tag(vec![0x7f, 0x49]), TlvEntry::C(vec![epk]));
+                let pkdo = Tlv::new([0x7f, 0x49], Value::C(vec![epk]));
 
                 // Cipher DO
-                let cdo = Tlv(Tag(vec![0xa6]), TlvEntry::C(vec![pkdo]));
+                let cdo = Tlv::new([0xa6], Value::C(vec![pkdo]));
 
                 self.pso_decipher(cdo.serialize())
             }
@@ -378,24 +378,21 @@ impl CardApp {
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         let data = match hash {
             Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
-                let tlv = Tlv(
-                    Tag(vec![0x30]),
-                    TlvEntry::C(vec![
-                        Tlv(
-                            Tag(vec![0x30]),
-                            TlvEntry::C(vec![
-                                Tlv(
-                                    Tag(vec![0x06]),
+                let tlv = Tlv::new(
+                    [0x30],
+                    Value::C(vec![
+                        Tlv::new(
+                            [0x30],
+                            Value::C(vec![
+                                Tlv::new(
+                                    [0x06],
                                     // unwrapping is ok, for SHA*
-                                    TlvEntry::S(hash.oid().unwrap().to_vec()),
+                                    Value::S(hash.oid().unwrap().to_vec()),
                                 ),
-                                Tlv(Tag(vec![0x05]), TlvEntry::S(vec![])),
+                                Tlv::new([0x05], Value::S(vec![])),
                             ]),
                         ),
-                        Tlv(
-                            Tag(vec![0x04]),
-                            TlvEntry::S(hash.digest().to_vec()),
-                        ),
+                        Tlv::new([0x04], Value::S(hash.digest().to_vec())),
                     ]),
                 );
 

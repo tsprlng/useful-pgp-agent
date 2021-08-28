@@ -17,7 +17,7 @@ use crate::crypto_data::{
     RSAKey, RSAPub,
 };
 use crate::errors::OpenpgpCardError;
-use crate::tlv::{tag::Tag, Tlv, TlvEntry};
+use crate::tlv::{Tlv, Value};
 use crate::{apdu, tlv, KeyType};
 
 /// `gen_key_with_metadata` calculates the fingerprint for a public key
@@ -70,10 +70,10 @@ pub(crate) fn gen_key_with_metadata(
 }
 
 fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
-    let n = tlv.find(&Tag::new(vec![0x81]));
-    let v = tlv.find(&Tag::new(vec![0x82]));
+    let n = tlv.find(&[0x81].into());
+    let v = tlv.find(&[0x82].into());
 
-    let ec = tlv.find(&Tag::new(vec![0x86]));
+    let ec = tlv.find(&[0x86].into());
 
     match (n, v, ec) {
         (Some(n), Some(v), None) => {
@@ -303,13 +303,13 @@ fn ecc_key_cmd(
     let crt = get_crt(key_type)?;
 
     // 2) "Cardholder private key template" (7F48)
-    let cpkt = Tlv(Tag(vec![0x7F, 0x48]), TlvEntry::S(vec![0x92, scalar_len]));
+    let cpkt = Tlv::new([0x7F, 0x48], Value::S(vec![0x92, scalar_len]));
 
     // 3) "Cardholder private key" (5F48)
-    let cpk = Tlv(Tag(vec![0x5F, 0x48]), TlvEntry::S(scalar_data.to_vec()));
+    let cpk = Tlv::new([0x5F, 0x48], Value::S(scalar_data.to_vec()));
 
     // "Extended header list (DO 4D)" (contains the three inner TLV)
-    let ehl = Tlv(Tag(vec![0x4d]), TlvEntry::C(vec![crt, cpkt, cpk]));
+    let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
 
     // key import command
     Ok(commands::key_import(ehl.serialize().to_vec()))
@@ -327,7 +327,7 @@ fn get_crt(key_type: KeyType) -> Result<Tlv, OpenpgpCardError> {
             )))
         }
     };
-    Ok(Tlv(Tag(vec![tag]), TlvEntry::S(vec![])))
+    Ok(Tlv::new([tag], Value::S(vec![])))
 }
 
 fn rsa_key_cmd(
@@ -366,7 +366,7 @@ fn rsa_key_cmd(
     // len q in bytes, TLV-encoded
     value.extend_from_slice(&tlv::tlv_encode_length(len_q_bytes));
 
-    let cpkt = Tlv(Tag(vec![0x7F, 0x48]), TlvEntry::S(value));
+    let cpkt = Tlv::new([0x7F, 0x48], Value::S(value));
 
     // 3) "Cardholder private key" (5F48)
     //
@@ -387,10 +387,10 @@ fn rsa_key_cmd(
     keydata.extend(rsa_key.get_p().iter());
     keydata.extend(rsa_key.get_q().iter());
 
-    let cpk = Tlv(Tag(vec![0x5F, 0x48]), TlvEntry::S(keydata));
+    let cpk = Tlv::new([0x5F, 0x48], Value::S(keydata));
 
     // "Extended header list (DO 4D)"
-    let ehl = Tlv(Tag(vec![0x4d]), TlvEntry::C(vec![crt, cpkt, cpk]));
+    let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
 
     // key import command
     Ok(commands::key_import(ehl.serialize().to_vec()))

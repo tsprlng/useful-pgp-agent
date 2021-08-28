@@ -6,8 +6,7 @@ use std::convert::TryFrom;
 use anyhow::Result;
 
 use crate::card_do::{Cardholder, Sex};
-use crate::tlv::tag::Tag;
-use crate::tlv::{Tlv, TlvEntry};
+use crate::tlv::{Tlv, Value};
 
 impl Cardholder {
     pub fn name(&self) -> Option<&str> {
@@ -27,15 +26,15 @@ impl TryFrom<&[u8]> for Cardholder {
     type Error = anyhow::Error;
 
     fn try_from(data: &[u8]) -> Result<Self> {
-        let entry = TlvEntry::from(data, true)?;
-        let tlv = Tlv(Tag(vec![0x65]), entry);
+        let value = Value::from(data, true)?;
+        let tlv = Tlv::new([0x65], value);
 
         let name: Option<String> = tlv
-            .find(&Tag::from(&[0x5b][..]))
+            .find(&[0x5b].into())
             .map(|v| String::from_utf8_lossy(&v.serialize()).to_string());
 
         let lang: Option<Vec<[char; 2]>> =
-            tlv.find(&Tag::from(&[0x5f, 0x2d][..])).map(|v| {
+            tlv.find(&[0x5f, 0x2d].into()).map(|v| {
                 v.serialize()
                     .chunks(2)
                     .map(|c| [c[0] as char, c[1] as char])
@@ -43,7 +42,7 @@ impl TryFrom<&[u8]> for Cardholder {
             });
 
         let sex = tlv
-            .find(&Tag::from(&[0x5f, 0x35][..]))
+            .find(&[0x5f, 0x35].into())
             .map(|v| v.serialize())
             .filter(|v| v.len() == 1)
             .map(|v| Sex::from(v[0]));

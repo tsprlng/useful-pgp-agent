@@ -10,7 +10,7 @@ use std::convert::TryInto;
 
 use crate::algorithm::Algo;
 use crate::errors::OpenpgpCardError;
-use crate::tlv::{tag::Tag, Tlv};
+use crate::tlv::Tlv;
 use crate::KeyType;
 
 mod algo_attrs;
@@ -38,7 +38,7 @@ impl ApplicationRelatedData {
     /// Application identifier (AID), ISO 7816-4
     pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
         // get from cached "application related data"
-        let aid = self.0.find(&Tag::from([0x4F]));
+        let aid = self.0.find(&[0x4f].into());
 
         if let Some(aid) = aid {
             Ok(ApplicationId::try_from(&aid.serialize()[..])?)
@@ -50,7 +50,7 @@ impl ApplicationRelatedData {
     /// Historical bytes
     pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
         // get from cached "application related data"
-        let hist = self.0.find(&Tag::from([0x5F, 0x52]));
+        let hist = self.0.find(&[0x5f, 0x52].into());
 
         if let Some(hist) = hist {
             log::debug!("Historical bytes: {:x?}", hist);
@@ -66,7 +66,7 @@ impl ApplicationRelatedData {
         &self,
     ) -> Result<Option<ExtendedLengthInfo>> {
         // get from cached "application related data"
-        let eli = self.0.find(&Tag::from([0x7F, 0x66]));
+        let eli = self.0.find(&[0x7f, 0x66].into());
 
         log::debug!("Extended length information: {:x?}", eli);
 
@@ -92,7 +92,7 @@ impl ApplicationRelatedData {
         &self,
     ) -> Result<ExtendedCap, OpenpgpCardError> {
         // get from cached "application related data"
-        let ecap = self.0.find(&Tag::from([0xc0]));
+        let ecap = self.0.find(&[0xc0].into());
 
         if let Some(ecap) = ecap {
             Ok(ExtendedCap::try_from(&ecap.serialize()[..])?)
@@ -104,7 +104,7 @@ impl ApplicationRelatedData {
     /// Algorithm attributes (for each key type)
     pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
         // get from cached "application related data"
-        let aa = self.0.find(&Tag::from([key_type.get_algorithm_tag()]));
+        let aa = self.0.find(&[key_type.get_algorithm_tag()].into());
 
         if let Some(aa) = aa {
             Algo::try_from(&aa.serialize()[..])
@@ -119,7 +119,7 @@ impl ApplicationRelatedData {
     /// PW status Bytes
     pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
         // get from cached "application related data"
-        let psb = self.0.find(&Tag::from([0xc4]));
+        let psb = self.0.find(&[0xc4].into());
 
         if let Some(psb) = psb {
             let pws = PWStatus::try_from(&psb.serialize())?;
@@ -138,7 +138,7 @@ impl ApplicationRelatedData {
         &self,
     ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
         // Get from cached "application related data"
-        let fp = self.0.find(&Tag::from([0xc5]));
+        let fp = self.0.find(&[0xc5].into());
 
         if let Some(fp) = fp {
             let fp = fingerprint::to_keyset(&fp.serialize())?;
@@ -155,7 +155,7 @@ impl ApplicationRelatedData {
     pub fn get_key_generation_times(
         &self,
     ) -> Result<KeySet<KeyGenerationTime>, OpenpgpCardError> {
-        let kg = self.0.find(&Tag::from([0xCD]));
+        let kg = self.0.find(&[0xcd].into());
 
         if let Some(kg) = kg {
             let kg = key_generation_times::from(&kg.serialize())?;
