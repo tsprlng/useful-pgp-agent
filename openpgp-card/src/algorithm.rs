@@ -136,11 +136,9 @@ impl AlgoSimple {
 
 /// Algorithm Information
 ///
-/// Modern cards provide a list of supported algorithms for each key type.
-/// The list specifies which "Algorithm Attributes" can be set for key
-/// generation or key import.
-///
-/// (This feature was introduced in OpenPGP card v3.4)
+/// Modern cards (since OpenPGP card v3.4) provide a list of supported
+/// algorithms for each key type. This list specifies which "Algorithm
+/// Attributes" can be set for key generation or key import.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct AlgoInfo(pub(crate) Vec<(KeyType, Algo)>);
 
