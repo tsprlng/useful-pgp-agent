@@ -58,14 +58,37 @@ impl From<&str> for AlgoSimple {
 }
 
 impl AlgoSimple {
-    pub(crate) fn get_algo(&self, kt: KeyType) -> Algo {
-        let et = match kt {
+    /// Get corresponding EccType by KeyType (except for Curve25519)
+    fn get_ecc_type(key_type: KeyType) -> EccType {
+        match key_type {
             KeyType::Signing
             | KeyType::Authentication
             | KeyType::Attestation => EccType::ECDSA,
             KeyType::Decryption => EccType::ECDH,
-        };
+        }
+    }
 
+    /// Get corresponding EccType by KeyType for Curve25519
+    fn get_ecc_type_25519(key_type: KeyType) -> EccType {
+        match key_type {
+            KeyType::Signing
+            | KeyType::Authentication
+            | KeyType::Attestation => EccType::EdDSA,
+            KeyType::Decryption => EccType::ECDH,
+        }
+    }
+
+    /// Get corresponding Curve by KeyType for 25519 (Ed25519 vs Cv25519)
+    fn get_curve_for_25519(key_type: KeyType) -> Curve {
+        match key_type {
+            KeyType::Signing
+            | KeyType::Authentication
+            | KeyType::Attestation => Curve::Ed25519,
+            KeyType::Decryption => Curve::Cv25519,
+        }
+    }
+
+    pub(crate) fn get_algo(&self, key_type: KeyType) -> Algo {
         match self {
             Self::RSA1k(e) => Algo::Rsa(RsaAttrs {
                 len_n: 1024,
@@ -89,32 +112,22 @@ impl AlgoSimple {
             }),
             Self::NIST256 => Algo::Ecc(EccAttrs {
                 curve: Curve::NistP256r1,
-                ecc_type: et,
+                ecc_type: Self::get_ecc_type(key_type),
                 import_format: None,
             }),
             Self::NIST384 => Algo::Ecc(EccAttrs {
                 curve: Curve::NistP384r1,
-                ecc_type: et,
+                ecc_type: Self::get_ecc_type(key_type),
                 import_format: None,
             }),
             Self::NIST521 => Algo::Ecc(EccAttrs {
                 curve: Curve::NistP521r1,
-                ecc_type: et,
+                ecc_type: Self::get_ecc_type(key_type),
                 import_format: None,
             }),
             Self::Curve25519 => Algo::Ecc(EccAttrs {
-                curve: match kt {
-                    KeyType::Signing
-                    | KeyType::Authentication
-                    | KeyType::Attestation => Curve::Ed25519,
-                    KeyType::Decryption => Curve::Cv25519,
-                },
-                ecc_type: match kt {
-                    KeyType::Signing
-                    | KeyType::Authentication
-                    | KeyType::Attestation => EccType::EdDSA,
-                    KeyType::Decryption => EccType::ECDH,
-                },
+                curve: Self::get_curve_for_25519(key_type),
+                ecc_type: Self::get_ecc_type_25519(key_type),
                 import_format: None,
             }),
         }
