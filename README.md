@@ -30,12 +30,12 @@ The project consists of the following crates:
 graph BT
     OP["openpgp-card-pcsc <br/> (pcsclite backend)"] --> OC
     OS["openpgp-card-scdc <br/> (scdaemon backend)"] --> OC["openpgp-card <br/> (low level API)"]
-    OC --> OCS["openpgp-card-sequoia <br/> (high level, sequoia based API)"]
-    OC -.-> U1[non-sequoia/low level user application]
-    OCS -.-> U2[sequoia-based user application]
+    OC --> OCS["openpgp-card-sequoia <br/> (high level Sequoia PGP-based API)"]
+    OC -.-> U2[applications using low level API]
+    OCS -.-> U3[Sequoia PGP-based applications]
 
-classDef userApp stroke-dasharray: 5 5;
-class U1,U2 userApp;
+classDef userApp fill:#f8f8f8,stroke-dasharray: 5 5;
+class U1,U2,U3 userApp;
 ```
 
 ### The openpgp-card crate
@@ -45,18 +45,26 @@ offering an API at roughly the level of abstraction of that specification,
 using Rust data structures.
 (However, this crate may work around some minor quirks of specific card 
 models, in order to offer clients a somewhat uniform view)
-This crate and its API do not depend or rely on an OpenPGP implementation.
+
+This crate and its API do not depend or rely on any particular OpenPGP 
+implementation.
 
 ### Backends
 
-Implement:
+Typically, `openpgp-card` will be used with the `openpgp-card-pcsc` backend,
+which uses the standard pcsclite library to communicate with cards.
+However, alternative backends can be used and may be useful.  
+The experimental, alternative `openpgp-card-scdc` backend uses scdaemon from 
+the GnuPG project as a low-level transport layer to interact with OpenPGP 
+cards.
 
-- functionality to find and connect to a card (these 
-operations may vary significantly between different backends), and
+Backends implement:
 
-- a very simple communication primitive, by implementing the 
-   `CardClient` trait:
-sending individual APDU commands and receiving responses.
+1) functionality to find and connect to a card (these operations may vary 
+   significantly between different backends), and
+
+2) a very simple communication primitive, by implementing the `CardClient` 
+   trait, to send individual APDU commands and receive responses.
 
 All higher level and/or OpenPGP card-specific logic (including command 
 chaining) is handled in the `openpgp-card` layer.
