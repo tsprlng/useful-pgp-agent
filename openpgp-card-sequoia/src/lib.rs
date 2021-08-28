@@ -601,8 +601,10 @@ impl CardBase {
         self.card_app.get_app_data()
     }
 
-    pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
-        self.ard.get_aid()
+    pub fn get_application_id(
+        &self,
+    ) -> Result<ApplicationId, OpenpgpCardError> {
+        self.ard.get_application_id()
     }
 
     pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {

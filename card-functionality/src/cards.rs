@@ -102,7 +102,7 @@ impl TestCard {
 
                     // Set Card Capabilities (chaining, command length, ..)
                     let ard = ca.get_app_data()?;
-                    let app_id = ard.get_aid()?;
+                    let app_id = ard.get_application_id()?;
 
                     if app_id.ident().as_str() == ident {
                         ca.init_caps(&ard)?;

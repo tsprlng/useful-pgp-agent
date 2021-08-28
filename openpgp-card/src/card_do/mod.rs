@@ -36,7 +36,9 @@ pub struct ApplicationRelatedData(pub(crate) Tlv);
 
 impl ApplicationRelatedData {
     /// Application identifier (AID), ISO 7816-4
-    pub fn get_aid(&self) -> Result<ApplicationId, OpenpgpCardError> {
+    pub fn get_application_id(
+        &self,
+    ) -> Result<ApplicationId, OpenpgpCardError> {
         // get from cached "application related data"
         let aid = self.0.find(&[0x4f].into());
 

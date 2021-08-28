@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // card metadata
 
         println!("** get aid");
-        let app_id = oc.get_aid()?;
+        let app_id = oc.get_application_id()?;
 
         println!("app id: {:x?}\n\n", app_id);
         println!(" ident: {:?}\n\n", app_id.ident());
@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //     &test_card_serial,
         // )?)?;
 
-        let app_id = oc.get_aid()?;
+        let app_id = oc.get_application_id()?;
 
         // Check that we're still using the expected card
         assert_eq!(app_id.ident(), test_card_ident);
@@ -243,7 +243,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let mut ca = CardApp::new(c);
 
             let ard = ca.get_app_data()?;
-            let app_id = ard.get_aid()?;
+            let app_id = ard.get_application_id()?;
 
             let ident = app_id.ident();
             println!(" '{}'", ident);

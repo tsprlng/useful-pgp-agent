@@ -130,7 +130,7 @@ impl PcscClient {
         ident: &str,
     ) -> Result<Option<CardClientBox>, OpenpgpCardError> {
         let ard = ca.get_app_data()?;
-        let aid = ard.get_aid()?;
+        let aid = ard.get_application_id()?;
 
         if aid.ident() == ident {
             Ok(Some(ca.take_card()))
