@@ -15,10 +15,10 @@ use thiserror::Error;
 /// Enum that wraps the different error types that this crate can return
 #[derive(Error, Debug)]
 pub enum OpenpgpCardError {
-    #[error("Error interacting with smartcard {0}")]
+    #[error("Error interacting with smartcard: {0}")]
     Smartcard(SmartcardError),
 
-    #[error("OpenPGP card error status {0}")]
+    #[error("OpenPGP card error status: {0}")]
     OcStatus(OcErrorStatus),
 
     #[error("Command too long ({0} bytes)")]
@@ -27,7 +27,7 @@ pub enum OpenpgpCardError {
     #[error("Unexpected response length: {0}")]
     ResponseLength(usize),
 
-    #[error("Internal error {0}")]
+    #[error("Internal error: {0}")]
     InternalError(anyhow::Error),
 }
 
