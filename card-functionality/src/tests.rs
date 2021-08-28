@@ -142,6 +142,9 @@ pub fn test_print_caps(
 ) -> Result<TestOutput, TestError> {
     let ard = ca.get_app_data()?;
 
+    let aid = ard.get_application_id()?;
+    println!("aid: {:#x?}", aid);
+
     let hist = ard.get_historical()?;
     println!("hist: {:#?}", hist);
 
@@ -534,7 +537,7 @@ pub fn run_test(
 ) -> Result<TestOutput, TestError> {
     let mut ca = card.get_card_app()?;
     let ard = ca.get_app_data()?;
-    let _app_id = ard.get_aid()?;
+    let _app_id = ard.get_application_id()?;
 
     t(&mut ca, param)
 }
