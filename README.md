@@ -3,27 +3,28 @@ SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
-**OpenPGP card client library**
-
-This project implements a client library for the
+This project implements client software for the
 [OpenPGP card](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf)
-specification, in Rust.
+standard, in Rust.
 
-The project consists of a number of crates:
-- [openpgp-card](https://crates.io/crates/openpgp-card), which offers an 
-  implementation-agnostic, relatively low level OpenPGP card client API.
+## Architecture
+
+The project consists of the following crates:
+- [openpgp-card](https://crates.io/crates/openpgp-card), which offers a
+  relatively low level OpenPGP card client API.
   It is PGP implementation agnostic.
+- [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc),
+  a backend to communicate with smartcards via
+  [pcsc](https://pcsclite.apdu.fr/).
+- [openpgp-card-scdc](https://crates.io/crates/openpgp-card-scdc),
+  a backend to communicate with smartcards via an 
+  [scdaemon](https://www.gnupg.org/documentation/manuals/gnupg/Invoking-SCDAEMON.html#Invoking-SCDAEMON)
+  instance.
 - [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia),
   a higher level API for conveniently using openpgp-card with
   [Sequoia PGP](https://sequoia-pgp.org/).
-- [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc),
-  a backend to communicate with smartcards via pcsc.
-- [openpgp-card-scdc](https://gitlab.com/hkos/openpgp-card/-/tree/main/scdc),
-  a backend to communicate with smartcards via an scdaemon instance.
 - [openpgp-card-tests](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality),
   a testsuite to run OpenPGP card operations on smartcards.
-
-**Architecture**
 
 ```mermaid
 graph BT
@@ -37,11 +38,37 @@ classDef userApp stroke-dasharray: 5 5;
 class U1,U2 userApp;
 ```
 
-The backends implement very simple transport functionality. They can send 
-APDU commands and receive responses. All OpenPGP card-specific logic, 
-as well as command chaining are handled in `openpgp-card`.
+### The openpgp-card crate
 
-**Acknowledgements**
+Implements the functionality described in the OpenPGP card specification, 
+offering an API at roughly the level of abstraction of that specification,
+using Rust data structures.
+(However, this crate may work around some minor quirks of specific card 
+models, in order to offer clients a somewhat uniform view)
+This crate and its API do not depend or rely on an OpenPGP implementation.
+
+### Backends
+
+Implement:
+
+- functionality to find and connect to a card (these 
+operations may vary significantly between different backends), and
+
+- a very simple communication primitive, by implementing the 
+   `CardClient` trait:
+sending individual APDU commands and receiving responses.
+
+All higher level and/or OpenPGP card-specific logic (including command 
+chaining) is handled in the `openpgp-card` layer.
+
+### The **openpgp-card-sequoia** crate 
+
+Offers a higher level interface, based around Sequoia PGP datastructures.
+
+Most client projects will probably want to use only this crate, and 
+ignore the lower level crates as implementation details.
+
+## Acknowledgements
 
 This project is based on the 
 [OpenPGP Card spec](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf),
