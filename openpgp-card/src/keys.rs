@@ -158,7 +158,8 @@ pub(crate) fn upload_key(
             // Does the card offer a list of algorithms?
             let rsa_attrs = if let Some(algo_list) = algo_list {
                 // Yes -> Look up the parameters for key_type and rsa_bits.
-                get_card_algo_rsa(algo_list, key_type, rsa_bits)
+                // (Or error, if the list doesn't have an entry for rsa_bits)
+                get_card_algo_rsa(algo_list, key_type, rsa_bits)?
             } else {
                 // No -> Get the current algorithm attributes for key_type.
 
@@ -242,7 +243,7 @@ fn get_card_algo_rsa(
     algo_list: AlgoInfo,
     key_type: KeyType,
     rsa_bits: u16,
-) -> RsaAttrs {
+) -> Result<RsaAttrs, OpenpgpCardError> {
     // Find suitable algorithm parameters (from card's list of algorithms).
     // FIXME: handle "no list available" (older cards?)
     // (Current algo parameters of the key slot should be used, then (?))
@@ -262,10 +263,17 @@ fn get_card_algo_rsa(
         .filter(|&a| a.len_n() == rsa_bits)
         .collect();
 
-    // FIXME: handle error if no algo found
-    let algo = *algo[0];
-
-    algo.clone()
+    // Did we find a suitable algorithm entry?
+    if !algo.is_empty() {
+        Ok((*algo[0]).clone())
+    } else {
+        // RSA with this bit length is not in algo_list
+        return Err(anyhow!(
+            "RSA {} unsupported according to algo_list",
+            rsa_bits
+        )
+        .into());
+    }
 }
 
 // Check if `oid` is supported for `key_type` in algo_list.
