@@ -145,7 +145,7 @@ mod test {
 
         // check that after re-serializing, the data is still the same
         let serialized = tlv.serialize();
-        assert_eq!(&serialized, &data[..]);
+        assert_eq!(serialized, data.to_vec());
 
         // outermost layer contains all bytes as value
         let value = tlv.find(&[0x6e].into()).unwrap();
