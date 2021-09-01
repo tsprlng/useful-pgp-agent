@@ -14,6 +14,7 @@ use thiserror::Error;
 
 /// Enum that wraps the different error types that this crate can return
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum OpenpgpCardError {
     #[error("Error interacting with smartcard: {0}")]
     Smartcard(SmartcardError),
@@ -45,6 +46,7 @@ impl From<anyhow::Error> for OpenpgpCardError {
 
 /// OpenPGP card "Status Byte" errors
 #[derive(Error, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum OcErrorStatus {
     #[error("Selected file or DO in termination state")]
     TerminationState,
@@ -150,6 +152,7 @@ impl From<(u8, u8)> for OcErrorStatus {
 
 /// Errors on the smartcard/reader layer
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum SmartcardError {
     #[error("Failed to create a pcsc smartcard context {0}")]
     ContextError(String),
