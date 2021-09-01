@@ -16,8 +16,8 @@ use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
     RSAKey, RSAPub,
 };
-use crate::errors::OpenpgpCardError;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
+use crate::Error;
 use crate::{apdu, KeyType};
 
 /// Generate asymmetric key pair on the card.
@@ -36,10 +36,10 @@ pub(crate) fn gen_key_with_metadata(
         &PublicKeyMaterial,
         KeyGenerationTime,
         KeyType,
-    ) -> Result<Fingerprint, OpenpgpCardError>,
+    ) -> Result<Fingerprint, Error>,
     key_type: KeyType,
     algo: Option<&Algo>,
-) -> Result<(PublicKeyMaterial, KeyGenerationTime), OpenpgpCardError> {
+) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
     // set algo on card if it's Some
     if let Some(algo) = algo {
         card_app.set_algorithm_attributes(key_type, algo)?;
@@ -63,7 +63,7 @@ pub(crate) fn gen_key_with_metadata(
     // Store creation timestamp (unix time format, limited to u32)
     let ts = time
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| OpenpgpCardError::InternalError(anyhow!(e)))?
+        .map_err(|e| Error::InternalError(anyhow!(e)))?
         .as_secs() as u32;
 
     let ts = ts.into();
@@ -100,8 +100,7 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
         (_, _, _) => Err(anyhow!(
             "Unexpected public key material from card {:?}",
             tlv
-        )
-        .into()),
+        )),
     }
 }
 
@@ -112,7 +111,7 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
 pub(crate) fn generate_asymmetric_key_pair(
     card_app: &mut CardApp,
     key_type: KeyType,
-) -> Result<Tlv, OpenpgpCardError> {
+) -> Result<Tlv, Error> {
     // generate key
     let crt = get_crt(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
@@ -136,7 +135,7 @@ pub(crate) fn generate_asymmetric_key_pair(
 pub(crate) fn get_pub_key(
     card_app: &mut CardApp,
     key_type: KeyType,
-) -> Result<PublicKeyMaterial, OpenpgpCardError> {
+) -> Result<PublicKeyMaterial, Error> {
     // algo
     let ard = card_app.get_app_data()?; // FIXME: caching
     let algo = ard.get_algorithm_attributes(key_type)?;
@@ -163,7 +162,7 @@ pub(crate) fn key_import(
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
-) -> Result<(), OpenpgpCardError> {
+) -> Result<(), Error> {
     let (algo, key_cmd) = match key.get_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
             // RSA bitsize
@@ -262,7 +261,7 @@ fn get_card_algo_rsa(
     algo_list: AlgoInfo,
     key_type: KeyType,
     rsa_bits: u16,
-) -> Result<RsaAttrs, OpenpgpCardError> {
+) -> Result<RsaAttrs, Error> {
     // Find suitable algorithm parameters (from card's list of algorithms).
     // FIXME: handle "no list available" (older cards?)
     // (Current algo parameters of the key slot should be used, then (?))
@@ -323,7 +322,7 @@ fn check_card_algo_ecc(
 fn ecc_key_import_cmd(
     ecc_key: Box<dyn EccKey>,
     key_type: KeyType,
-) -> Result<Command, OpenpgpCardError> {
+) -> Result<Command, Error> {
     let scalar_data = ecc_key.get_scalar();
     let scalar_len = scalar_data.len() as u8;
 
@@ -348,7 +347,7 @@ fn rsa_key_import_cmd(
     key_type: KeyType,
     rsa_key: Box<dyn RSAKey>,
     algo_attrs: &RsaAttrs,
-) -> Result<Command, OpenpgpCardError> {
+) -> Result<Command, Error> {
     // Assemble key command, which contains three sub-TLV:
 
     // 1) "Control Reference Template"
@@ -411,17 +410,13 @@ fn rsa_key_import_cmd(
 }
 
 /// Get "Control Reference Template" Tlv for `key_type`
-fn get_crt(key_type: KeyType) -> Result<Tlv, OpenpgpCardError> {
+fn get_crt(key_type: KeyType) -> Result<Tlv, Error> {
     // "Control Reference Template" (0xB8 | 0xB6 | 0xA4)
     let tag = match key_type {
         KeyType::Decryption => 0xB8,
         KeyType::Signing => 0xB6,
         KeyType::Authentication => 0xA4,
-        _ => {
-            return Err(OpenpgpCardError::InternalError(anyhow!(
-                "Unexpected KeyType"
-            )))
-        }
+        _ => return Err(Error::InternalError(anyhow!("Unexpected KeyType"))),
     };
     Ok(Tlv::new([tag], Value::S(vec![])))
 }

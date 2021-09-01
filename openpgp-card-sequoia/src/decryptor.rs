@@ -16,8 +16,7 @@ use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Cryptogram;
-use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::CardApp;
+use openpgp_card::{CardApp, Error};
 
 use crate::PublicKey;
 
@@ -38,7 +37,7 @@ impl<'a> CardDecryptor<'a> {
         ca: &'a mut CardApp,
         cert: &Cert,
         policy: &dyn Policy,
-    ) -> Result<CardDecryptor<'a>, OpenpgpCardError> {
+    ) -> Result<CardDecryptor<'a>, Error> {
         // Get the fingerprint for the decryption key from the card.
         let ard = ca.get_app_data()?;
         let fps = ard.get_fingerprints()?;
@@ -63,12 +62,12 @@ impl<'a> CardDecryptor<'a> {
                 let public = keys[0].clone();
                 Ok(Self { ca, public })
             } else {
-                Err(OpenpgpCardError::InternalError(anyhow!(
+                Err(Error::InternalError(anyhow!(
                     "Failed to find a matching (sub)key in cert"
                 )))
             }
         } else {
-            Err(OpenpgpCardError::InternalError(anyhow!(
+            Err(Error::InternalError(anyhow!(
                 "Failed to get the decryption key's Fingerprint from the card"
             )))
         }

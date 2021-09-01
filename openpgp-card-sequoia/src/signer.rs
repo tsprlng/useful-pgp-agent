@@ -11,8 +11,7 @@ use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Hash;
-use openpgp_card::errors::OpenpgpCardError;
-use openpgp_card::CardApp;
+use openpgp_card::{CardApp, Error};
 
 use crate::PublicKey;
 
@@ -33,7 +32,7 @@ impl<'a> CardSigner<'a> {
         ca: &'a mut CardApp,
         cert: &openpgp::Cert,
         policy: &dyn Policy,
-    ) -> Result<CardSigner<'a>, OpenpgpCardError> {
+    ) -> Result<CardSigner<'a>, Error> {
         // Get the fingerprint for the signing key from the card.
         let ard = ca.get_app_data()?;
         let fps = ard.get_fingerprints()?;
@@ -60,12 +59,12 @@ impl<'a> CardSigner<'a> {
 
                 Ok(Self::with_pubkey(ca, public))
             } else {
-                Err(OpenpgpCardError::InternalError(anyhow!(
+                Err(Error::InternalError(anyhow!(
                     "Failed to find a matching (sub)key in cert"
                 )))
             }
         } else {
-            Err(OpenpgpCardError::InternalError(anyhow!(
+            Err(Error::InternalError(anyhow!(
                 "Failed to get the signing key's Fingerprint \
                 from the card"
             )))

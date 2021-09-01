@@ -11,10 +11,8 @@ pub mod response;
 use anyhow::Result;
 use std::convert::TryFrom;
 
-use crate::apdu::command::Command;
-use crate::apdu::response::RawResponse;
-use crate::errors::{OcErrorStatus, OpenpgpCardError};
-use crate::CardClientBox;
+use crate::apdu::{command::Command, response::RawResponse};
+use crate::{CardClientBox, Error, StatusByte};
 
 // "Maximum amount of bytes in a short APDU command or response" (from pcsc)
 const MAX_BUFFER_SIZE: usize = 264;
@@ -34,7 +32,7 @@ pub(crate) fn send_command(
     card_client: &mut CardClientBox,
     cmd: Command,
     expect_reply: bool,
-) -> Result<RawResponse, OpenpgpCardError> {
+) -> Result<RawResponse, Error> {
     let mut resp = RawResponse::try_from(send_command_low_level(
         card_client,
         cmd,
@@ -75,7 +73,7 @@ fn send_command_low_level(
     card_client: &mut CardClientBox,
     cmd: Command,
     expect_reply: bool,
-) -> Result<Vec<u8>, OpenpgpCardError> {
+) -> Result<Vec<u8>, Error> {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
         if let Some(caps) = card_client.get_caps() {
             log::debug!("found card caps data!");
@@ -151,9 +149,8 @@ fn send_command_low_level(
                 d.to_vec(),
             );
 
-            let serialized = partial
-                .serialize(ext)
-                .map_err(OpenpgpCardError::InternalError)?;
+            let serialized =
+                partial.serialize(ext).map_err(Error::InternalError)?;
 
             log::debug!(" -> chunked APDU command: {:x?}", &serialized);
 
@@ -162,7 +159,7 @@ fn send_command_low_level(
             log::debug!(" <- APDU chunk response: {:x?}", &resp);
 
             if resp.len() < 2 {
-                return Err(OpenpgpCardError::ResponseLength(resp.len()));
+                return Err(Error::ResponseLength(resp.len()));
             }
 
             if !last {
@@ -176,7 +173,7 @@ fn send_command_low_level(
                     || (sw1 == 0x68 && sw2 == 0x83))
                 {
                     // Unexpected status for a non-final chunked response
-                    return Err(OcErrorStatus::from((sw1, sw2)).into());
+                    return Err(StatusByte::from((sw1, sw2)).into());
                 }
 
                 // ISO: "If SW1-SW2 is set to '6884', then command
@@ -193,7 +190,7 @@ fn send_command_low_level(
         // Can't send this command to the card, because it is too long and
         // the card doesn't support command chaining.
         if serialized.len() > max_cmd_bytes {
-            return Err(OpenpgpCardError::CommandTooLong(serialized.len()));
+            return Err(Error::CommandTooLong(serialized.len()));
         }
 
         log::debug!(" -> APDU command: {:x?}", &serialized);

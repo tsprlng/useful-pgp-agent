@@ -6,10 +6,10 @@
 use anyhow::anyhow;
 
 use crate::card_do::PWStatus;
-use crate::errors::OpenpgpCardError;
+use crate::Error;
 
 impl PWStatus {
-    pub fn try_from(input: &[u8]) -> Result<Self, OpenpgpCardError> {
+    pub fn try_from(input: &[u8]) -> Result<Self, Error> {
         if input.len() == 7 {
             let pw1_cds_multi = input[0] == 0x01;
             let pw1_pin_block = input[1] & 0x80 != 0;
@@ -33,7 +33,7 @@ impl PWStatus {
                 err_count_pw3,
             })
         } else {
-            Err(OpenpgpCardError::InternalError(anyhow!(
+            Err(Error::InternalError(anyhow!(
                 "Unexpected length of PW Status Bytes: {}",
                 input.len()
             )))

@@ -4,7 +4,7 @@
 //! 6 Historical Bytes
 
 use crate::card_do::{CardCapabilities, CardServiceData, Historical};
-use crate::errors::OpenpgpCardError;
+use crate::Error;
 use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 
@@ -78,7 +78,7 @@ impl Historical {
 }
 
 impl TryFrom<&[u8]> for Historical {
-    type Error = OpenpgpCardError;
+    type Error = Error;
 
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
         let len = data.len();

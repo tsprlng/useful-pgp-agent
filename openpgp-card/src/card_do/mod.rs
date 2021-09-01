@@ -3,15 +3,12 @@
 
 //! OpenPGP card data objects (DO)
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use crate::algorithm::Algo;
-use crate::errors::OpenpgpCardError;
-use crate::tlv::Tlv;
-use crate::KeyType;
+use crate::{algorithm::Algo, tlv::Tlv, Error, KeyType};
 
 mod algo_attrs;
 mod algo_info;
@@ -36,9 +33,7 @@ pub struct ApplicationRelatedData(pub(crate) Tlv);
 
 impl ApplicationRelatedData {
     /// Application identifier (AID), ISO 7816-4
-    pub fn get_application_id(
-        &self,
-    ) -> Result<ApplicationId, OpenpgpCardError> {
+    pub fn get_application_id(&self) -> Result<ApplicationId, Error> {
         // get from cached "application related data"
         let aid = self.0.find(&[0x4f].into());
 
@@ -50,7 +45,7 @@ impl ApplicationRelatedData {
     }
 
     /// Historical bytes
-    pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
+    pub fn get_historical(&self) -> Result<Historical, Error> {
         // get from cached "application related data"
         let hist = self.0.find(&[0x5f, 0x52].into());
 
@@ -90,9 +85,7 @@ impl ApplicationRelatedData {
     }
 
     /// Extended Capabilities
-    pub fn get_extended_capabilities(
-        &self,
-    ) -> Result<ExtendedCap, OpenpgpCardError> {
+    pub fn get_extended_capabilities(&self) -> Result<ExtendedCap, Error> {
         // get from cached "application related data"
         let ecap = self.0.find(&[0xc0].into());
 
@@ -136,9 +129,7 @@ impl ApplicationRelatedData {
 
     /// Fingerprint, per key type.
     /// Zero bytes indicate a not defined private key.
-    pub fn get_fingerprints(
-        &self,
-    ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
+    pub fn get_fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
         // Get from cached "application related data"
         let fp = self.0.find(&[0xc5].into());
 
@@ -156,7 +147,7 @@ impl ApplicationRelatedData {
     /// Generation dates/times of key pairs
     pub fn get_key_generation_times(
         &self,
-    ) -> Result<KeySet<KeyGenerationTime>, OpenpgpCardError> {
+    ) -> Result<KeySet<KeyGenerationTime>, Error> {
         let kg = self.0.find(&[0xcd].into());
 
         if let Some(kg) = kg {
@@ -373,7 +364,9 @@ impl<T> KeySet<T> {
 }
 
 /// nom parsing helper
-pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, Error> {
+pub(crate) fn complete<O>(
+    result: nom::IResult<&[u8], O>,
+) -> Result<O, anyhow::Error> {
     let (rem, output) =
         result.map_err(|err| anyhow!("Parsing failed: {:?}", err))?;
     if rem.is_empty() {

@@ -10,7 +10,7 @@ use std::convert::TryInto;
 use std::fmt;
 
 use crate::card_do::{Fingerprint, KeySet};
-use crate::errors::OpenpgpCardError;
+use crate::Error;
 
 impl From<[u8; 20]> for Fingerprint {
     fn from(data: [u8; 20]) -> Self {
@@ -19,7 +19,7 @@ impl From<[u8; 20]> for Fingerprint {
 }
 
 impl TryFrom<&[u8]> for Fingerprint {
-    type Error = OpenpgpCardError;
+    type Error = Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         log::trace!(
@@ -84,9 +84,7 @@ fn fingerprints(input: &[u8]) -> nom::IResult<&[u8], KeySet<Fingerprint>> {
 }
 
 /// Parse three fingerprints from the card into a KeySet of Fingerprints
-pub(crate) fn to_keyset(
-    input: &[u8],
-) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
+pub(crate) fn to_keyset(input: &[u8]) -> Result<KeySet<Fingerprint>, Error> {
     log::trace!("Fingerprint from input: {:x?}, len {}", input, input.len());
 
     // The input may be longer than 3 fingerprint, don't fail if it hasn't
@@ -94,5 +92,5 @@ pub(crate) fn to_keyset(
     self::fingerprints(input)
         .map(|res| res.1)
         .map_err(|err| anyhow!("Parsing failed: {:?}", err))
-        .map_err(OpenpgpCardError::InternalError)
+        .map_err(Error::InternalError)
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::errors::{OcErrorStatus, OpenpgpCardError};
+use crate::{Error, StatusByte};
 use std::convert::TryFrom;
 
 /// Response from the card to a command.
@@ -35,29 +35,27 @@ pub(crate) struct RawResponse {
 }
 
 impl TryFrom<RawResponse> for Response {
-    type Error = OpenpgpCardError;
+    type Error = Error;
 
     fn try_from(value: RawResponse) -> Result<Self, Self::Error> {
         if value.is_ok() {
             Ok(Response { data: value.data })
         } else {
-            Err(OpenpgpCardError::OcStatus(OcErrorStatus::from(
-                value.status(),
-            )))
+            Err(Error::CardStatus(StatusByte::from(value.status())))
         }
     }
 }
 
 impl RawResponse {
-    pub fn check_ok(&self) -> Result<(), OcErrorStatus> {
+    pub fn check_ok(&self) -> Result<(), StatusByte> {
         if !self.is_ok() {
-            Err(OcErrorStatus::from((self.sw1, self.sw2)))
+            Err(StatusByte::from((self.sw1, self.sw2)))
         } else {
             Ok(())
         }
     }
 
-    pub fn data(&self) -> Result<&[u8], OcErrorStatus> {
+    pub fn data(&self) -> Result<&[u8], StatusByte> {
         self.check_ok()?;
         Ok(&self.data)
     }
@@ -87,15 +85,15 @@ impl RawResponse {
 }
 
 impl TryFrom<Vec<u8>> for RawResponse {
-    type Error = OpenpgpCardError;
+    type Error = Error;
 
     fn try_from(mut data: Vec<u8>) -> Result<Self, Self::Error> {
         let sw2 = data
             .pop()
-            .ok_or_else(|| OpenpgpCardError::ResponseLength(data.len()))?;
+            .ok_or_else(|| Error::ResponseLength(data.len()))?;
         let sw1 = data
             .pop()
-            .ok_or_else(|| OpenpgpCardError::ResponseLength(data.len()))?;
+            .ok_or_else(|| Error::ResponseLength(data.len()))?;
 
         Ok(RawResponse { data, sw1, sw2 })
     }

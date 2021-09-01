@@ -13,7 +13,7 @@ use sequoia_ipc::gnupg::{Agent, Context};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-use openpgp_card::errors::OpenpgpCardError;
+use openpgp_card::Error;
 use openpgp_card::{CardCaps, CardClient, CardClientBox};
 
 lazy_static! {
@@ -108,9 +108,7 @@ impl ScdClient {
     /// Create a CardClientBox object that uses an scdaemon instance as its
     /// backend. If multiple cards are available, scdaemon implicitly
     /// selects one.
-    pub fn open(
-        agent: Option<Agent>,
-    ) -> Result<CardClientBox, OpenpgpCardError> {
+    pub fn open(agent: Option<Agent>) -> Result<CardClientBox, Error> {
         let card = ScdClient::new(agent, true)?;
         Ok(Box::new(card) as CardClientBox)
     }
@@ -120,7 +118,7 @@ impl ScdClient {
     pub fn open_by_serial(
         agent: Option<Agent>,
         serial: &str,
-    ) -> Result<CardClientBox, OpenpgpCardError> {
+    ) -> Result<CardClientBox, Error> {
         let mut card = ScdClient::new(agent, true)?;
         card.select_card(serial)?;
 

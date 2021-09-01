@@ -18,8 +18,8 @@ use crate::card_do::{
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
 };
-use crate::errors::OpenpgpCardError;
 use crate::tlv::{tag::Tag, value::Value, Tlv};
+use crate::Error;
 use crate::{apdu, keys, CardCaps, CardClientBox, KeyType};
 
 /// Low-level access to OpenPGP card functionality.
@@ -92,7 +92,7 @@ impl CardApp {
     // --- select ---
 
     /// Select the OpenPGP card application
-    pub fn select(&mut self) -> Result<Response, OpenpgpCardError> {
+    pub fn select(&mut self) -> Result<Response, Error> {
         let select_openpgp = commands::select_openpgp();
         apdu::send_command(&mut self.card_client, select_openpgp, false)?
             .try_into()
@@ -207,9 +207,7 @@ impl CardApp {
     ///
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
-    pub fn get_cardholder_certificate(
-        &mut self,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn get_cardholder_certificate(&mut self) -> Result<Response, Error> {
         let cmd = commands::get_cardholder_certificate();
         apdu::send_command(&mut self.card_client, cmd, true)?.try_into()
     }
@@ -233,7 +231,7 @@ impl CardApp {
         &mut self,
         num: u8,
         tag: &[u8],
-    ) -> Result<Response, OpenpgpCardError> {
+    ) -> Result<Response, Error> {
         let tlv = Tlv::new(
             [0x60],
             Value::C(vec![Tlv::new([0x5c], Value::S(tag.to_vec()))]),
@@ -308,7 +306,7 @@ impl CardApp {
     pub fn verify_pw1_for_signing(
         &mut self,
         pin: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    ) -> Result<Response, Error> {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
@@ -321,19 +319,14 @@ impl CardApp {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. yubikey 5)
-    pub fn check_pw1_for_signing(
-        &mut self,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn check_pw1_for_signing(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
     /// Verify PW1 (user) and set an appropriate access status.
     /// (For operations except signing, mode 82).
-    pub fn verify_pw1(
-        &mut self,
-        pin: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn verify_pw1(&mut self, pin: &str) -> Result<Response, Error> {
         assert!(pin.len() >= 6); // FIXME: Err
 
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
@@ -347,16 +340,13 @@ impl CardApp {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. yubikey 5)
-    pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
+    pub fn check_pw1(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
     /// Verify PW3 (admin) and set an appropriate access status.
-    pub fn verify_pw3(
-        &mut self,
-        pin: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn verify_pw3(&mut self, pin: &str) -> Result<Response, Error> {
         assert!(pin.len() >= 8); // FIXME: Err
 
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
@@ -369,7 +359,7 @@ impl CardApp {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. yubikey 5)
-    pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
+    pub fn check_pw3(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw3(vec![]);
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
@@ -380,10 +370,7 @@ impl CardApp {
     ///
     /// (This is a convenience wrapper around the low-level pso_decipher
     /// operation, it builds the required `data` field from `dm`)
-    pub fn decrypt(
-        &mut self,
-        dm: Cryptogram,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
+    pub fn decrypt(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
         match dm {
             Cryptogram::RSA(message) => {
                 let mut data = vec![0x0];
@@ -409,10 +396,7 @@ impl CardApp {
 
     /// Run decryption operation on the smartcard (low level operation)
     /// (7.2.11 PSO: DECIPHER)
-    fn pso_decipher(
-        &mut self,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
+    fn pso_decipher(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
         // The OpenPGP card is already connected and PW1 82 has been verified
         let dec_cmd = commands::decryption(data);
         let resp = apdu::send_command(&mut self.card_client, dec_cmd, true)?;
@@ -431,7 +415,7 @@ impl CardApp {
     pub fn signature_for_hash(
         &mut self,
         hash: Hash,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
+    ) -> Result<Vec<u8>, Error> {
         let data = match hash {
             Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
                 let tlv = Tlv::new(
@@ -466,7 +450,7 @@ impl CardApp {
     fn pso_compute_digital_signature(
         &mut self,
         data: Vec<u8>,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
+    ) -> Result<Vec<u8>, Error> {
         let dec_cmd = commands::signature(data);
 
         let resp = apdu::send_command(&mut self.card_client, dec_cmd, true)?;
@@ -492,33 +476,24 @@ impl CardApp {
         Ok(resp.data()?.to_vec())
     }
 
-    pub fn set_name(
-        &mut self,
-        name: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn set_name(&mut self, name: &str) -> Result<Response, Error> {
         let put_name = commands::put_name(name.as_bytes().to_vec());
         apdu::send_command(&mut self.card_client, put_name, false)?.try_into()
     }
 
-    pub fn set_lang(
-        &mut self,
-        lang: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn set_lang(&mut self, lang: &str) -> Result<Response, Error> {
         let put_lang = commands::put_lang(lang.as_bytes().to_vec());
         apdu::send_command(self.card_client.borrow_mut(), put_lang, false)?
             .try_into()
     }
 
-    pub fn set_sex(&mut self, sex: Sex) -> Result<Response, OpenpgpCardError> {
+    pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
         let put_sex = commands::put_sex((&sex).into());
         apdu::send_command(self.card_client.borrow_mut(), put_sex, false)?
             .try_into()
     }
 
-    pub fn set_url(
-        &mut self,
-        url: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn set_url(&mut self, url: &str) -> Result<Response, Error> {
         let put_url = commands::put_url(url.as_bytes().to_vec());
         apdu::send_command(&mut self.card_client, put_url, false)?.try_into()
     }
@@ -527,7 +502,7 @@ impl CardApp {
         &mut self,
         time: KeyGenerationTime,
         key_type: KeyType,
-    ) -> Result<Response, OpenpgpCardError> {
+    ) -> Result<Response, Error> {
         // Timestamp update
         let time_value: Vec<u8> = time
             .get()
@@ -549,7 +524,7 @@ impl CardApp {
         &mut self,
         fp: Fingerprint,
         key_type: KeyType,
-    ) -> Result<Response, OpenpgpCardError> {
+    ) -> Result<Response, Error> {
         let fp_cmd = commands::put_data(
             &[key_type.get_fingerprint_put_tag()],
             fp.as_bytes().to_vec(),
@@ -573,7 +548,7 @@ impl CardApp {
         &mut self,
         pw_status: &PWStatus,
         long: bool,
-    ) -> Result<Response, OpenpgpCardError> {
+    ) -> Result<Response, Error> {
         let data = pw_status.serialize_for_put(long);
 
         let cmd = commands::put_pw_status(data);
@@ -587,7 +562,7 @@ impl CardApp {
     pub fn set_cardholder_certificate(
         &mut self,
         data: Vec<u8>,
-    ) -> Result<Response, OpenpgpCardError> {
+    ) -> Result<Response, Error> {
         let cmd = commands::put_cardholder_certificate(data);
         apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
     }
@@ -598,7 +573,7 @@ impl CardApp {
         &mut self,
         key_type: KeyType,
         algo: &Algo,
-    ) -> Result<Response, OpenpgpCardError> {
+    ) -> Result<Response, Error> {
         // FIXME: caching?
         let ard = self.get_app_data()?;
 
@@ -668,7 +643,7 @@ impl CardApp {
         &mut self,
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
-    ) -> Result<(), OpenpgpCardError> {
+    ) -> Result<(), Error> {
         let algo_list = self.get_algo_info();
 
         // An error is ok - it's fine if a card doesn't offer a list of
@@ -689,10 +664,10 @@ impl CardApp {
             &PublicKeyMaterial,
             KeyGenerationTime,
             KeyType,
-        ) -> Result<Fingerprint, OpenpgpCardError>,
+        ) -> Result<Fingerprint, Error>,
         key_type: KeyType,
         algo: Option<&Algo>,
-    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), OpenpgpCardError> {
+    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         keys::gen_key_with_metadata(self, fp_from_pub, key_type, algo)
     }
 
@@ -707,10 +682,10 @@ impl CardApp {
             &PublicKeyMaterial,
             KeyGenerationTime,
             KeyType,
-        ) -> Result<Fingerprint, OpenpgpCardError>,
+        ) -> Result<Fingerprint, Error>,
         key_type: KeyType,
         algo: AlgoSimple,
-    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), OpenpgpCardError> {
+    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         let algo = algo.get_algo(key_type);
         self.generate_key(fp_from_pub, key_type, Some(&algo))
     }
@@ -724,7 +699,7 @@ impl CardApp {
     pub fn get_pub_key(
         &mut self,
         key_type: KeyType,
-    ) -> Result<PublicKeyMaterial, OpenpgpCardError> {
+    ) -> Result<PublicKeyMaterial, Error> {
         keys::get_pub_key(self, key_type)
     }
 }

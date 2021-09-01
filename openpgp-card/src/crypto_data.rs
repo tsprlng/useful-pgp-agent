@@ -9,7 +9,7 @@ use anyhow::Result;
 
 use crate::algorithm::Algo;
 use crate::card_do::{Fingerprint, KeyGenerationTime};
-use crate::errors::OpenpgpCardError;
+use crate::Error;
 
 /// A hash value that can be signed by the card.
 #[non_exhaustive]
@@ -71,7 +71,7 @@ pub trait CardUploadableKey {
     fn get_ts(&self) -> KeyGenerationTime;
 
     /// fingerprint
-    fn get_fp(&self) -> Result<Fingerprint, OpenpgpCardError>;
+    fn get_fp(&self) -> Result<Fingerprint, Error>;
 }
 
 /// Algorithm-independent container for private key material to upload to

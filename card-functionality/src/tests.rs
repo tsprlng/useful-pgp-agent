@@ -1,19 +1,19 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::{Error, Result};
+use anyhow::Result;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
-use thiserror::Error;
+use thiserror;
 
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
+use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
-use openpgp_card::errors::{OcErrorStatus, OpenpgpCardError};
-use openpgp_card::{CardApp, KeyType};
+use openpgp_card::{CardApp, Error, KeyType, StatusByte};
 use openpgp_card_sequoia::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
 };
@@ -23,23 +23,23 @@ use crate::util;
 
 #[derive(Debug)]
 pub enum TestResult {
-    Status(OcErrorStatus),
+    Status(StatusByte),
     StatusOk,
     Text(String),
 }
 
 type TestOutput = Vec<TestResult>;
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum TestError {
     #[error("Failed to upload key {0} ({1})")]
-    KeyUploadError(String, Error),
+    KeyUploadError(String, anyhow::Error),
 
     #[error(transparent)]
-    OPGP(#[from] OpenpgpCardError),
+    OPGP(#[from] Error),
 
     #[error(transparent)]
-    OCard(#[from] OcErrorStatus),
+    OCard(#[from] StatusByte),
 
     #[error(transparent)]
     Other(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
@@ -485,8 +485,8 @@ pub fn test_verify(
     // try to set name without verify, assert result is not ok!
     let res = ca.set_name("Notverified<<Hello");
 
-    if let Err(OpenpgpCardError::OcStatus(s)) = res {
-        assert_eq!(s, OcErrorStatus::SecurityStatusNotSatisfied);
+    if let Err(Error::CardStatus(s)) = res {
+        assert_eq!(s, StatusByte::SecurityStatusNotSatisfied);
     } else {
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
@@ -494,7 +494,7 @@ pub fn test_verify(
     ca.verify_pw3("12345678")?;
 
     match ca.check_pw3() {
-        Err(OpenpgpCardError::OcStatus(s)) => {
+        Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
         }
@@ -512,7 +512,7 @@ pub fn test_verify(
     ca.verify_pw1("123456")?;
 
     match ca.check_pw3() {
-        Err(OpenpgpCardError::OcStatus(s)) => {
+        Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
         }

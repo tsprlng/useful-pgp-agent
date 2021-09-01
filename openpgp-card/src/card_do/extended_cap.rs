@@ -8,9 +8,8 @@ use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
-use crate::card_do::complete;
-use crate::card_do::{ExtendedCap, Features};
-use crate::errors::OpenpgpCardError;
+use crate::card_do::{complete, ExtendedCap, Features};
+use crate::Error;
 
 fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<Features>> {
     combinator::map(number::u8, |b| {
@@ -70,7 +69,7 @@ impl ExtendedCap {
 }
 
 impl TryFrom<&[u8]> for ExtendedCap {
-    type Error = OpenpgpCardError;
+    type Error = Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         let ec = complete(parse(input))?;

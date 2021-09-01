@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Result};
-use pcsc::{Card, Context, Error, Protocols, Scope, ShareMode};
+use pcsc::{Card, Context, Protocols, Scope, ShareMode};
 
-use openpgp_card::errors::{OpenpgpCardError, SmartcardError};
-use openpgp_card::{CardApp, CardCaps, CardClient, CardClientBox};
+use openpgp_card::{
+    CardApp, CardCaps, CardClient, CardClientBox, Error, SmartcardError,
+};
 
 pub struct PcscClient {
     card: Card,
@@ -51,7 +52,7 @@ impl PcscClient {
             let card =
                 match ctx.connect(reader, ShareMode::Shared, Protocols::ANY) {
                     Ok(card) => card,
-                    Err(Error::NoSmartcard) => {
+                    Err(pcsc::Error::NoSmartcard) => {
                         continue; // try next reader
                     }
                     Err(err) => {
@@ -94,16 +95,14 @@ impl PcscClient {
     }
 
     /// Try to select the OpenPGP application on a card
-    fn select(card_client: PcscClient) -> Result<CardApp, OpenpgpCardError> {
+    fn select(card_client: PcscClient) -> Result<CardApp, Error> {
         let ccb = Box::new(card_client) as CardClientBox;
 
         let mut ca = CardApp::from(ccb);
         if ca.select().is_ok() {
             Ok(ca)
         } else {
-            Err(OpenpgpCardError::Smartcard(
-                SmartcardError::SelectOpenPGPCardFailed,
-            ))
+            Err(Error::Smartcard(SmartcardError::SelectOpenPGPCardFailed))
         }
     }
 
@@ -111,14 +110,14 @@ impl PcscClient {
     ///
     /// If multiple cards are connected, this will effectively be a random
     /// pick. You should consider using `open_by_ident` instead.
-    pub fn open_yolo() -> Result<CardClientBox, OpenpgpCardError> {
+    pub fn open_yolo() -> Result<CardClientBox, Error> {
         for card in Self::unopened_cards()? {
             if let Ok(ca) = Self::select(card) {
                 return Ok(ca.into());
             }
         }
 
-        Err(OpenpgpCardError::Smartcard(SmartcardError::CardNotFound(
+        Err(Error::Smartcard(SmartcardError::CardNotFound(
             "No OpenPGP card found".to_string(),
         )))
     }
@@ -128,7 +127,7 @@ impl PcscClient {
     fn match_by_ident(
         mut ca: CardApp,
         ident: &str,
-    ) -> Result<Option<CardClientBox>, OpenpgpCardError> {
+    ) -> Result<Option<CardClientBox>, Error> {
         let ard = ca.get_app_data()?;
         let aid = ard.get_application_id()?;
 
@@ -141,9 +140,7 @@ impl PcscClient {
 
     /// Returns the OpenPGP card that matches `ident`, if it is available.
     /// The OpenPGP application of the `CardClientBox` has been selected.
-    pub fn open_by_ident(
-        ident: &str,
-    ) -> Result<CardClientBox, OpenpgpCardError> {
+    pub fn open_by_ident(ident: &str) -> Result<CardClientBox, Error> {
         for card in Self::unopened_cards()? {
             if let Ok(ca) = Self::select(card) {
                 if let Some(matched_card) =
@@ -154,7 +151,7 @@ impl PcscClient {
             }
         }
 
-        Err(OpenpgpCardError::Smartcard(SmartcardError::CardNotFound(
+        Err(Error::Smartcard(SmartcardError::CardNotFound(
             ident.to_string(),
         )))
     }
@@ -165,7 +162,7 @@ impl CardClient for PcscClient {
         let mut resp_buffer = vec![0; buf_size];
 
         let resp = self.card.transmit(cmd, &mut resp_buffer).map_err(|e| {
-            OpenpgpCardError::Smartcard(SmartcardError::Error(format!(
+            Error::Smartcard(SmartcardError::Error(format!(
                 "Transmit failed: {:?}",
                 e
             )))

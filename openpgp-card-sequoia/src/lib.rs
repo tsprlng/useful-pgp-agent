@@ -7,7 +7,6 @@
 use anyhow::{anyhow, Context, Result};
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::error::Error;
 use std::io;
 use std::ops::{Deref, DerefMut};
 use std::time::SystemTime;
@@ -41,9 +40,7 @@ use openpgp_card::crypto_data::{
     CardUploadableKey, Cryptogram, EccKey, EccType, Hash, PrivateKeyMaterial,
     PublicKeyMaterial, RSAKey,
 };
-use openpgp_card::{
-    errors::OpenpgpCardError, CardApp, CardClientBox, KeyType, Response,
-};
+use openpgp_card::{CardApp, CardClientBox, Error, KeyType, Response};
 
 use crate::signer::CardSigner;
 
@@ -373,7 +370,7 @@ impl CardUploadableKey for SequoiaKey {
         ts.into()
     }
 
-    fn get_fp(&self) -> Result<Fingerprint, OpenpgpCardError> {
+    fn get_fp(&self) -> Result<Fingerprint, Error> {
         let fp = self.key.fingerprint();
         fp.as_bytes().try_into()
     }
@@ -455,7 +452,7 @@ pub fn upload_from_cert_yolo(
     cert: &openpgp::Cert,
     key_type: KeyType,
     password: Option<String>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     let policy = StandardPolicy::new();
 
     // Find all suitable (sub)keys for key_type.
@@ -488,7 +485,7 @@ pub fn upload_key(
     vka: ValidErasedKeyAmalgamation<SecretParts>,
     key_type: KeyType,
     password: Option<String>,
-) -> Result<(), OpenpgpCardError> {
+) -> Result<(), Error> {
     let sqk = SequoiaKey::new(vka, password);
 
     oca.upload_key(Box::new(sqk), key_type)
@@ -546,7 +543,7 @@ pub fn public_to_fingerprint(
     pkm: &PublicKeyMaterial,
     time: KeyGenerationTime,
     kt: KeyType,
-) -> Result<Fingerprint, OpenpgpCardError> {
+) -> Result<Fingerprint, Error> {
     // Transform PublicKeyMaterial into a Sequoia Key
     let key = public_key_material_to_key(pkm, kt, time)?;
 
@@ -581,7 +578,7 @@ impl CardBase {
 
     /// Set up connection (cache "application related data") to a
     /// CardClient, on which the openpgp applet has already been opened.
-    pub fn open_card(ccb: CardClientBox) -> Result<Self, OpenpgpCardError> {
+    pub fn open_card(ccb: CardClientBox) -> Result<Self, Error> {
         // read and cache "application related data"
         let mut card_app = CardApp::from(ccb);
 
@@ -602,13 +599,11 @@ impl CardBase {
         self.card_app.get_app_data()
     }
 
-    pub fn get_application_id(
-        &self,
-    ) -> Result<ApplicationId, OpenpgpCardError> {
+    pub fn get_application_id(&self) -> Result<ApplicationId, Error> {
         self.ard.get_application_id()
     }
 
-    pub fn get_historical(&self) -> Result<Historical, OpenpgpCardError> {
+    pub fn get_historical(&self) -> Result<Historical, Error> {
         self.ard.get_historical()
     }
 
@@ -626,9 +621,7 @@ impl CardBase {
         unimplemented!()
     }
 
-    pub fn get_extended_capabilities(
-        &self,
-    ) -> Result<ExtendedCap, OpenpgpCardError> {
+    pub fn get_extended_capabilities(&self) -> Result<ExtendedCap, Error> {
         self.ard.get_extended_capabilities()
     }
 
@@ -641,9 +634,7 @@ impl CardBase {
         self.ard.get_pw_status_bytes()
     }
 
-    pub fn get_fingerprints(
-        &self,
-    ) -> Result<KeySet<Fingerprint>, OpenpgpCardError> {
+    pub fn get_fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
         self.ard.get_fingerprints()
     }
 
@@ -730,7 +721,7 @@ impl CardBase {
         }
     }
 
-    pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
+    pub fn check_pw1(&mut self) -> Result<Response, Error> {
         self.card_app.check_pw1()
     }
 
@@ -744,7 +735,7 @@ impl CardBase {
         }
     }
 
-    pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
+    pub fn check_pw3(&mut self) -> Result<Response, Error> {
         self.card_app.check_pw3()
     }
 
@@ -783,10 +774,7 @@ impl DerefMut for CardUser {
 
 impl CardUser {
     /// Decrypt the ciphertext in `dm`, on the card.
-    pub fn decrypt(
-        &mut self,
-        dm: Cryptogram,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
+    pub fn decrypt(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
         self.card_app.decrypt(dm)
     }
 }
@@ -820,7 +808,7 @@ impl CardSign {
     pub fn signature_for_hash(
         &mut self,
         hash: Hash,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
+    ) -> Result<Vec<u8>, Error> {
         self.card_app.signature_for_hash(hash)
     }
 }
@@ -847,10 +835,7 @@ impl DerefMut for CardAdmin {
 }
 
 impl CardAdmin {
-    pub fn set_name(
-        &mut self,
-        name: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn set_name(&mut self, name: &str) -> Result<Response, Error> {
         if name.len() >= 40 {
             return Err(anyhow!("name too long").into());
         }
@@ -863,10 +848,7 @@ impl CardAdmin {
         self.card_app.set_name(name)
     }
 
-    pub fn set_lang(
-        &mut self,
-        lang: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn set_lang(&mut self, lang: &str) -> Result<Response, Error> {
         if lang.len() > 8 {
             return Err(anyhow!("lang too long").into());
         }
@@ -874,14 +856,11 @@ impl CardAdmin {
         self.card_app.set_lang(lang)
     }
 
-    pub fn set_sex(&mut self, sex: Sex) -> Result<Response, OpenpgpCardError> {
+    pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
         self.card_app.set_sex(sex)
     }
 
-    pub fn set_url(
-        &mut self,
-        url: &str,
-    ) -> Result<Response, OpenpgpCardError> {
+    pub fn set_url(&mut self, url: &str) -> Result<Response, Error> {
         if url.chars().any(|c| !c.is_ascii()) {
             return Err(anyhow!("Invalid char in url").into());
         }
@@ -900,7 +879,7 @@ impl CardAdmin {
         &mut self,
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
-    ) -> Result<(), OpenpgpCardError> {
+    ) -> Result<(), Error> {
         self.card_app.key_import(key, key_type)
     }
 }
