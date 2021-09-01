@@ -87,7 +87,7 @@ impl PcscClient {
             .map(Self::select)
             .map(|res| res.ok())
             .flatten()
-            .map(|ca| ca.take_card())
+            .map(|ca| ca.into())
             .collect();
 
         Ok(cards)
@@ -97,7 +97,7 @@ impl PcscClient {
     fn select(card_client: PcscClient) -> Result<CardApp, OpenpgpCardError> {
         let ccb = Box::new(card_client) as CardClientBox;
 
-        let mut ca = CardApp::new(ccb);
+        let mut ca = CardApp::from(ccb);
         if ca.select().is_ok() {
             Ok(ca)
         } else {
@@ -114,7 +114,7 @@ impl PcscClient {
     pub fn open_yolo() -> Result<CardClientBox, OpenpgpCardError> {
         for card in Self::unopened_cards()? {
             if let Ok(ca) = Self::select(card) {
-                return Ok(ca.take_card());
+                return Ok(ca.into());
             }
         }
 
@@ -133,7 +133,7 @@ impl PcscClient {
         let aid = ard.get_application_id()?;
 
         if aid.ident() == ident {
-            Ok(Some(ca.take_card()))
+            Ok(Some(ca.into()))
         } else {
             Ok(None)
         }

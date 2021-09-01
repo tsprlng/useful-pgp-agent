@@ -582,7 +582,7 @@ impl CardBase {
     /// CardClient, on which the openpgp applet has already been opened.
     pub fn open_card(ccb: CardClientBox) -> Result<Self, OpenpgpCardError> {
         // read and cache "application related data"
-        let mut card_app = CardApp::new(ccb);
+        let mut card_app = CardApp::from(ccb);
 
         let ard = card_app.get_app_data()?;
 
@@ -788,15 +788,6 @@ impl CardUser {
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         self.card_app.decrypt(dm)
     }
-
-    /// Run decryption operation on the smartcard
-    /// (7.2.11 PSO: DECIPHER)
-    pub(crate) fn pso_decipher(
-        &mut self,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
-        self.card_app.pso_decipher(data)
-    }
 }
 
 /// An OpenPGP card after successful verification of PW1 in mode 81
@@ -830,15 +821,6 @@ impl CardSign {
         hash: Hash,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
         self.card_app.signature_for_hash(hash)
-    }
-
-    /// Run signing operation on the smartcard
-    /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    pub(crate) fn compute_digital_signature(
-        &mut self,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>, OpenpgpCardError> {
-        self.card_app.pso_compute_digital_signature(data)
     }
 }
 

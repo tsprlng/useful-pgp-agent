@@ -240,7 +240,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let cards = PcscClient::list_cards()?;
         for c in cards {
-            let mut ca = CardApp::new(c);
+            let mut ca = CardApp::from(c);
 
             let ard = ca.get_app_data()?;
             let app_id = ard.get_application_id()?;

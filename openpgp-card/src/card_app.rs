@@ -33,21 +33,28 @@ pub struct CardApp {
     card_client: CardClientBox,
 }
 
-impl CardApp {
-    /// Create a CardApp object based on a [`CardClientBox`].
-    pub fn new(card_client: CardClientBox) -> Self {
+impl From<CardClientBox> for CardApp {
+    fn from(card_client: CardClientBox) -> Self {
         Self { card_client }
     }
+}
 
-    /// Take the CardClientBox out of a CardApp
-    pub fn take_card(self) -> CardClientBox {
+impl Into<CardClientBox> for CardApp {
+    fn into(self) -> CardClientBox {
         self.card_client
     }
+}
 
-    /// Read capabilities from the card, and set them in the CardApp.
+impl CardApp {
+    /// Get the CardClient for this CardApp
+    pub(crate) fn get_card_client(&mut self) -> &mut CardClientBox {
+        &mut self.card_client
+    }
+
+    /// Initialize the CardCaps settings in the underlying CardClient
+    /// from the data in `ard`.
     ///
-    /// Also initializes the underlying CardClient with the caps - some
-    /// implementations may need this information.
+    /// This should be done at an early point, soon after opening the card.
     pub fn init_caps(&mut self, ard: &ApplicationRelatedData) -> Result<()> {
         // Determine chaining/extended length support from card
         // metadata and cache this information in CardApp (as a
@@ -80,10 +87,6 @@ impl CardApp {
         self.card_client.init_caps(caps);
 
         Ok(())
-    }
-
-    pub fn card(&mut self) -> &mut CardClientBox {
-        &mut self.card_client
     }
 
     // --- select ---
@@ -552,7 +555,7 @@ impl CardApp {
             fp.as_bytes().to_vec(),
         );
 
-        apdu::send_command(self.card(), fp_cmd, false)?.try_into()
+        apdu::send_command(self.get_card_client(), fp_cmd, false)?.try_into()
     }
 
     /// Set PW Status Bytes.
@@ -574,7 +577,7 @@ impl CardApp {
         let data = pw_status.serialize_for_put(long);
 
         let cmd = commands::put_pw_status(data);
-        apdu::send_command(self.card(), cmd, false)?.try_into()
+        apdu::send_command(self.get_card_client(), cmd, false)?.try_into()
     }
 
     /// Set cardholder certificate (for AUT, DEC or SIG).

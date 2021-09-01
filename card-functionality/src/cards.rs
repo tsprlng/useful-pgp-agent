@@ -98,7 +98,7 @@ impl TestCard {
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
                 for card_client in PcscClient::list_cards()? {
-                    let mut ca = CardApp::new(card_client);
+                    let mut ca = CardApp::from(card_client);
 
                     // Set Card Capabilities (chaining, command length, ..)
                     let ard = ca.get_app_data()?;
@@ -117,7 +117,7 @@ impl TestCard {
             }
             Self::Scdc(serial) => {
                 let card_client = ScdClient::open_by_serial(None, serial)?;
-                let mut ca = CardApp::new(card_client);
+                let mut ca = CardApp::from(card_client);
 
                 // Set Card Capabilities (chaining, command length, ..)
                 let ard = ca.get_app_data()?;
