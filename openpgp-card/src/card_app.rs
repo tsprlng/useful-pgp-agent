@@ -91,7 +91,7 @@ impl CardApp {
 
     // --- select ---
 
-    /// "Select" the OpenPGP card application
+    /// Select the OpenPGP card application
     pub fn select(&mut self) -> Result<Response, OpenpgpCardError> {
         let select_openpgp = commands::select_openpgp();
         apdu::send_command(&mut self.card_client, select_openpgp, false)?
@@ -100,11 +100,11 @@ impl CardApp {
 
     // --- get data ---
 
-    /// Load "application related data".
+    /// Get the "application related data" from the card.
     ///
-    /// This data should probably be cached in a higher layer. Some parts of
-    /// it are needed regularly, and it will not usually change during
-    /// normal use of a card.
+    /// (This data should probably be cached in a higher layer. Some parts of
+    /// it are needed regularly, and it does not usually change during
+    /// normal use of a card.)
     pub fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
         let ad = commands::get_application_data();
         let resp = apdu::send_command(&mut self.card_client, ad, true)?;
@@ -214,7 +214,7 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, cmd, true)?.try_into()
     }
 
-    /// DO "Algorithm Information" (0xFA)
+    /// DO "Algorithm Information"
     pub fn get_algo_info(&mut self) -> Result<Option<AlgoInfo>> {
         let resp = apdu::send_command(
             &mut self.card_client,
@@ -227,8 +227,7 @@ impl CardApp {
         Ok(Some(ai))
     }
 
-    /// 7.2.5 SELECT DATA
-    /// "select a DO in the current template"
+    /// SELECT DATA "select a DO in the current template"
     /// (e.g. for cardholder certificate)
     pub fn select_data(
         &mut self,
@@ -251,7 +250,7 @@ impl CardApp {
     /// Reset all state on this OpenPGP card.
     ///
     /// Note: the "factory reset" operation is not directly offered by the
-    /// card. It is composed of a series of steps:
+    /// card. It is implemented as a series of OpenPGP card commands:
     /// - send 4 bad requests to verify pw1
     /// - send 4 bad requests to verify pw3
     /// - terminate_df
@@ -379,8 +378,8 @@ impl CardApp {
 
     /// Decrypt the ciphertext in `dm`, on the card.
     ///
-    /// This is a convenience wrapper around `pso_decipher()` which builds
-    /// the required `data` field from `dm`.
+    /// (This is a convenience wrapper around the low-level pso_decipher
+    /// operation, it builds the required `data` field from `dm`)
     pub fn decrypt(
         &mut self,
         dm: Cryptogram,
@@ -408,9 +407,9 @@ impl CardApp {
         }
     }
 
-    /// Run decryption operation on the smartcard
+    /// Run decryption operation on the smartcard (low level operation)
     /// (7.2.11 PSO: DECIPHER)
-    pub fn pso_decipher(
+    fn pso_decipher(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
@@ -426,8 +425,9 @@ impl CardApp {
 
     /// Sign `hash`, on the card.
     ///
-    /// This is a convenience wrapper around `pso_compute_digital_signature()`
-    /// which builds the required `data` field from `dm`.
+    /// (This is a convenience wrapper around the low-level
+    /// pso_compute_digital_signature operation. It builds the required
+    /// `data` field from `hash`)
     pub fn signature_for_hash(
         &mut self,
         hash: Hash,
@@ -461,9 +461,9 @@ impl CardApp {
         self.pso_compute_digital_signature(data)
     }
 
-    /// Run signing operation on the smartcard
+    /// Run signing operation on the smartcard (low level operation)
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    pub fn pso_compute_digital_signature(
+    fn pso_compute_digital_signature(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
