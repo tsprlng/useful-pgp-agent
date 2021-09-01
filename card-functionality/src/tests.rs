@@ -168,7 +168,7 @@ pub fn test_print_algo_info(
 
     println!();
 
-    let algo = ca.list_supported_algo();
+    let algo = ca.get_algo_info();
     if let Ok(Some(algo)) = algo {
         println!("Card algorithm list:\n{}", algo);
     }

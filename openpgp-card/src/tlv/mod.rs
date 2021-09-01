@@ -1,17 +1,21 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-pub mod length;
-pub mod tag;
+pub(crate) mod length;
+pub(crate) mod tag;
+pub(crate) mod value;
 
 use anyhow::Result;
 use nom::{bytes::complete as bytes, combinator};
 use std::convert::TryFrom;
 
 use crate::card_do::complete;
-use crate::tlv::tag::Tag;
+use crate::tlv::{length::tlv_encode_length, tag::Tag, value::Value};
 
-/// TLV (Tag-Length-Value)
+/// TLV (Tag-Length-Value) data structure.
+///
+/// Many DOs (data objects) on OpenPGP cards are stored in TLV format.
+/// This struct handles serializing and deserializing TLV.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Tlv {
     tag: Tag,
@@ -42,7 +46,7 @@ impl Tlv {
 
     pub fn serialize(&self) -> Vec<u8> {
         let value = self.value.serialize();
-        let length = crate::tlv::tlv_encode_length(value.len() as u16);
+        let length = tlv_encode_length(value.len() as u16);
 
         let mut ser = Vec::new();
         ser.extend(self.tag.get().iter());
@@ -52,12 +56,16 @@ impl Tlv {
     }
 
     fn parse(input: &[u8]) -> nom::IResult<&[u8], Tlv> {
-        // read tag
+        // Read the tag byte(s)
         let (input, tag) = tag::tag(input)?;
 
+        // Read the length field and get the corresponding number of bytes,
+        // which contain the value of this tlv
         let (input, value) =
             combinator::flat_map(length::length, bytes::take)(input)?;
 
+        // Parse the value bytes, as "simple" or "constructed", depending
+        // on the tag.
         let (_, v) = Value::parse(value, tag.is_constructed())?;
 
         Ok((input, Self::new(tag, v)))
@@ -69,63 +77,6 @@ impl TryFrom<&[u8]> for Tlv {
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         complete(Tlv::parse(input))
-    }
-}
-
-pub fn tlv_encode_length(len: u16) -> Vec<u8> {
-    if len > 255 {
-        vec![0x82, (len >> 8) as u8, (len & 255) as u8]
-    } else if len > 127 {
-        vec![0x81, len as u8]
-    } else {
-        vec![len as u8]
-    }
-}
-
-/// A TLV "value"
-#[derive(Debug, Eq, PartialEq)]
-pub enum Value {
-    /// A "constructed" value, consisting of a list of Tlv
-    C(Vec<Tlv>),
-
-    /// A "simple" value, consisting of binary data
-    S(Vec<u8>),
-}
-
-impl Value {
-    fn parse(data: &[u8], constructed: bool) -> nom::IResult<&[u8], Self> {
-        match constructed {
-            false => Ok((&[], Value::S(data.to_vec()))),
-            true => {
-                let mut c = vec![];
-                let mut input = data;
-
-                while !input.is_empty() {
-                    let (rest, tlv) = Tlv::parse(input)?;
-                    input = rest;
-                    c.push(tlv);
-                }
-
-                Ok((&[], Value::C(c)))
-            }
-        }
-    }
-
-    pub fn from(data: &[u8], constructed: bool) -> Result<Self> {
-        complete(Self::parse(data, constructed))
-    }
-
-    pub fn serialize(&self) -> Vec<u8> {
-        match self {
-            Value::S(data) => data.clone(),
-            Value::C(data) => {
-                let mut s = vec![];
-                for t in data {
-                    s.extend(&t.serialize());
-                }
-                s
-            }
-        }
     }
 }
 
@@ -191,6 +142,10 @@ mod test {
         // 'Yubikey 5 NFC' output for GET DATA on "Application Related Data"
         let data = hex!("6e8201374f10d27600012401030400061601918000005f520800730000e00590007f740381012073820110c00a7d000bfe080000ff0000c106010800001100c206010800001100c306010800001100da06010800001100c407ff7f7f7f030003c5500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c6500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cd1000000000000000000000000000000000de0801000200030081027f660802020bfe02020bfed6020020d7020020d8020020d9020020");
         let tlv = Tlv::try_from(&data[..])?;
+
+        // check that after re-serializing, the data is still the same
+        let serialized = tlv.serialize();
+        assert_eq!(&serialized, &data[..]);
 
         // outermost layer contains all bytes as value
         let value = tlv.find(&[0x6e].into()).unwrap();

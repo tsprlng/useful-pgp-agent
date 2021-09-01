@@ -16,8 +16,8 @@ pub enum Hash<'a> {
     SHA256([u8; 0x20]),
     SHA384([u8; 0x30]),
     SHA512([u8; 0x40]),
-    EdDSA(&'a [u8]), // FIXME?
     ECDSA(&'a [u8]), // FIXME?
+    EdDSA(&'a [u8]), // FIXME?
 }
 
 impl Hash<'_> {
@@ -153,6 +153,6 @@ impl EccPub {
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum EccType {
     ECDH,
-    EdDSA,
     ECDSA,
+    EdDSA,
 }

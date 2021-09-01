@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! 4.4.3.7 Extended Capabilities
+
 use anyhow::Result;
 use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;

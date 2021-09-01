@@ -706,7 +706,7 @@ impl CardBase {
             return Ok(None);
         }
 
-        self.card_app.list_supported_algo()
+        self.card_app.get_algo_info()
     }
 
     // ----------
@@ -838,7 +838,7 @@ impl CardSign {
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
-        self.card_app.compute_digital_signature(data)
+        self.card_app.pso_compute_digital_signature(data)
     }
 }
 
@@ -918,6 +918,6 @@ impl CardAdmin {
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), OpenpgpCardError> {
-        self.card_app.upload_key(key, key_type)
+        self.card_app.key_import(key, key_type)
     }
 }

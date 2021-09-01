@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! PW status Bytes (see spec page 23)
+
 use anyhow::anyhow;
 
 use crate::card_do::PWStatus;

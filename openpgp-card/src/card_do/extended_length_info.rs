@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! 4.1.3.1 Extended length information
+
 use anyhow::Result;
 use nom::{bytes::complete::tag, number::complete as number, sequence};
 

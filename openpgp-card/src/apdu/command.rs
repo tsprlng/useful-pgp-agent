@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Data structure for APDU Commands
+//! (Commands get sent to the card, which will usually send back a `Response`)
+
 use crate::apdu::Le;
 use anyhow::Result;
 

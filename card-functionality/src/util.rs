@@ -50,7 +50,7 @@ pub(crate) fn upload_subkeys(
 
         // upload key
         let cuk = vka_as_uploadable_key(vka, None);
-        ca.upload_key(cuk, *kt)?;
+        ca.key_import(cuk, *kt)?;
     }
 
     Ok(out)

@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Commands and responses to commands ("Application Protocol Data Unit")
+//! APDU "Application Protocol Data Unit"
+//! Commands and responses to commands
 
 pub(crate) mod command;
 pub(crate) mod commands;
@@ -69,7 +70,7 @@ pub(crate) fn send_command(
 /// return the response as a vector of `u8`.
 ///
 /// If the response is chained, this fn only returns one chunk, the caller
-/// needs take care of chained responses
+/// needs to re-assemble the chained response-parts.
 fn send_command_low_level(
     card_client: &mut CardClientBox,
     cmd: Command,

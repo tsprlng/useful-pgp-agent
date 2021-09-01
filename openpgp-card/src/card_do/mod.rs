@@ -24,14 +24,14 @@ mod historical;
 mod key_generation_times;
 mod pw_status;
 
-/// Application Related Data
+/// 4.4.3.1 Application Related Data
 ///
 /// The "application related data" DO contains a set of DOs.
 /// This struct offers read access to these DOs.
 ///
-/// Note that when any of the information in this DO changes on the card, you
-/// need to read ApplicationRelatedData from the card again to receive the
-/// current values.
+/// (Note: when any of the information in this DO changes on the card, you
+/// need to re-read ApplicationRelatedData from the card to receive the
+/// new values!)
 pub struct ApplicationRelatedData(pub(crate) Tlv);
 
 impl ApplicationRelatedData {
@@ -171,6 +171,7 @@ impl ApplicationRelatedData {
     }
 }
 
+/// Security support template (see spec pg. 24)
 #[derive(Debug)]
 pub struct SecuritySupportTemplate {
     // Digital signature counter [3 bytes]
@@ -184,7 +185,7 @@ impl SecuritySupportTemplate {
     }
 }
 
-/// An OpenPGP key generation Time
+/// An OpenPGP key generation Time (see spec pg. 24)
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct KeyGenerationTime(u32);
 
@@ -194,7 +195,7 @@ impl KeyGenerationTime {
     }
 }
 
-/// Application identifier (AID)
+/// 4.2.1 Application Identifier (AID)
 #[derive(Debug, Eq, PartialEq)]
 pub struct ApplicationId {
     application: u8,
@@ -203,26 +204,7 @@ pub struct ApplicationId {
     serial: u32,
 }
 
-/// Card Capabilities (73)
-#[derive(Debug, PartialEq)]
-pub struct CardCapabilities {
-    command_chaining: bool,
-    extended_lc_le: bool,
-    extended_length_information: bool,
-}
-
-/// Card service data (31)
-#[derive(Debug, PartialEq)]
-pub struct CardServiceData {
-    select_by_full_df_name: bool,
-    select_by_partial_df_name: bool,
-    dos_available_in_ef_dir: bool,
-    dos_available_in_ef_atr_info: bool,
-    access_services: [bool; 3],
-    mf: bool,
-}
-
-/// Historical Bytes
+/// 6 Historical Bytes
 #[derive(Debug, PartialEq)]
 pub struct Historical {
     /// category indicator byte
@@ -238,7 +220,26 @@ pub struct Historical {
     sib: u8,
 }
 
-/// Extended Capabilities
+/// Card Capabilities (see 6 Historical Bytes)
+#[derive(Debug, PartialEq)]
+pub struct CardCapabilities {
+    command_chaining: bool,
+    extended_lc_le: bool,
+    extended_length_information: bool,
+}
+
+/// Card service data (see 6 Historical Bytes
+#[derive(Debug, PartialEq)]
+pub struct CardServiceData {
+    select_by_full_df_name: bool,
+    select_by_partial_df_name: bool,
+    dos_available_in_ef_dir: bool,
+    dos_available_in_ef_atr_info: bool,
+    access_services: [bool; 3],
+    mf: bool,
+}
+
+/// 4.4.3.7 Extended Capabilities
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedCap {
     features: HashSet<Features>,
@@ -250,7 +251,7 @@ pub struct ExtendedCap {
     mse_command_support: bool,
 }
 
-/// Features (first byte of Extended Capabilities)
+/// Features (first byte of Extended Capabilities, see 4.4.3.7)
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Features {
     SecureMessaging,
@@ -263,14 +264,14 @@ pub enum Features {
     KdfDo,
 }
 
-/// Extended length information
+/// 4.1.3.1 Extended length information
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedLengthInfo {
     max_command_bytes: u16,
     max_response_bytes: u16,
 }
 
-/// Cardholder Related Data
+/// Cardholder Related Data (see spec pg. 22)
 #[derive(Debug)]
 pub struct Cardholder {
     name: Option<String>,
@@ -278,7 +279,7 @@ pub struct Cardholder {
     sex: Option<Sex>,
 }
 
-/// Sex (according to ISO 5218)
+/// 4.4.3.5 Sex (according to ISO 5218)
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Sex {
     NotKnown,
@@ -309,7 +310,7 @@ impl From<u8> for Sex {
     }
 }
 
-/// PW status Bytes
+/// PW status Bytes (see spec page 23)
 #[derive(Debug)]
 pub struct PWStatus {
     pub(crate) pw1_cds_multi: bool,
@@ -335,7 +336,7 @@ impl PWStatus {
     }
 }
 
-/// Fingerprint
+/// Fingerprint (see spec pg. 23)
 #[derive(Clone, Eq, PartialEq)]
 pub struct Fingerprint([u8; 20]);
 

@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Commands for the OpenPGP card application
+//! Pre-defined `Command` values for the OpenPGP card application
 
 use crate::apdu::command::Command;
 
-/// Select the OpenPGP application
+/// 7.2.1 SELECT
+/// (select the OpenPGP application on the card)
 pub(crate) fn select_openpgp() -> Command {
     Command::new(
         0x00,
@@ -90,16 +91,6 @@ pub(crate) fn verify_pw3(pin: Vec<u8>) -> Command {
     Command::new(0x00, 0x20, 0x00, 0x83, pin)
 }
 
-/// TERMINATE DF
-pub(crate) fn terminate_df() -> Command {
-    Command::new(0x00, 0xe6, 0x00, 0x00, vec![])
-}
-
-/// ACTIVATE FILE
-pub(crate) fn activate_file() -> Command {
-    Command::new(0x00, 0x44, 0x00, 0x00, vec![])
-}
-
 /// 7.2.8 PUT DATA,
 /// ('tag' must consist of either one or two bytes)
 pub(crate) fn put_data(tag: &[u8], data: Vec<u8>) -> Command {
@@ -162,30 +153,40 @@ pub(crate) fn change_pw3(oldpin: Vec<u8>, newpin: Vec<u8>) -> Command {
     Command::new(0x00, 0x24, 0x00, 0x83, fullpin)
 }
 
-/// Creates new APDU for decryption operation
-pub(crate) fn decryption(data: Vec<u8>) -> Command {
-    Command::new(0x00, 0x2A, 0x80, 0x86, data)
-}
-
-/// Creates new APDU for decryption operation
+/// 7.2.10 PSO: COMPUTE DIGITAL SIGNATURE
 pub(crate) fn signature(data: Vec<u8>) -> Command {
     Command::new(0x00, 0x2A, 0x9e, 0x9a, data)
 }
 
-/// Creates new APDU for "GENERATE ASYMMETRIC KEY PAIR"
+/// 7.2.11 PSO: DECIPHER (decryption)
+pub(crate) fn decryption(data: Vec<u8>) -> Command {
+    Command::new(0x00, 0x2A, 0x80, 0x86, data)
+}
+
+/// 7.2.14 GENERATE ASYMMETRIC KEY PAIR
 pub(crate) fn gen_key(data: Vec<u8>) -> Command {
     Command::new(0x00, 0x47, 0x80, 0x00, data)
 }
 
-/// Creates new APDU for "Reading of public key template"
+/// Read public key template (see 7.2.14)
 pub(crate) fn get_pub_key(data: Vec<u8>) -> Command {
     Command::new(0x00, 0x47, 0x81, 0x00, data)
 }
 
-/// Creates new APDU for key import
+/// key import (see 4.4.3.12, 7.2.8)
 pub(crate) fn key_import(data: Vec<u8>) -> Command {
     // The key import uses a PUT DATA command with odd INS (DB) and an
     // Extended header list (DO 4D) as described in ISO 7816-8
 
     Command::new(0x00, 0xDB, 0x3F, 0xFF, data)
+}
+
+/// 7.2.16 TERMINATE DF
+pub(crate) fn terminate_df() -> Command {
+    Command::new(0x00, 0xe6, 0x00, 0x00, vec![])
+}
+
+/// 7.2.17 ACTIVATE FILE
+pub(crate) fn activate_file() -> Command {
+    Command::new(0x00, 0x44, 0x00, 0x00, vec![])
 }

@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Cardholder Related Data (see spec pg. 22)
+
 use std::convert::TryFrom;
 
 use anyhow::Result;
 
 use crate::card_do::{Cardholder, Sex};
-use crate::tlv::{Tlv, Value};
+use crate::tlv::{value::Value, Tlv};
 
 impl Cardholder {
     pub fn name(&self) -> Option<&str> {

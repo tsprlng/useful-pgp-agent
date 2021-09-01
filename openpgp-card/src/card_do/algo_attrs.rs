@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! 4.4.3.9 Algorithm Attributes
+
 use std::convert::TryFrom;
 
 use anyhow::Result;

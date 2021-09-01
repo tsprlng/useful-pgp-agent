@@ -17,11 +17,19 @@ use crate::crypto_data::{
     RSAKey, RSAPub,
 };
 use crate::errors::OpenpgpCardError;
-use crate::tlv::{Tlv, Value};
-use crate::{apdu, tlv, KeyType};
+use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
+use crate::{apdu, KeyType};
 
-/// `gen_key_with_metadata` calculates the fingerprint for a public key
-/// data object
+/// Generate asymmetric key pair on the card.
+///
+/// This is a convenience wrapper around gen_key() that:
+/// - sets algorithm attributes (if not None)
+/// - generates a key pair on the card
+/// - sets the creation time on the card to the current host time
+/// - calculates fingerprint for the key and sets it on the card
+///
+/// `fp_from_pub` calculates the fingerprint for a public key data object and
+/// creation timestamp
 pub(crate) fn gen_key_with_metadata(
     card_app: &mut CardApp,
     fp_from_pub: fn(
@@ -42,7 +50,7 @@ pub(crate) fn gen_key_with_metadata(
     let algo = ard.get_algorithm_attributes(key_type)?;
 
     // generate key
-    let tlv = gen_key(card_app, key_type)?;
+    let tlv = generate_asymmetric_key_pair(card_app, key_type)?;
 
     // derive pubkey
     let pubkey = tlv_to_pubkey(&tlv, &algo)?;
@@ -69,6 +77,7 @@ pub(crate) fn gen_key_with_metadata(
     Ok((pubkey, ts))
 }
 
+/// Transform a public key Tlv from the card into PublicKeyMaterial
 fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
     let n = tlv.find(&[0x81].into());
     let v = tlv.find(&[0x82].into());
@@ -96,7 +105,11 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
     }
 }
 
-pub(crate) fn gen_key(
+/// 7.2.14 GENERATE ASYMMETRIC KEY PAIR
+///
+/// This runs the low level key generation primitive on the card.
+/// (This does not set algorithm attributes, creation time or fingerprint)
+pub(crate) fn generate_asymmetric_key_pair(
     card_app: &mut CardApp,
     key_type: KeyType,
 ) -> Result<Tlv, OpenpgpCardError> {
@@ -114,12 +127,16 @@ pub(crate) fn gen_key(
     Ok(tlv)
 }
 
+/// Get the public key material for a key from the card.
+///
+/// ("Returns the public key of an asymmetric key pair previously generated
+/// in the card or imported")
+///
+/// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
 pub(crate) fn get_pub_key(
     card_app: &mut CardApp,
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, OpenpgpCardError> {
-    println!("get pub key for {:?}", key_type);
-
     // algo
     let ard = card_app.get_app_data()?; // FIXME: caching
     let algo = ard.get_algorithm_attributes(key_type)?;
@@ -137,10 +154,10 @@ pub(crate) fn get_pub_key(
     Ok(pubkey)
 }
 
-/// Upload an explicitly selected Key to the card as a specific KeyType.
+/// Import private key material to the card as a specific KeyType.
 ///
 /// The client needs to make sure that the key is suitable for `key_type`.
-pub(crate) fn upload_key(
+pub(crate) fn key_import(
     card_app: &mut CardApp,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
@@ -188,7 +205,7 @@ pub(crate) fn upload_key(
                 }
             };
 
-            let key_cmd = rsa_key_cmd(key_type, rsa_key, &rsa_attrs)?;
+            let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
             (Algo::Rsa(rsa_attrs), key_cmd)
         }
@@ -220,25 +237,25 @@ pub(crate) fn upload_key(
                 None,
             ));
 
-            let key_cmd = ecc_key_cmd(ecc_key, key_type)?;
+            let key_cmd = ecc_key_import_cmd(ecc_key, key_type)?;
 
             (algo, key_cmd)
         }
     };
 
-    copy_key_to_card(
-        card_app,
-        key_type,
-        key.get_ts(),
-        key.get_fp()?,
-        &algo,
-        key_cmd,
-    )?;
+    let ts = key.get_ts();
+    let fp = key.get_fp()?;
+
+    // Send all the commands
+    card_app.set_algorithm_attributes(key_type, &algo)?;
+    apdu::send_command(card_app.card(), key_cmd, false)?.check_ok()?;
+    card_app.set_fingerprint(fp, key_type)?;
+    card_app.set_creation_time(ts, key_type)?;
 
     Ok(())
 }
 
-// Look up RsaAttrs parameters in algo_list based on key_type and rsa_bits
+/// Look up RsaAttrs parameters in algo_list based on key_type and rsa_bits
 fn get_card_algo_rsa(
     algo_list: AlgoInfo,
     key_type: KeyType,
@@ -276,7 +293,7 @@ fn get_card_algo_rsa(
     }
 }
 
-// Check if `oid` is supported for `key_type` in algo_list.
+/// Check if `oid` is supported for `key_type` in algo_list.
 fn check_card_algo_ecc(
     algo_list: AlgoInfo,
     key_type: KeyType,
@@ -300,7 +317,8 @@ fn check_card_algo_ecc(
     ecc_algos.iter().any(|e| e.oid() == oid)
 }
 
-fn ecc_key_cmd(
+/// Create command for ECC key import
+fn ecc_key_import_cmd(
     ecc_key: Box<dyn EccKey>,
     key_type: KeyType,
 ) -> Result<Command, OpenpgpCardError> {
@@ -323,22 +341,8 @@ fn ecc_key_cmd(
     Ok(commands::key_import(ehl.serialize().to_vec()))
 }
 
-fn get_crt(key_type: KeyType) -> Result<Tlv, OpenpgpCardError> {
-    // "Control Reference Template" (0xB8 | 0xB6 | 0xA4)
-    let tag = match key_type {
-        KeyType::Decryption => 0xB8,
-        KeyType::Signing => 0xB6,
-        KeyType::Authentication => 0xA4,
-        _ => {
-            return Err(OpenpgpCardError::InternalError(anyhow!(
-                "Unexpected KeyType"
-            )))
-        }
-    };
-    Ok(Tlv::new([tag], Value::S(vec![])))
-}
-
-fn rsa_key_cmd(
+/// Create command for RSA key import
+fn rsa_key_import_cmd(
     key_type: KeyType,
     rsa_key: Box<dyn RSAKey>,
     algo_attrs: &RsaAttrs,
@@ -368,11 +372,11 @@ fn rsa_key_cmd(
 
     value.push(0x92);
     // len p in bytes, TLV-encoded
-    value.extend_from_slice(&tlv::tlv_encode_length(len_p_bytes));
+    value.extend_from_slice(&tlv_encode_length(len_p_bytes));
 
     value.push(0x93);
     // len q in bytes, TLV-encoded
-    value.extend_from_slice(&tlv::tlv_encode_length(len_q_bytes));
+    value.extend_from_slice(&tlv_encode_length(len_q_bytes));
 
     let cpkt = Tlv::new([0x7F, 0x48], Value::S(value));
 
@@ -404,25 +408,18 @@ fn rsa_key_cmd(
     Ok(commands::key_import(ehl.serialize().to_vec()))
 }
 
-fn copy_key_to_card(
-    card_app: &mut CardApp,
-    key_type: KeyType,
-    ts: KeyGenerationTime,
-    fp: Fingerprint,
-    algo: &Algo,
-    key_cmd: Command,
-) -> Result<(), OpenpgpCardError> {
-    // Send all the commands
-
-    // FIXME: Only write algo attributes to the card if "extended
-    // capabilities" show that they are changeable!
-    card_app.set_algorithm_attributes(key_type, algo)?;
-
-    apdu::send_command(card_app.card(), key_cmd, false)?.check_ok()?;
-
-    card_app.set_fingerprint(fp, key_type)?;
-
-    card_app.set_creation_time(ts, key_type)?;
-
-    Ok(())
+/// Get "Control Reference Template" Tlv for `key_type`
+fn get_crt(key_type: KeyType) -> Result<Tlv, OpenpgpCardError> {
+    // "Control Reference Template" (0xB8 | 0xB6 | 0xA4)
+    let tag = match key_type {
+        KeyType::Decryption => 0xB8,
+        KeyType::Signing => 0xB6,
+        KeyType::Authentication => 0xA4,
+        _ => {
+            return Err(OpenpgpCardError::InternalError(anyhow!(
+                "Unexpected KeyType"
+            )))
+        }
+    };
+    Ok(Tlv::new([tag], Value::S(vec![])))
 }

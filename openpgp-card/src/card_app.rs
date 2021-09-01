@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! CardApp exposes functionality of the "OpenPGP card" application.
+
 use std::borrow::BorrowMut;
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -17,12 +19,12 @@ use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
 };
 use crate::errors::OpenpgpCardError;
-use crate::tlv::{tag::Tag, Tlv, Value};
+use crate::tlv::{tag::Tag, value::Value, Tlv};
 use crate::{apdu, keys, CardCaps, CardClientBox, KeyType};
 
 /// Low-level access to OpenPGP card functionality.
 ///
-/// No checks are performed here (e.g. for valid data lengths).
+/// Not many checks are performed here (e.g. for valid data lengths).
 /// Such checks should be performed on a higher layer, if needed.
 ///
 /// Also, no caching of data is done here. If necessary, caching should
@@ -210,7 +212,7 @@ impl CardApp {
     }
 
     /// DO "Algorithm Information" (0xFA)
-    pub fn list_supported_algo(&mut self) -> Result<Option<AlgoInfo>> {
+    pub fn get_algo_info(&mut self) -> Result<Option<AlgoInfo>> {
         let resp = apdu::send_command(
             &mut self.card_client,
             commands::get_algo_list(),
@@ -222,6 +224,9 @@ impl CardApp {
         Ok(Some(ai))
     }
 
+    /// 7.2.5 SELECT DATA
+    /// "select a DO in the current template"
+    /// (e.g. for cardholder certificate)
     pub fn select_data(
         &mut self,
         num: u8,
@@ -240,7 +245,14 @@ impl CardApp {
 
     // ----------
 
-    /// Delete all state on this OpenPGP card
+    /// Reset all state on this OpenPGP card.
+    ///
+    /// Note: the "factory reset" operation is not directly offered by the
+    /// card. It is composed of a series of steps:
+    /// - send 4 bad requests to verify pw1
+    /// - send 4 bad requests to verify pw3
+    /// - terminate_df
+    /// - activate_file
     pub fn factory_reset(&mut self) -> Result<()> {
         // send 4 bad requests to verify pw1
         // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
@@ -285,6 +297,12 @@ impl CardApp {
         Ok(())
     }
 
+    /// Verify pw1 (user) for signing operation (mode 81) and set an
+    /// appropriate access status.
+    ///
+    /// Depending on the PW1 status byte (see Extended Capabilities) this
+    /// access condition is only valid for one PSO:CDS command or remains
+    /// valid for several attempts.
     pub fn verify_pw1_for_signing(
         &mut self,
         pin: &str,
@@ -295,11 +313,21 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
-    pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
-        let verify = commands::verify_pw1_82(vec![]);
+    /// Check the current access of PW1 for signing (mode 81).
+    ///
+    /// If verification is not required, an empty Ok Response is returned.
+    ///
+    /// (Note: some cards don't correctly implement this feature,
+    /// e.g. yubikey 5)
+    pub fn check_pw1_for_signing(
+        &mut self,
+    ) -> Result<Response, OpenpgpCardError> {
+        let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
+    /// Verify PW1 (user) and set an appropriate access status.
+    /// (For operations except signing, mode 82).
     pub fn verify_pw1(
         &mut self,
         pin: &str,
@@ -310,11 +338,19 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
-    pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
-        let verify = commands::verify_pw3(vec![]);
+    /// Check the current access of PW1.
+    /// (For operations except signing, mode 82).
+    ///
+    /// If verification is not required, an empty Ok Response is returned.
+    ///
+    /// (Note: some cards don't correctly implement this feature,
+    /// e.g. yubikey 5)
+    pub fn check_pw1(&mut self) -> Result<Response, OpenpgpCardError> {
+        let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
+    /// Verify PW3 (admin) and set an appropriate access status.
     pub fn verify_pw3(
         &mut self,
         pin: &str,
@@ -325,9 +361,23 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
+    /// Check the current access of PW3 (admin).
+    ///
+    /// If verification is not required, an empty Ok Response is returned.
+    ///
+    /// (Note: some cards don't correctly implement this feature,
+    /// e.g. yubikey 5)
+    pub fn check_pw3(&mut self) -> Result<Response, OpenpgpCardError> {
+        let verify = commands::verify_pw3(vec![]);
+        apdu::send_command(&mut self.card_client, verify, false)?.try_into()
+    }
+
     // --- decrypt ---
 
     /// Decrypt the ciphertext in `dm`, on the card.
+    ///
+    /// This is a convenience wrapper around `pso_decipher()` which builds
+    /// the required `data` field from `dm`.
     pub fn decrypt(
         &mut self,
         dm: Cryptogram,
@@ -372,6 +422,9 @@ impl CardApp {
     // --- sign ---
 
     /// Sign `hash`, on the card.
+    ///
+    /// This is a convenience wrapper around `pso_compute_digital_signature()`
+    /// which builds the required `data` field from `dm`.
     pub fn signature_for_hash(
         &mut self,
         hash: Hash,
@@ -402,12 +455,12 @@ impl CardApp {
             Hash::ECDSA(d) => d.to_vec(),
         };
 
-        self.compute_digital_signature(data)
+        self.pso_compute_digital_signature(data)
     }
 
     /// Run signing operation on the smartcard
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    pub fn compute_digital_signature(
+    pub fn pso_compute_digital_signature(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, OpenpgpCardError> {
@@ -536,7 +589,8 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
     }
 
-    /// Set algorithm attributes [4.4.3.9 Algorithm Attributes]
+    /// Set algorithm attributes
+    /// (4.4.3.9 Algorithm Attributes)
     pub fn set_algorithm_attributes(
         &mut self,
         key_type: KeyType,
@@ -544,6 +598,9 @@ impl CardApp {
     ) -> Result<Response, OpenpgpCardError> {
         // FIXME: caching?
         let ard = self.get_app_data()?;
+
+        // FIXME: Only write algo attributes to the card if "extended
+        // capabilities" show that they are changeable!
 
         // FIXME: reuse "e" from card, if no algo list is available
         let _cur_algo = ard.get_algorithm_attributes(key_type)?;
@@ -562,6 +619,7 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
     }
 
+    /// Helper: generate `data` for algorithm attributes with RSA
     fn rsa_algo_attrs(algo_attrs: &RsaAttrs) -> Result<Vec<u8>> {
         // Algorithm ID (01 = RSA (Encrypt or Sign))
         let mut algo_attributes = vec![0x01];
@@ -586,6 +644,7 @@ impl CardApp {
         Ok(algo_attributes)
     }
 
+    /// Helper: generate `data` for algorithm attributes with ECC
     fn ecc_algo_attrs(oid: &[u8], ecc_type: EccType) -> Vec<u8> {
         let algo_id = match ecc_type {
             EccType::EdDSA => 0x16,
@@ -600,23 +659,24 @@ impl CardApp {
         algo_attributes
     }
 
-    /// Upload an existing private key to the card.
+    /// Import an existing private key to the card.
     /// (This implicitly sets the algorithm info, fingerprint and timestamp)
-    pub fn upload_key(
+    pub fn key_import(
         &mut self,
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), OpenpgpCardError> {
-        let algo_list = self.list_supported_algo();
+        let algo_list = self.get_algo_info();
 
         // An error is ok - it's fine if a card doesn't offer a list of
         // supported algorithms
         let algo_list = algo_list.unwrap_or(None);
 
-        keys::upload_key(self, key, key_type, algo_list)
+        keys::key_import(self, key, key_type, algo_list)
     }
 
     /// Generate a key on the card.
+    /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
     ///
     /// If the `algo` parameter is Some, then this algorithm will be set on
     /// the card for "key_type".
@@ -634,7 +694,10 @@ impl CardApp {
     }
 
     /// Generate a key on the card.
-    /// Use a simplified algo selector enum.
+    /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
+    ///
+    /// This is a convenience wrapper around generate_key() which allows
+    /// using the simplified `AlgoSimple` algorithm selector enum.
     pub fn generate_key_simple(
         &mut self,
         fp_from_pub: fn(
@@ -649,6 +712,12 @@ impl CardApp {
         self.generate_key(fp_from_pub, key_type, Some(&algo))
     }
 
+    /// Get public key material from the card.
+    ///
+    /// Note: this fn returns an uninterpreted set of raw values (not an
+    /// OpenPGP key data structure).
+    /// This data from the card is insufficient to create a typical
+    /// full public key.
     pub fn get_pub_key(
         &mut self,
         key_type: KeyType,

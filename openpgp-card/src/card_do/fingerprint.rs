@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Fingerprint for a single key slot
+
 use anyhow::anyhow;
 use nom::{bytes::complete as bytes, combinator, sequence};
 use std::convert::TryFrom;

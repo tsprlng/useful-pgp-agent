@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Generation date/time of key pair (see spec pg. 24)
+
 use anyhow::anyhow;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use nom::{combinator, number::complete as number, sequence};

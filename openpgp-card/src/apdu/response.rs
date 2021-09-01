@@ -24,8 +24,8 @@ impl Response {
 /// "Raw" APDU Response, including the status bytes.
 ///
 /// This type is used for processing inside the openpgp-card crate
-/// (raw responses with a non-ok status sometimes need to be processed e.g.
-/// when a response is sent from the card in "chained" format).
+/// (raw responses with a non-ok status sometimes need to be processed,
+/// e.g. when a card sends a response in "chained" format).
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub(crate) struct RawResponse {

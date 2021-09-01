@@ -1,6 +1,19 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Length in a TLV data structure
+
+/// Helper fn to encode length fields in TLV structures (see spec 4.4.4)
+pub(crate) fn tlv_encode_length(len: u16) -> Vec<u8> {
+    if len > 255 {
+        vec![0x82, (len >> 8) as u8, (len & 255) as u8]
+    } else if len > 127 {
+        vec![0x81, len as u8]
+    } else {
+        vec![len as u8]
+    }
+}
+
 use nom::{
     branch, bytes::complete as bytes, combinator, number::complete as number,
     sequence,

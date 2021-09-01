@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Tag in a TLV data structure
+
 use nom::{
     branch, bytes::complete as bytes, combinator, number::complete as number,
     sequence,
