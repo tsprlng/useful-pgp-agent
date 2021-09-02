@@ -372,7 +372,7 @@ impl CardApp {
 
     /// Decrypt the ciphertext in `dm`, on the card.
     ///
-    /// (This is a convenience wrapper around the low-level pso_decipher
+    /// (This is a wrapper around the low-level pso_decipher
     /// operation, it builds the required `data` field from `dm`)
     pub fn decrypt(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
         match dm {
@@ -413,9 +413,9 @@ impl CardApp {
 
     /// Sign `hash`, on the card.
     ///
-    /// (This is a convenience wrapper around the low-level
-    /// pso_compute_digital_signature operation. It builds the required
-    /// `data` field from `hash`)
+    /// (This is a wrapper around the low-level
+    /// pso_compute_digital_signature operation.
+    /// It builds the required `data` field from `hash`)
     pub fn signature_for_hash(
         &mut self,
         hash: Hash,
