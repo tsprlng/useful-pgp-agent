@@ -16,8 +16,7 @@ use anyhow::anyhow;
 use std::convert::TryFrom;
 use std::fmt;
 
-/// This enum offers a shorthand way to specify algorithms (e.g. for key
-/// generation).
+/// A shorthand way to specify algorithms (e.g. for key generation).
 ///
 /// RSA variants require "number of bits in 'e'" as parameter.
 ///
