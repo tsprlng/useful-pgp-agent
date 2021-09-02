@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use crate::{algorithm::Algo, tlv::Tlv, Error, KeyType};
+use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType};
 
 mod algo_attrs;
 mod algo_info;
@@ -334,39 +334,7 @@ impl PWStatusBytes {
 #[derive(Clone, Eq, PartialEq)]
 pub struct Fingerprint([u8; 20]);
 
-/// A KeySet binds together a triple of information about each Key on a card
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct KeySet<T> {
-    signature: Option<T>,
-    decryption: Option<T>,
-    authentication: Option<T>,
-}
-
-impl<T> From<(Option<T>, Option<T>, Option<T>)> for KeySet<T> {
-    fn from(tuple: (Option<T>, Option<T>, Option<T>)) -> Self {
-        Self {
-            signature: tuple.0,
-            decryption: tuple.1,
-            authentication: tuple.2,
-        }
-    }
-}
-
-impl<T> KeySet<T> {
-    pub fn signature(&self) -> Option<&T> {
-        self.signature.as_ref()
-    }
-
-    pub fn decryption(&self) -> Option<&T> {
-        self.decryption.as_ref()
-    }
-
-    pub fn authentication(&self) -> Option<&T> {
-        self.authentication.as_ref()
-    }
-}
-
-/// nom parsing helper
+/// Helper fn for nom parsing
 pub(crate) fn complete<O>(
     result: nom::IResult<&[u8], O>,
 ) -> Result<O, anyhow::Error> {

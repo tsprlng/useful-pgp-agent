@@ -34,14 +34,14 @@ use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
     ExtendedCapabilities, ExtendedLengthInfo, Features, Fingerprint,
-    HistoricalBytes, KeyGenerationTime, KeySet, PWStatusBytes,
+    HistoricalBytes, KeyGenerationTime, PWStatusBytes,
     SecuritySupportTemplate, Sex,
 };
 use openpgp_card::crypto_data::{
     CardUploadableKey, Cryptogram, EccKey, EccType, Hash, PrivateKeyMaterial,
     PublicKeyMaterial, RSAKey,
 };
-use openpgp_card::{CardApp, CardClientBox, Error, KeyType, Response};
+use openpgp_card::{CardApp, CardClientBox, Error, KeySet, KeyType, Response};
 
 use crate::signer::CardSigner;
 
