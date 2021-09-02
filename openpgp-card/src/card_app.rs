@@ -39,9 +39,9 @@ impl From<CardClientBox> for CardApp {
     }
 }
 
-impl Into<CardClientBox> for CardApp {
-    fn into(self) -> CardClientBox {
-        self.card_client
+impl From<CardApp> for CardClientBox {
+    fn from(card_app: CardApp) -> CardClientBox {
+        card_app.card_client
     }
 }
 
