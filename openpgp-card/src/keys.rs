@@ -46,7 +46,7 @@ pub(crate) fn gen_key_with_metadata(
     }
 
     // algo
-    let ard = card_app.get_app_data()?; // no caching, here!
+    let ard = card_app.get_application_related_data()?; // no caching, here!
     let algo = ard.get_algorithm_attributes(key_type)?;
 
     // generate key
@@ -137,7 +137,7 @@ pub(crate) fn get_pub_key(
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error> {
     // algo
-    let ard = card_app.get_app_data()?; // FIXME: caching
+    let ard = card_app.get_application_related_data()?; // FIXME: caching
     let algo = ard.get_algorithm_attributes(key_type)?;
 
     // get public key
@@ -181,7 +181,7 @@ pub(crate) fn key_import(
                 // No -> Get the current algorithm attributes for key_type.
 
                 // FIXME: caching?
-                let ard = card_app.get_app_data()?;
+                let ard = card_app.get_application_related_data()?;
                 let algo = ard.get_algorithm_attributes(key_type)?;
 
                 // Is the algorithm on the card currently set to RSA?

@@ -39,7 +39,7 @@ impl<'a> CardDecryptor<'a> {
         policy: &dyn Policy,
     ) -> Result<CardDecryptor<'a>, Error> {
         // Get the fingerprint for the decryption key from the card.
-        let ard = ca.get_app_data()?;
+        let ard = ca.get_application_related_data()?;
         let fps = ard.get_fingerprints()?;
         let fp = fps.decryption();
 

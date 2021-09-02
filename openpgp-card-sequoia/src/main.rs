@@ -242,7 +242,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         for c in cards {
             let mut ca = CardApp::from(c);
 
-            let ard = ca.get_app_data()?;
+            let ard = ca.get_application_related_data()?;
             let app_id = ard.get_application_id()?;
 
             let ident = app_id.ident();

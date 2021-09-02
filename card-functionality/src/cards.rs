@@ -101,7 +101,7 @@ impl TestCard {
                     let mut ca = CardApp::from(card_client);
 
                     // Set Card Capabilities (chaining, command length, ..)
-                    let ard = ca.get_app_data()?;
+                    let ard = ca.get_application_related_data()?;
                     let app_id = ard.get_application_id()?;
 
                     if app_id.ident().as_str() == ident {
@@ -120,7 +120,7 @@ impl TestCard {
                 let mut ca = CardApp::from(card_client);
 
                 // Set Card Capabilities (chaining, command length, ..)
-                let ard = ca.get_app_data()?;
+                let ard = ca.get_application_related_data()?;
                 ca.init_caps(&ard)?;
 
                 // println!("opened scdc card {}", serial);

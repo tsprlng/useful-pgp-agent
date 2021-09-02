@@ -34,7 +34,7 @@ impl<'a> CardSigner<'a> {
         policy: &dyn Policy,
     ) -> Result<CardSigner<'a>, Error> {
         // Get the fingerprint for the signing key from the card.
-        let ard = ca.get_app_data()?;
+        let ard = ca.get_application_related_data()?;
         let fps = ard.get_fingerprints()?;
         let fp = fps.signature();
 

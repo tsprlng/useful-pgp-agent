@@ -128,7 +128,7 @@ impl PcscClient {
         mut ca: CardApp,
         ident: &str,
     ) -> Result<Option<CardClientBox>, Error> {
-        let ard = ca.get_app_data()?;
+        let ard = ca.get_application_related_data()?;
         let aid = ard.get_application_id()?;
 
         if aid.ident() == ident {

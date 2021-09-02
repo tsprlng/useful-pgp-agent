@@ -96,7 +96,7 @@ fn check_key_upload_metadata(
     ca: &mut CardApp,
     meta: &[(String, KeyGenerationTime)],
 ) -> Result<()> {
-    let ard = ca.get_app_data()?;
+    let ard = ca.get_application_related_data()?;
 
     // check fingerprints
     let card_fp = ard.get_fingerprints()?;
@@ -140,7 +140,7 @@ pub fn test_print_caps(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.get_app_data()?;
+    let ard = ca.get_application_related_data()?;
 
     let aid = ard.get_application_id()?;
     println!("aid: {:#x?}", aid);
@@ -161,7 +161,7 @@ pub fn test_print_algo_info(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.get_app_data()?;
+    let ard = ca.get_application_related_data()?;
 
     let dec = ard.get_algorithm_attributes(KeyType::Decryption)?;
     println!("Current algorithm for the decrypt slot: {}", dec);
@@ -250,7 +250,7 @@ pub fn test_get_pub(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.get_app_data()?;
+    let ard = ca.get_application_related_data()?;
     let key_gen = ard.get_key_generation_times()?;
 
     // --
@@ -442,7 +442,7 @@ pub fn test_pw_status(
 ) -> Result<TestOutput, TestError> {
     let mut out = vec![];
 
-    let ard = ca.get_app_data()?;
+    let ard = ca.get_application_related_data()?;
     let mut pws = ard.get_pw_status_bytes()?;
 
     println!("pws {:?}", pws);
@@ -454,7 +454,7 @@ pub fn test_pw_status(
 
     ca.set_pw_status_bytes(&pws, false)?;
 
-    let ard = ca.get_app_data()?;
+    let ard = ca.get_application_related_data()?;
     let pws = ard.get_pw_status_bytes()?;
     println!("pws {:?}", pws);
 
@@ -536,7 +536,7 @@ pub fn run_test(
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut ca = card.get_card_app()?;
-    let ard = ca.get_app_data()?;
+    let ard = ca.get_application_related_data()?;
     let _app_id = ard.get_application_id()?;
 
     t(&mut ca, param)

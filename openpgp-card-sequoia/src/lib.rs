@@ -583,7 +583,7 @@ impl CardBase {
         // read and cache "application related data"
         let mut card_app = CardApp::from(ccb);
 
-        let ard = card_app.get_app_data()?;
+        let ard = card_app.get_application_related_data()?;
 
         card_app.init_caps(&ard)?;
 
@@ -597,7 +597,7 @@ impl CardBase {
     /// This is done once, after opening the OpenPGP card applet
     /// (the data is stored in the OpenPGPCard object).
     fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
-        self.card_app.get_app_data()
+        self.card_app.get_application_related_data()
     }
 
     pub fn get_application_id(&self) -> Result<ApplicationIdentifier, Error> {

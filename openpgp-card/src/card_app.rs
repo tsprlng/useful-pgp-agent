@@ -105,7 +105,9 @@ impl CardApp {
     /// (This data should probably be cached in a higher layer. Some parts of
     /// it are needed regularly, and it does not usually change during
     /// normal use of a card.)
-    pub fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
+    pub fn get_application_related_data(
+        &mut self,
+    ) -> Result<ApplicationRelatedData> {
         let ad = commands::get_application_data();
         let resp = apdu::send_command(&mut self.card_client, ad, true)?;
         let value = Value::from(resp.data()?, true)?;
@@ -577,7 +579,7 @@ impl CardApp {
         algo: &Algo,
     ) -> Result<Response, Error> {
         // FIXME: caching?
-        let ard = self.get_app_data()?;
+        let ard = self.get_application_related_data()?;
 
         // FIXME: Only write algo attributes to the card if "extended
         // capabilities" show that they are changeable!
