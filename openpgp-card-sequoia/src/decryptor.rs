@@ -113,10 +113,15 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 // Decryption operation on the card
                 let mut dec = self.ca.decrypt(dm)?;
 
-                // Specifically handle return value from Gnuk
+                // Specifically handle return value format like Gnuk's
                 // (Gnuk returns a leading '0x04' byte and
                 // an additional 32 trailing bytes)
                 if curve == &Curve::NistP256 && dec.len() == 65 {
+                    assert_eq!(
+                        dec[0], 0x04,
+                        "unexpected shape of decrypted data"
+                    );
+
                     // see Gnuk src/call-ec.c:82
                     dec = dec[1..33].to_vec();
                 }
