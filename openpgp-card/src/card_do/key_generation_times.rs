@@ -77,3 +77,25 @@ impl TryFrom<&[u8]> for KeySet<KeyGenerationTime> {
             .map_err(Error::InternalError)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::convert::TryInto;
+
+    #[test]
+    fn test() {
+        let data3 = [
+            0x60, 0xf3, 0xff, 0x71, 0x60, 0xf3, 0xff, 0x72, 0x60, 0xf3, 0xff,
+            0x83,
+        ];
+
+        let fp_set: KeySet<KeyGenerationTime> = (&data3[..])
+            .try_into()
+            .expect("failed to parse KeyGenerationTime set");
+
+        assert_eq!(fp_set.signature().unwrap().get(), 0x60f3ff71);
+        assert_eq!(fp_set.decryption().unwrap().get(), 0x60f3ff72);
+        assert_eq!(fp_set.authentication().unwrap().get(), 0x60f3ff83);
+    }
+}

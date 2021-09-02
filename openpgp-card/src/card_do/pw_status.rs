@@ -74,3 +74,32 @@ impl TryFrom<&[u8]> for PWStatus {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::convert::TryInto;
+
+    #[test]
+    fn test() {
+        let data = [0x0, 0x40, 0x40, 0x40, 0x3, 0x0, 0x3];
+
+        let pws: PWStatus =
+            (&data[..]).try_into().expect("failed to parse PWStatus");
+
+        assert_eq!(
+            pws,
+            PWStatus {
+                pw1_cds_multi: false,
+                pw1_pin_block: false,
+                pw1_len: 0x40,
+                rc_len: 0x40,
+                pw3_pin_block: false,
+                pw3_len: 0x40,
+                err_count_pw1: 3,
+                err_count_rst: 0,
+                err_count_pw3: 3
+            }
+        );
+    }
+}

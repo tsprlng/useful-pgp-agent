@@ -43,3 +43,24 @@ impl TryFrom<&[u8]> for ExtendedLengthInfo {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_floss34() {
+        let data = [0x2, 0x2, 0x8, 0x0, 0x2, 0x2, 0x8, 0x0];
+
+        let eli = ExtendedLengthInfo::try_from(&data[..])
+            .expect("failed to parse extended length info");
+
+        assert_eq!(
+            eli,
+            ExtendedLengthInfo {
+                max_command_bytes: 2048,
+                max_response_bytes: 2048,
+            },
+        );
+    }
+}

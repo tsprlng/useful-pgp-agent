@@ -101,3 +101,50 @@ impl TryFrom<&[u8]> for KeySet<Fingerprint> {
             .map_err(Error::InternalError)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test() {
+        let data3 = [
+            0xb7, 0xcd, 0x9f, 0x76, 0x37, 0x1e, 0x7, 0x7f, 0x76, 0x1c, 0x82,
+            0x65, 0x55, 0x54, 0x3e, 0x6d, 0x65, 0x6d, 0x1d, 0x80, 0x62, 0xd7,
+            0x34, 0x22, 0x65, 0xd2, 0xef, 0x33, 0x64, 0xe3, 0x79, 0x52, 0xd9,
+            0x5e, 0x94, 0x20, 0x5f, 0x4c, 0xce, 0x8b, 0x3f, 0x9, 0x7a, 0xf2,
+            0xfd, 0x76, 0xa5, 0xa7, 0x57, 0x9b, 0x51, 0x1f, 0xf, 0x44, 0x9a,
+            0x25, 0x80, 0x2d, 0xb2, 0xb8,
+        ];
+
+        let fp_set: KeySet<Fingerprint> = (&data3[..])
+            .try_into()
+            .expect("failed to parse fingerprint set");
+
+        assert_eq!(
+            format!("{}", fp_set.signature().unwrap()),
+            "B7CD9F76371E077F761C826555543E6D656D1D80"
+        );
+        assert_eq!(
+            format!("{}", fp_set.decryption().unwrap()),
+            "62D7342265D2EF3364E37952D95E94205F4CCE8B"
+        );
+        assert_eq!(
+            format!("{}", fp_set.authentication().unwrap()),
+            "3F097AF2FD76A5A7579B511F0F449A25802DB2B8"
+        );
+
+        let data1 = [
+            0xb7, 0xcd, 0x9f, 0x76, 0x37, 0x1e, 0x7, 0x7f, 0x76, 0x1c, 0x82,
+            0x65, 0x55, 0x54, 0x3e, 0x6d, 0x65, 0x6d, 0x1d, 0x80,
+        ];
+
+        let fp = Fingerprint::try_from(&data1[..])
+            .expect("failed to parse fingerprint");
+
+        assert_eq!(
+            format!("{}", fp),
+            "B7CD9F76371E077F761C826555543E6D656D1D80"
+        );
+    }
+}

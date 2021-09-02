@@ -264,7 +264,7 @@ pub struct ExtendedLengthInfo {
 }
 
 /// Cardholder Related Data (see spec pg. 22)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Cardholder {
     name: Option<String>,
     lang: Option<Vec<[char; 2]>>,
@@ -303,7 +303,7 @@ impl From<u8> for Sex {
 }
 
 /// PW status Bytes (see spec page 23)
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PWStatus {
     pub(crate) pw1_cds_multi: bool,
     pub(crate) pw1_pin_block: bool,

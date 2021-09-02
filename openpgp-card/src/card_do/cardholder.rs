@@ -52,3 +52,28 @@ impl TryFrom<&[u8]> for Cardholder {
         Ok(Cardholder { name, lang, sex })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test() {
+        let data = [
+            0x5b, 0x8, 0x42, 0x61, 0x72, 0x3c, 0x3c, 0x46, 0x6f, 0x6f, 0x5f,
+            0x2d, 0x4, 0x64, 0x65, 0x65, 0x6e, 0x5f, 0x35, 0x1, 0x32,
+        ];
+
+        let ch = Cardholder::try_from(&data[..])
+            .expect("failed to parse cardholder");
+
+        assert_eq!(
+            ch,
+            Cardholder {
+                name: Some("Bar<<Foo".to_string()),
+                lang: Some(vec![['d', 'e'], ['e', 'n']]),
+                sex: Some(Sex::Female)
+            }
+        );
+    }
+}

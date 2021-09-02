@@ -150,3 +150,5 @@ impl TryFrom<&[u8]> for Algo {
         complete(parse(data))
     }
 }
+
+// Tests in algo_info cover this module

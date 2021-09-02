@@ -67,3 +67,29 @@ impl ApplicationId {
         format!("{:04X}:{:08X}", self.manufacturer, self.serial)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_gnuk() {
+        let data = [
+            0xd2, 0x76, 0x0, 0x1, 0x24, 0x1, 0x2, 0x0, 0xff, 0xfe, 0x43, 0x19,
+            0x42, 0x40, 0x0, 0x0,
+        ];
+
+        let aid = ApplicationId::try_from(&data[..])
+            .expect("failed to parse application id");
+
+        assert_eq!(
+            aid,
+            ApplicationId {
+                application: 0x1,
+                version: 0x200,
+                manufacturer: 0xfffe,
+                serial: 0x43194240,
+            }
+        );
+    }
+}
