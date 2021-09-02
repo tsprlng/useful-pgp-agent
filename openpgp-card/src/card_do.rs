@@ -33,19 +33,19 @@ pub struct ApplicationRelatedData(pub(crate) Tlv);
 
 impl ApplicationRelatedData {
     /// Application identifier (AID), ISO 7816-4
-    pub fn get_application_id(&self) -> Result<ApplicationId, Error> {
+    pub fn get_application_id(&self) -> Result<ApplicationIdentifier, Error> {
         // get from cached "application related data"
         let aid = self.0.find(&[0x4f].into());
 
         if let Some(aid) = aid {
-            Ok(ApplicationId::try_from(&aid.serialize()[..])?)
+            Ok(ApplicationIdentifier::try_from(&aid.serialize()[..])?)
         } else {
             Err(anyhow!("Couldn't get Application ID.").into())
         }
     }
 
     /// Historical bytes
-    pub fn get_historical(&self) -> Result<Historical, Error> {
+    pub fn get_historical(&self) -> Result<HistoricalBytes, Error> {
         // get from cached "application related data"
         let hist = self.0.find(&[0x5f, 0x52].into());
 
@@ -85,12 +85,14 @@ impl ApplicationRelatedData {
     }
 
     /// Extended Capabilities
-    pub fn get_extended_capabilities(&self) -> Result<ExtendedCap, Error> {
+    pub fn get_extended_capabilities(
+        &self,
+    ) -> Result<ExtendedCapabilities, Error> {
         // get from cached "application related data"
         let ecap = self.0.find(&[0xc0].into());
 
         if let Some(ecap) = ecap {
-            Ok(ExtendedCap::try_from(&ecap.serialize()[..])?)
+            Ok(ExtendedCapabilities::try_from(&ecap.serialize()[..])?)
         } else {
             Err(anyhow!("Failed to get extended capabilities.").into())
         }
@@ -112,7 +114,7 @@ impl ApplicationRelatedData {
     }
 
     /// PW status Bytes
-    pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
+    pub fn get_pw_status_bytes(&self) -> Result<PWStatusBytes> {
         // get from cached "application related data"
         let psb = self.0.find(&[0xc4].into());
 
@@ -189,7 +191,7 @@ impl KeyGenerationTime {
 
 /// 4.2.1 Application Identifier (AID)
 #[derive(Debug, Eq, PartialEq)]
-pub struct ApplicationId {
+pub struct ApplicationIdentifier {
     application: u8,
     version: u16,
     manufacturer: u16,
@@ -198,7 +200,7 @@ pub struct ApplicationId {
 
 /// 6 Historical Bytes
 #[derive(Debug, PartialEq)]
-pub struct Historical {
+pub struct HistoricalBytes {
     /// category indicator byte
     cib: u8,
 
@@ -233,7 +235,7 @@ pub struct CardServiceData {
 
 /// 4.4.3.7 Extended Capabilities
 #[derive(Debug, Eq, PartialEq)]
-pub struct ExtendedCap {
+pub struct ExtendedCapabilities {
     features: HashSet<Features>,
     sm_algo: u8,
     max_len_challenge: u16,
@@ -265,7 +267,7 @@ pub struct ExtendedLengthInfo {
 
 /// Cardholder Related Data (see spec pg. 22)
 #[derive(Debug, PartialEq)]
-pub struct Cardholder {
+pub struct CardholderRelatedData {
     name: Option<String>,
     lang: Option<Vec<[char; 2]>>,
     sex: Option<Sex>,
@@ -304,7 +306,7 @@ impl From<u8> for Sex {
 
 /// PW status Bytes (see spec page 23)
 #[derive(Debug, PartialEq)]
-pub struct PWStatus {
+pub struct PWStatusBytes {
     pub(crate) pw1_cds_multi: bool,
     pub(crate) pw1_pin_block: bool,
     pub(crate) pw1_len: u8,
@@ -316,7 +318,7 @@ pub struct PWStatus {
     pub(crate) err_count_pw3: u8,
 }
 
-impl PWStatus {
+impl PWStatusBytes {
     pub fn set_pw1_cds_multi(&mut self, val: bool) {
         self.pw1_cds_multi = val;
     }

@@ -7,10 +7,10 @@ use std::convert::TryFrom;
 
 use anyhow::Result;
 
-use crate::card_do::{Cardholder, Sex};
+use crate::card_do::{CardholderRelatedData, Sex};
 use crate::tlv::{value::Value, Tlv};
 
-impl Cardholder {
+impl CardholderRelatedData {
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
@@ -24,7 +24,7 @@ impl Cardholder {
     }
 }
 
-impl TryFrom<&[u8]> for Cardholder {
+impl TryFrom<&[u8]> for CardholderRelatedData {
     type Error = anyhow::Error;
 
     fn try_from(data: &[u8]) -> Result<Self> {
@@ -49,7 +49,7 @@ impl TryFrom<&[u8]> for Cardholder {
             .filter(|v| v.len() == 1)
             .map(|v| Sex::from(v[0]));
 
-        Ok(Cardholder { name, lang, sex })
+        Ok(CardholderRelatedData { name, lang, sex })
     }
 }
 
@@ -64,12 +64,12 @@ mod test {
             0x2d, 0x4, 0x64, 0x65, 0x65, 0x6e, 0x5f, 0x35, 0x1, 0x32,
         ];
 
-        let ch = Cardholder::try_from(&data[..])
+        let ch = CardholderRelatedData::try_from(&data[..])
             .expect("failed to parse cardholder");
 
         assert_eq!(
             ch,
-            Cardholder {
+            CardholderRelatedData {
                 name: Some("Bar<<Foo".to_string()),
                 lang: Some(vec![['d', 'e'], ['e', 'n']]),
                 sex: Some(Sex::Female)

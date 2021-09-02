@@ -8,7 +8,7 @@ use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
-use crate::card_do::{complete, ExtendedCap, Features};
+use crate::card_do::{complete, ExtendedCapabilities, Features};
 use crate::Error;
 
 fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<Features>> {
@@ -58,7 +58,7 @@ fn parse(
     )))(input)
 }
 
-impl ExtendedCap {
+impl ExtendedCapabilities {
     pub fn features(&self) -> HashSet<Features> {
         self.features.clone()
     }
@@ -68,7 +68,7 @@ impl ExtendedCap {
     }
 }
 
-impl TryFrom<&[u8]> for ExtendedCap {
+impl TryFrom<&[u8]> for ExtendedCapabilities {
     type Error = Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
@@ -88,7 +88,7 @@ impl TryFrom<&[u8]> for ExtendedCap {
 
 #[cfg(test)]
 mod test {
-    use crate::card_do::extended_cap::{ExtendedCap, Features};
+    use crate::card_do::extended_cap::{ExtendedCapabilities, Features};
     use hex_literal::hex;
     use std::collections::HashSet;
     use std::convert::TryFrom;
@@ -97,11 +97,11 @@ mod test {
     #[test]
     fn test_ec() {
         let data = hex!("7d 00 0b fe 08 00 00 ff 00 00");
-        let ec = ExtendedCap::try_from(&data[..]).unwrap();
+        let ec = ExtendedCapabilities::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ec,
-            ExtendedCap {
+            ExtendedCapabilities {
                 features: HashSet::from_iter(vec![
                     Features::GetChallenge,
                     Features::KeyImport,

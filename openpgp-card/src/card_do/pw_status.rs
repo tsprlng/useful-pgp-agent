@@ -5,11 +5,11 @@
 
 use anyhow::anyhow;
 
-use crate::card_do::PWStatus;
+use crate::card_do::PWStatusBytes;
 use crate::Error;
 use std::convert::TryFrom;
 
-impl PWStatus {
+impl PWStatusBytes {
     /// PUT DO for PW Status Bytes accepts either 1 or 4 bytes of data.
     /// This method generates the 1 byte version for 'long==false' and the
     /// 4 bytes version for 'long==true'.
@@ -40,7 +40,7 @@ impl PWStatus {
     }
 }
 
-impl TryFrom<&[u8]> for PWStatus {
+impl TryFrom<&[u8]> for PWStatusBytes {
     type Error = Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
@@ -84,12 +84,12 @@ mod test {
     fn test() {
         let data = [0x0, 0x40, 0x40, 0x40, 0x3, 0x0, 0x3];
 
-        let pws: PWStatus =
+        let pws: PWStatusBytes =
             (&data[..]).try_into().expect("failed to parse PWStatus");
 
         assert_eq!(
             pws,
-            PWStatus {
+            PWStatusBytes {
                 pw1_cds_multi: false,
                 pw1_pin_block: false,
                 pw1_len: 0x40,

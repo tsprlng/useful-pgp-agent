@@ -32,9 +32,10 @@ use sequoia_openpgp as openpgp;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
 use openpgp_card::card_do::{
-    ApplicationId, ApplicationRelatedData, Cardholder, ExtendedCap,
-    ExtendedLengthInfo, Features, Fingerprint, Historical, KeyGenerationTime,
-    KeySet, PWStatus, SecuritySupportTemplate, Sex,
+    ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
+    ExtendedCapabilities, ExtendedLengthInfo, Features, Fingerprint,
+    HistoricalBytes, KeyGenerationTime, KeySet, PWStatusBytes,
+    SecuritySupportTemplate, Sex,
 };
 use openpgp_card::crypto_data::{
     CardUploadableKey, Cryptogram, EccKey, EccType, Hash, PrivateKeyMaterial,
@@ -599,11 +600,11 @@ impl CardBase {
         self.card_app.get_app_data()
     }
 
-    pub fn get_application_id(&self) -> Result<ApplicationId, Error> {
+    pub fn get_application_id(&self) -> Result<ApplicationIdentifier, Error> {
         self.ard.get_application_id()
     }
 
-    pub fn get_historical(&self) -> Result<Historical, Error> {
+    pub fn get_historical(&self) -> Result<HistoricalBytes, Error> {
         self.ard.get_historical()
     }
 
@@ -621,7 +622,9 @@ impl CardBase {
         unimplemented!()
     }
 
-    pub fn get_extended_capabilities(&self) -> Result<ExtendedCap, Error> {
+    pub fn get_extended_capabilities(
+        &self,
+    ) -> Result<ExtendedCapabilities, Error> {
         self.ard.get_extended_capabilities()
     }
 
@@ -630,7 +633,7 @@ impl CardBase {
     }
 
     /// PW status Bytes
-    pub fn get_pw_status_bytes(&self) -> Result<PWStatus> {
+    pub fn get_pw_status_bytes(&self) -> Result<PWStatusBytes> {
         self.ard.get_pw_status_bytes()
     }
 
@@ -676,7 +679,9 @@ impl CardBase {
     }
 
     // --- cardholder related data (65) ---
-    pub fn get_cardholder_related_data(&mut self) -> Result<Cardholder> {
+    pub fn get_cardholder_related_data(
+        &mut self,
+    ) -> Result<CardholderRelatedData> {
         self.card_app.get_cardholder_related_data()
     }
 

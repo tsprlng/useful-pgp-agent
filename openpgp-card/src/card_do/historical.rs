@@ -3,7 +3,7 @@
 
 //! 6 Historical Bytes
 
-use crate::card_do::{CardCapabilities, CardServiceData, Historical};
+use crate::card_do::{CardCapabilities, CardServiceData, HistoricalBytes};
 use crate::Error;
 use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
@@ -71,13 +71,13 @@ fn split_tl(tl: u8) -> (u8, u8) {
     (tag, len)
 }
 
-impl Historical {
+impl HistoricalBytes {
     pub fn get_card_capabilities(&self) -> Option<&CardCapabilities> {
         self.cc.as_ref()
     }
 }
 
-impl TryFrom<&[u8]> for Historical {
+impl TryFrom<&[u8]> for HistoricalBytes {
     type Error = Error;
 
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
@@ -213,11 +213,11 @@ mod test {
         // gnuk 1.2 stable
         let data: &[u8] =
             &[0x0, 0x31, 0x84, 0x73, 0x80, 0x1, 0x80, 0x5, 0x90, 0x0];
-        let hist: Historical = data.try_into()?;
+        let hist: HistoricalBytes = data.try_into()?;
 
         assert_eq!(
             hist,
-            Historical {
+            HistoricalBytes {
                 cib: 0,
                 csd: Some(CardServiceData {
                     select_by_full_df_name: true,
@@ -244,11 +244,11 @@ mod test {
         // floss shop openpgp smartcard 3.4
         let data: &[u8] =
             &[0x0, 0x31, 0xf5, 0x73, 0xc0, 0x1, 0x60, 0x5, 0x90, 0x0];
-        let hist: Historical = data.try_into()?;
+        let hist: HistoricalBytes = data.try_into()?;
 
         assert_eq!(
             hist,
-            Historical {
+            HistoricalBytes {
                 cib: 0,
                 csd: Some(CardServiceData {
                     select_by_full_df_name: true,
@@ -274,11 +274,11 @@ mod test {
     fn test_yk5() -> Result<()> {
         // yubikey 5
         let data: &[u8] = &[0x0, 0x73, 0x0, 0x0, 0xe0, 0x5, 0x90, 0x0];
-        let hist: Historical = data.try_into()?;
+        let hist: HistoricalBytes = data.try_into()?;
 
         assert_eq!(
             hist,
-            Historical {
+            HistoricalBytes {
                 cib: 0,
                 csd: None,
                 cc: Some(CardCapabilities {
@@ -297,11 +297,11 @@ mod test {
     fn test_yk4() -> Result<()> {
         // yubikey 4
         let data: &[u8] = &[0x0, 0x73, 0x0, 0x0, 0x80, 0x5, 0x90, 0x0];
-        let hist: Historical = data.try_into()?;
+        let hist: HistoricalBytes = data.try_into()?;
 
         assert_eq!(
             hist,
-            Historical {
+            HistoricalBytes {
                 cib: 0,
                 csd: None,
                 cc: Some(CardCapabilities {
@@ -323,11 +323,11 @@ mod test {
             0x0, 0x73, 0x0, 0x0, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
             0x0, 0x0,
         ];
-        let hist: Historical = data.try_into()?;
+        let hist: HistoricalBytes = data.try_into()?;
 
         assert_eq!(
             hist,
-            Historical {
+            HistoricalBytes {
                 cib: 0,
                 csd: None,
                 cc: Some(CardCapabilities {

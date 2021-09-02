@@ -12,8 +12,8 @@ use anyhow::{anyhow, Result};
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
 use crate::apdu::{commands, response::Response};
 use crate::card_do::{
-    ApplicationRelatedData, Cardholder, Fingerprint, KeyGenerationTime,
-    PWStatus, SecuritySupportTemplate, Sex,
+    ApplicationRelatedData, CardholderRelatedData, Fingerprint,
+    KeyGenerationTime, PWStatusBytes, SecuritySupportTemplate, Sex,
 };
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
@@ -168,12 +168,14 @@ impl CardApp {
     }
 
     // --- cardholder related data (65) ---
-    pub fn get_cardholder_related_data(&mut self) -> Result<Cardholder> {
+    pub fn get_cardholder_related_data(
+        &mut self,
+    ) -> Result<CardholderRelatedData> {
         let crd = commands::cardholder_related_data();
         let resp = apdu::send_command(&mut self.card_client, crd, true)?;
         resp.check_ok()?;
 
-        Cardholder::try_from(resp.data()?)
+        CardholderRelatedData::try_from(resp.data()?)
     }
 
     // --- security support template (7a) ---
@@ -546,7 +548,7 @@ impl CardApp {
     /// (See OpenPGP card spec, pg. 28)
     pub fn set_pw_status_bytes(
         &mut self,
-        pw_status: &PWStatus,
+        pw_status: &PWStatusBytes,
         long: bool,
     ) -> Result<Response, Error> {
         let data = pw_status.serialize_for_put(long);

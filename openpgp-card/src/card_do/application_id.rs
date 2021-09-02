@@ -7,9 +7,9 @@ use anyhow::Result;
 use nom::{bytes::complete as bytes, number::complete as number};
 use std::convert::TryFrom;
 
-use crate::card_do::{complete, ApplicationId};
+use crate::card_do::{complete, ApplicationIdentifier};
 
-fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationId> {
+fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationIdentifier> {
     let (input, _) = bytes::tag([0xd2, 0x76, 0x0, 0x1, 0x24])(input)?;
 
     let (input, application) = number::u8(input)?;
@@ -22,7 +22,7 @@ fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationId> {
 
     Ok((
         input,
-        ApplicationId {
+        ApplicationIdentifier {
             application,
             version,
             manufacturer,
@@ -31,7 +31,7 @@ fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationId> {
     ))
 }
 
-impl TryFrom<&[u8]> for ApplicationId {
+impl TryFrom<&[u8]> for ApplicationIdentifier {
     type Error = anyhow::Error;
 
     fn try_from(data: &[u8]) -> Result<Self> {
@@ -39,7 +39,7 @@ impl TryFrom<&[u8]> for ApplicationId {
     }
 }
 
-impl ApplicationId {
+impl ApplicationIdentifier {
     pub fn application(&self) -> u8 {
         self.application
     }
@@ -79,12 +79,12 @@ mod test {
             0x42, 0x40, 0x0, 0x0,
         ];
 
-        let aid = ApplicationId::try_from(&data[..])
+        let aid = ApplicationIdentifier::try_from(&data[..])
             .expect("failed to parse application id");
 
         assert_eq!(
             aid,
-            ApplicationId {
+            ApplicationIdentifier {
                 application: 0x1,
                 version: 0x200,
                 manufacturer: 0xfffe,
