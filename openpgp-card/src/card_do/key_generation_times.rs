@@ -9,6 +9,7 @@ use nom::{combinator, number::complete as number, sequence};
 
 use crate::card_do::{KeyGenerationTime, KeySet};
 use crate::Error;
+use std::convert::TryFrom;
 
 impl From<KeyGenerationTime> for DateTime<Utc> {
     fn from(kg: KeyGenerationTime) -> Self {
@@ -53,22 +54,26 @@ fn key_generation_set(
     )))(input)
 }
 
-pub fn from(input: &[u8]) -> Result<KeySet<KeyGenerationTime>, Error> {
-    // List of generation dates/times of key pairs, binary.
-    // 4 bytes, Big Endian each for Sig, Dec and Aut. Each
-    // value shall be seconds since Jan 1, 1970. Default
-    // value is 00000000 (not specified).
+impl TryFrom<&[u8]> for KeySet<KeyGenerationTime> {
+    type Error = Error;
 
-    log::trace!(
-        "Key generation times from input: {:x?}, len {}",
-        input,
-        input.len()
-    );
+    fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
+        // List of generation dates/times of key pairs, binary.
+        // 4 bytes, Big Endian each for Sig, Dec and Aut. Each
+        // value shall be seconds since Jan 1, 1970. Default
+        // value is 00000000 (not specified).
 
-    // The input may be longer than 3 key generation times, don't fail if it
-    // hasn't been completely consumed.
-    self::key_generation_set(input)
-        .map(|res| res.1)
-        .map_err(|err| anyhow!("Parsing failed: {:?}", err))
-        .map_err(Error::InternalError)
+        log::trace!(
+            "Key generation times from input: {:x?}, len {}",
+            input,
+            input.len()
+        );
+
+        // The input may be longer than 3 key generation times, don't fail if it
+        // hasn't been completely consumed.
+        self::key_generation_set(input)
+            .map(|res| res.1)
+            .map_err(|err| anyhow!("Parsing failed: {:?}", err))
+            .map_err(Error::InternalError)
+    }
 }

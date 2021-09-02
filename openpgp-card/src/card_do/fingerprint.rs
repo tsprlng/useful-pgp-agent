@@ -83,14 +83,21 @@ fn fingerprints(input: &[u8]) -> nom::IResult<&[u8], KeySet<Fingerprint>> {
     )
 }
 
-/// Parse three fingerprints from the card into a KeySet of Fingerprints
-pub(crate) fn to_keyset(input: &[u8]) -> Result<KeySet<Fingerprint>, Error> {
-    log::trace!("Fingerprint from input: {:x?}, len {}", input, input.len());
+impl TryFrom<&[u8]> for KeySet<Fingerprint> {
+    type Error = Error;
 
-    // The input may be longer than 3 fingerprint, don't fail if it hasn't
-    // been completely consumed.
-    self::fingerprints(input)
-        .map(|res| res.1)
-        .map_err(|err| anyhow!("Parsing failed: {:?}", err))
-        .map_err(Error::InternalError)
+    fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
+        log::trace!(
+            "Fingerprint from input: {:x?}, len {}",
+            input,
+            input.len()
+        );
+
+        // The input may be longer than 3 fingerprint, don't fail if it hasn't
+        // been completely consumed.
+        self::fingerprints(input)
+            .map(|res| res.1)
+            .map_err(|err| anyhow!("Parsing failed: {:?}", err))
+            .map_err(Error::InternalError)
+    }
 }

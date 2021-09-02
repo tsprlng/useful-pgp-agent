@@ -7,6 +7,7 @@ use anyhow::Result;
 use nom::{bytes::complete::tag, number::complete as number, sequence};
 
 use crate::card_do::{complete, ExtendedLengthInfo};
+use std::convert::TryFrom;
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
     let (input, (_, cmd, _, resp)) =
@@ -28,8 +29,12 @@ impl ExtendedLengthInfo {
     pub fn max_response_bytes(&self) -> u16 {
         self.max_response_bytes
     }
+}
 
-    pub fn from(input: &[u8]) -> Result<Self> {
+impl TryFrom<&[u8]> for ExtendedLengthInfo {
+    type Error = anyhow::Error;
+
+    fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         let eli = complete(parse(input))?;
 
         Ok(Self {

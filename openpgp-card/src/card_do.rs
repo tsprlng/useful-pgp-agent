@@ -69,7 +69,7 @@ impl ApplicationRelatedData {
 
         if let Some(eli) = eli {
             // The card has returned extended length information
-            Ok(Some(ExtendedLengthInfo::from(&eli.serialize()[..])?))
+            Ok(Some((&eli.serialize()[..]).try_into()?))
         } else {
             // The card didn't return this (optional) DO. That is ok.
             Ok(None)
@@ -117,7 +117,7 @@ impl ApplicationRelatedData {
         let psb = self.0.find(&[0xc4].into());
 
         if let Some(psb) = psb {
-            let pws = PWStatus::try_from(&psb.serialize())?;
+            let pws = (&psb.serialize()[..]).try_into()?;
 
             log::debug!("PW Status: {:x?}", pws);
 
@@ -134,7 +134,7 @@ impl ApplicationRelatedData {
         let fp = self.0.find(&[0xc5].into());
 
         if let Some(fp) = fp {
-            let fp = fingerprint::to_keyset(&fp.serialize())?;
+            let fp: KeySet<Fingerprint> = (&fp.serialize()[..]).try_into()?;
 
             log::debug!("Fp: {:x?}", fp);
 
@@ -151,7 +151,8 @@ impl ApplicationRelatedData {
         let kg = self.0.find(&[0xcd].into());
 
         if let Some(kg) = kg {
-            let kg = key_generation_times::from(&kg.serialize())?;
+            let kg: KeySet<KeyGenerationTime> =
+                (&kg.serialize()[..]).try_into()?;
 
             log::debug!("Key generation: {:x?}", kg);
 
