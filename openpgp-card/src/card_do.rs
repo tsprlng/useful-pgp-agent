@@ -236,7 +236,7 @@ pub struct CardServiceData {
 /// 4.4.3.7 Extended Capabilities
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedCapabilities {
-    features: HashSet<Features>,
+    features: HashSet<ExCapFeatures>,
     sm_algo: u8,
     max_len_challenge: u16,
     max_len_cardholder_cert: u16,
@@ -247,7 +247,7 @@ pub struct ExtendedCapabilities {
 
 /// Features (first byte of Extended Capabilities, see 4.4.3.7)
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Features {
+pub enum ExCapFeatures {
     SecureMessaging,
     GetChallenge,
     KeyImport,

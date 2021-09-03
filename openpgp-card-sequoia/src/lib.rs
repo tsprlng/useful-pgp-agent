@@ -33,7 +33,7 @@ use sequoia_openpgp as openpgp;
 use openpgp_card::algorithm::{Algo, AlgoInfo, Curve};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
-    ExtendedCapabilities, ExtendedLengthInfo, Features, Fingerprint,
+    ExCapFeatures, ExtendedCapabilities, ExtendedLengthInfo, Fingerprint,
     HistoricalBytes, KeyGenerationTime, PWStatusBytes,
     SecuritySupportTemplate, Sex,
 };
@@ -697,7 +697,7 @@ impl CardBase {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
         let ec = self.get_extended_capabilities()?;
-        if !ec.features().contains(&Features::AlgoAttrsChangeable) {
+        if !ec.features().contains(&ExCapFeatures::AlgoAttrsChangeable) {
             // Algorithm attributes can not be changed,
             // list_supported_algo is not supported
             return Ok(None);

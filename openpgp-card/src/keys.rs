@@ -12,7 +12,7 @@ use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::card_do::{
-    ApplicationRelatedData, Features, Fingerprint, KeyGenerationTime,
+    ApplicationRelatedData, ExCapFeatures, Fingerprint, KeyGenerationTime,
 };
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
@@ -198,7 +198,7 @@ pub(crate) fn key_import(
     if ard
         .get_extended_capabilities()?
         .features()
-        .contains(&Features::AlgoAttrsChangeable)
+        .contains(&ExCapFeatures::AlgoAttrsChangeable)
     {
         card_app.set_algorithm_attributes(key_type, &algo)?;
     }

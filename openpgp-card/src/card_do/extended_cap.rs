@@ -8,36 +8,36 @@ use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
-use crate::card_do::{complete, ExtendedCapabilities, Features};
+use crate::card_do::{complete, ExCapFeatures, ExtendedCapabilities};
 use crate::Error;
 
-fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<Features>> {
+fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<ExCapFeatures>> {
     combinator::map(number::u8, |b| {
         let mut f = HashSet::new();
 
         if b & 0x80 != 0 {
-            f.insert(Features::SecureMessaging);
+            f.insert(ExCapFeatures::SecureMessaging);
         }
         if b & 0x40 != 0 {
-            f.insert(Features::GetChallenge);
+            f.insert(ExCapFeatures::GetChallenge);
         }
         if b & 0x20 != 0 {
-            f.insert(Features::KeyImport);
+            f.insert(ExCapFeatures::KeyImport);
         }
         if b & 0x10 != 0 {
-            f.insert(Features::PwStatusChange);
+            f.insert(ExCapFeatures::PwStatusChange);
         }
         if b & 0x08 != 0 {
-            f.insert(Features::PrivateUseDOs);
+            f.insert(ExCapFeatures::PrivateUseDOs);
         }
         if b & 0x04 != 0 {
-            f.insert(Features::AlgoAttrsChangeable);
+            f.insert(ExCapFeatures::AlgoAttrsChangeable);
         }
         if b & 0x02 != 0 {
-            f.insert(Features::Aes);
+            f.insert(ExCapFeatures::Aes);
         }
         if b & 0x01 != 0 {
-            f.insert(Features::KdfDo);
+            f.insert(ExCapFeatures::KdfDo);
         }
 
         f
@@ -46,7 +46,7 @@ fn features(input: &[u8]) -> nom::IResult<&[u8], HashSet<Features>> {
 
 fn parse(
     input: &[u8],
-) -> nom::IResult<&[u8], (HashSet<Features>, u8, u16, u16, u16, u8, u8)> {
+) -> nom::IResult<&[u8], (HashSet<ExCapFeatures>, u8, u16, u16, u16, u8, u8)> {
     nom::combinator::all_consuming(sequence::tuple((
         features,
         number::u8,
@@ -59,7 +59,7 @@ fn parse(
 }
 
 impl ExtendedCapabilities {
-    pub fn features(&self) -> HashSet<Features> {
+    pub fn features(&self) -> HashSet<ExCapFeatures> {
         self.features.clone()
     }
 
@@ -88,7 +88,7 @@ impl TryFrom<&[u8]> for ExtendedCapabilities {
 
 #[cfg(test)]
 mod test {
-    use crate::card_do::extended_cap::{ExtendedCapabilities, Features};
+    use crate::card_do::extended_cap::{ExCapFeatures, ExtendedCapabilities};
     use hex_literal::hex;
     use std::collections::HashSet;
     use std::convert::TryFrom;
@@ -103,12 +103,12 @@ mod test {
             ec,
             ExtendedCapabilities {
                 features: HashSet::from_iter(vec![
-                    Features::GetChallenge,
-                    Features::KeyImport,
-                    Features::PwStatusChange,
-                    Features::PrivateUseDOs,
-                    Features::AlgoAttrsChangeable,
-                    Features::KdfDo
+                    ExCapFeatures::GetChallenge,
+                    ExCapFeatures::KeyImport,
+                    ExCapFeatures::PwStatusChange,
+                    ExCapFeatures::PrivateUseDOs,
+                    ExCapFeatures::AlgoAttrsChangeable,
+                    ExCapFeatures::KdfDo
                 ]),
                 sm_algo: 0x0,
                 max_len_challenge: 0xbfe,
