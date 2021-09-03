@@ -779,8 +779,8 @@ impl DerefMut for CardUser {
 
 impl CardUser {
     /// Decrypt the ciphertext in `dm`, on the card.
-    pub fn decrypt(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
-        self.card_app.decrypt(dm)
+    pub fn decipher(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
+        self.card_app.decipher(dm)
     }
 }
 

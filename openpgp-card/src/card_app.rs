@@ -374,10 +374,13 @@ impl CardApp {
     ///
     /// (This is a wrapper around the low-level pso_decipher
     /// operation, it builds the required `data` field from `dm`)
-    pub fn decrypt(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
+    pub fn decipher(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
         match dm {
             Cryptogram::RSA(message) => {
                 let mut data = vec![0x0];
+
+                // FIXME: The spec says we should "format according to PKCS#1"
+
                 data.extend_from_slice(message);
 
                 // Call the card to decrypt `data`

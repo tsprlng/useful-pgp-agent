@@ -93,7 +93,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = Cryptogram::RSA(ct.value());
-                let dec = self.ca.decrypt(dm)?;
+                let dec = self.ca.decipher(dm)?;
 
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
                 Ok(sk)
@@ -111,7 +111,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 };
 
                 // Decryption operation on the card
-                let mut dec = self.ca.decrypt(dm)?;
+                let mut dec = self.ca.decipher(dm)?;
 
                 // Specifically handle return value format like Gnuk's
                 // (Gnuk returns a leading '0x04' byte and
