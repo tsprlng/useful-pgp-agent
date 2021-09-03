@@ -11,7 +11,9 @@ use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
-use crate::card_do::{Fingerprint, KeyGenerationTime};
+use crate::card_do::{
+    ApplicationRelatedData, Features, Fingerprint, KeyGenerationTime,
+};
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
     RSAKey, RSAPub,
@@ -136,7 +138,7 @@ pub(crate) fn get_pub_key(
     card_app: &mut CardApp,
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error> {
-    // algo
+    // get current algo
     let ard = card_app.get_application_related_data()?; // FIXME: caching
     let algo = ard.get_algorithm_attributes(key_type)?;
 
@@ -156,104 +158,140 @@ pub(crate) fn get_pub_key(
 
 /// Import private key material to the card as a specific KeyType.
 ///
-/// The client needs to make sure that the key is suitable for `key_type`.
+/// If the key is suitable for `key_type`, an Error is returned (either
+/// caused by checks before attempting to upload the key to the card, or by
+/// an error that the card reports during an attempt to upload the key).
 pub(crate) fn key_import(
     card_app: &mut CardApp,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
 ) -> Result<(), Error> {
+    // FIXME: caching?
+    let ard = card_app.get_application_related_data()?;
+
     let (algo, key_cmd) = match key.get_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
-            // RSA bitsize
-            // (round up to 4-bytes, in case the key has 8+ leading zeros)
-            let rsa_bits =
-                (((rsa_key.get_n().len() * 8 + 31) / 32) * 32) as u16;
-
-            // Figure out suitable RSA algorithm parameters:
-
-            // Does the card offer a list of algorithms?
-            let rsa_attrs = if let Some(algo_list) = algo_list {
-                // Yes -> Look up the parameters for key_type and rsa_bits.
-                // (Or error, if the list doesn't have an entry for rsa_bits)
-                get_card_algo_rsa(algo_list, key_type, rsa_bits)?
-            } else {
-                // No -> Get the current algorithm attributes for key_type.
-
-                // FIXME: caching?
-                let ard = card_app.get_application_related_data()?;
-                let algo = ard.get_algorithm_attributes(key_type)?;
-
-                // Is the algorithm on the card currently set to RSA?
-                if let Algo::Rsa(rsa) = algo {
-                    // If so, use the algorithm parameters from the card and
-                    // adjust the bit length based on the user-provided key.
-                    RsaAttrs::new(rsa_bits, rsa.len_e(), rsa.import_format())
-                } else {
-                    // The card doesn't provide an algorithm list, and the
-                    // current algorithm on the card is not RSA.
-                    //
-                    // So we 'guess' a value for len_e (some cards only
-                    // support 17, others only support 32).
-
-                    // [If this approach turns out to be insufficient, we
-                    // need to determine the model of the card and use a
-                    // list of which RSA parameters that model of card
-                    // supports]
-
-                    RsaAttrs::new(rsa_bits, 32, 0)
-                }
-            };
+            let rsa_attrs =
+                determine_rsa_attrs(&ard, &rsa_key, key_type, algo_list)?;
 
             let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
             (Algo::Rsa(rsa_attrs), key_cmd)
         }
         PrivateKeyMaterial::E(ecc_key) => {
-            // Derive Algo from the key we're importing, and see if the
-            // card returns an error.
-
-            // If we have an algo_list, refuse upload if oid is now allowed.
-            if let Some(algo_list) = algo_list {
-                let oid = ecc_key.get_oid();
-                if !check_card_algo_ecc(algo_list, key_type, oid) {
-                    // If oid is not in algo_list, return error.
-                    return Err(anyhow!(
-                        "Oid {:?} unsupported according to algo_list",
-                        oid
-                    )
-                    .into());
-                }
-            }
-
-            // (Looking up a suitable algorithm in the card's "Algorithm
-            // Information" seems to do more harm than good, because some
-            // cards report erroneous information about supported
-            // algorithms - e.g. Yubikey 5 reports support for EdDSA over
-            // Cv25519 and Ed25519, but not ECDH).
-            let algo = Algo::Ecc(EccAttrs::new(
-                ecc_key.get_type(),
-                Curve::try_from(ecc_key.get_oid())?,
-                None,
-            ));
+            let ecc_attrs =
+                determine_ecc_attrs(&ecc_key, key_type, algo_list)?;
 
             let key_cmd = ecc_key_import_cmd(ecc_key, key_type)?;
 
-            (algo, key_cmd)
+            (Algo::Ecc(ecc_attrs), key_cmd)
         }
     };
 
-    let ts = key.get_ts();
     let fp = key.get_fp()?;
 
-    // Send all the commands
-    card_app.set_algorithm_attributes(key_type, &algo)?;
+    // Now that we have marshalled all necessary information, perform all
+    // set-operations on the card.
+
+    // Only set algo attrs if "Extended Capabilities" lists the feature
+    if ard
+        .get_extended_capabilities()?
+        .features()
+        .contains(&Features::AlgoAttrsChangeable)
+    {
+        card_app.set_algorithm_attributes(key_type, &algo)?;
+    }
+
     apdu::send_command(card_app.get_card_client(), key_cmd, false)?
         .check_ok()?;
     card_app.set_fingerprint(fp, key_type)?;
-    card_app.set_creation_time(ts, key_type)?;
+    card_app.set_creation_time(key.get_ts(), key_type)?;
 
     Ok(())
+}
+
+/// Derive RsaAttrs for `rsa_key`.
+///
+/// If available, via lookup in `algo_list`, otherwise the current
+/// algorithm attributes are loaded and checked. If neither method yields a
+/// result, we 'guess' the RsaAttrs setting.
+fn determine_rsa_attrs(
+    ard: &ApplicationRelatedData,
+    rsa_key: &Box<dyn RSAKey>,
+    key_type: KeyType,
+    algo_list: Option<AlgoInfo>,
+) -> Result<RsaAttrs> {
+    // RSA bitsize
+    // (round up to 4-bytes, in case the key has 8+ leading zeros)
+    let rsa_bits = (((rsa_key.get_n().len() * 8 + 31) / 32) * 32) as u16;
+
+    // Figure out suitable RSA algorithm parameters:
+
+    // Does the card offer a list of algorithms?
+    let rsa_attrs = if let Some(algo_list) = algo_list {
+        // Yes -> Look up the parameters for key_type and rsa_bits.
+        // (Or error, if the list doesn't have an entry for rsa_bits)
+        get_card_algo_rsa(algo_list, key_type, rsa_bits)?
+    } else {
+        // No -> Get the current algorithm attributes for key_type.
+
+        let algo = ard.get_algorithm_attributes(key_type)?;
+
+        // Is the algorithm on the card currently set to RSA?
+        if let Algo::Rsa(rsa) = algo {
+            // If so, use the algorithm parameters from the card and
+            // adjust the bit length based on the user-provided key.
+            RsaAttrs::new(rsa_bits, rsa.len_e(), rsa.import_format())
+        } else {
+            // The card doesn't provide an algorithm list, and the
+            // current algorithm on the card is not RSA.
+            //
+            // So we 'guess' a value for len_e (some cards only
+            // support 17, others only support 32).
+
+            // [If this approach turns out to be insufficient, we
+            // need to determine the model of the card and use a
+            // list of which RSA parameters that model of card
+            // supports]
+
+            RsaAttrs::new(rsa_bits, 32, 0)
+        }
+    };
+
+    Ok(rsa_attrs)
+}
+
+/// Derive EccAttrs from `ecc_key`, check if the OID is listed in algo_list.
+fn determine_ecc_attrs(
+    ecc_key: &Box<dyn EccKey>,
+    key_type: KeyType,
+    algo_list: Option<AlgoInfo>,
+) -> Result<EccAttrs> {
+    // If we have an algo_list, refuse upload if oid is not listed
+    if let Some(algo_list) = algo_list {
+        let oid = ecc_key.get_oid();
+        if !check_card_algo_ecc(algo_list, key_type, oid) {
+            // If oid is not in algo_list, return error.
+            return Err(anyhow!(
+                "Oid {:?} unsupported according to algo_list",
+                oid
+            )
+            .into());
+        }
+    }
+
+    // (Precisely looking up ECC algorithms in the card's "Algorithm
+    // Information" seems to do more harm than good, so we don't do it.
+    // Some cards report erroneous information about supported algorithms
+    // - e.g. Yubikey 5 reports support for EdDSA over Cv25519 and
+    // Ed25519, but not ECDH).
+
+    Ok(EccAttrs::new(
+        ecc_key.get_type(),
+        Curve::try_from(ecc_key.get_oid())?,
+        None,
+    ))
 }
 
 /// Look up RsaAttrs parameters in algo_list based on key_type and rsa_bits
@@ -318,35 +356,11 @@ fn check_card_algo_ecc(
     ecc_algos.iter().any(|e| e.oid() == oid)
 }
 
-/// Create command for ECC key import
-fn ecc_key_import_cmd(
-    ecc_key: Box<dyn EccKey>,
-    key_type: KeyType,
-) -> Result<Command, Error> {
-    let scalar_data = ecc_key.get_scalar();
-    let scalar_len = scalar_data.len() as u8;
-
-    // 1) "Control Reference Template"
-    let crt = get_crt(key_type)?;
-
-    // 2) "Cardholder private key template" (7F48)
-    let cpkt = Tlv::new([0x7F, 0x48], Value::S(vec![0x92, scalar_len]));
-
-    // 3) "Cardholder private key" (5F48)
-    let cpk = Tlv::new([0x5F, 0x48], Value::S(scalar_data.to_vec()));
-
-    // "Extended header list (DO 4D)" (contains the three inner TLV)
-    let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
-
-    // key import command
-    Ok(commands::key_import(ehl.serialize().to_vec()))
-}
-
 /// Create command for RSA key import
 fn rsa_key_import_cmd(
     key_type: KeyType,
     rsa_key: Box<dyn RSAKey>,
-    algo_attrs: &RsaAttrs,
+    rsa_attrs: &RsaAttrs,
 ) -> Result<Command, Error> {
     // Assemble key command, which contains three sub-TLV:
 
@@ -360,7 +374,7 @@ fn rsa_key_import_cmd(
     let mut value = vec![];
 
     // Length of e in bytes, rounding up from the bit value in algo.
-    let len_e_bytes = ((algo_attrs.len_e() + 7) / 8) as u8;
+    let len_e_bytes = ((rsa_attrs.len_e() + 7) / 8) as u8;
 
     value.push(0x91);
     // len_e in bytes has a value of 3-4, it doesn't need TLV encoding
@@ -368,8 +382,8 @@ fn rsa_key_import_cmd(
 
     // len_p and len_q are len_n/2 (value from card algorithm list).
     // transform unit from bits to bytes.
-    let len_p_bytes: u16 = algo_attrs.len_n() / 2 / 8;
-    let len_q_bytes: u16 = algo_attrs.len_n() / 2 / 8;
+    let len_p_bytes: u16 = rsa_attrs.len_n() / 2 / 8;
+    let len_q_bytes: u16 = rsa_attrs.len_n() / 2 / 8;
 
     value.push(0x92);
     // len p in bytes, TLV-encoded
@@ -403,6 +417,30 @@ fn rsa_key_import_cmd(
     let cpk = Tlv::new([0x5F, 0x48], Value::S(keydata));
 
     // "Extended header list (DO 4D)"
+    let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
+
+    // key import command
+    Ok(commands::key_import(ehl.serialize().to_vec()))
+}
+
+/// Create command for ECC key import
+fn ecc_key_import_cmd(
+    ecc_key: Box<dyn EccKey>,
+    key_type: KeyType,
+) -> Result<Command, Error> {
+    let scalar_data = ecc_key.get_scalar();
+    let scalar_len = scalar_data.len() as u8;
+
+    // 1) "Control Reference Template"
+    let crt = get_crt(key_type)?;
+
+    // 2) "Cardholder private key template" (7F48)
+    let cpkt = Tlv::new([0x7F, 0x48], Value::S(vec![0x92, scalar_len]));
+
+    // 3) "Cardholder private key" (5F48)
+    let cpk = Tlv::new([0x5F, 0x48], Value::S(scalar_data.to_vec()));
+
+    // "Extended header list (DO 4D)" (contains the three inner TLV)
     let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
 
     // key import command
