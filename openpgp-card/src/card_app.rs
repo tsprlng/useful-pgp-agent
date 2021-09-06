@@ -9,14 +9,14 @@ use std::convert::TryInto;
 
 use anyhow::{anyhow, Result};
 
-use crate::algorithm::{Algo, AlgoInfo, AlgoSimple, RsaAttrs};
+use crate::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use crate::apdu::{commands, response::Response};
 use crate::card_do::{
     ApplicationRelatedData, CardholderRelatedData, Fingerprint,
     KeyGenerationTime, PWStatusBytes, SecuritySupportTemplate, Sex,
 };
 use crate::crypto_data::{
-    CardUploadableKey, Cryptogram, EccType, Hash, PublicKeyMaterial,
+    CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial,
 };
 use crate::tlv::{tag::Tag, value::Value, Tlv};
 use crate::Error;
@@ -572,67 +572,13 @@ impl CardApp {
         key_type: KeyType,
         algo: &Algo,
     ) -> Result<Response, Error> {
-        // FIXME: caching?
-        let ard = self.get_application_related_data()?;
-
-        // FIXME: Only write algo attributes to the card if "extended
-        // capabilities" show that they are changeable!
-
-        // FIXME: reuse "e" from card, if no algo list is available
-        let _cur_algo = ard.get_algorithm_attributes(key_type)?;
-
-        let data = match algo {
-            Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa)?,
-            Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
-            _ => {
-                return Err(anyhow!("Unexpected Algo {:?}", algo).into());
-            }
-        };
-
         // Command to PUT the algorithm attributes
-        let cmd = commands::put_data(&[key_type.get_algorithm_tag()], data);
+        let cmd = commands::put_data(
+            &[key_type.get_algorithm_tag()],
+            algo.get_data()?,
+        );
 
         apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
-    }
-
-    /// Helper: generate `data` for algorithm attributes with RSA
-    fn rsa_algo_attrs(algo_attrs: &RsaAttrs) -> Result<Vec<u8>> {
-        // Algorithm ID (01 = RSA (Encrypt or Sign))
-        let mut algo_attributes = vec![0x01];
-
-        // Length of modulus n in bit
-        algo_attributes.extend(&algo_attrs.len_n().to_be_bytes());
-
-        // Length of public exponent e in bit
-        algo_attributes.push(0x00);
-        algo_attributes.push(algo_attrs.len_e() as u8);
-
-        // Import-Format of private key
-        // (This fn currently assumes import_format "00 = standard (e, p, q)")
-        if algo_attrs.import_format() != 0 {
-            return Err(anyhow!(
-                "Unexpected RSA input format (only 0 is supported)"
-            ));
-        }
-
-        algo_attributes.push(algo_attrs.import_format());
-
-        Ok(algo_attributes)
-    }
-
-    /// Helper: generate `data` for algorithm attributes with ECC
-    fn ecc_algo_attrs(oid: &[u8], ecc_type: EccType) -> Vec<u8> {
-        let algo_id = match ecc_type {
-            EccType::EdDSA => 0x16,
-            EccType::ECDH => 0x12,
-            EccType::ECDSA => 0x13,
-        };
-
-        let mut algo_attributes = vec![algo_id];
-        algo_attributes.extend(oid);
-        // Leave Import-Format unset, for default (pg. 35)
-
-        algo_attributes
     }
 
     /// Import an existing private key to the card.

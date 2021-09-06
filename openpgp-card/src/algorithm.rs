@@ -10,7 +10,7 @@
 //! specifically for key generation on the card.
 
 use crate::crypto_data::EccType;
-use crate::KeyType;
+use crate::{Error, KeyType};
 
 use anyhow::anyhow;
 use std::convert::TryFrom;
@@ -170,6 +170,62 @@ impl fmt::Display for Algo {
                 write!(f, "Unknown: {:?}", u)
             }
         }
+    }
+}
+
+impl Algo {
+    /// Get a DO representation of the Algo, for setting algorithm
+    /// attributes on the card.
+    pub(crate) fn get_data(&self) -> Result<Vec<u8>, Error> {
+        match self {
+            Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa),
+            Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
+            _ => Err(anyhow!("Unexpected Algo {:?}", self).into()),
+        }
+    }
+
+    /// Helper: generate `data` for algorithm attributes with RSA
+    fn rsa_algo_attrs(algo_attrs: &RsaAttrs) -> Result<Vec<u8>, Error> {
+        // Algorithm ID (01 = RSA (Encrypt or Sign))
+        let mut algo_attributes = vec![0x01];
+
+        // Length of modulus n in bit
+        algo_attributes.extend(&algo_attrs.len_n().to_be_bytes());
+
+        // Length of public exponent e in bit
+        algo_attributes.push(0x00);
+        algo_attributes.push(algo_attrs.len_e() as u8);
+
+        // Import-Format of private key
+        // (This fn currently assumes import_format "00 = standard (e, p, q)")
+        if algo_attrs.import_format() != 0 {
+            return Err(anyhow!(
+                "Unexpected RSA input format (only 0 is supported)"
+            )
+            .into());
+        }
+
+        algo_attributes.push(algo_attrs.import_format());
+
+        Ok(algo_attributes)
+    }
+
+    /// Helper: generate `data` for algorithm attributes with ECC
+    fn ecc_algo_attrs(
+        oid: &[u8],
+        ecc_type: EccType,
+    ) -> Result<Vec<u8>, Error> {
+        let algo_id = match ecc_type {
+            EccType::EdDSA => 0x16,
+            EccType::ECDH => 0x12,
+            EccType::ECDSA => 0x13,
+        };
+
+        let mut algo_attributes = vec![algo_id];
+        algo_attributes.extend(oid);
+        // Leave Import-Format unset, for default (pg. 35)
+
+        Ok(algo_attributes)
     }
 }
 
