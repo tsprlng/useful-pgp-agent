@@ -295,9 +295,6 @@ impl CardApp {
         let resp = apdu::send_command(&mut self.card_client, act, false)?;
         resp.check_ok()?;
 
-        // FIXME: does the connection need to be re-opened on some cards,
-        // after reset?!
-
         Ok(())
     }
 
@@ -311,8 +308,6 @@ impl CardApp {
         &mut self,
         pin: &str,
     ) -> Result<Response, Error> {
-        assert!(pin.len() >= 6); // FIXME: Err
-
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
@@ -331,8 +326,6 @@ impl CardApp {
     /// Verify PW1 (user) and set an appropriate access status.
     /// (For operations except signing, mode 82).
     pub fn verify_pw1(&mut self, pin: &str) -> Result<Response, Error> {
-        assert!(pin.len() >= 6); // FIXME: Err
-
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
@@ -351,8 +344,6 @@ impl CardApp {
 
     /// Verify PW3 (admin) and set an appropriate access status.
     pub fn verify_pw3(&mut self, pin: &str) -> Result<Response, Error> {
-        assert!(pin.len() >= 8); // FIXME: Err
-
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
