@@ -51,7 +51,11 @@ pub(crate) fn send_command(
             expect_reply,
         )?)?;
 
-        // FIXME: first check for 0x61xx or 0x9000?
+        // Only continue if status is 0x61xx or 0x9000.
+        if next.status().0 != 0x61 && next.status() != (0x90, 0x0) {
+            return Err(Error::CardStatus(StatusByte::from(next.status())));
+        }
+
         log::debug!(" appending {} bytes to response", next.raw_data().len());
 
         // Append new data to resp.data and overwrite status.
