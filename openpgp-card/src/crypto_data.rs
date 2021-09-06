@@ -17,8 +17,8 @@ pub enum Hash<'a> {
     SHA256([u8; 0x20]),
     SHA384([u8; 0x30]),
     SHA512([u8; 0x40]),
-    ECDSA(&'a [u8]), // FIXME?
-    EdDSA(&'a [u8]), // FIXME?
+    ECDSA(&'a [u8]),
+    EdDSA(&'a [u8]),
 }
 
 impl Hash<'_> {
@@ -33,8 +33,8 @@ impl Hash<'_> {
             Self::SHA512(_) => {
                 Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03])
             }
-            Self::EdDSA(_) => None,
-            Self::ECDSA(_) => None,
+            Self::EdDSA(_) => panic!("This should not be called"),
+            Self::ECDSA(_) => panic!("This should not be called"),
         }
     }
 
