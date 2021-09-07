@@ -3,7 +3,7 @@
 
 //! 4.4.3.7 Extended Capabilities
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use nom::{combinator, number::complete as number, sequence};
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -72,16 +72,41 @@ impl TryFrom<&[u8]> for ExtendedCapabilities {
     type Error = Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
-        let ec = complete(parse(input))?;
+        let (
+            features,
+            sm_algo,
+            max_len_challenge,
+            max_len_cardholder_cert,
+            max_len_special_do,
+            pin_block_2_format_support,
+            mse_command_support,
+        ) = complete(parse(input))?;
+
+        if pin_block_2_format_support > 1 {
+            return Err(anyhow!(
+                "Illegal value '{}' for pin_block_2_format_support",
+                pin_block_2_format_support
+            )
+            .into());
+        }
+
+        // NOTE: yubikey 4 returns 255 for mse_command_support
+        // if mse_command_support > 1 {
+        //     return Err(anyhow!(
+        //         "Illegal value '{}' for mse_command_support",
+        //         mse_command_support
+        //     )
+        //     .into());
+        // }
 
         Ok(Self {
-            features: ec.0,
-            sm_algo: ec.1,
-            max_len_challenge: ec.2,
-            max_len_cardholder_cert: ec.3,
-            max_len_special_do: ec.4,
-            pin_block_2_format_support: ec.5 == 1, // FIXME: error if != 0|1
-            mse_command_support: ec.6 == 1,        // FIXME: error if != 0|1
+            features,
+            sm_algo,
+            max_len_challenge,
+            max_len_cardholder_cert,
+            max_len_special_do,
+            pin_block_2_format_support: pin_block_2_format_support != 0,
+            mse_command_support: mse_command_support != 0,
         })
     }
 }
