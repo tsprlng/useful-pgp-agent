@@ -28,11 +28,13 @@ impl TryFrom<&[u8]> for Fingerprint {
             input.len()
         );
 
-        // FIXME: return error
-        assert_eq!(input.len(), 20);
-
-        let array: [u8; 20] = input.try_into().unwrap();
-        Ok(array.into())
+        if input.len() == 20 {
+            let array: [u8; 20] = input.try_into().unwrap();
+            Ok(array.into())
+        } else {
+            Err(anyhow!("Unexpected fingerprint length {}", input.len())
+                .into())
+        }
     }
 }
 
