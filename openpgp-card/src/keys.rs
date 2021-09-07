@@ -173,7 +173,7 @@ pub(crate) fn key_import(
     let (algo, key_cmd) = match key.get_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
             let rsa_attrs =
-                determine_rsa_attrs(&ard, &rsa_key, key_type, algo_list)?;
+                determine_rsa_attrs(&ard, &*rsa_key, key_type, algo_list)?;
 
             let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
@@ -181,7 +181,7 @@ pub(crate) fn key_import(
         }
         PrivateKeyMaterial::E(ecc_key) => {
             let ecc_attrs =
-                determine_ecc_attrs(&ecc_key, key_type, algo_list)?;
+                determine_ecc_attrs(&*ecc_key, key_type, algo_list)?;
 
             let key_cmd = ecc_key_import_cmd(ecc_key, key_type)?;
 
@@ -218,7 +218,7 @@ pub(crate) fn key_import(
 /// result, we 'guess' the RsaAttrs setting.
 fn determine_rsa_attrs(
     ard: &ApplicationRelatedData,
-    rsa_key: &Box<dyn RSAKey>,
+    rsa_key: &dyn RSAKey,
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
 ) -> Result<RsaAttrs> {
@@ -264,7 +264,7 @@ fn determine_rsa_attrs(
 
 /// Derive EccAttrs from `ecc_key`, check if the OID is listed in algo_list.
 fn determine_ecc_attrs(
-    ecc_key: &Box<dyn EccKey>,
+    ecc_key: &dyn EccKey,
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
 ) -> Result<EccAttrs> {
@@ -276,8 +276,7 @@ fn determine_ecc_attrs(
             return Err(anyhow!(
                 "Oid {:?} unsupported according to algo_list",
                 oid
-            )
-            .into());
+            ));
         }
     }
 
