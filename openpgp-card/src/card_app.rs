@@ -19,8 +19,8 @@ use crate::crypto_data::{
     CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial,
 };
 use crate::tlv::{tag::Tag, value::Value, Tlv};
-use crate::Error;
 use crate::{apdu, keys, CardCaps, CardClientBox, KeyType};
+use crate::{Error, StatusBytes};
 
 /// Low-level access to OpenPGP card functionality.
 ///
@@ -264,8 +264,8 @@ impl CardApp {
             let verify = commands::verify_pw1_81([0x40; 8].to_vec());
             let resp =
                 apdu::send_command(&mut self.card_client, verify, false)?;
-            if !(resp.status() == (0x69, 0x82)
-                || resp.status() == (0x69, 0x83))
+            if !(resp.status() == StatusBytes::SecurityStatusNotSatisfied
+                || resp.status() == StatusBytes::AuthenticationMethodBlocked)
             {
                 return Err(anyhow!("Unexpected status for reset, at pw1."));
             }
@@ -278,8 +278,8 @@ impl CardApp {
             let resp =
                 apdu::send_command(&mut self.card_client, verify, false)?;
 
-            if !(resp.status() == (0x69, 0x82)
-                || resp.status() == (0x69, 0x83))
+            if !(resp.status() == StatusBytes::SecurityStatusNotSatisfied
+                || resp.status() == StatusBytes::AuthenticationMethodBlocked)
             {
                 return Err(anyhow!("Unexpected status for reset, at pw3."));
             }

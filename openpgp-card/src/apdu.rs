@@ -39,28 +39,30 @@ pub(crate) fn send_command(
         expect_reply,
     )?)?;
 
-    while resp.status().0 == 0x61 {
+    while let StatusBytes::OkBytesAvailable(_) = resp.status() {
         // More data is available for this command from the card
+        log::debug!(" chained response, getting more data");
 
-        log::debug!(" response was truncated, getting more data");
-
-        // Get additional data
+        // Get next chunk of data
         let next = RawResponse::try_from(send_command_low_level(
             card_client,
             commands::get_response(),
             expect_reply,
         )?)?;
 
-        // Only continue if status is 0x61xx or 0x9000.
-        if next.status().0 != 0x61 && next.status() != (0x90, 0x0) {
-            return Err(Error::CardStatus(StatusBytes::from(next.status())));
+        match next.status() {
+            StatusBytes::OkBytesAvailable(_) | StatusBytes::Ok => {
+                log::debug!(
+                    " appending {} bytes to response",
+                    next.raw_data().len()
+                );
+
+                // Append new data to resp.data and overwrite status.
+                resp.raw_mut_data().extend_from_slice(next.raw_data());
+                resp.set_status(next.status());
+            }
+            error => return Err(error.into()),
         }
-
-        log::debug!(" appending {} bytes to response", next.raw_data().len());
-
-        // Append new data to resp.data and overwrite status.
-        resp.raw_mut_data().extend_from_slice(next.raw_data());
-        resp.set_status(next.status());
     }
 
     log::debug!(" final response len: {}", resp.raw_data().len());
@@ -156,11 +158,11 @@ fn send_command_low_level(
             let serialized =
                 partial.serialize(ext).map_err(Error::InternalError)?;
 
-            log::debug!(" -> chunked APDU command: {:x?}", &serialized);
+            log::debug!(" -> chained APDU command: {:x?}", &serialized);
 
             let resp = card_client.transmit(&serialized, buf_size)?;
 
-            log::debug!(" <- APDU chunk response: {:x?}", &resp);
+            log::debug!(" <- APDU response: {:x?}", &resp);
 
             if resp.len() < 2 {
                 return Err(Error::ResponseLength(resp.len()));
@@ -171,13 +173,15 @@ fn send_command_low_level(
                 let sw1 = resp[resp.len() - 2];
                 let sw2 = resp[resp.len() - 1];
 
+                let status = StatusBytes::from((sw1, sw2));
+
                 // ISO: "If SW1-SW2 is set to '6883', then the last
                 // command of the chain is expected."
-                if !((sw1 == 0x90 && sw2 == 0x00)
-                    || (sw1 == 0x68 && sw2 == 0x83))
+                if !(status == StatusBytes::Ok
+                    || status == StatusBytes::LastCommandOfChainExpected)
                 {
                     // Unexpected status for a non-final chunked response
-                    return Err(StatusBytes::from((sw1, sw2)).into());
+                    return Err(status.into());
                 }
 
                 // ISO: "If SW1-SW2 is set to '6884', then command

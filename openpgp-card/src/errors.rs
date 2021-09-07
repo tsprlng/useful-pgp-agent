@@ -42,10 +42,16 @@ impl From<anyhow::Error> for Error {
     }
 }
 
-/// OpenPGP card "Status Bytes" errors
-#[derive(thiserror::Error, Debug, PartialEq)]
+/// OpenPGP card "Status Bytes" (ok statuses and errors)
+#[derive(thiserror::Error, Debug, PartialEq, Copy, Clone)]
 #[non_exhaustive]
 pub enum StatusBytes {
+    #[error("Command correct")]
+    Ok,
+
+    #[error("Command correct, [{0}] bytes available in response")]
+    OkBytesAvailable(u8),
+
     #[error("Selected file or DO in termination state")]
     TerminationState,
 
@@ -74,7 +80,7 @@ pub enum StatusBytes {
     LastCommandOfChainExpected,
 
     #[error("Command chaining not supported")]
-    CommandChainingUnsupported,
+    CommandChainingNotSupported,
 
     #[error("Security status not satisfied")]
     SecurityStatusNotSatisfied,
@@ -119,6 +125,9 @@ pub enum StatusBytes {
 impl From<(u8, u8)> for StatusBytes {
     fn from(status: (u8, u8)) -> Self {
         match (status.0, status.1) {
+            (0x90, 0x00) => StatusBytes::Ok,
+            (0x61, bytes) => StatusBytes::OkBytesAvailable(bytes),
+
             (0x62, 0x85) => StatusBytes::TerminationState,
             (0x63, 0xC0..=0xCF) => {
                 StatusBytes::PasswordNotChecked(status.1 & 0xf)
@@ -130,7 +139,7 @@ impl From<(u8, u8)> for StatusBytes {
             (0x68, 0x81) => StatusBytes::LogicalChannelNotSupported,
             (0x68, 0x82) => StatusBytes::SecureMessagingNotSupported,
             (0x68, 0x83) => StatusBytes::LastCommandOfChainExpected,
-            (0x68, 0x84) => StatusBytes::CommandChainingUnsupported,
+            (0x68, 0x84) => StatusBytes::CommandChainingNotSupported,
             (0x69, 0x82) => StatusBytes::SecurityStatusNotSatisfied,
             (0x69, 0x83) => StatusBytes::AuthenticationMethodBlocked,
             (0x69, 0x85) => StatusBytes::ConditionOfUseNotSatisfied,

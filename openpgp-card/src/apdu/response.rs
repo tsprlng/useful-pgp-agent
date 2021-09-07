@@ -30,8 +30,7 @@ impl Response {
 #[derive(Clone, Debug)]
 pub(crate) struct RawResponse {
     data: Vec<u8>,
-    sw1: u8,
-    sw2: u8,
+    status: StatusBytes,
 }
 
 impl TryFrom<RawResponse> for Response {
@@ -41,7 +40,7 @@ impl TryFrom<RawResponse> for Response {
         if value.is_ok() {
             Ok(Response { data: value.data })
         } else {
-            Err(Error::CardStatus(StatusBytes::from(value.status())))
+            Err(value.status().into())
         }
     }
 }
@@ -49,7 +48,7 @@ impl TryFrom<RawResponse> for Response {
 impl RawResponse {
     pub fn check_ok(&self) -> Result<(), StatusBytes> {
         if !self.is_ok() {
-            Err(StatusBytes::from((self.sw1, self.sw2)))
+            Err(self.status())
         } else {
             Ok(())
         }
@@ -69,18 +68,17 @@ impl RawResponse {
         &mut self.data
     }
 
-    pub(crate) fn set_status(&mut self, new_status: (u8, u8)) {
-        self.sw1 = new_status.0;
-        self.sw2 = new_status.1;
+    pub(crate) fn set_status(&mut self, new_status: StatusBytes) {
+        self.status = new_status;
     }
 
-    pub fn status(&self) -> (u8, u8) {
-        (self.sw1, self.sw2)
+    pub fn status(&self) -> StatusBytes {
+        self.status
     }
 
     /// Is the response status "ok"? (0x90, 0x00)
     pub fn is_ok(&self) -> bool {
-        self.status() == (0x90, 0x00)
+        self.status() == StatusBytes::Ok
     }
 }
 
@@ -95,7 +93,9 @@ impl TryFrom<Vec<u8>> for RawResponse {
             .pop()
             .ok_or_else(|| Error::ResponseLength(data.len()))?;
 
-        Ok(RawResponse { data, sw1, sw2 })
+        let status = (sw1, sw2).into();
+
+        Ok(RawResponse { data, status })
     }
 }
 
