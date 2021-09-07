@@ -12,7 +12,7 @@ use anyhow::Result;
 use std::convert::TryFrom;
 
 use crate::apdu::{command::Command, response::RawResponse};
-use crate::{CardClientBox, Error, StatusByte};
+use crate::{CardClientBox, Error, StatusBytes};
 
 // "Maximum amount of bytes in a short APDU command or response" (from pcsc)
 const MAX_BUFFER_SIZE: usize = 264;
@@ -53,7 +53,7 @@ pub(crate) fn send_command(
 
         // Only continue if status is 0x61xx or 0x9000.
         if next.status().0 != 0x61 && next.status() != (0x90, 0x0) {
-            return Err(Error::CardStatus(StatusByte::from(next.status())));
+            return Err(Error::CardStatus(StatusBytes::from(next.status())));
         }
 
         log::debug!(" appending {} bytes to response", next.raw_data().len());
@@ -177,7 +177,7 @@ fn send_command_low_level(
                     || (sw1 == 0x68 && sw2 == 0x83))
                 {
                     // Unexpected status for a non-final chunked response
-                    return Err(StatusByte::from((sw1, sw2)).into());
+                    return Err(StatusBytes::from((sw1, sw2)).into());
                 }
 
                 // ISO: "If SW1-SW2 is set to '6884', then command

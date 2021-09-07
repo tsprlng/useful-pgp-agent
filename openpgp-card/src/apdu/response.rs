@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::{Error, StatusByte};
+use crate::{Error, StatusBytes};
 use std::convert::TryFrom;
 
 /// Response from the card to a command.
@@ -41,21 +41,21 @@ impl TryFrom<RawResponse> for Response {
         if value.is_ok() {
             Ok(Response { data: value.data })
         } else {
-            Err(Error::CardStatus(StatusByte::from(value.status())))
+            Err(Error::CardStatus(StatusBytes::from(value.status())))
         }
     }
 }
 
 impl RawResponse {
-    pub fn check_ok(&self) -> Result<(), StatusByte> {
+    pub fn check_ok(&self) -> Result<(), StatusBytes> {
         if !self.is_ok() {
-            Err(StatusByte::from((self.sw1, self.sw2)))
+            Err(StatusBytes::from((self.sw1, self.sw2)))
         } else {
             Ok(())
         }
     }
 
-    pub fn data(&self) -> Result<&[u8], StatusByte> {
+    pub fn data(&self) -> Result<&[u8], StatusBytes> {
         self.check_ok()?;
         Ok(&self.data)
     }

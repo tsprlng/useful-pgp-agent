@@ -18,7 +18,7 @@ pub enum Error {
     Smartcard(SmartcardError),
 
     #[error("OpenPGP card error status: {0}")]
-    CardStatus(StatusByte),
+    CardStatus(StatusBytes),
 
     #[error("Command too long ({0} bytes)")]
     CommandTooLong(usize),
@@ -30,8 +30,8 @@ pub enum Error {
     InternalError(anyhow::Error),
 }
 
-impl From<StatusByte> for Error {
-    fn from(oce: StatusByte) -> Self {
+impl From<StatusBytes> for Error {
+    fn from(oce: StatusBytes) -> Self {
         Error::CardStatus(oce)
     }
 }
@@ -42,10 +42,10 @@ impl From<anyhow::Error> for Error {
     }
 }
 
-/// OpenPGP card "Status Byte" errors
+/// OpenPGP card "Status Bytes" errors
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[non_exhaustive]
-pub enum StatusByte {
+pub enum StatusBytes {
     #[error("Selected file or DO in termination state")]
     TerminationState,
 
@@ -116,34 +116,34 @@ pub enum StatusByte {
     UnknownStatus(u8, u8),
 }
 
-impl From<(u8, u8)> for StatusByte {
+impl From<(u8, u8)> for StatusBytes {
     fn from(status: (u8, u8)) -> Self {
         match (status.0, status.1) {
-            (0x62, 0x85) => StatusByte::TerminationState,
+            (0x62, 0x85) => StatusBytes::TerminationState,
             (0x63, 0xC0..=0xCF) => {
-                StatusByte::PasswordNotChecked(status.1 & 0xf)
+                StatusBytes::PasswordNotChecked(status.1 & 0xf)
             }
-            (0x64, 0x02..=0x80) => StatusByte::TriggeringByCard(status.1),
-            (0x65, 0x01) => StatusByte::MemoryFailure,
-            (0x66, 0x00) => StatusByte::SecurityRelatedIssues,
-            (0x67, 0x00) => StatusByte::WrongLength,
-            (0x68, 0x81) => StatusByte::LogicalChannelNotSupported,
-            (0x68, 0x82) => StatusByte::SecureMessagingNotSupported,
-            (0x68, 0x83) => StatusByte::LastCommandOfChainExpected,
-            (0x68, 0x84) => StatusByte::CommandChainingUnsupported,
-            (0x69, 0x82) => StatusByte::SecurityStatusNotSatisfied,
-            (0x69, 0x83) => StatusByte::AuthenticationMethodBlocked,
-            (0x69, 0x85) => StatusByte::ConditionOfUseNotSatisfied,
-            (0x69, 0x87) => StatusByte::ExpectedSecureMessagingDOsMissing,
-            (0x69, 0x88) => StatusByte::SMDataObjectsIncorrect,
-            (0x6A, 0x80) => StatusByte::IncorrectParametersCommandDataField,
-            (0x6A, 0x82) => StatusByte::FileOrApplicationNotFound,
-            (0x6A, 0x88) => StatusByte::ReferencedDataNotFound,
-            (0x6B, 0x00) => StatusByte::WrongParametersP1P2,
-            (0x6D, 0x00) => StatusByte::INSNotSupported,
-            (0x6E, 0x00) => StatusByte::CLANotSupported,
-            (0x6F, 0x00) => StatusByte::NoPreciseDiagnosis,
-            _ => StatusByte::UnknownStatus(status.0, status.1),
+            (0x64, 0x02..=0x80) => StatusBytes::TriggeringByCard(status.1),
+            (0x65, 0x01) => StatusBytes::MemoryFailure,
+            (0x66, 0x00) => StatusBytes::SecurityRelatedIssues,
+            (0x67, 0x00) => StatusBytes::WrongLength,
+            (0x68, 0x81) => StatusBytes::LogicalChannelNotSupported,
+            (0x68, 0x82) => StatusBytes::SecureMessagingNotSupported,
+            (0x68, 0x83) => StatusBytes::LastCommandOfChainExpected,
+            (0x68, 0x84) => StatusBytes::CommandChainingUnsupported,
+            (0x69, 0x82) => StatusBytes::SecurityStatusNotSatisfied,
+            (0x69, 0x83) => StatusBytes::AuthenticationMethodBlocked,
+            (0x69, 0x85) => StatusBytes::ConditionOfUseNotSatisfied,
+            (0x69, 0x87) => StatusBytes::ExpectedSecureMessagingDOsMissing,
+            (0x69, 0x88) => StatusBytes::SMDataObjectsIncorrect,
+            (0x6A, 0x80) => StatusBytes::IncorrectParametersCommandDataField,
+            (0x6A, 0x82) => StatusBytes::FileOrApplicationNotFound,
+            (0x6A, 0x88) => StatusBytes::ReferencedDataNotFound,
+            (0x6B, 0x00) => StatusBytes::WrongParametersP1P2,
+            (0x6D, 0x00) => StatusBytes::INSNotSupported,
+            (0x6E, 0x00) => StatusBytes::CLANotSupported,
+            (0x6F, 0x00) => StatusBytes::NoPreciseDiagnosis,
+            _ => StatusBytes::UnknownStatus(status.0, status.1),
         }
     }
 }

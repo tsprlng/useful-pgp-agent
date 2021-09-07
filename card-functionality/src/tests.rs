@@ -13,7 +13,7 @@ use sequoia_openpgp::Cert;
 use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
-use openpgp_card::{CardApp, Error, KeyType, StatusByte};
+use openpgp_card::{CardApp, Error, KeyType, StatusBytes};
 use openpgp_card_sequoia::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
 };
@@ -23,7 +23,7 @@ use crate::util;
 
 #[derive(Debug)]
 pub enum TestResult {
-    Status(StatusByte),
+    Status(StatusBytes),
     StatusOk,
     Text(String),
 }
@@ -39,7 +39,7 @@ pub enum TestError {
     OPGP(#[from] Error),
 
     #[error(transparent)]
-    OCard(#[from] StatusByte),
+    OCard(#[from] StatusBytes),
 
     #[error(transparent)]
     Other(#[from] anyhow::Error), // source and Display delegate to anyhow::Error
@@ -486,7 +486,7 @@ pub fn test_verify(
     let res = ca.set_name("Notverified<<Hello");
 
     if let Err(Error::CardStatus(s)) = res {
-        assert_eq!(s, StatusByte::SecurityStatusNotSatisfied);
+        assert_eq!(s, StatusBytes::SecurityStatusNotSatisfied);
     } else {
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }

@@ -38,7 +38,7 @@ mod tlv;
 
 pub use crate::apdu::response::Response;
 pub use crate::card_app::CardApp;
-pub use crate::errors::{Error, SmartcardError, StatusByte};
+pub use crate::errors::{Error, SmartcardError, StatusBytes};
 
 /// The CardClient trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate
