@@ -301,8 +301,6 @@ fn get_card_algo_rsa(
     rsa_bits: u16,
 ) -> Result<RsaAttrs, Error> {
     // Find suitable algorithm parameters (from card's list of algorithms).
-    // FIXME: handle "no list available" (older cards?)
-    // (Current algo parameters of the key slot should be used, then (?))
 
     // Get Algos for this keytype
     let keytype_algos: Vec<_> = algo_list.get_by_keytype(key_type);
@@ -339,8 +337,6 @@ fn check_card_algo_ecc(
     oid: &[u8],
 ) -> bool {
     // Find suitable algorithm parameters (from card's list of algorithms).
-    // FIXME: handle "no list available" (older cards?)
-    // (Current algo parameters of the key slot should be used, then (?))
 
     // Get Algos for this keytype
     let keytype_algos: Vec<_> = algo_list.get_by_keytype(key_type);
