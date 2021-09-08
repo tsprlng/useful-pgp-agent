@@ -22,7 +22,7 @@ needs to be implemented for access to cards.
 The crates
 [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
 and the experimental crate
-[openpgp-card-scdc](https://gitlab.com/hkos/openpgp-card/-/tree/main/scdc)
+[openpgp-card-scdc](https://crates.io/crates/openpgp-card-scdc)
 provide implementations of `CardClient` for use with this crate.
 
 **Sequoia PGP wrapper**
