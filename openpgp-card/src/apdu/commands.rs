@@ -139,18 +139,35 @@ pub(crate) fn put_cardholder_certificate(data: Vec<u8>) -> Command {
     put_data(&[0x7F, 0x21], data)
 }
 
-/// Change PW1 (user pin).
-/// This can be used to reset the counter and set a pin.
-pub(crate) fn change_pw1(pin: Vec<u8>) -> Command {
-    Command::new(0x00, 0x2C, 0x02, 0x81, pin)
+/// "RESET RETRY COUNTER" (PW1, user pin)
+/// Reset the counter of PW1 and set a new pin.
+pub(crate) fn reset_retry_counter_pw1(
+    resetting_code: Option<Vec<u8>>,
+    new_pin: Vec<u8>,
+) -> Command {
+    if let Some(resetting_code) = resetting_code {
+        // Present the Resetting Code (DO D3) in the command data (P1 = 00)
+
+        // Data field: Resetting Code + New PW
+        let mut data = resetting_code;
+        data.extend(new_pin);
+
+        Command::new(0x00, 0x2C, 0x00, 0x81, data)
+    } else {
+        // Use after correct verification of PW3 (P1 = 02)
+        // (Usage of secure messaging is equivalent to PW3)
+        Command::new(0x00, 0x2C, 0x02, 0x81, new_pin)
+    }
 }
 
-/// Change PW3 (admin pin)
-pub(crate) fn change_pw3(oldpin: Vec<u8>, newpin: Vec<u8>) -> Command {
-    let mut fullpin = oldpin;
-    fullpin.extend(newpin.iter());
+/// "CHANGE REFERENCE DATA" - change PW1 (user pin)
+pub(crate) fn change_pw1(data: Vec<u8>) -> Command {
+    Command::new(0x00, 0x24, 0x00, 0x81, data)
+}
 
-    Command::new(0x00, 0x24, 0x00, 0x83, fullpin)
+/// "CHANGE REFERENCE DATA" - change PW3 (admin pin)
+pub(crate) fn change_pw3(data: Vec<u8>) -> Command {
+    Command::new(0x00, 0x24, 0x00, 0x83, data)
 }
 
 /// 7.2.10 PSO: COMPUTE DIGITAL SIGNATURE

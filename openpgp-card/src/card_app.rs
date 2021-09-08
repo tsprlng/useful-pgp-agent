@@ -359,6 +359,54 @@ impl CardApp {
         apdu::send_command(&mut self.card_client, verify, false)?.try_into()
     }
 
+    /// Change the value of PW1 (user password).
+    ///
+    /// The current value of PW1 must be presented in `old` for authorization.
+    pub fn change_pw1(
+        &mut self,
+        old: &str,
+        new: &str,
+    ) -> Result<Response, Error> {
+        let mut data = vec![];
+        data.extend(old.as_bytes());
+        data.extend(new.as_bytes());
+
+        let change = commands::change_pw1(data);
+        apdu::send_command(&mut self.card_client, change, false)?.try_into()
+    }
+
+    /// Change the value of PW3 (admin password).
+    ///
+    /// The current value of PW3 must be presented in `old` for authorization.
+    pub fn change_pw3(
+        &mut self,
+        old: &str,
+        new: &str,
+    ) -> Result<Response, Error> {
+        let mut data = vec![];
+        data.extend(old.as_bytes());
+        data.extend(new.as_bytes());
+
+        let change = commands::change_pw3(data);
+        apdu::send_command(&mut self.card_client, change, false)?.try_into()
+    }
+
+    /// Reset the error counter for PW1 (user password) and set a new value
+    /// for PW1.
+    ///
+    /// For authorization, either:
+    /// - PW3 must have been verified previously,
+    /// - secure messaging must be currently used,
+    /// - the resetting_code must be presented.
+    pub fn reset_retry_counter_pw1(
+        &mut self,
+        new_pw1: Vec<u8>,
+        resetting_code: Option<Vec<u8>>,
+    ) -> Result<Response, Error> {
+        let reset = commands::reset_retry_counter_pw1(resetting_code, new_pw1);
+        apdu::send_command(&mut self.card_client, reset, false)?.try_into()
+    }
+
     // --- decrypt ---
 
     /// Decrypt the ciphertext in `dm`, on the card.
@@ -578,6 +626,16 @@ impl CardApp {
             algo.get_data()?,
         );
 
+        apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
+    }
+
+    /// Set resetting code
+    /// (4.3.4 Resetting Code)
+    pub fn set_resetting_code(
+        &mut self,
+        resetting_code: Vec<u8>,
+    ) -> Result<Response, Error> {
+        let cmd = commands::put_data(&[0xd3], resetting_code);
         apdu::send_command(&mut self.card_client, cmd, false)?.try_into()
     }
 
