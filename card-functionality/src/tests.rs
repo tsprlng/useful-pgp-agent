@@ -530,6 +530,124 @@ pub fn test_verify(
     Ok(out)
 }
 
+pub fn test_change_pw(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let mut out = vec![];
+
+    // first do admin-less pw1 on gnuk
+    println!("change pw1");
+    ca.change_pw1("123456", "abcdef00")?;
+
+    // also set admin pw, which means pw1 is now only user-pw again, on gnuk
+    println!("change pw3");
+    ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
+
+    // ca.change_pw3("12345678", "abcdefgh")?;
+
+    println!("change pw1");
+    ca.change_pw1("abcdef00", "abcdef")?; // gnuk
+
+    // ca.change_pw1("123456", "abcdef")?;
+
+    println!("verify bad pw1");
+    match ca.verify_pw1("123456ab") {
+        Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
+            // this is expected
+        }
+        Err(_) => {
+            panic!("unexpected error");
+        }
+        Ok(_) => panic!("this value for pw1 should be considered wrong!"),
+    }
+
+    println!("verify good pw1");
+    ca.verify_pw1("abcdef")?;
+
+    println!("verify bad pw3");
+    match ca.verify_pw3("00000000") {
+        Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
+            // this is expected
+        }
+        Err(_) => {
+            panic!("unexpected error");
+        }
+        Ok(_) => panic!("this value for pw3 should be considered wrong!"),
+    }
+
+    println!("verify good pw3");
+    ca.verify_pw3("abcdefgh")?;
+
+    Ok(out)
+}
+
+pub fn test_reset_retry_counter(
+    ca: &mut CardApp,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let mut out = vec![];
+
+    // set pw3, then pw1 (to bring gnuk into non-admin mode)
+    println!("set pw3");
+    ca.change_pw3("12345678", "12345678")?;
+    println!("set pw1");
+    ca.change_pw1("123456", "123456")?;
+
+    println!("break pw1");
+    let _ = ca.verify_pw1("wrong");
+    let _ = ca.verify_pw1("wrong");
+    let _ = ca.verify_pw1("wrong");
+    let res = ca.verify_pw1("wrong");
+
+    match res {
+        Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
+            // this is expected
+        }
+        Err(Error::CardStatus(
+            StatusBytes::IncorrectParametersCommandDataField,
+        )) => {
+            println!(
+                "yk says IncorrectParametersCommandDataField when PW \
+            error count is exceeded"
+            );
+        }
+        Err(e) => {
+            panic!("unexpected error {:?}", e);
+        }
+        Ok(_) => panic!("use of pw1 should be blocked!"),
+    }
+
+    println!("verify pw3");
+    ca.verify_pw3("12345678")?;
+
+    println!("set resetting code");
+    ca.set_resetting_code("abcdefgh".as_bytes().to_vec())?;
+
+    println!("reset retry counter");
+    // ca.reset_retry_counter_pw1("abcdef".as_bytes().to_vec(), None)?;
+    let res = ca.reset_retry_counter_pw1(
+        "abcdef".as_bytes().to_vec(),
+        Some("abcdefgh".as_bytes().to_vec()),
+    );
+
+    println!("verify good pw1");
+    ca.verify_pw1("abcdef")?;
+
+    println!("verify bad pw1");
+    match ca.verify_pw1("00000000") {
+        Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
+            // this is expected
+        }
+        Err(_) => {
+            panic!("unexpected error");
+        }
+        Ok(_) => panic!("this value for pw1 should be considered wrong!"),
+    }
+
+    Ok(out)
+}
+
 pub fn run_test(
     card: &mut TestCardApp,
     t: fn(&mut CardApp, &[&str]) -> Result<TestOutput, TestError>,

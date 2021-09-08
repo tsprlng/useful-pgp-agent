@@ -16,25 +16,41 @@ fn main() -> Result<()> {
     for mut card in cards {
         println!("** Run tests on card '{}' **", card.get_name());
 
-        // println!("Get pubkey");
-        // let _ = run_test(&mut card, test_get_pub, &[])?;
-        //
-        // panic!();
-
         // println!("Caps");
         // let _ = run_test(&mut card, test_print_caps, &[])?;
         // continue; // only print caps
 
+        // println!("Algo info");
+        // let _ = run_test(&mut card, test_print_algo_info, &[])?;
+
         println!("Reset");
         let _ = run_test(&mut card, test_reset, &[])?;
 
-        // println!("Algo info");
-        // let _ = run_test(&mut card, test_print_algo_info, &[])?;
+        // ---
+
+        // // load private key (change pw on gnuk needs existing keys!)
+        // println!("load key");
+        // run_test(&mut card, test_upload_keys, &["data/rsa2k.sec"])?;
+
+        // println!("Change PW");
+        // let _ = run_test(&mut card, test_change_pw, &[])?;
+
+        // println!("reset pw1 retry counter");
+        // let _ = run_test(&mut card, test_reset_retry_counter, &[])?;
+
+        // ---
 
         // println!("Generate key");
         // let _ = run_test(&mut card, test_keygen, &[])?;
         //
         // panic!();
+
+        // println!("Get pubkey");
+        // let _ = run_test(&mut card, test_get_pub, &[])?;
+        //
+        // panic!();
+
+        // ---
 
         // print!("Verify");
         // let verify_out = run_test(&mut card, test_verify, &[])?;
@@ -48,10 +64,10 @@ fn main() -> Result<()> {
         // let priv_out = run_test(&mut card, test_private_data, &[])?;
         // println!(" {:x?}", priv_out);
 
-        print!("Cardholder Cert");
-        let cardh_out = run_test(&mut card, test_cardholder_cert, &[])?;
-        println!(" {:x?}", cardh_out);
-        println!();
+        // print!("Cardholder Cert");
+        // let cardh_out = run_test(&mut card, test_cardholder_cert, &[])?;
+        // println!(" {:x?}", cardh_out);
+        // println!();
     }
 
     Ok(())
