@@ -14,15 +14,8 @@ use std::convert::TryFrom;
 use crate::apdu::{command::Command, response::RawResponse};
 use crate::{CardClientBox, Error, StatusBytes};
 
-// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
+/// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
 const MAX_BUFFER_SIZE: usize = 264;
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub(crate) enum Le {
-    None,
-    Short,
-    Long,
-}
 
 /// Send a Command and return the result as a Response.
 ///
@@ -78,7 +71,7 @@ pub(crate) fn send_command(
 fn send_command_low_level(
     card_client: &mut CardClientBox,
     cmd: Command,
-    expect_reply: bool,
+    expect_response: bool,
 ) -> Result<Vec<u8>, Error> {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
         if let Some(caps) = card_client.get_caps() {
@@ -114,20 +107,19 @@ fn send_command_low_level(
         max_rsp_bytes
     );
 
-    // Set Le to 'long', if we're using an extended chunk size.
+    // Decide if we want to use "extended length fields".
     //
-    // According to the Card spec 3.4.1, pg 47,
-    // 255 is the maximum value for 'Lc' in short mode:
-    // "A short Lc field consists of one byte not set to '00' (1 to 255 dec.)"
-    let ext = match (expect_reply, ext_support && max_cmd_bytes > 0xFF) {
-        (false, _) => Le::None,
-        (_, true) => Le::Long,
-        _ => Le::Short,
-    };
+    // Current approach: we only use extended length if the card supports it,
+    // and only if the current command has more than 255 bytes of data.
+    //
+    // (This could be a problem with cards that don't support chained
+    // responses, when a response if >255 bytes long - e.g. getting public
+    // key data from cards?)
+    let ext_len = ext_support && (max_cmd_bytes > 0xFF);
 
     log::debug!(" -> full APDU command: {:x?}", cmd);
 
-    let buf_size = if !ext_support || ext == Le::Short {
+    let buf_size = if !ext_len {
         MAX_BUFFER_SIZE
     } else {
         max_rsp_bytes
@@ -135,28 +127,24 @@ fn send_command_low_level(
 
     log::trace!("buf_size {}", buf_size);
 
-    if chaining_support && !cmd.get_data().is_empty() {
+    if chaining_support && !cmd.data().is_empty() {
         // Send command in chained mode
 
         log::debug!("chained command mode");
 
         // Break up payload into chunks that fit into one command, each
-        let chunks: Vec<_> = cmd.get_data().chunks(max_cmd_bytes).collect();
+        let chunks: Vec<_> = cmd.data().chunks(max_cmd_bytes).collect();
 
         for (i, d) in chunks.iter().enumerate() {
             let last = i == chunks.len() - 1;
 
             let cla = if last { 0x00 } else { 0x10 };
-            let partial = Command::new(
-                cla,
-                cmd.get_ins(),
-                cmd.get_p1(),
-                cmd.get_p2(),
-                d.to_vec(),
-            );
+            let partial =
+                Command::new(cla, cmd.ins(), cmd.p1(), cmd.p2(), d.to_vec());
 
-            let serialized =
-                partial.serialize(ext).map_err(Error::InternalError)?;
+            let serialized = partial
+                .serialize(ext_len, expect_response)
+                .map_err(Error::InternalError)?;
 
             log::debug!(" -> chained APDU command: {:x?}", &serialized);
 
@@ -193,7 +181,7 @@ fn send_command_low_level(
         }
         unreachable!("This state should be unreachable");
     } else {
-        let serialized = cmd.serialize(ext)?;
+        let serialized = cmd.serialize(ext_len, expect_response)?;
 
         // Can't send this command to the card, because it is too long and
         // the card doesn't support command chaining.
