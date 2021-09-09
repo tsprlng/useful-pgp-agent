@@ -7,7 +7,7 @@
 //!
 //! The two main classes of errors are:
 //! - [`SmartcardError`], for problems on the reader/smartcard layer
-//! - [`StatusByte`], which models error statuses reported by the OpenPGP
+//! - [`StatusBytes`], which models error statuses reported by the OpenPGP
 //! card application
 
 /// Enum wrapper for the different error types of this crate
