@@ -97,7 +97,7 @@ impl TestCard {
                 let res = ScdClient::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
-                for card_client in PcscClient::list_cards()? {
+                for card_client in PcscClient::cards()? {
                     let mut ca = CardApp::from(card_client);
 
                     // Set Card Capabilities (chaining, command length, ..)

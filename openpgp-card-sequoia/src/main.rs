@@ -239,7 +239,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!("The following OpenPGP cards are connected to your system:");
 
-        let cards = PcscClient::list_cards()?;
+        let cards = PcscClient::cards()?;
         for c in cards {
             let mut ca = CardApp::from(c);
 

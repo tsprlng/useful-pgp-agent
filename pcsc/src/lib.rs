@@ -82,7 +82,9 @@ impl PcscClient {
     }
 
     /// Return all cards on which the OpenPGP application could be selected.
-    pub fn list_cards() -> Result<Vec<CardClientBox>> {
+    ///
+    /// Each card is opened and has the OpenPGP application selected.
+    pub fn cards() -> Result<Vec<CardClientBox>> {
         let cards = Self::unopened_cards()?
             .into_iter()
             .map(Self::select)
@@ -104,22 +106,6 @@ impl PcscClient {
         } else {
             Err(Error::Smartcard(SmartcardError::SelectOpenPGPCardFailed))
         }
-    }
-
-    /// Returns the first OpenPGP card, with the OpenPGP application selected.
-    ///
-    /// If multiple cards are connected, this will effectively be a random
-    /// pick. You should consider using `open_by_ident` instead.
-    pub fn open_yolo() -> Result<CardClientBox, Error> {
-        for card in Self::unopened_cards()? {
-            if let Ok(ca) = Self::select(card) {
-                return Ok(ca.into());
-            }
-        }
-
-        Err(Error::Smartcard(SmartcardError::CardNotFound(
-            "No OpenPGP card found".to_string(),
-        )))
     }
 
     /// Get application related data from the card and check if 'ident'
