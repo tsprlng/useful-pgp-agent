@@ -102,56 +102,58 @@ fn main() -> Result<(), Box<dyn Error>> {
         // ---------------------------------------------
         assert_eq!(app_id.ident(), test_card_ident);
 
-        let check = oc.check_pw3();
+        let check = oc.check_admin_verified();
         println!("has pw3 been verified yet? {:x?}\n", check);
 
         println!("factory reset");
         oc.factory_reset()?;
 
-        match oc.verify_pw3("12345678") {
-            Ok(mut oc_admin) => {
-                println!("pw3 verify ok");
+        if oc.verify_admin("12345678").is_ok() {
+            println!("pw3 verify ok");
 
-                let check = oc_admin.check_pw3();
-                println!("has pw3 been verified yet? {:x?}", check);
+            let check = oc.check_user_verified();
+            println!("has pw1/82 been verified yet? {:x?}", check);
 
-                let res = oc_admin.set_name("Bar<<Foo")?;
-                println!("set name {:x?}", res);
+            // actually take Admin
+            let mut oc_admin = oc.get_admin().expect("just verified");
 
-                let res = oc_admin.set_sex(Sex::NotApplicable)?;
-                println!("set sex {:x?}", res);
+            let res = oc_admin.set_name("Bar<<Foo")?;
+            println!("set name {:x?}", res);
 
-                let res = oc_admin.set_lang("en")?;
-                println!("set lang {:x?}", res);
+            let res = oc_admin.set_sex(Sex::NotApplicable)?;
+            println!("set sex {:x?}", res);
 
-                let res = oc_admin.set_url("https://keys.openpgp.org")?;
-                println!("set url {:x?}", res);
+            let res = oc_admin.set_lang("en")?;
+            println!("set lang {:x?}", res);
 
-                let cert = Cert::from_file(TEST_KEY_PATH)?;
+            let res = oc_admin.set_url("https://keys.openpgp.org")?;
+            println!("set url {:x?}", res);
 
-                openpgp_card_sequoia::util::upload_from_cert_yolo(
-                    &mut oc_admin,
-                    &cert,
-                    KeyType::Decryption,
-                    None,
-                )?;
+            let cert = Cert::from_file(TEST_KEY_PATH)?;
 
-                openpgp_card_sequoia::util::upload_from_cert_yolo(
-                    &mut oc_admin,
-                    &cert,
-                    KeyType::Signing,
-                    None,
-                )?;
+            openpgp_card_sequoia::util::upload_from_cert_yolo(
+                &mut oc_admin,
+                &cert,
+                KeyType::Decryption,
+                None,
+            )?;
 
-                // TODO: test keys currently have no auth-capable key
-                // openpgp_card_sequoia::upload_from_cert(
-                //     &oc_admin,
-                //     &cert,
-                //     KeyType::Authentication,
-                //     None,
-                // )?;
-            }
-            _ => panic!(),
+            openpgp_card_sequoia::util::upload_from_cert_yolo(
+                &mut oc_admin,
+                &cert,
+                KeyType::Signing,
+                None,
+            )?;
+
+            // TODO: test keys currently have no auth-capable key
+            // openpgp_card_sequoia::upload_from_cert(
+            //     &oc_admin,
+            //     &cert,
+            //     KeyType::Authentication,
+            //     None,
+            // )?;
+        } else {
+            panic!()
         }
 
         // -----------------------------
@@ -171,40 +173,42 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Check that we're still using the expected card
         assert_eq!(app_id.ident(), test_card_ident);
 
-        let check = oc.check_pw1();
+        let check = oc.check_user_verified();
         println!("has pw1/82 been verified yet? {:x?}", check);
 
-        match oc.verify_pw1("123456") {
-            Ok(mut oc_user) => {
-                println!("pw1 82 verify ok");
+        if oc.verify_user("123456").is_ok() {
+            println!("pw1 82 verify ok");
 
-                let check = oc_user.check_pw1();
-                println!("has pw1/82 been verified yet? {:x?}", check);
+            let check = oc.check_user_verified();
+            println!("has pw1/82 been verified yet? {:x?}", check);
 
-                let cert = Cert::from_file(TEST_KEY_PATH)?;
-                let msg = std::fs::read_to_string(TEST_ENC_MSG)
-                    .expect("Unable to read file");
+            // actually take User
+            let mut oc_user = oc.get_user().expect("just verified");
 
-                println!("{:?}", msg);
+            let cert = Cert::from_file(TEST_KEY_PATH)?;
+            let msg = std::fs::read_to_string(TEST_ENC_MSG)
+                .expect("Unable to read file");
 
-                let sp = StandardPolicy::new();
+            println!("{:?}", msg);
 
-                let d = oc_user.decryptor(&cert, &sp)?;
+            let sp = StandardPolicy::new();
 
-                let res = decryption_helper(d, msg.into_bytes(), &sp)?;
+            let d = oc_user.decryptor(&cert, &sp)?;
 
-                let plain = String::from_utf8_lossy(&res);
-                println!("decrypted plaintext: {}", plain);
+            let res = decryption_helper(d, msg.into_bytes(), &sp)?;
 
-                assert_eq!(plain, "Hello world!\n");
-            }
-            _ => panic!("verify pw1 failed"),
+            let plain = String::from_utf8_lossy(&res);
+            println!("decrypted plaintext: {}", plain);
+
+            assert_eq!(plain, "Hello world!\n");
+        } else {
+            panic!("verify pw1 failed");
         }
 
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let oc =
+        let mut oc =
             Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
 
         // let oc = CardBase::open_card(ScdClient::open_by_serial(
@@ -213,24 +217,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         // )?)?;
 
         // Sign
-        match oc.verify_pw1_for_signing("123456") {
-            Ok(mut oc_sign) => {
-                println!("pw1 81 verify ok");
+        if oc.verify_user_for_signing("123456").is_ok() {
+            println!("pw1 81 verify ok");
 
-                let cert = Cert::from_file(TEST_KEY_PATH)?;
+            // actually take Sign
+            let mut oc_sign = oc.get_sign().expect("just verified");
 
-                let text = "Hello world, I am signed.";
+            let cert = Cert::from_file(TEST_KEY_PATH)?;
 
-                let signer = oc_sign.signer(&cert, &StandardPolicy::new())?;
-                let res = sign_helper(signer, &mut text.as_bytes());
+            let text = "Hello world, I am signed.";
 
-                println!("res sign {:?}", res);
+            let signer = oc_sign.signer(&cert, &StandardPolicy::new())?;
+            let res = sign_helper(signer, &mut text.as_bytes());
 
-                println!("res: {}", res?)
+            println!("res sign {:?}", res);
 
-                // FIXME: validate sig
-            }
-            _ => panic!("verify pw1 failed"),
+            println!("res: {}", res?)
+
+            // FIXME: validate sig
+        } else {
+            panic!("verify pw1 failed");
         }
     } else {
         println!("Please set environment variable TEST_CARD_IDENT.");

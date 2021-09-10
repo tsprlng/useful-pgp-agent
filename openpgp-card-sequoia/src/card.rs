@@ -5,7 +5,6 @@
 //! different types, such as `Open`, `User`, `Sign`, `Admin`.
 
 use anyhow::{anyhow, Result};
-use std::ops::{Deref, DerefMut};
 
 use sequoia_openpgp::policy::Policy;
 use sequoia_openpgp::Cert;
@@ -32,9 +31,28 @@ pub struct Open {
     // FIXME: Should be invalidated when changing data on the card!
     // (e.g. uploading keys, etc)
     ard: ApplicationRelatedData,
+
+    // verify status of pw1
+    pw1: bool,
+
+    // verify status of pw1 for signing
+    pw1_sign: bool,
+
+    // verify status of pw3
+    pw3: bool,
 }
 
 impl Open {
+    fn new(card_app: CardApp, ard: ApplicationRelatedData) -> Self {
+        Self {
+            card_app,
+            ard,
+            pw1: false,
+            pw1_sign: false,
+            pw3: false,
+        }
+    }
+
     /// Set up connection to a CardClient (read and cache "application
     /// related data").
     ///
@@ -47,7 +65,68 @@ impl Open {
 
         card_app.init_caps(&ard)?;
 
-        Ok(Self { card_app, ard })
+        Ok(Self::new(card_app, ard))
+    }
+
+    pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
+        let _ = self.card_app.verify_pw1(pin)?;
+        self.pw1 = true;
+        Ok(())
+    }
+
+    pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
+        let _ = self.card_app.verify_pw1_for_signing(pin)?;
+
+        // FIXME: depending on card mode, pw1_sign is only usable once
+
+        self.pw1_sign = true;
+        Ok(())
+    }
+
+    pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
+        let _ = self.card_app.verify_pw3(pin)?;
+        self.pw3 = true;
+        Ok(())
+    }
+
+    /// Ask the card if the user password has been successfully verified.
+    ///
+    /// NOTE: on some cards this functionality seems broken.
+    pub fn check_user_verified(&mut self) -> Result<Response, Error> {
+        self.card_app.check_pw1()
+    }
+
+    /// Ask the card if the admin password has been successfully verified.
+    ///
+    /// NOTE: on some cards this functionality seems broken.
+    pub fn check_admin_verified(&mut self) -> Result<Response, Error> {
+        self.card_app.check_pw3()
+    }
+    /// Get a view of the card authenticated for "User" commands.
+    pub fn get_user(&mut self) -> Option<User> {
+        if self.pw1 {
+            Some(User { oc: self })
+        } else {
+            None
+        }
+    }
+
+    /// Get a view of the card authenticated for Signing.
+    pub fn get_sign(&mut self) -> Option<Sign> {
+        if self.pw1_sign {
+            Some(Sign { oc: self })
+        } else {
+            None
+        }
+    }
+
+    /// Get a view of the card authenticated for "Admin" commands.
+    pub fn get_admin(&mut self) -> Option<Admin> {
+        if self.pw3 {
+            Some(Admin { oc: self })
+        } else {
+            None
+        }
     }
 
     // --- application data ---
@@ -172,134 +251,49 @@ impl Open {
     pub fn factory_reset(&mut self) -> Result<()> {
         self.card_app.factory_reset()
     }
-
-    pub fn verify_pw1_for_signing(mut self, pin: &str) -> Result<Sign, Open> {
-        assert!(pin.len() >= 6); // FIXME: Err
-
-        if self.card_app.verify_pw1_for_signing(pin).is_ok() {
-            Ok(Sign { oc: self })
-        } else {
-            Err(self)
-        }
-    }
-
-    pub fn check_pw1(&mut self) -> Result<Response, Error> {
-        self.card_app.check_pw1()
-    }
-
-    pub fn verify_pw1(mut self, pin: &str) -> Result<User, Open> {
-        assert!(pin.len() >= 6); // FIXME: Err
-
-        if self.card_app.verify_pw1(pin).is_ok() {
-            Ok(User { oc: self })
-        } else {
-            Err(self)
-        }
-    }
-
-    pub fn check_pw3(&mut self) -> Result<Response, Error> {
-        self.card_app.check_pw3()
-    }
-
-    pub fn verify_pw3(mut self, pin: &str) -> Result<Admin, Open> {
-        assert!(pin.len() >= 8); // FIXME: Err
-
-        if self.card_app.verify_pw3(pin).is_ok() {
-            Ok(Admin { oc: self })
-        } else {
-            Err(self)
-        }
-    }
 }
 
-/// An OpenPGP card after successful verification of PW1 in mode 82
-/// (verification for operations other than signing)
-pub struct User {
-    oc: Open,
+/// An OpenPGP card after successfully verifying PW1 in mode 82
+/// (verification for user operations other than signing)
+pub struct User<'a> {
+    oc: &'a mut Open,
 }
 
-/// Allow access to fn of OpenPGPCard, through OpenPGPCardUser.
-impl Deref for User {
-    type Target = Open;
-
-    fn deref(&self) -> &Self::Target {
-        &self.oc
-    }
-}
-
-/// Allow access to fn of CardBase, through CardUser.
-impl DerefMut for User {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.oc
-    }
-}
-
-impl User {
+impl User<'_> {
     pub fn decryptor(
         &mut self,
         cert: &Cert,
         policy: &dyn Policy,
     ) -> Result<CardDecryptor, Error> {
-        CardDecryptor::new(&mut self.card_app, cert, policy)
+        CardDecryptor::new(&mut self.oc.card_app, cert, policy)
     }
 }
 
-/// An OpenPGP card after successful verification of PW1 in mode 81
+/// An OpenPGP card after successfully verifying PW1 in mode 81
 /// (verification for signing)
-pub struct Sign {
-    oc: Open,
+pub struct Sign<'a> {
+    oc: &'a mut Open,
 }
 
-/// Allow access to fn of CardBase, through CardSign.
-impl Deref for Sign {
-    type Target = Open;
-
-    fn deref(&self) -> &Self::Target {
-        &self.oc
-    }
-}
-
-/// Allow access to fn of CardBase, through CardSign.
-impl DerefMut for Sign {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.oc
-    }
-}
-
-// FIXME: depending on the setting in "PW1 Status byte", only one
-// signature can be made after verification for signing
-impl Sign {
+impl Sign<'_> {
     pub fn signer(
         &mut self,
         cert: &Cert,
         policy: &dyn Policy,
     ) -> std::result::Result<CardSigner, Error> {
-        CardSigner::new(&mut self.card_app, cert, policy)
+        // FIXME: depending on the setting in "PW1 Status byte", only one
+        // signature can be made after verification for signing
+
+        CardSigner::new(&mut self.oc.card_app, cert, policy)
     }
 }
 
 /// An OpenPGP card after successful verification of PW3 ("Admin privileges")
-pub struct Admin {
-    oc: Open,
+pub struct Admin<'a> {
+    oc: &'a mut Open,
 }
 
-/// Allow access to fn of OpenPGPCard, through OpenPGPCardAdmin.
-impl Deref for Admin {
-    type Target = Open;
-
-    fn deref(&self) -> &Self::Target {
-        &self.oc
-    }
-}
-
-/// Allow access to fn of OpenPGPCard, through OpenPGPCardAdmin.
-impl DerefMut for Admin {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.oc
-    }
-}
-
-impl Admin {
+impl Admin<'_> {
     pub fn set_name(&mut self, name: &str) -> Result<Response, Error> {
         if name.len() >= 40 {
             return Err(anyhow!("name too long").into());
@@ -310,7 +304,7 @@ impl Admin {
             return Err(anyhow!("Invalid char in name").into());
         };
 
-        self.card_app.set_name(name)
+        self.oc.card_app.set_name(name)
     }
 
     pub fn set_lang(&mut self, lang: &str) -> Result<Response, Error> {
@@ -318,11 +312,11 @@ impl Admin {
             return Err(anyhow!("lang too long").into());
         }
 
-        self.card_app.set_lang(lang)
+        self.oc.card_app.set_lang(lang)
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
-        self.card_app.set_sex(sex)
+        self.oc.card_app.set_sex(sex)
     }
 
     pub fn set_url(&mut self, url: &str) -> Result<Response, Error> {
@@ -331,10 +325,10 @@ impl Admin {
         }
 
         // Check for max len
-        let ec = self.get_extended_capabilities()?;
+        let ec = self.oc.get_extended_capabilities()?;
 
         if url.len() < ec.max_len_special_do() as usize {
-            self.card_app.set_url(url)
+            self.oc.card_app.set_url(url)
         } else {
             Err(anyhow!("URL too long").into())
         }
@@ -345,6 +339,6 @@ impl Admin {
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), Error> {
-        self.card_app.key_import(key, key_type)
+        self.oc.card_app.key_import(key, key_type)
     }
 }
