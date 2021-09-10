@@ -210,15 +210,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Sign
         match oc.verify_pw1_for_signing("123456") {
-            Ok(mut oc_user) => {
+            Ok(mut oc_sign) => {
                 println!("pw1 81 verify ok");
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 let text = "Hello world, I am signed.";
 
-                let signer = oc_user.signer(&cert, &StandardPolicy::new())?;
-
+                let signer = oc_sign.signer(&cert, &StandardPolicy::new())?;
                 let res = sign_helper(signer, &mut text.as_bytes());
 
                 println!("res sign {:?}", res);
