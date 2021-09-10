@@ -19,7 +19,7 @@
 //! for card in PcscClient::cards()? {
 //!     let open = Open::open_card(card)?;
 //!     println!("Found OpenPGP card with ident '{}'",
-//!              open.get_application_id()?.ident());
+//!              open.application_identifier()?.ident());
 //! }
 //! # Ok(())
 //! # }

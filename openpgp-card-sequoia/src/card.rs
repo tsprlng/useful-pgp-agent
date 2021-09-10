@@ -13,7 +13,8 @@ use openpgp_card::algorithm::{Algo, AlgoInfo};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
     ExCapFeatures, ExtendedCapabilities, ExtendedLengthInfo, Fingerprint,
-    HistoricalBytes, PWStatusBytes, SecuritySupportTemplate, Sex,
+    HistoricalBytes, KeyGenerationTime, PWStatusBytes,
+    SecuritySupportTemplate, Sex,
 };
 use openpgp_card::crypto_data::CardUploadableKey;
 use openpgp_card::{CardApp, CardClientBox, Error, KeySet, KeyType, Response};
@@ -103,7 +104,7 @@ impl Open {
         self.card_app.check_pw3()
     }
     /// Get a view of the card authenticated for "User" commands.
-    pub fn get_user(&mut self) -> Option<User> {
+    pub fn user_card(&mut self) -> Option<User> {
         if self.pw1 {
             Some(User { oc: self })
         } else {
@@ -112,7 +113,7 @@ impl Open {
     }
 
     /// Get a view of the card authenticated for Signing.
-    pub fn get_sign(&mut self) -> Option<Sign> {
+    pub fn signing_card(&mut self) -> Option<Sign> {
         if self.pw1_sign {
             Some(Sign { oc: self })
         } else {
@@ -121,7 +122,7 @@ impl Open {
     }
 
     /// Get a view of the card authenticated for "Admin" commands.
-    pub fn get_admin(&mut self) -> Option<Admin> {
+    pub fn admin_card(&mut self) -> Option<Admin> {
         if self.pw3 {
             Some(Admin { oc: self })
         } else {
@@ -135,75 +136,80 @@ impl Open {
     ///
     /// This is done once, after opening the OpenPGP card applet
     /// (the data is stored in the OpenPGPCard object).
-    fn get_app_data(&mut self) -> Result<ApplicationRelatedData> {
+    fn application_related_data(&mut self) -> Result<ApplicationRelatedData> {
         self.card_app.get_application_related_data()
     }
 
-    pub fn get_application_id(&self) -> Result<ApplicationIdentifier, Error> {
+    pub fn application_identifier(
+        &self,
+    ) -> Result<ApplicationIdentifier, Error> {
         self.ard.get_application_id()
     }
 
-    pub fn get_historical(&self) -> Result<HistoricalBytes, Error> {
+    pub fn historical_bytes(&self) -> Result<HistoricalBytes, Error> {
         self.ard.get_historical()
     }
 
-    pub fn get_extended_length_information(
+    pub fn extended_length_information(
         &self,
     ) -> Result<Option<ExtendedLengthInfo>> {
         self.ard.get_extended_length_information()
     }
 
-    pub fn get_general_feature_management() -> Option<bool> {
+    fn general_feature_management() -> Option<bool> {
         unimplemented!()
     }
 
-    pub fn get_discretionary_data_objects() {
+    fn discretionary_data_objects() {
         unimplemented!()
     }
 
-    pub fn get_extended_capabilities(
+    pub fn extended_capabilities(
         &self,
     ) -> Result<ExtendedCapabilities, Error> {
         self.ard.get_extended_capabilities()
     }
 
-    pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
+    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
         self.ard.get_algorithm_attributes(key_type)
     }
 
     /// PW status Bytes
-    pub fn get_pw_status_bytes(&self) -> Result<PWStatusBytes> {
+    pub fn pw_status_bytes(&self) -> Result<PWStatusBytes> {
         self.ard.get_pw_status_bytes()
     }
 
-    pub fn get_fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
+    pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
         self.ard.get_fingerprints()
     }
 
-    pub fn get_ca_fingerprints(&self) {
+    fn ca_fingerprints(&self) {
         unimplemented!()
     }
 
-    pub fn get_key_generation_times() {
+    pub fn key_generation_times(
+        &self,
+    ) -> Result<KeySet<KeyGenerationTime>, Error> {
+        self.ard.get_key_generation_times()
+    }
+
+    fn key_information() {
         unimplemented!()
     }
 
-    pub fn get_key_information() {
+    fn uif_pso_cds() {
         unimplemented!()
     }
 
-    pub fn get_uif_pso_cds() {
+    fn uif_pso_dec() {
         unimplemented!()
     }
 
-    pub fn get_uif_pso_dec() {
+    fn uif_pso_aut() {
         unimplemented!()
     }
 
-    pub fn get_uif_pso_aut() {
-        unimplemented!()
-    }
-    pub fn get_uif_attestation() {
+    fn uif_attestation() {
         unimplemented!()
     }
 
@@ -213,29 +219,29 @@ impl Open {
 
     // --- URL (5f50) ---
 
-    pub fn get_url(&mut self) -> Result<String> {
+    pub fn url(&mut self) -> Result<String> {
         self.card_app.get_url()
     }
 
     // --- cardholder related data (65) ---
-    pub fn get_cardholder_related_data(
+    pub fn cardholder_related_data(
         &mut self,
     ) -> Result<CardholderRelatedData> {
         self.card_app.get_cardholder_related_data()
     }
 
     // --- security support template (7a) ---
-    pub fn get_security_support_template(
+    pub fn security_support_template(
         &mut self,
     ) -> Result<SecuritySupportTemplate> {
         self.card_app.get_security_support_template()
     }
 
     // DO "Algorithm Information" (0xFA)
-    pub fn list_supported_algo(&mut self) -> Result<Option<AlgoInfo>> {
+    pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>> {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
-        let ec = self.get_extended_capabilities()?;
+        let ec = self.extended_capabilities()?;
         if !ec.features().contains(&ExCapFeatures::AlgoAttrsChangeable) {
             // Algorithm attributes can not be changed,
             // list_supported_algo is not supported
@@ -325,7 +331,7 @@ impl Admin<'_> {
         }
 
         // Check for max len
-        let ec = self.oc.get_extended_capabilities()?;
+        let ec = self.oc.extended_capabilities()?;
 
         if url.len() < ec.max_len_special_do() as usize {
             self.oc.card_app.set_url(url)

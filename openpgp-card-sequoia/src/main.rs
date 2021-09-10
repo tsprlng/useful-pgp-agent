@@ -51,47 +51,47 @@ fn main() -> Result<(), Box<dyn Error>> {
         // card metadata
 
         println!("** get aid");
-        let app_id = oc.get_application_id()?;
+        let app_id = oc.application_identifier()?;
         println!("app id: {:x?}", app_id);
         println!();
 
-        let eli = oc.get_extended_length_information()?;
+        let eli = oc.extended_length_information()?;
         println!("extended_length_info: {:?}", eli);
         println!();
 
-        let hist = oc.get_historical()?;
+        let hist = oc.historical_bytes()?;
         println!("{:#x?}", hist);
         println!();
 
-        let ext = oc.get_extended_capabilities()?;
+        let ext = oc.extended_capabilities()?;
         println!("{:#x?}", ext);
         println!();
 
-        let pws = oc.get_pw_status_bytes()?;
+        let pws = oc.pw_status_bytes()?;
         println!("{:#x?}", pws);
         println!();
 
         // cardholder
-        let ch = oc.get_cardholder_related_data()?;
+        let ch = oc.cardholder_related_data()?;
         println!("{:#x?}", ch);
         println!();
 
         // crypto-ish metadata
-        let fp = oc.get_fingerprints()?;
+        let fp = oc.fingerprints()?;
         println!("Fingerprint {:#x?}", fp);
         println!();
 
-        match oc.list_supported_algo() {
+        match oc.algorithm_information() {
             Ok(Some(ai)) => println!("Algorithm information:\n{}", ai),
             Ok(None) => println!("No Algorithm information found"),
             Err(e) => println!("Error getting Algorithm information: {:?}", e),
         }
 
-        let algo = oc.get_algorithm_attributes(KeyType::Signing)?;
+        let algo = oc.algorithm_attributes(KeyType::Signing)?;
         println!("Sig: {}", algo);
-        let algo = oc.get_algorithm_attributes(KeyType::Decryption)?;
+        let algo = oc.algorithm_attributes(KeyType::Decryption)?;
         println!("Dec: {}", algo);
-        let algo = oc.get_algorithm_attributes(KeyType::Authentication)?;
+        let algo = oc.algorithm_attributes(KeyType::Authentication)?;
         println!("Aut: {}", algo);
 
         println!();
@@ -115,7 +115,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("has pw1/82 been verified yet? {:x?}", check);
 
             // actually take Admin
-            let mut oc_admin = oc.get_admin().expect("just verified");
+            let mut oc_admin = oc.admin_card().expect("just verified");
 
             let res = oc_admin.set_name("Bar<<Foo")?;
             println!("set name {:x?}", res);
@@ -168,7 +168,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //     &test_card_serial,
         // )?)?;
 
-        let app_id = oc.get_application_id()?;
+        let app_id = oc.application_identifier()?;
 
         // Check that we're still using the expected card
         assert_eq!(app_id.ident(), test_card_ident);
@@ -183,7 +183,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("has pw1/82 been verified yet? {:x?}", check);
 
             // actually take User
-            let mut oc_user = oc.get_user().expect("just verified");
+            let mut oc_user = oc.user_card().expect("just verified");
 
             let cert = Cert::from_file(TEST_KEY_PATH)?;
             let msg = std::fs::read_to_string(TEST_ENC_MSG)
@@ -221,7 +221,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("pw1 81 verify ok");
 
             // actually take Sign
-            let mut oc_sign = oc.get_sign().expect("just verified");
+            let mut oc_sign = oc.signing_card().expect("just verified");
 
             let cert = Cert::from_file(TEST_KEY_PATH)?;
 
