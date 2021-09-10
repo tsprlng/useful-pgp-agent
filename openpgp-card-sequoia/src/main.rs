@@ -19,14 +19,14 @@ use openpgp_card_sequoia::sq_util::{decryption_helper, sign_helper};
 
 // Filename of test key and test message to use:
 
-const TEST_KEY_PATH: &str = "example/test4k.sec";
-const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
+// const TEST_KEY_PATH: &str = "../example/test4k.sec";
+// const TEST_ENC_MSG: &str = "../example/encrypted_to_rsa4k.asc";
 
-// const TEST_KEY_PATH: &str = "example/nist521.sec";
-// const TEST_ENC_MSG: &str = "example/encrypted_to_nist521.asc";
+// const TEST_KEY_PATH: &str = "../example/nist521.sec";
+// const TEST_ENC_MSG: &str = "../example/encrypted_to_nist521.asc";
 
-// const TEST_KEY_PATH: &str = "example/test25519.sec";
-// const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
+const TEST_KEY_PATH: &str = "../example/test25519.sec";
+const TEST_ENC_MSG: &str = "../example/encrypted_to_25519.asc";
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -41,6 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("** get card");
         let mut oc =
             Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+        println!();
 
         // let mut oc = CardBase::open_card(ScdClient::open_by_serial(
         //     None,
@@ -51,47 +52,49 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!("** get aid");
         let app_id = oc.get_application_id()?;
-
-        println!("app id: {:x?}\n\n", app_id);
-        println!(" ident: {:?}\n\n", app_id.ident());
+        println!("app id: {:x?}", app_id);
+        println!();
 
         let eli = oc.get_extended_length_information()?;
-        println!("extended_length_info: {:?}\n\n", eli);
+        println!("extended_length_info: {:?}", eli);
+        println!();
 
         let hist = oc.get_historical()?;
-        println!("historical {:#x?}", hist);
+        println!("{:#x?}", hist);
+        println!();
 
         let ext = oc.get_extended_capabilities()?;
-        println!("extended_capabilities {:#x?}", ext);
+        println!("{:#x?}", ext);
+        println!();
 
         let pws = oc.get_pw_status_bytes()?;
-        println!("PW Status Bytes {:#x?}", pws);
+        println!("{:#x?}", pws);
+        println!();
 
         // cardholder
-
         let ch = oc.get_cardholder_related_data()?;
-        println!("card holder {:x?}", ch);
+        println!("{:#x?}", ch);
+        println!();
 
         // crypto-ish metadata
-
         let fp = oc.get_fingerprints()?;
-        println!("fp {:#x?}", fp);
-
-        let sst = oc.get_security_support_template()?;
-        println!("sst {:x?}", sst);
+        println!("Fingerprint {:#x?}", fp);
+        println!();
 
         match oc.list_supported_algo() {
-            Ok(Some(ai)) => println!("algo information {:#?}", ai),
-            Ok(None) => println!(" no algo information found"),
-            Err(e) => println!(" error getting algo information: {:?}", e),
+            Ok(Some(ai)) => println!("Algorithm information:\n{}", ai),
+            Ok(None) => println!("No Algorithm information found"),
+            Err(e) => println!("Error getting Algorithm information: {:?}", e),
         }
 
         let algo = oc.get_algorithm_attributes(KeyType::Signing)?;
-        println!("algo sig {:?}", algo);
+        println!("Sig: {}", algo);
         let algo = oc.get_algorithm_attributes(KeyType::Decryption)?;
-        println!("algo dec {:?}", algo);
+        println!("Dec: {}", algo);
         let algo = oc.get_algorithm_attributes(KeyType::Authentication)?;
-        println!("algo aut {:?}", algo);
+        println!("Aut: {}", algo);
+
+        println!();
 
         // ---------------------------------------------
         //  CAUTION: Write commands ahead!
@@ -100,8 +103,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         assert_eq!(app_id.ident(), test_card_ident);
 
         let check = oc.check_pw3();
-        println!("has pw3 been verified yet? {:x?}", check);
+        println!("has pw3 been verified yet? {:x?}\n", check);
 
+        println!("factory reset");
         oc.factory_reset()?;
 
         match oc.verify_pw3("12345678") {
