@@ -20,7 +20,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::KeyGenerationTime;
 use openpgp_card::{CardApp, KeyType};
-use openpgp_card_sequoia::vka_as_uploadable_key;
+use openpgp_card_sequoia::util::vka_as_uploadable_key;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();
 

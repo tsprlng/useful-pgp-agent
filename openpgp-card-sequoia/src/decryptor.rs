@@ -20,7 +20,7 @@ use openpgp_card::{CardApp, Error};
 
 use crate::PublicKey;
 
-pub(crate) struct CardDecryptor<'a> {
+pub struct CardDecryptor<'a> {
     /// The OpenPGP card (authenticated to allow decryption operations)
     ca: &'a mut CardApp,
 

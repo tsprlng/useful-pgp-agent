@@ -14,7 +14,7 @@ use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{CardApp, Error, KeyType, StatusBytes};
-use openpgp_card_sequoia::{
+use openpgp_card_sequoia::util::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
 };
 
@@ -64,7 +64,8 @@ pub fn test_decrypt(
 
     ca.verify_pw1("123456")?;
 
-    let res = openpgp_card_sequoia::decrypt(&mut ca, &cert, msg.into_bytes())?;
+    let res =
+        openpgp_card_sequoia::util::decrypt(&mut ca, &cert, msg.into_bytes())?;
     let plain = String::from_utf8_lossy(&res);
 
     assert_eq!(plain, "Hello world!\n");
@@ -84,7 +85,8 @@ pub fn test_sign(
     let cert = Cert::from_str(param[0])?;
 
     let msg = "Hello world, I am signed.";
-    let sig = openpgp_card_sequoia::sign(&mut ca, &cert, &mut msg.as_bytes())?;
+    let sig =
+        openpgp_card_sequoia::util::sign(&mut ca, &cert, &mut msg.as_bytes())?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);
@@ -257,11 +259,7 @@ pub fn test_get_pub(
 
     let sig = ca.get_pub_key(KeyType::Signing)?;
     let ts = key_gen.signature().unwrap().get().into();
-    let key = openpgp_card_sequoia::public_key_material_to_key(
-        &sig,
-        KeyType::Signing,
-        ts,
-    )?;
+    let key = public_key_material_to_key(&sig, KeyType::Signing, ts)?;
 
     println!(" sig key data from card -> {:x?}", key);
 
@@ -269,11 +267,7 @@ pub fn test_get_pub(
 
     let dec = ca.get_pub_key(KeyType::Decryption)?;
     let ts = key_gen.decryption().unwrap().get().into();
-    let key = openpgp_card_sequoia::public_key_material_to_key(
-        &dec,
-        KeyType::Decryption,
-        ts,
-    )?;
+    let key = public_key_material_to_key(&dec, KeyType::Decryption, ts)?;
 
     println!(" dec key data from card -> {:x?}", key);
 
@@ -281,11 +275,7 @@ pub fn test_get_pub(
 
     let auth = ca.get_pub_key(KeyType::Authentication)?;
     let ts = key_gen.authentication().unwrap().get().into();
-    let key = openpgp_card_sequoia::public_key_material_to_key(
-        &auth,
-        KeyType::Authentication,
-        ts,
-    )?;
+    let key = public_key_material_to_key(&auth, KeyType::Authentication, ts)?;
 
     println!(" auth key data from card -> {:x?}", key);
 

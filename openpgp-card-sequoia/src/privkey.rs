@@ -1,0 +1,205 @@
+// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
+use std::convert::TryFrom;
+use std::convert::TryInto;
+
+use anyhow::Result;
+use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
+use openpgp::crypto::{mpi, mpi::ProtectedMPI, mpi::MPI};
+use openpgp::packet::{
+    key,
+    key::{SecretParts, UnspecifiedRole},
+    Key,
+};
+use openpgp::types::Timestamp;
+use sequoia_openpgp as openpgp;
+
+use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
+use openpgp_card::crypto_data::{
+    CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey,
+};
+use openpgp_card::Error;
+
+/// A SequoiaKey represents the private cryptographic key material of an
+/// OpenPGP (sub)key to be uploaded to an OpenPGP card.
+pub(crate) struct SequoiaKey {
+    key: Key<SecretParts, UnspecifiedRole>,
+    public: mpi::PublicKey,
+    password: Option<String>,
+}
+
+impl SequoiaKey {
+    /// A `SequoiaKey` wraps a Sequoia PGP private (sub)key data
+    /// (i.e. a ValidErasedKeyAmalgamation) in a form that can be uploaded
+    /// by the openpgp-card crate.
+    pub(crate) fn new(
+        vka: ValidErasedKeyAmalgamation<SecretParts>,
+        password: Option<String>,
+    ) -> Self {
+        let public = vka.parts_as_public().mpis().clone();
+
+        Self {
+            key: vka.key().clone(),
+            public,
+            password,
+        }
+    }
+}
+
+/// Implement the `CardUploadableKey` trait that openpgp-card uses to
+/// upload (sub)keys to a card.
+impl CardUploadableKey for SequoiaKey {
+    fn get_key(&self) -> Result<PrivateKeyMaterial> {
+        // Decrypt key with password, if set
+        let key = match &self.password {
+            None => self.key.clone(),
+            Some(pw) => self.key.clone().decrypt_secret(
+                &openpgp::crypto::Password::from(pw.as_str()),
+            )?,
+        };
+
+        // Get private cryptographic material
+        let unenc = if let Some(key::SecretKeyMaterial::Unencrypted(ref u)) =
+            key.optional_secret()
+        {
+            u
+        } else {
+            panic!("can't get private key material");
+        };
+
+        let secret_key_material = unenc.map(|mpis| mpis.clone());
+
+        match (self.public.clone(), secret_key_material) {
+            (
+                mpi::PublicKey::RSA { e, n },
+                mpi::SecretKeyMaterial::RSA { d: _, p, q, u: _ },
+            ) => {
+                let sq_rsa = SqRSA::new(e, n, p, q);
+
+                Ok(PrivateKeyMaterial::R(Box::new(sq_rsa)))
+            }
+            (
+                mpi::PublicKey::ECDH { curve, .. },
+                mpi::SecretKeyMaterial::ECDH { scalar },
+            ) => {
+                let sq_ecc =
+                    SqEccKey::new(curve.oid().to_vec(), scalar, EccType::ECDH);
+
+                Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
+            }
+            (
+                mpi::PublicKey::ECDSA { curve, .. },
+                mpi::SecretKeyMaterial::ECDSA { scalar },
+            ) => {
+                let sq_ecc = SqEccKey::new(
+                    curve.oid().to_vec(),
+                    scalar,
+                    EccType::ECDSA,
+                );
+
+                Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
+            }
+            (
+                mpi::PublicKey::EdDSA { curve, .. },
+                mpi::SecretKeyMaterial::EdDSA { scalar },
+            ) => {
+                let sq_ecc = SqEccKey::new(
+                    curve.oid().to_vec(),
+                    scalar,
+                    EccType::EdDSA,
+                );
+
+                Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
+            }
+            (p, s) => {
+                unimplemented!(
+                    "Unexpected algorithms: public {:?}, \
+                secret {:?}",
+                    p,
+                    s
+                );
+            }
+        }
+    }
+
+    /// Number of non-leap seconds since January 1, 1970 0:00:00 UTC
+    /// (aka "UNIX timestamp")
+    fn get_ts(&self) -> KeyGenerationTime {
+        let ts: Timestamp = Timestamp::try_from(self.key.creation_time())
+            .expect("Creation time cannot be converted into u32 timestamp");
+        let ts: u32 = ts.into();
+
+        ts.into()
+    }
+
+    fn get_fp(&self) -> Result<Fingerprint, Error> {
+        let fp = self.key.fingerprint();
+        fp.as_bytes().try_into()
+    }
+}
+
+/// RSA-specific data-structure to hold private (sub)key material for upload
+/// with the `openpgp-card` crate.
+struct SqRSA {
+    e: MPI,
+    n: MPI,
+    p: ProtectedMPI,
+    q: ProtectedMPI,
+}
+
+impl SqRSA {
+    fn new(e: MPI, n: MPI, p: ProtectedMPI, q: ProtectedMPI) -> Self {
+        Self { e, n, p, q }
+    }
+}
+
+impl RSAKey for SqRSA {
+    fn get_e(&self) -> &[u8] {
+        self.e.value()
+    }
+
+    fn get_n(&self) -> &[u8] {
+        self.n.value()
+    }
+
+    fn get_p(&self) -> &[u8] {
+        self.p.value()
+    }
+
+    fn get_q(&self) -> &[u8] {
+        self.q.value()
+    }
+}
+
+/// ECC-specific data-structure to hold private (sub)key material for upload
+/// with the `openpgp-card` crate.
+struct SqEccKey {
+    oid: Vec<u8>,
+    scalar: ProtectedMPI,
+    ecc_type: EccType,
+}
+
+impl SqEccKey {
+    fn new(oid: Vec<u8>, scalar: ProtectedMPI, ecc_type: EccType) -> Self {
+        SqEccKey {
+            oid,
+            scalar,
+            ecc_type,
+        }
+    }
+}
+
+impl EccKey for SqEccKey {
+    fn get_oid(&self) -> &[u8] {
+        &self.oid
+    }
+
+    fn get_scalar(&self) -> &[u8] {
+        self.scalar.value()
+    }
+
+    fn get_type(&self) -> EccType {
+        self.ecc_type
+    }
+}

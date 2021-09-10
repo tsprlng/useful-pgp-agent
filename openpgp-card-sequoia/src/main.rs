@@ -6,6 +6,7 @@ use std::env;
 use std::error::Error;
 
 use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::Sex;
@@ -13,7 +14,8 @@ use openpgp_card::{CardApp, KeyType};
 use openpgp_card_pcsc::PcscClient;
 // use openpgp_card_scdc::ScdClient;
 
-use openpgp_card_sequoia::CardBase;
+use openpgp_card_sequoia::card::Open;
+use openpgp_card_sequoia::sq_util::{decryption_helper, sign_helper};
 
 // Filename of test key and test message to use:
 
@@ -38,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Ok(test_card_ident) = test_card_ident {
         println!("** get card");
         let mut oc =
-            CardBase::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+            Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
 
         // let mut oc = CardBase::open_card(ScdClient::open_by_serial(
         //     None,
@@ -123,14 +125,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
-                openpgp_card_sequoia::upload_from_cert_yolo(
+                openpgp_card_sequoia::util::upload_from_cert_yolo(
                     &mut oc_admin,
                     &cert,
                     KeyType::Decryption,
                     None,
                 )?;
 
-                openpgp_card_sequoia::upload_from_cert_yolo(
+                openpgp_card_sequoia::util::upload_from_cert_yolo(
                     &mut oc_admin,
                     &cert,
                     KeyType::Signing,
@@ -153,7 +155,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
 
         let mut oc =
-            CardBase::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+            Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
 
         // let mut oc = CardBase::open_card(ScdClient::open_by_serial(
         //     None,
@@ -181,11 +183,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 println!("{:?}", msg);
 
-                let res = openpgp_card_sequoia::decrypt(
-                    &mut oc_user.get_card_app(),
-                    &cert,
-                    msg.into_bytes(),
-                )?;
+                let sp = StandardPolicy::new();
+
+                let d = oc_user.decryptor(&cert, &sp)?;
+
+                let res = decryption_helper(d, msg.into_bytes(), &sp)?;
 
                 let plain = String::from_utf8_lossy(&res);
                 println!("decrypted plaintext: {}", plain);
@@ -199,7 +201,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         let oc =
-            CardBase::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+            Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
 
         // let oc = CardBase::open_card(ScdClient::open_by_serial(
         //     None,
@@ -214,11 +216,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let cert = Cert::from_file(TEST_KEY_PATH)?;
 
                 let text = "Hello world, I am signed.";
-                let res = openpgp_card_sequoia::sign(
-                    oc_user.get_card_app(),
-                    &cert,
-                    &mut text.as_bytes(),
-                );
+
+                let signer = oc_user.signer(&cert, &StandardPolicy::new())?;
+
+                let res = sign_helper(signer, &mut text.as_bytes());
 
                 println!("res sign {:?}", res);
 

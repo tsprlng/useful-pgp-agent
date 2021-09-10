@@ -65,13 +65,12 @@ impl<'a> CardSigner<'a> {
             }
         } else {
             Err(Error::InternalError(anyhow!(
-                "Failed to get the signing key's Fingerprint \
-                from the card"
+                "Failed to get the signing key's Fingerprint from the card"
             )))
         }
     }
 
-    pub fn with_pubkey(
+    pub(crate) fn with_pubkey(
         ca: &'a mut CardApp,
         public: PublicKey,
     ) -> CardSigner<'a> {
@@ -84,17 +83,18 @@ impl<'a> crypto::Signer for CardSigner<'a> {
         &self.public
     }
 
-    /// Delegate a signing operation to the OpenPGP card.
-    ///
-    /// This fn prepares the data structures that openpgp-card needs to
-    /// perform the signing operation.
-    ///
-    /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
     fn sign(
         &mut self,
         hash_algo: openpgp::types::HashAlgorithm,
         digest: &[u8],
     ) -> openpgp::Result<mpi::Signature> {
+        // Delegate a signing operation to the OpenPGP card.
+        //
+        // This fn prepares the data structures that openpgp-card needs to
+        // perform the signing operation.
+        //
+        // (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
+
         match (self.public.pk_algo(), self.public.mpis()) {
             #[allow(deprecated)]
             (PublicKeyAlgorithm::RSASign, mpi::PublicKey::RSA { .. })
