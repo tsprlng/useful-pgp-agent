@@ -33,15 +33,112 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let card = PcscClient::open_by_ident("abcd:12345678")?;
-//! let open = Open::open_card(card)?;
+//! let mut open = Open::open_card(card)?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! # Use for cryptographic operations
 //!
+//! ## Decryption
+//!
+//! To use a card for decryption, it needs to be opened, user authorization
+//! needs to be available. A `sequoia_openpgp::crypto::Decryptor`
+//! implementation can then be obtained by providing a Cert (public key)
+//! that corresponds to the private encryption key on the card:
+//!
+//! ```no_run
+//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_sequoia::card::Open;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Open card via PCSC
+//! use sequoia_openpgp::policy::StandardPolicy;
+//! let card = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut open = Open::open_card(card)?;
+//!
+//! // Get authorization for user access to the card with password
+//! open.verify_user("123456")?;
+//! let mut user = open.user_card().expect("This should not fail");
+//!
+//! // Get decryptor (`cert` must contain a public key that corresponds
+//! // to the key material on the card)
+//! # use sequoia_openpgp::cert::CertBuilder;
+//! # let (cert, _) =
+//! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
+//! #       .generate()?;
+//! let decryptor = user.decryptor(&cert, &StandardPolicy::new());
+//!
+//! // Perform decryption operation(s)
+//! // ..
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Signing
+//!
+//! To use a card for signing, it needs to be opened, signing authorization
+//! needs to be available. A `sequoia_openpgp::crypto::Signer`
+//! implementation can then be obtained by providing a Cert (public key)
+//! that corresponds to the private signing key on the card.
+//!
+//! (Note that by default, an OpenPGP Card will only allow one signing
+//! operation to be performed after the password has been presented for
+//! signing. Depending on the card's configuration you need to present the
+//! user password before each signing operation!)
+//!
+//! ```no_run
+//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_sequoia::card::Open;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Open card via PCSC
+//! use sequoia_openpgp::policy::StandardPolicy;
+//! let card = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut open = Open::open_card(card)?;
+//!
+//! // Get authorization for signing access to the card with password
+//! open.verify_user_for_signing("123456")?;
+//! let mut user = open.signing_card().expect("This should not fail");
+//!
+//! // Get signer (`cert` must contain a public key that corresponds
+//! // to the key material on the card)
+//! # use sequoia_openpgp::cert::CertBuilder;
+//! # let (cert, _) =
+//! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
+//! #       .generate()?;
+//! let signer = user.signer(&cert, &StandardPolicy::new());
+//!
+//! // Perform signing operation(s)
+//! // ..
+//!
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! # Setting up and configuring a card
 //!
+//! ```no_run
+//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_sequoia::card::Open;
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Open card via PCSC
+//! let card = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut open = Open::open_card(card)?;
+//!
+//! // Get authorization for admin access to the card with password
+//! open.verify_admin("12345678")?;
+//! let mut admin = open.admin_card().expect("This should not fail");
+//!
+//! // Set the Name and URL fields on the card
+//! admin.set_name("Bar<<Foo")?;
+//! admin.set_url("https://example.org/openpgp.asc")?;
+//!
+//! # Ok(())
+//! # }
+//! ```
 
 use openpgp::packet::{key, Key};
 use sequoia_openpgp as openpgp;

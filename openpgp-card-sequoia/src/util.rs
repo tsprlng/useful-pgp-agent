@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! Odds and ends, will most likely be restructured.
+
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::io;
