@@ -6,6 +6,8 @@
 
 use anyhow::{anyhow, Result};
 
+use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
+use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::policy::Policy;
 use sequoia_openpgp::Cert;
 
@@ -21,6 +23,7 @@ use openpgp_card::{CardApp, CardClientBox, Error, KeySet, KeyType, Response};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
+use crate::util::vka_as_uploadable_key;
 
 /// Representation of an opened OpenPGP card in its base state (i.e. no
 /// passwords have been verified, default authorization applies).
@@ -340,11 +343,16 @@ impl Admin<'_> {
         }
     }
 
+    /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.
+    ///
+    /// (The caller needs to make sure that `vka` is suitable as `key_type`)
     pub fn upload_key(
         &mut self,
-        key: Box<dyn CardUploadableKey>,
+        vka: ValidErasedKeyAmalgamation<SecretParts>,
         key_type: KeyType,
+        password: Option<String>,
     ) -> Result<(), Error> {
+        let key = vka_as_uploadable_key(vka, password);
         self.oc.card_app.key_import(key, key_type)
     }
 }

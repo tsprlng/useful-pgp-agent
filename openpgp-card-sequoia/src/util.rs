@@ -147,15 +147,6 @@ pub fn make_cert(
     Cert::try_from(pp)
 }
 
-/// Helper fn: get a CardUploadableKey for a ValidErasedKeyAmalgamation
-pub fn vka_as_uploadable_key(
-    vka: ValidErasedKeyAmalgamation<SecretParts>,
-    password: Option<String>,
-) -> Box<dyn CardUploadableKey> {
-    let sqk = SequoiaKey::new(vka, password);
-    Box::new(sqk)
-}
-
 /// Helper fn: get a Sequoia PublicKey from an openpgp-card PublicKeyMaterial
 pub fn public_key_material_to_key(
     pkm: &PublicKeyMaterial,
@@ -259,18 +250,13 @@ pub fn public_to_fingerprint(
     fp.as_bytes().try_into()
 }
 
-/// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.
-///
-/// The caller needs to make sure that `vka` is suitable for `key_type`.
-pub fn upload_key(
-    oca: &mut Admin,
+/// Helper fn: get a CardUploadableKey for a ValidErasedKeyAmalgamation
+pub fn vka_as_uploadable_key(
     vka: ValidErasedKeyAmalgamation<SecretParts>,
-    key_type: KeyType,
     password: Option<String>,
-) -> Result<(), Error> {
+) -> Box<dyn CardUploadableKey> {
     let sqk = SequoiaKey::new(vka, password);
-
-    oca.upload_key(Box::new(sqk), key_type)
+    Box::new(sqk)
 }
 
 /// FIXME: this fn is used in card_functionality, but should be removed

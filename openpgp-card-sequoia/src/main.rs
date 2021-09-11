@@ -15,7 +15,6 @@ use openpgp_card_pcsc::PcscClient;
 
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::sq_util::{decryption_helper, sign_helper};
-use openpgp_card_sequoia::util::upload_key;
 
 // Filename of test key and test message to use
 
@@ -124,7 +123,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &p,
             KeyType::Decryption,
         )?;
-        upload_key(&mut admin, vka, KeyType::Decryption, None)?;
+        admin.upload_key(vka, KeyType::Decryption, None)?;
 
         println!("Upload signing key");
         let vka = openpgp_card_sequoia::sq_util::get_subkey(
@@ -132,7 +131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &p,
             KeyType::Signing,
         )?;
-        upload_key(&mut admin, vka, KeyType::Signing, None)?;
+        admin.upload_key(vka, KeyType::Signing, None)?;
 
         println!("Upload auth key");
         let vka = openpgp_card_sequoia::sq_util::get_subkey(
@@ -140,7 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             &p,
             KeyType::Authentication,
         )?;
-        upload_key(&mut admin, vka, KeyType::Authentication, None)?;
+        admin.upload_key(vka, KeyType::Authentication, None)?;
 
         println!();
 
