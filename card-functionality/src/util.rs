@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use std::io::Write;
 use std::time::SystemTime;
 
-use sequoia_openpgp::cert::amalgamation::key::ValidKeyAmalgamation;
-use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
 use sequoia_openpgp::parse::stream::{
     DetachedVerifierBuilder, MessageLayer, MessageStructure,
     VerificationHelper,
@@ -20,6 +18,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::KeyGenerationTime;
 use openpgp_card::{CardApp, KeyType};
+use openpgp_card_sequoia::sq_util::get_subkey;
 use openpgp_card_sequoia::util::vka_as_uploadable_key;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();
@@ -35,7 +34,8 @@ pub(crate) fn upload_subkeys(
         KeyType::Decryption,
         KeyType::Authentication,
     ] {
-        let vka = get_subkey(cert, *kt)?;
+        let sp = StandardPolicy::new();
+        let vka = get_subkey(cert, &sp, *kt)?;
 
         // store fingerprint as return-value
         let fp = vka.fingerprint().to_hex();
@@ -54,32 +54,6 @@ pub(crate) fn upload_subkeys(
     }
 
     Ok(out)
-}
-
-fn get_subkey(
-    cert: &Cert,
-    key_type: KeyType,
-) -> Result<ValidKeyAmalgamation<'_, SecretParts, UnspecifiedRole, bool>> {
-    // Find all suitable (sub)keys for key_type.
-    let mut valid_ka = cert
-        .keys()
-        .with_policy(SP, None)
-        .secret()
-        .alive()
-        .revoked(false);
-    valid_ka = match key_type {
-        KeyType::Decryption => valid_ka.for_storage_encryption(),
-        KeyType::Signing => valid_ka.for_signing(),
-        KeyType::Authentication => valid_ka.for_authentication(),
-        _ => return Err(anyhow!("Unexpected KeyType")),
-    };
-
-    // FIXME: for now, we just pick the first (sub)key from the list
-    if let Some(vka) = valid_ka.next() {
-        Ok(vka)
-    } else {
-        Err(anyhow!("No suitable (sub)key found"))
-    }
 }
 
 /// Perform signature verification for one Cert and a simple signature

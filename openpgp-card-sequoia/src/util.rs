@@ -8,7 +8,7 @@ use std::convert::TryInto;
 use std::io;
 use std::time::SystemTime;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 
 use openpgp::armor;
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
@@ -255,44 +255,6 @@ pub fn public_to_fingerprint(
     // Get fingerprint from the Sequoia Key
     let fp = key.fingerprint();
     fp.as_bytes().try_into()
-}
-
-/// FIXME: this is used in main.rs for testing, but should probably not exist.
-///
-/// Convenience fn to select and upload a (sub)key from a Cert, as a given
-/// KeyType. If multiple suitable (sub)keys are found, the first one is
-/// used.
-///
-/// (sub)keys for upload should probably always be explicitly picked by
-/// client software.
-pub fn upload_from_cert_yolo(
-    oca: &mut Admin,
-    cert: &Cert,
-    key_type: KeyType,
-    password: Option<String>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let policy = StandardPolicy::new();
-
-    // Find all suitable (sub)keys for key_type.
-    let mut valid_ka = cert
-        .keys()
-        .with_policy(&policy, None)
-        .secret()
-        .alive()
-        .revoked(false);
-    valid_ka = match key_type {
-        KeyType::Decryption => valid_ka.for_storage_encryption(),
-        KeyType::Signing => valid_ka.for_signing(),
-        KeyType::Authentication => valid_ka.for_authentication(),
-        _ => return Err(anyhow!("Unexpected KeyType").into()),
-    };
-
-    // FIXME: for now, we just pick the first (sub)key from the list
-    if let Some(vka) = valid_ka.next() {
-        upload_key(oca, vka, key_type, password).map_err(|e| e.into())
-    } else {
-        Err(anyhow!("No suitable (sub)key found").into())
-    }
 }
 
 /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.

@@ -15,6 +15,7 @@ use openpgp_card_pcsc::PcscClient;
 
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::sq_util::{decryption_helper, sign_helper};
+use openpgp_card_sequoia::util::upload_key;
 
 // Filename of test key and test message to use
 
@@ -115,30 +116,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("set url {:x?}", res);
 
         let cert = Cert::from_file(TEST_KEY_PATH)?;
+        let p = StandardPolicy::new();
 
         println!("Upload decryption key");
-        openpgp_card_sequoia::util::upload_from_cert_yolo(
-            &mut admin,
+        let vka = openpgp_card_sequoia::sq_util::get_subkey(
             &cert,
+            &p,
             KeyType::Decryption,
-            None,
         )?;
+        upload_key(&mut admin, vka, KeyType::Decryption, None)?;
 
         println!("Upload signing key");
-        openpgp_card_sequoia::util::upload_from_cert_yolo(
-            &mut admin,
+        let vka = openpgp_card_sequoia::sq_util::get_subkey(
             &cert,
+            &p,
             KeyType::Signing,
-            None,
         )?;
+        upload_key(&mut admin, vka, KeyType::Signing, None)?;
 
-        // FIXME: Test keys have no authentication subkey
-        // openpgp_card_sequoia::util::upload_from_cert_yolo(
-        //     &mut admin,
-        //     &cert,
-        //     KeyType::Authentication,
-        //     None,
-        // )?;
+        println!("Upload auth key");
+        let vka = openpgp_card_sequoia::sq_util::get_subkey(
+            &cert,
+            &p,
+            KeyType::Authentication,
+        )?;
+        upload_key(&mut admin, vka, KeyType::Authentication, None)?;
 
         println!();
 
