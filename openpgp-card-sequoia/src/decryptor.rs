@@ -79,17 +79,17 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
         &self.public
     }
 
-    /// Delegate a decryption operation to the OpenPGP card.
-    ///
-    /// This fn prepares the data structures that openpgp-card needs to
-    /// perform the decryption operation.
-    ///
-    /// (7.2.11 PSO: DECIPHER)
     fn decrypt(
         &mut self,
         ciphertext: &mpi::Ciphertext,
         _plaintext_len: Option<usize>,
     ) -> openpgp::Result<crypto::SessionKey> {
+        /// Delegate a decryption operation to the OpenPGP card.
+        ///
+        /// This fn prepares the data structures that openpgp-card needs to
+        /// perform the decryption operation.
+        ///
+        /// (7.2.11 PSO: DECIPHER)
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = Cryptogram::RSA(ct.value());

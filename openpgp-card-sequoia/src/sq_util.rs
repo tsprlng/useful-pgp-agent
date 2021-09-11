@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Simple wrappers for performing very specific tasks with Sequoia PGP
+//! Simple wrappers for performing very specific tasks with Sequoia PGP.
+//!
+//! These helpers are (almost) entirely unrelated to OpenPGP Card.
 
 use anyhow::{anyhow, Context, Result};
 use std::io;

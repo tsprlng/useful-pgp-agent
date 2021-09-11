@@ -38,6 +38,8 @@ use crate::{decryptor, signer, PublicKey};
 /// Create a Cert from the three subkeys on a card.
 /// (Calling this multiple times will result in different Certs!)
 ///
+/// FIXME: contains hardcoded default passwords!
+///
 /// FIXME: make dec/auth keys optional
 ///
 /// FIXME: accept optional metadata for user_id(s)?
