@@ -83,7 +83,11 @@ impl Command {
     /// Encode len for Lc field
     fn make_lc(len: u16, ext_len: bool) -> Vec<u8> {
         if !ext_len {
-            assert!(len <= 0xff, "unexpected: len > 0xff, but ext says Short");
+            assert!(
+                len <= 0xff,
+                "unexpected: len = {:x?}, but ext says Short",
+                len
+            );
         }
 
         if len == 0 {
