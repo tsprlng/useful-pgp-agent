@@ -14,11 +14,9 @@ use sequoia_openpgp::Cert;
 use openpgp_card::algorithm::{Algo, AlgoInfo};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
-    ExCapFeatures, ExtendedCapabilities, ExtendedLengthInfo, Fingerprint,
-    HistoricalBytes, KeyGenerationTime, PWStatusBytes,
-    SecuritySupportTemplate, Sex,
+    ExtendedCapabilities, ExtendedLengthInfo, Fingerprint, HistoricalBytes,
+    KeyGenerationTime, PWStatusBytes, SecuritySupportTemplate, Sex,
 };
-use openpgp_card::crypto_data::CardUploadableKey;
 use openpgp_card::{CardApp, CardClientBox, Error, KeySet, KeyType, Response};
 
 use crate::decryptor::CardDecryptor;
@@ -245,7 +243,7 @@ impl Open {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
         let ec = self.extended_capabilities()?;
-        if !ec.features().contains(&ExCapFeatures::AlgoAttrsChangeable) {
+        if !ec.algo_attrs_changeable() {
             // Algorithm attributes can not be changed,
             // list_supported_algo is not supported
             return Ok(None);

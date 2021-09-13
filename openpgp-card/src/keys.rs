@@ -11,9 +11,7 @@ use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_app::CardApp;
-use crate::card_do::{
-    ApplicationRelatedData, ExCapFeatures, Fingerprint, KeyGenerationTime,
-};
+use crate::card_do::{ApplicationRelatedData, Fingerprint, KeyGenerationTime};
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
     RSAKey, RSAPub,
@@ -195,11 +193,7 @@ pub(crate) fn key_import(
     // set-operations on the card.
 
     // Only set algo attrs if "Extended Capabilities" lists the feature
-    if ard
-        .get_extended_capabilities()?
-        .features()
-        .contains(&ExCapFeatures::AlgoAttrsChangeable)
-    {
+    if ard.get_extended_capabilities()?.algo_attrs_changeable() {
         card_app.set_algorithm_attributes(key_type, &algo)?;
     }
 

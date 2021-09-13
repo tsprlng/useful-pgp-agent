@@ -30,7 +30,6 @@ use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
 use openpgp_card::{CardApp, Error, KeyType};
 
-use crate::card::Admin;
 use crate::privkey::SequoiaKey;
 use crate::signer::CardSigner;
 use crate::{decryptor, signer, PublicKey};

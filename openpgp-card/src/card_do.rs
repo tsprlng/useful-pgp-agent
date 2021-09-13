@@ -4,7 +4,6 @@
 //! OpenPGP card data objects (DO)
 
 use anyhow::{anyhow, Result};
-use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
@@ -88,11 +87,18 @@ impl ApplicationRelatedData {
     pub fn get_extended_capabilities(
         &self,
     ) -> Result<ExtendedCapabilities, Error> {
+        // FIXME: caching?
+        let app_id = self.get_application_id()?;
+        let version = app_id.version();
+
         // get from cached "application related data"
         let ecap = self.0.find(&[0xc0].into());
 
         if let Some(ecap) = ecap {
-            Ok(ExtendedCapabilities::try_from(&ecap.serialize()[..])?)
+            Ok(ExtendedCapabilities::try_from((
+                &ecap.serialize()[..],
+                version,
+            ))?)
         } else {
             Err(anyhow!("Failed to get extended capabilities.").into())
         }
@@ -236,26 +242,21 @@ pub struct CardServiceData {
 /// 4.4.3.7 Extended Capabilities
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedCapabilities {
-    features: HashSet<ExCapFeatures>,
+    secure_messaging: bool,
+    get_challenge: bool,
+    key_import: bool,
+    pw_status_change: bool,
+    private_use_dos: bool,
+    algo_attrs_changeable: bool,
+    aes: bool,
+    kdf_do: bool,
+
     sm_algo: u8,
     max_len_challenge: u16,
     max_len_cardholder_cert: u16,
     max_len_special_do: u16,
     pin_block_2_format_support: bool,
     mse_command_support: bool,
-}
-
-/// Features (first byte of Extended Capabilities, see 4.4.3.7)
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum ExCapFeatures {
-    SecureMessaging,
-    GetChallenge,
-    KeyImport,
-    PwStatusChange,
-    PrivateUseDOs,
-    AlgoAttrsChangeable,
-    Aes,
-    KdfDo,
 }
 
 /// 4.1.3.1 Extended length information
