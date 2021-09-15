@@ -254,9 +254,13 @@ pub struct ExtendedCapabilities {
     sm_algo: u8,
     max_len_challenge: u16,
     max_len_cardholder_cert: u16,
-    max_len_special_do: u16,
-    pin_block_2_format_support: bool,
-    mse_command_support: bool,
+
+    max_cmd_len: Option<u16>,  // v2
+    max_resp_len: Option<u16>, // v2
+
+    max_len_special_do: Option<u16>, // v3
+    pin_block_2_format_support: Option<bool>, // v3
+    mse_command_support: Option<bool>, // v3
 }
 
 /// 4.1.3.1 Extended length information

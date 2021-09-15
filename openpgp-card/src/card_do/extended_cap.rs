@@ -10,12 +10,20 @@ use crate::card_do::ExtendedCapabilities;
 use crate::Error;
 
 impl ExtendedCapabilities {
-    pub fn max_len_special_do(&self) -> u16 {
+    pub fn max_len_special_do(&self) -> Option<u16> {
         self.max_len_special_do
     }
 
     pub fn algo_attrs_changeable(&self) -> bool {
         self.algo_attrs_changeable
+    }
+
+    pub fn max_cmd_len(&self) -> Option<u16> {
+        self.max_cmd_len
+    }
+
+    pub fn max_resp_len(&self) -> Option<u16> {
+        self.max_resp_len
     }
 }
 
@@ -23,10 +31,14 @@ impl TryFrom<(&[u8], u16)> for ExtendedCapabilities {
     type Error = Error;
 
     fn try_from((input, version): (&[u8], u16)) -> Result<Self, Self::Error> {
-        // FIXME: handle different card versions.
-        // e.g. bytes 07/08 and 09/0A have different meanings before and
-        // after V3.0
+        // FIXME: check that this fn is not called excessively often
 
+        let version = ((version >> 8) as u8, (version & 0xff) as u8);
+
+        // FIXME: earlier versions have shorter extended capabilities
+        assert!(version.0 >= 2);
+
+        // v2.x and v3.x should have 10 byte sized extended caps
         assert_eq!(
             input.len(),
             10,
@@ -48,25 +60,43 @@ impl TryFrom<(&[u8], u16)> for ExtendedCapabilities {
 
         let max_len_challenge = input[2] as u16 * 256 + input[3] as u16;
         let max_len_cardholder_cert = input[4] as u16 * 256 + input[5] as u16;
-        let max_len_special_do = input[6] as u16 * 256 + input[7] as u16;
 
-        let pin_block_2_format_support = input[8];
-        let mse_command_support = input[9];
+        let mut max_cmd_len = None;
+        let mut max_resp_len = None;
 
-        if pin_block_2_format_support > 1 {
-            return Err(anyhow!(
-                "Illegal value '{}' for pin_block_2_format_support",
-                pin_block_2_format_support
-            )
-            .into());
-        }
+        let mut max_len_special_do = None;
+        let mut pin_block_2_format_support = None;
+        let mut mse_command_support = None;
 
-        if mse_command_support > 1 {
-            return Err(anyhow!(
-                "Illegal value '{}' for mse_command_support",
-                mse_command_support
-            )
-            .into());
+        if version.0 == 2 {
+            // v2.0 until v2.2
+            max_cmd_len = Some(input[6] as u16 * 256 + input[7] as u16);
+            max_resp_len = Some(input[8] as u16 * 256 + input[9] as u16);
+        } else {
+            // from v3.0
+            max_len_special_do = Some(input[6] as u16 * 256 + input[7] as u16);
+
+            let i8 = input[8];
+            let i9 = input[9];
+
+            if i8 > 1 {
+                return Err(anyhow!(
+                    "Illegal value '{}' for pin_block_2_format_support",
+                    i8
+                )
+                .into());
+            }
+
+            pin_block_2_format_support = Some(i8 != 0);
+
+            if i9 > 1 {
+                return Err(anyhow!(
+                    "Illegal value '{}' for mse_command_support",
+                    i9
+                )
+                .into());
+            }
+            mse_command_support = Some(i9 != 0);
         }
 
         Ok(Self {
@@ -82,9 +112,13 @@ impl TryFrom<(&[u8], u16)> for ExtendedCapabilities {
             sm_algo,
             max_len_challenge,
             max_len_cardholder_cert,
-            max_len_special_do,
-            pin_block_2_format_support: pin_block_2_format_support != 0,
-            mse_command_support: mse_command_support != 0,
+
+            max_cmd_len,  // v2
+            max_resp_len, // v2
+
+            max_len_special_do,         // v3
+            pin_block_2_format_support, // v3
+            mse_command_support,        // v3
         })
     }
 }

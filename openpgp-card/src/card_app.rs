@@ -70,10 +70,15 @@ impl CardApp {
             }
         }
 
+        let ext_cap = ard.get_extended_capabilities()?;
+
         let (max_cmd_bytes, max_rsp_bytes) =
         // FIXME: handle cmd/resp limits in ex-cap, for card <3.0 (?)
             if let Ok(Some(eli)) = ard.get_extended_length_information() {
                 (eli.max_command_bytes(), eli.max_response_bytes())
+            } else if let (Some(cmd), Some(rsp))
+              = (ext_cap.max_cmd_len(), ext_cap.max_resp_len()) {
+                (cmd, rsp)
             } else {
                 (255, 255)
             };
