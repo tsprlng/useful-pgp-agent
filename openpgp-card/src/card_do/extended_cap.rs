@@ -130,9 +130,10 @@ mod test {
     use std::convert::TryFrom;
 
     #[test]
-    fn test_ec() {
+    fn test_yk5() {
         // Yubikey 5
         let data = hex!("7d 00 0b fe 08 00 00 ff 00 00");
+
         let ec = ExtendedCapabilities::try_from((&data[..], 0x0304)).unwrap();
 
         assert_eq!(
@@ -149,9 +150,41 @@ mod test {
                 sm_algo: 0x0,
                 max_len_challenge: 0xbfe,
                 max_len_cardholder_cert: 0x800,
-                max_len_special_do: 0xff,
-                pin_block_2_format_support: false,
-                mse_command_support: false,
+                max_cmd_len: None,
+                max_resp_len: None,
+                max_len_special_do: Some(0xff),
+                pin_block_2_format_support: Some(false),
+                mse_command_support: Some(false),
+            }
+        );
+    }
+
+    #[test]
+    fn test_floss21() {
+        // FLOSS shop2.1
+        let data = hex!("7c 00 08 00 08 00 08 00 08 00");
+
+        let ec = ExtendedCapabilities::try_from((&data[..], 0x0201)).unwrap();
+
+        assert_eq!(
+            ec,
+            ExtendedCapabilities {
+                secure_messaging: false,
+                get_challenge: true,
+                key_import: true,
+                pw_status_change: true,
+                private_use_dos: true,
+                algo_attrs_changeable: true,
+                aes: false,
+                kdf_do: false,
+                sm_algo: 0,
+                max_len_challenge: 2048,
+                max_len_cardholder_cert: 2048,
+                max_cmd_len: Some(2048),
+                max_resp_len: Some(2048),
+                max_len_special_do: None,
+                pin_block_2_format_support: None,
+                mse_command_support: None,
             }
         );
     }
