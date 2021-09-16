@@ -334,7 +334,13 @@ impl Admin<'_> {
         // Check for max len
         let ec = self.oc.extended_capabilities()?;
 
-        if url.len() < ec.max_len_special_do() as usize {
+        if ec.max_len_special_do() == None
+            || url.len() <= ec.max_len_special_do().unwrap() as usize
+        {
+            // If we don't know the max length for URL ("special DO"),
+            // or if it's within the acceptable length:
+            // send the url update to the card.
+
             self.oc.card_app.set_url(url)
         } else {
             Err(anyhow!("URL too long").into())
