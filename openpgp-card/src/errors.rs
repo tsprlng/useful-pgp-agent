@@ -118,7 +118,7 @@ pub enum StatusBytes {
     #[error("No precise diagnosis")]
     NoPreciseDiagnosis,
 
-    #[error("Unknown OpenPGP card status: [{0}, {1}]")]
+    #[error("Unknown OpenPGP card status: [{0:x}, {1:x}]")]
     UnknownStatus(u8, u8),
 }
 
