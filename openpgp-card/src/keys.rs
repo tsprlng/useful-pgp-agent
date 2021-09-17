@@ -42,7 +42,15 @@ pub(crate) fn gen_key_with_metadata(
 ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
     // set algo on card if it's Some
     if let Some(algo) = algo {
-        card_app.set_algorithm_attributes(key_type, algo)?;
+        // only set algo if card supports setting of algo attr
+
+        // FIXME: caching
+        let ard = card_app.get_application_related_data()?;
+        let ecap = ard.get_extended_capabilities()?;
+
+        if ecap.algo_attrs_changeable() {
+            card_app.set_algorithm_attributes(key_type, algo)?;
+        }
     }
 
     // algo
