@@ -11,6 +11,7 @@ pub mod response;
 use anyhow::Result;
 use std::convert::TryFrom;
 
+use crate::apdu::command::Expect;
 use crate::apdu::{command::Command, response::RawResponse};
 use crate::{CardClientBox, Error, StatusBytes};
 
@@ -28,9 +29,21 @@ pub(crate) fn send_command(
 ) -> Result<RawResponse, Error> {
     let mut resp = RawResponse::try_from(send_command_low_level(
         card_client,
-        cmd,
-        expect_reply,
+        cmd.clone(),
+        if expect_reply {
+            Expect::Some
+        } else {
+            Expect::Empty
+        },
     )?)?;
+
+    if let StatusBytes::UnknownStatus(0x6c, size) = resp.status() {
+        resp = RawResponse::try_from(send_command_low_level(
+            card_client,
+            cmd,
+            Expect::Short(size),
+        )?)?;
+    }
 
     while let StatusBytes::OkBytesAvailable(_) = resp.status() {
         // More data is available for this command from the card
@@ -40,7 +53,7 @@ pub(crate) fn send_command(
         let next = RawResponse::try_from(send_command_low_level(
             card_client,
             commands::get_response(),
-            expect_reply,
+            Expect::Some,
         )?)?;
 
         match next.status() {
@@ -71,7 +84,7 @@ pub(crate) fn send_command(
 fn send_command_low_level(
     card_client: &mut CardClientBox,
     cmd: Command,
-    expect_response: bool,
+    expect_response: Expect,
 ) -> Result<Vec<u8>, Error> {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
         if let Some(caps) = card_client.get_caps() {

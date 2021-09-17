@@ -6,6 +6,13 @@
 
 use anyhow::Result;
 
+#[derive(Clone, Copy)]
+pub enum Expect {
+    Empty,
+    Some,
+    Short(u8),
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct Command {
     // Class byte (CLA)
@@ -63,7 +70,7 @@ impl Command {
     pub(crate) fn serialize(
         &self,
         ext_len: bool,
-        expect_response: bool,
+        expect_response: Expect,
     ) -> Result<Vec<u8>> {
         // FIXME? (from scd/apdu.c):
         //  T=0 does not allow the use of Lc together with Le;
@@ -101,18 +108,22 @@ impl Command {
 
     /// Encode value for Le field
     /// ("maximum number of bytes expected in the response data field").
-    fn make_le(nc: u16, ext_len: bool, expect_response: bool) -> Vec<u8> {
+    fn make_le(nc: u16, ext_len: bool, expect_response: Expect) -> Vec<u8> {
         match (ext_len, expect_response) {
-            (_, false) => {
+            (_, Expect::Empty) => {
                 // No response data expected.
                 // "If the Le field is absent, then Ne is zero"
                 vec![]
             }
-            (false, true) => {
+            (false, Expect::Some) => {
                 // A short Le field consists of one byte with any value
                 vec![0]
             }
-            (true, true) => {
+            (false, Expect::Short(size)) => {
+                // A short Le field consists of one byte with any value
+                vec![size]
+            }
+            (true, Expect::Some) => {
                 if nc == 0 {
                     // "three bytes (one byte set to '00' followed by two
                     // bytes with any value) if the Lc field is absent"
@@ -122,6 +133,9 @@ impl Command {
                     // is present"
                     vec![0, 0]
                 }
+            }
+            _ => {
+                unreachable!("This should not happen")
             }
         }
     }
