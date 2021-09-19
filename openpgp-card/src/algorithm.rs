@@ -200,15 +200,6 @@ impl Algo {
         algo_attributes.push(0x00);
         algo_attributes.push(algo_attrs.len_e() as u8);
 
-        // Import-Format of private key
-        // (This fn currently assumes import_format "00 = standard (e, p, q)")
-        if algo_attrs.import_format() != 0 {
-            return Err(anyhow!(
-                "Unexpected RSA input format (only 0 is supported)"
-            )
-            .into());
-        }
-
         algo_attributes.push(algo_attrs.import_format());
 
         Ok(algo_attributes)

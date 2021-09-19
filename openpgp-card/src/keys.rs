@@ -359,64 +359,94 @@ fn rsa_key_import_cmd(
     rsa_key: Box<dyn RSAKey>,
     rsa_attrs: &RsaAttrs,
 ) -> Result<Command, Error> {
-    // Assemble key command, which contains three sub-TLV:
+    // Assemble key command (see 4.4.3.12 Private Key Template)
 
-    // 1) "Control Reference Template"
-    let crt = get_crt(key_type)?;
+    // Collect data for "Cardholder private key template" DO (7F48)
+    //
+    // (Describes the content of the Cardholder private key DO)
+    let mut cpkt_data = vec![];
 
-    // 2) "Cardholder private key template" (7F48)
-    // "describes the input and the length of the content of the following DO"
+    // "Cardholder private key" (5F48)
+    //
+    // "The key data elements according to the definitions in the CPKT DO
+    // (7F48)."
+    let mut key_data = Vec::new();
 
-    // collect the value for this DO
-    let mut value = vec![];
+    // -- Public exponent: e --
 
-    // Length of e in bytes, rounding up from the bit value in algo.
+    // Expected length of e in bytes, rounding up from the bit value in algo.
     let len_e_bytes = ((rsa_attrs.len_e() + 7) / 8) as u8;
-
-    value.push(0x91);
+    cpkt_data.push(0x91);
     // len_e in bytes has a value of 3-4, it doesn't need TLV encoding
-    value.push(len_e_bytes);
+    cpkt_data.push(len_e_bytes);
+
+    // Push e, padded with zero bytes from the left
+    let e_as_bytes = rsa_key.get_e();
+    for _ in e_as_bytes.len()..(len_e_bytes as usize) {
+        key_data.push(0);
+    }
+    key_data.extend(e_as_bytes);
+
+    // -- Prime1: p + Prime2: q --
 
     // len_p and len_q are len_n/2 (value from card algorithm list).
     // transform unit from bits to bytes.
     let len_p_bytes: u16 = rsa_attrs.len_n() / 2 / 8;
     let len_q_bytes: u16 = rsa_attrs.len_n() / 2 / 8;
 
-    value.push(0x92);
+    cpkt_data.push(0x92);
     // len p in bytes, TLV-encoded
-    value.extend_from_slice(&tlv_encode_length(len_p_bytes));
+    cpkt_data.extend_from_slice(&tlv_encode_length(len_p_bytes));
 
-    value.push(0x93);
+    cpkt_data.push(0x93);
     // len q in bytes, TLV-encoded
-    value.extend_from_slice(&tlv_encode_length(len_q_bytes));
-
-    let cpkt = Tlv::new([0x7F, 0x48], Value::S(value));
-
-    // 3) "Cardholder private key" (5F48)
-    //
-    // "represents a concatenation of the key data elements according to
-    // the definitions in DO '7F48'."
-    let mut keydata = Vec::new();
-
-    let e_as_bytes = rsa_key.get_e();
-
-    // Push e, padded to length with zero bytes from the left
-    for _ in e_as_bytes.len()..(len_e_bytes as usize) {
-        keydata.push(0);
-    }
-    keydata.extend(e_as_bytes);
+    cpkt_data.extend_from_slice(&tlv_encode_length(len_q_bytes));
 
     // FIXME: do p/q need to be padded from the left when many leading
     // bits are zero?
-    keydata.extend(rsa_key.get_p().iter());
-    keydata.extend(rsa_key.get_q().iter());
+    key_data.extend(rsa_key.get_p().iter());
+    key_data.extend(rsa_key.get_q().iter());
 
-    let cpk = Tlv::new([0x5F, 0x48], Value::S(keydata));
+    // import format requires chinese remainder theorem fields
+    if rsa_attrs.import_format() == 2 || rsa_attrs.import_format() == 3 {
+        // PQ: 1/q mod p
+        let pq = rsa_key.get_pq();
+        cpkt_data.push(0x94);
+        cpkt_data.extend(&tlv_encode_length(pq.len() as u16));
+        key_data.extend(pq.iter());
+
+        // DP1: d mod (p - 1)
+        let dp1 = rsa_key.get_dp1();
+        cpkt_data.push(0x95);
+        cpkt_data.extend(&tlv_encode_length(dp1.len() as u16));
+        key_data.extend(dp1.iter());
+
+        // DQ1: d mod (q - 1)
+        let dq1 = rsa_key.get_dq1();
+        cpkt_data.push(0x96);
+        cpkt_data.extend(&tlv_encode_length(dq1.len() as u16));
+        key_data.extend(dq1.iter());
+    }
+
+    // import format requires modulus n field
+    if rsa_attrs.import_format() == 1 || rsa_attrs.import_format() == 3 {
+        let n = rsa_key.get_n();
+        cpkt_data.push(0x97);
+        cpkt_data.extend(&tlv_encode_length(n.len() as u16));
+        key_data.extend(n.iter());
+    }
+
+    // Assemble the DOs for upload
+    let cpkt = Tlv::new([0x7F, 0x48], Value::S(cpkt_data));
+    let cpk = Tlv::new([0x5F, 0x48], Value::S(key_data));
+
+    // "Control Reference Template"
+    let crt = get_crt(key_type)?;
 
     // "Extended header list (DO 4D)"
     let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
 
-    // key import command
+    // Return the full key import command
     Ok(commands::key_import(ehl.serialize().to_vec()))
 }
 

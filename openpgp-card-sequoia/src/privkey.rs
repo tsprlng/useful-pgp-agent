@@ -73,9 +73,9 @@ impl CardUploadableKey for SequoiaKey {
         match (self.public.clone(), secret_key_material) {
             (
                 mpi::PublicKey::RSA { e, n },
-                mpi::SecretKeyMaterial::RSA { d: _, p, q, u: _ },
+                mpi::SecretKeyMaterial::RSA { d, p, q, u: _ },
             ) => {
-                let sq_rsa = SqRSA::new(e, n, p, q);
+                let sq_rsa = SqRSA::new(e, d, n, p, q)?;
 
                 Ok(PrivateKeyMaterial::R(Box::new(sq_rsa)))
             }
@@ -146,11 +146,25 @@ struct SqRSA {
     n: MPI,
     p: ProtectedMPI,
     q: ProtectedMPI,
+    nettle: nettle::rsa::PrivateKey,
 }
 
 impl SqRSA {
-    fn new(e: MPI, n: MPI, p: ProtectedMPI, q: ProtectedMPI) -> Self {
-        Self { e, n, p, q }
+    fn new(
+        e: MPI,
+        d: ProtectedMPI,
+        n: MPI,
+        p: ProtectedMPI,
+        q: ProtectedMPI,
+    ) -> Result<Self> {
+        let nettle = nettle::rsa::PrivateKey::new(
+            d.value(),
+            p.value(),
+            q.value(),
+            None,
+        )?;
+
+        Ok(Self { e, n, p, q, nettle })
     }
 }
 
@@ -159,16 +173,29 @@ impl RSAKey for SqRSA {
         self.e.value()
     }
 
-    fn get_n(&self) -> &[u8] {
-        self.n.value()
-    }
-
     fn get_p(&self) -> &[u8] {
         self.p.value()
     }
 
     fn get_q(&self) -> &[u8] {
         self.q.value()
+    }
+
+    fn get_pq(&self) -> Box<[u8]> {
+        let (_, _, inv) = self.nettle.d_crt();
+        inv
+    }
+    fn get_dp1(&self) -> Box<[u8]> {
+        let (dp, _, _) = self.nettle.d_crt();
+        dp
+    }
+    fn get_dq1(&self) -> Box<[u8]> {
+        let (_, dq, _) = self.nettle.d_crt();
+        dq
+    }
+
+    fn get_n(&self) -> &[u8] {
+        self.n.value()
     }
 }
 

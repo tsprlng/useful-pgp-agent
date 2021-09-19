@@ -86,9 +86,14 @@ pub enum PrivateKeyMaterial {
 /// card.
 pub trait RSAKey {
     fn get_e(&self) -> &[u8];
-    fn get_n(&self) -> &[u8];
     fn get_p(&self) -> &[u8];
     fn get_q(&self) -> &[u8];
+
+    fn get_pq(&self) -> Box<[u8]>;
+    fn get_dp1(&self) -> Box<[u8]>;
+    fn get_dq1(&self) -> Box<[u8]>;
+
+    fn get_n(&self) -> &[u8];
 }
 
 /// ECC-specific container for private key material to upload to an OpenPGP
