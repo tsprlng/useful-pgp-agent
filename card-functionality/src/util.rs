@@ -10,7 +10,7 @@ use sequoia_openpgp::parse::stream::{
     VerificationHelper,
 };
 use sequoia_openpgp::parse::Parse;
-use sequoia_openpgp::policy::StandardPolicy;
+use sequoia_openpgp::policy::{Policy, StandardPolicy};
 use sequoia_openpgp::serialize::stream::{
     Armorer, Encryptor, LiteralWriter, Message,
 };
@@ -26,6 +26,7 @@ pub const SP: &StandardPolicy = &StandardPolicy::new();
 pub(crate) fn upload_subkeys(
     ca: &mut CardApp,
     cert: &Cert,
+    policy: &dyn Policy,
 ) -> Result<Vec<(String, KeyGenerationTime)>> {
     let mut out = vec![];
 
@@ -34,8 +35,7 @@ pub(crate) fn upload_subkeys(
         KeyType::Decryption,
         KeyType::Authentication,
     ] {
-        let sp = StandardPolicy::new();
-        let vka = get_subkey(cert, &sp, *kt)?;
+        let vka = get_subkey(cert, policy, *kt)?;
 
         // store fingerprint as return-value
         let fp = vka.fingerprint().to_hex();

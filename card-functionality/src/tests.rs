@@ -7,6 +7,7 @@ use std::string::FromUtf8Error;
 use thiserror;
 
 use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::policy::{NullPolicy, StandardPolicy};
 use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
@@ -192,7 +193,9 @@ pub fn test_upload_keys(
 
     let cert = Cert::from_file(param[0])?;
 
-    let meta = util::upload_subkeys(ca, &cert)
+    let p = StandardPolicy::new();
+
+    let meta = util::upload_subkeys(ca, &cert, &p)
         .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
 
     check_key_upload_metadata(ca, &meta)?;
