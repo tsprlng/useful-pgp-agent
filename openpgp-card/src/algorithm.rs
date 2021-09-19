@@ -161,7 +161,11 @@ impl fmt::Display for Algo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Rsa(rsa) => {
-                write!(f, "RSA {}, {} ", rsa.len_n, rsa.len_e)
+                write!(
+                    f,
+                    "RSA {}, {} [format {}]",
+                    rsa.len_n, rsa.len_e, rsa.import_format
+                )
             }
             Self::Ecc(ecc) => {
                 write!(f, "{:?} ({:?})", ecc.curve, ecc.ecc_type)
