@@ -41,6 +41,8 @@ impl From<&str> for AlgoSimple {
         use AlgoSimple::*;
 
         match algo {
+            "RSA1k/17" => RSA1k(17),
+            "RSA1k/32" => RSA1k(32),
             "RSA2k/17" => RSA2k(17),
             "RSA2k/32" => RSA2k(32),
             "RSA3k/17" => RSA3k(17),
