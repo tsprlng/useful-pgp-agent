@@ -320,7 +320,10 @@ fn get_card_algo_rsa(
 
     // Did we find a suitable algorithm entry?
     if !algo.is_empty() {
-        Ok((*algo[0]).clone())
+        // HACK: The SmartPGP applet reports two variants of RSA (import
+        // format 1 and 3), but in fact only supports the second variant.
+        // Using the last option happens to work better, in that case.
+        Ok((**algo.last().unwrap()).clone())
     } else {
         // RSA with this bit length is not in algo_list
         return Err(anyhow!(
