@@ -40,28 +40,39 @@ pub(crate) fn gen_key_with_metadata(
     key_type: KeyType,
     algo: Option<&Algo>,
 ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-    // set algo on card if it's Some
-    if let Some(algo) = algo {
-        // only set algo if card supports setting of algo attr
-
+    // Set algo on card if it's Some
+    if let Some(target_algo) = algo {
         // FIXME: caching
-        let ard = card_app.get_application_related_data()?;
+        let ard = card_app.get_application_related_data()?; // no caching, here!
         let ecap = ard.get_extended_capabilities()?;
 
+        // Only set algo if card supports setting of algo attr
         if ecap.algo_attrs_changeable() {
-            card_app.set_algorithm_attributes(key_type, algo)?;
+            card_app.set_algorithm_attributes(key_type, target_algo)?;
+        } else {
+            // Check if the current algo on the card is the one we want, if
+            // not we return an error.
+
+            // NOTE: For RSA, the target algo shouldn't prescribe an
+            // Import-Format. The Import-Format should always depend on what
+            // the card supports.
+
+            // let cur_algo = ard.get_algorithm_attributes(key_type)?;
+            // assert_eq!(&cur_algo, target_algo);
+
+            // FIXME: return error
         }
     }
 
-    // algo
+    // get new state of algo
     let ard = card_app.get_application_related_data()?; // no caching, here!
-    let algo = ard.get_algorithm_attributes(key_type)?;
+    let cur_algo = ard.get_algorithm_attributes(key_type)?;
 
     // generate key
     let tlv = generate_asymmetric_key_pair(card_app, key_type)?;
 
     // derive pubkey
-    let pubkey = tlv_to_pubkey(&tlv, &algo)?;
+    let pubkey = tlv_to_pubkey(&tlv, &cur_algo)?;
 
     log::trace!("public {:x?}", pubkey);
 
