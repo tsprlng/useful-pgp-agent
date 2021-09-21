@@ -80,33 +80,39 @@ impl CardUploadableKey for SequoiaKey {
                 Ok(PrivateKeyMaterial::R(Box::new(sq_rsa)))
             }
             (
-                mpi::PublicKey::ECDH { curve, .. },
+                mpi::PublicKey::ECDH { curve, q, .. },
                 mpi::SecretKeyMaterial::ECDH { scalar },
             ) => {
-                let sq_ecc =
-                    SqEccKey::new(curve.oid().to_vec(), scalar, EccType::ECDH);
+                let sq_ecc = SqEccKey::new(
+                    curve.oid().to_vec(),
+                    scalar,
+                    q,
+                    EccType::ECDH,
+                );
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
             (
-                mpi::PublicKey::ECDSA { curve, .. },
+                mpi::PublicKey::ECDSA { curve, q, .. },
                 mpi::SecretKeyMaterial::ECDSA { scalar },
             ) => {
                 let sq_ecc = SqEccKey::new(
                     curve.oid().to_vec(),
                     scalar,
+                    q,
                     EccType::ECDSA,
                 );
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
             (
-                mpi::PublicKey::EdDSA { curve, .. },
+                mpi::PublicKey::EdDSA { curve, q, .. },
                 mpi::SecretKeyMaterial::EdDSA { scalar },
             ) => {
                 let sq_ecc = SqEccKey::new(
                     curve.oid().to_vec(),
                     scalar,
+                    q,
                     EccType::EdDSA,
                 );
 
@@ -203,15 +209,22 @@ impl RSAKey for SqRSA {
 /// with the `openpgp-card` crate.
 struct SqEccKey {
     oid: Vec<u8>,
-    scalar: ProtectedMPI,
+    private: ProtectedMPI,
+    public: MPI,
     ecc_type: EccType,
 }
 
 impl SqEccKey {
-    fn new(oid: Vec<u8>, scalar: ProtectedMPI, ecc_type: EccType) -> Self {
+    fn new(
+        oid: Vec<u8>,
+        private: ProtectedMPI,
+        public: MPI,
+        ecc_type: EccType,
+    ) -> Self {
         SqEccKey {
             oid,
-            scalar,
+            private,
+            public,
             ecc_type,
         }
     }
@@ -222,8 +235,12 @@ impl EccKey for SqEccKey {
         &self.oid
     }
 
-    fn get_scalar(&self) -> &[u8] {
-        self.scalar.value()
+    fn get_private(&self) -> &[u8] {
+        self.private.value()
+    }
+
+    fn get_public(&self) -> &[u8] {
+        self.public.value()
     }
 
     fn get_type(&self) -> EccType {

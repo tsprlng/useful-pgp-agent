@@ -200,7 +200,7 @@ pub(crate) fn key_import(
             let ecc_attrs =
                 determine_ecc_attrs(&*ecc_key, key_type, algo_list)?;
 
-            let key_cmd = ecc_key_import_cmd(ecc_key, key_type)?;
+            let key_cmd = ecc_key_import_cmd(key_type, ecc_key, &ecc_attrs)?;
 
             (Algo::Ecc(ecc_attrs), key_cmd)
         }
@@ -284,20 +284,32 @@ fn determine_ecc_attrs(
     // If we have an algo_list, refuse upload if oid is not listed
     if let Some(algo_list) = algo_list {
         let oid = ecc_key.get_oid();
-        if !check_card_algo_ecc(algo_list, key_type, oid) {
+        let algos = check_card_algo_ecc(algo_list, key_type, oid);
+        if algos.is_empty() {
             // If oid is not in algo_list, return error.
             return Err(anyhow!(
                 "Oid {:?} unsupported according to algo_list",
                 oid
             ));
         }
+
+        // (Looking up ecc_type in the card's "Algorithm Information"
+        // seems to do more harm than good, so we don't do it.
+        // Some cards report erroneous information about supported algorithms
+        // - e.g. Yubikey 5 reports support for EdDSA over Cv25519 and
+        // Ed25519, but not ECDH).
+
+        if !algos.is_empty() {
+            return Ok(EccAttrs::new(
+                ecc_key.get_type(),
+                Curve::try_from(ecc_key.get_oid())?,
+                algos[0].import_format(),
+            ));
+        }
     }
 
-    // (Precisely looking up ECC algorithms in the card's "Algorithm
-    // Information" seems to do more harm than good, so we don't do it.
-    // Some cards report erroneous information about supported algorithms
-    // - e.g. Yubikey 5 reports support for EdDSA over Cv25519 and
-    // Ed25519, but not ECDH).
+    // Return a default when we have no algo_list.
+    // (Do cards that support ecc but have no algo_list exist?)
 
     Ok(EccAttrs::new(
         ecc_key.get_type(),
@@ -345,12 +357,12 @@ fn get_card_algo_rsa(
     }
 }
 
-/// Check if `oid` is supported for `key_type` in algo_list.
+/// Get all entries from algo_list with matching `oid` and `key_type`.
 fn check_card_algo_ecc(
     algo_list: AlgoInfo,
     key_type: KeyType,
     oid: &[u8],
-) -> bool {
+) -> Vec<EccAttrs> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
@@ -363,8 +375,13 @@ fn check_card_algo_ecc(
         .flatten()
         .collect();
 
-    // Check if this OID exists in the algorithm information for key_type
-    ecc_algos.iter().any(|e| e.oid() == oid)
+    // Find entries with this OID in the algorithm information for key_type
+    ecc_algos
+        .iter()
+        .filter(|e| e.oid() == oid)
+        .cloned()
+        .cloned()
+        .collect()
 }
 
 /// Create command for RSA key import
@@ -466,20 +483,49 @@ fn rsa_key_import_cmd(
 
 /// Create command for ECC key import
 fn ecc_key_import_cmd(
-    ecc_key: Box<dyn EccKey>,
     key_type: KeyType,
+    ecc_key: Box<dyn EccKey>,
+    ecc_attrs: &EccAttrs,
 ) -> Result<Command, Error> {
-    let scalar_data = ecc_key.get_scalar();
-    let scalar_len = scalar_data.len() as u8;
+    let private = ecc_key.get_private();
 
-    // 1) "Control Reference Template"
+    // Collect data for "Cardholder private key template" DO (7F48)
+    //
+    // (Describes the content of the Cardholder private key DO)
+    let mut cpkt_data = vec![];
+
+    // "Cardholder private key" (5F48)
+    //
+    // "The key data elements according to the definitions in the CPKT DO
+    // (7F48)."
+    let mut key_data = Vec::new();
+
+    // Process "scalar"
+    cpkt_data.push(0x92);
+    cpkt_data.extend_from_slice(&tlv_encode_length(private.len() as u16));
+
+    key_data.extend(private);
+
+    // Process "public", if the import format requires it
+    if ecc_attrs.import_format() == Some(0xff) {
+        let p = ecc_key.get_public();
+
+        cpkt_data.push(0x99);
+        cpkt_data.extend_from_slice(&tlv_encode_length(p.len() as u16));
+
+        key_data.extend(p);
+    }
+
+    // Assemble DOs
+
+    // "Cardholder private key template"
+    let cpkt = Tlv::new([0x7F, 0x48], Value::S(cpkt_data));
+
+    // "Cardholder private key"
+    let cpk = Tlv::new([0x5F, 0x48], Value::S(key_data));
+
+    // "Control Reference Template"
     let crt = get_crt(key_type)?;
-
-    // 2) "Cardholder private key template" (7F48)
-    let cpkt = Tlv::new([0x7F, 0x48], Value::S(vec![0x92, scalar_len]));
-
-    // 3) "Cardholder private key" (5F48)
-    let cpk = Tlv::new([0x5F, 0x48], Value::S(scalar_data.to_vec()));
 
     // "Extended header list (DO 4D)" (contains the three inner TLV)
     let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));

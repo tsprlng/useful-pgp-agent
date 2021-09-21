@@ -170,7 +170,17 @@ impl fmt::Display for Algo {
                 )
             }
             Self::Ecc(ecc) => {
-                write!(f, "{:?} ({:?})", ecc.curve, ecc.ecc_type)
+                write!(
+                    f,
+                    "{:?} ({:?}){}",
+                    ecc.curve,
+                    ecc.ecc_type,
+                    if ecc.import_format == Some(0xff) {
+                        " with pub"
+                    } else {
+                        ""
+                    }
+                )
             }
             Self::Unknown(u) => {
                 write!(f, "Unknown: {:?}", u)
@@ -287,6 +297,10 @@ impl EccAttrs {
 
     pub fn oid(&self) -> &[u8] {
         self.curve.oid()
+    }
+
+    pub fn import_format(&self) -> Option<u8> {
+        self.import_format
     }
 }
 
