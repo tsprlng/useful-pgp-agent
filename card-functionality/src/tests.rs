@@ -547,9 +547,8 @@ pub fn test_change_pw(
 
     // also set admin pw, which means pw1 is now only user-pw again, on gnuk
     println!("change pw3");
-    ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
-
-    // ca.change_pw3("12345678", "abcdefgh")?;
+    // ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
+    ca.change_pw3("12345678", "abcdefgh")?;
 
     println!("change pw1");
     ca.change_pw1("abcdef00", "abcdef")?; // gnuk
@@ -584,6 +583,12 @@ pub fn test_change_pw(
     println!("verify good pw3");
     ca.verify_pw3("abcdefgh")?;
 
+    println!("change pw3 back to default");
+    ca.change_pw3("abcdefgh", "12345678")?;
+
+    println!("change pw1 back to default");
+    ca.change_pw1("abcdef", "123456")?;
+
     Ok(out)
 }
 
@@ -600,10 +605,10 @@ pub fn test_reset_retry_counter(
     ca.change_pw1("123456", "123456")?;
 
     println!("break pw1");
-    let _ = ca.verify_pw1("wrong");
-    let _ = ca.verify_pw1("wrong");
-    let _ = ca.verify_pw1("wrong");
-    let res = ca.verify_pw1("wrong");
+    let _ = ca.verify_pw1("wrong0");
+    let _ = ca.verify_pw1("wrong0");
+    let _ = ca.verify_pw1("wrong0");
+    let res = ca.verify_pw1("wrong0");
 
     match res {
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
