@@ -57,7 +57,8 @@ impl ApplicationIdentifier {
     }
 
     /// This ident is constructed as the concatenation of manufacturer
-    /// id, a colon, and the card serial (in hexadecimal representation).
+    /// id, a colon, and the card serial (in hexadecimal representation,
+    /// with uppercase hex digits).
     ///
     /// It is a more easily human-readable, shorter form of the full
     /// 16-byte AID ("Application Identifier").
