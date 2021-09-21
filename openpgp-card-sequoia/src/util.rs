@@ -19,7 +19,7 @@ use openpgp::packet::{
     Key, UserID,
 };
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
-use openpgp::policy::StandardPolicy;
+use openpgp::policy::Policy;
 use openpgp::serialize::stream::{Message, Signer};
 use openpgp::types::{KeyFlags, PublicKeyAlgorithm, SignatureType, Timestamp};
 use openpgp::{Cert, Packet};
@@ -263,11 +263,11 @@ pub fn sign(
     ca: &mut CardApp,
     cert: &Cert,
     input: &mut dyn io::Read,
+    p: &dyn Policy,
 ) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
     {
-        let p = StandardPolicy::new();
-        let s = signer::CardSigner::new(ca, cert, &p)?;
+        let s = signer::CardSigner::new(ca, cert, p)?;
 
         let message = Message::new(&mut armorer);
         let mut message = Signer::new(message, s).detached().build()?;
@@ -288,16 +288,16 @@ pub fn decrypt(
     ca: &mut CardApp,
     cert: &Cert,
     msg: Vec<u8>,
+    p: &dyn Policy,
 ) -> Result<Vec<u8>> {
     let mut decrypted = Vec::new();
     {
         let reader = io::BufReader::new(&msg[..]);
 
-        let p = StandardPolicy::new();
-        let d = decryptor::CardDecryptor::new(ca, cert, &p)?;
+        let d = decryptor::CardDecryptor::new(ca, cert, p)?;
 
         let db = DecryptorBuilder::from_reader(reader)?;
-        let mut decryptor = db.with_policy(&p, None, d)?;
+        let mut decryptor = db.with_policy(p, None, d)?;
 
         // Read all data from decryptor and store in decrypted
         io::copy(&mut decryptor, &mut decrypted)?;

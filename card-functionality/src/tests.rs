@@ -65,8 +65,14 @@ pub fn test_decrypt(
 
     ca.verify_pw1("123456")?;
 
-    let res =
-        openpgp_card_sequoia::util::decrypt(&mut ca, &cert, msg.into_bytes())?;
+    let p = StandardPolicy::new();
+
+    let res = openpgp_card_sequoia::util::decrypt(
+        &mut ca,
+        &cert,
+        msg.into_bytes(),
+        &p,
+    )?;
     let plain = String::from_utf8_lossy(&res);
 
     assert_eq!(plain, "Hello world!\n");
@@ -85,9 +91,15 @@ pub fn test_sign(
 
     let cert = Cert::from_str(param[0])?;
 
+    let p = StandardPolicy::new();
+
     let msg = "Hello world, I am signed.";
-    let sig =
-        openpgp_card_sequoia::util::sign(&mut ca, &cert, &mut msg.as_bytes())?;
+    let sig = openpgp_card_sequoia::util::sign(
+        &mut ca,
+        &cert,
+        &mut msg.as_bytes(),
+        &p,
+    )?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);
