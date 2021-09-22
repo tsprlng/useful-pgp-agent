@@ -44,7 +44,7 @@ const ASSUAN_LINELENGTH: usize = 1000;
 ///
 /// In concrete terms, this limit means that some commands (with big
 /// parameters) cannot be sent to the card, when the card doesn't support
-/// command chaining (like the floss-shop OpenPGP Card 3.4).
+/// command chaining (like the floss-shop "OpenPGP Smart Card 3.4").
 ///
 /// In particular, uploading rsa4096 keys fails via scdaemon, with such cards.
 const CMD_SIZE_MAX: usize = ASSUAN_LINELENGTH / 2 - 25;
