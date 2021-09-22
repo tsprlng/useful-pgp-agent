@@ -30,7 +30,7 @@ const TEST_ENC_MSG: &str = "../example/encrypted_to_25519.asc";
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    // Ident of an OpenPGP Card to use for these tests
+    // Ident of an OpenPGP card to use for these tests
     let test_card_ident = env::var("TEST_CARD_IDENT");
 
     if let Ok(test_card_ident) = test_card_ident {

@@ -3,7 +3,7 @@
 
 //! Simple wrappers for performing very specific tasks with Sequoia PGP.
 //!
-//! These helpers are (almost) entirely unrelated to OpenPGP Card.
+//! These helpers are (almost) entirely unrelated to OpenPGP card.
 
 use anyhow::{anyhow, Context, Result};
 use std::io;

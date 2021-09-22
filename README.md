@@ -79,7 +79,7 @@ ignore the lower level crates as implementation details.
 ## Acknowledgements
 
 This project is based on the 
-[OpenPGP Card spec](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf),
+[OpenPGP card spec](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf),
 version 3.4.1.
 
 Other helpful resources included:
