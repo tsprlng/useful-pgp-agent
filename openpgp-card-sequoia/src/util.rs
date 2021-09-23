@@ -305,3 +305,16 @@ pub fn decrypt(
 
     Ok(decrypted)
 }
+
+/// This fn prepends zeros to `value` so that the resulting Vec<u8> has
+/// len `size`.
+///
+/// (Leading zero-bytes may be stripped from MPIs, this fn is a helper for
+/// re-creating the non-stripped representation of an MPI)
+pub(crate) fn left_zero_pad(value: &[u8], size: usize) -> Vec<u8> {
+    let pad = size - value.len();
+    let mut res = vec![0; pad];
+    res.extend_from_slice(value);
+
+    res
+}

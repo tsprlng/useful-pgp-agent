@@ -20,6 +20,9 @@ use openpgp_card::crypto_data::{
     CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey,
 };
 use openpgp_card::Error;
+use sequoia_openpgp::types::Curve;
+
+use crate::util;
 
 /// A SequoiaKey represents the private cryptographic key material of an
 /// OpenPGP (sub)key to be uploaded to an OpenPGP card.
@@ -83,12 +86,7 @@ impl CardUploadableKey for SequoiaKey {
                 mpi::PublicKey::ECDH { curve, q, .. },
                 mpi::SecretKeyMaterial::ECDH { scalar },
             ) => {
-                let sq_ecc = SqEccKey::new(
-                    curve.oid().to_vec(),
-                    scalar,
-                    q,
-                    EccType::ECDH,
-                );
+                let sq_ecc = SqEccKey::new(curve, scalar, q, EccType::ECDH);
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
@@ -96,12 +94,7 @@ impl CardUploadableKey for SequoiaKey {
                 mpi::PublicKey::ECDSA { curve, q, .. },
                 mpi::SecretKeyMaterial::ECDSA { scalar },
             ) => {
-                let sq_ecc = SqEccKey::new(
-                    curve.oid().to_vec(),
-                    scalar,
-                    q,
-                    EccType::ECDSA,
-                );
+                let sq_ecc = SqEccKey::new(curve, scalar, q, EccType::ECDSA);
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
@@ -109,19 +102,13 @@ impl CardUploadableKey for SequoiaKey {
                 mpi::PublicKey::EdDSA { curve, q, .. },
                 mpi::SecretKeyMaterial::EdDSA { scalar },
             ) => {
-                let sq_ecc = SqEccKey::new(
-                    curve.oid().to_vec(),
-                    scalar,
-                    q,
-                    EccType::EdDSA,
-                );
+                let sq_ecc = SqEccKey::new(curve, scalar, q, EccType::EdDSA);
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
             (p, s) => {
                 unimplemented!(
-                    "Unexpected algorithms: public {:?}, \
-                secret {:?}",
+                    "Unexpected algorithms: public {:?}, secret {:?}",
                     p,
                     s
                 );
@@ -208,7 +195,7 @@ impl RSAKey for SqRSA {
 /// ECC-specific data-structure to hold private (sub)key material for upload
 /// with the `openpgp-card` crate.
 struct SqEccKey {
-    oid: Vec<u8>,
+    curve: Curve,
     private: ProtectedMPI,
     public: MPI,
     ecc_type: EccType,
@@ -216,13 +203,13 @@ struct SqEccKey {
 
 impl SqEccKey {
     fn new(
-        oid: Vec<u8>,
+        curve: Curve,
         private: ProtectedMPI,
         public: MPI,
         ecc_type: EccType,
     ) -> Self {
         SqEccKey {
-            oid,
+            curve,
             private,
             public,
             ecc_type,
@@ -232,15 +219,22 @@ impl SqEccKey {
 
 impl EccKey for SqEccKey {
     fn get_oid(&self) -> &[u8] {
-        &self.oid
+        self.curve.oid()
     }
 
-    fn get_private(&self) -> &[u8] {
-        self.private.value()
+    fn get_private(&self) -> Vec<u8> {
+        // FIXME: padding for 25519?
+        match self.curve {
+            Curve::NistP256 => util::left_zero_pad(self.private.value(), 0x20),
+            Curve::NistP384 => util::left_zero_pad(self.private.value(), 0x30),
+            Curve::NistP521 => util::left_zero_pad(self.private.value(), 0x42),
+            _ => self.private.value().to_vec(),
+        }
     }
 
-    fn get_public(&self) -> &[u8] {
-        self.public.value()
+    fn get_public(&self) -> Vec<u8> {
+        // FIXME: padding?
+        self.public.value().to_vec()
     }
 
     fn get_type(&self) -> EccType {

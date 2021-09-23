@@ -100,8 +100,8 @@ pub trait RSAKey {
 /// card.
 pub trait EccKey {
     fn get_oid(&self) -> &[u8];
-    fn get_private(&self) -> &[u8];
-    fn get_public(&self) -> &[u8];
+    fn get_private(&self) -> Vec<u8>;
+    fn get_public(&self) -> Vec<u8>;
     fn get_type(&self) -> EccType;
 }
 
