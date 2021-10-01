@@ -4,6 +4,7 @@
 
 [workspace]
 members = [
+    "openpgp-card-apps",
     "openpgp-card",
     "openpgp-card-sequoia",
     "pcsc",
