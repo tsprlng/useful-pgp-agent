@@ -85,6 +85,9 @@ pub enum PrivateKeyMaterial {
 /// RSA-specific container for private key material to upload to an OpenPGP
 /// card.
 pub trait RSAKey {
+    // FIXME: use a mechanism like sequoia_openpgp::crypto::mem::Protected
+    // for private key material?
+
     fn get_e(&self) -> &[u8];
     fn get_p(&self) -> &[u8];
     fn get_q(&self) -> &[u8];
@@ -99,6 +102,9 @@ pub trait RSAKey {
 /// ECC-specific container for private key material to upload to an OpenPGP
 /// card.
 pub trait EccKey {
+    // FIXME: use a mechanism like sequoia_openpgp::crypto::mem::Protected
+    // for private key material?
+
     fn get_oid(&self) -> &[u8];
     fn get_private(&self) -> Vec<u8>;
     fn get_public(&self) -> Vec<u8>;
