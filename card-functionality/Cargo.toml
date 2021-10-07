@@ -23,6 +23,10 @@ path = "src/keygen.rs"
 name = "other"
 path = "src/other.rs"
 
+[[bin]]
+name = "list-cards"
+path = "src/list-cards.rs"
+
 [dependencies]
 openpgp-card = { path = "../openpgp-card" }
 openpgp-card-sequoia = { path = "../openpgp-card-sequoia" }
