@@ -3,12 +3,15 @@ SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
-The main purpose of this test suite is to be able to test the behavior
-of different OpenPGP card implementation.
+This test suite has two goals:
 
-These tests rely partly on the card-app abstraction layer in
-openpgp-card. For crypto-operations, the higher level API 
-openpgp-card-sequoia (which relies on Sequoia PGP) is also used.
+1) To test openpgp-card and its backends, as well as openpgp-card-sequoia.
+2) To be able to compare the behavior of different OpenPGP card
+   implementations.
+
+The tests are built mostly on top of the `card-app` abstraction layer in
+`openpgp-card`. For crypto-operations, the higher level API 
+`openpgp-card-sequoia` (which relies on Sequoia PGP) is used.
 
 
 # Building / Dependencies
@@ -24,14 +27,15 @@ Fedora 34:
 
 These tests assert (and fail) in cases where a certain behavior is
 expected from all cards, and a card doesn't conform.
-However, in some aspects, card behavior is expected to diverge, and
-it's not ok for us to just fail and reject the card's output,
-even when it contradicts the OpenPGP card spec.
+
+However, card behavior diverges from the spec in some cases.
+It's not ok for us to just fail and reject the card's output, in some of 
+these cases, even when a card contradicts the OpenPGP card spec.
 
 For such cases, these tests return a TestOutput (which is a
 Vec<TestResult>), to document the return values of the card in question.
 
-## Example for card-specific behavior
+## Example for card-specific behavior that contradicts the spec
 
 Yubikey 5 fails to handle the VERIFY command with empty data
 (see OpenPGP card spec, 7.2.2: "If the command is called
@@ -55,7 +59,20 @@ systemctl start pcscd
 (Alternatively, you could use the experimental scdaemon backend)
 
 
-# Running tests against an emulated Gnuk via PC/SC
+# Running tests against emulated Gnuk via PC/SC
+
+## About Gnuk
+
+Gnuk is a free implementation of the OpenPGP card spec by 
+[Gniibe](https://www.gniibe.org/), see:
+http://www.fsij.org/doc-gnuk/. (Gniibe also designs and produces open 
+hardware to run the Gnuk software on, see https://www.gniibe.org/tag/fst-01.html)
+
+For our purposes, we will run the Gnuk code in "emulated" mode, meaning it 
+will run on our host, instead of on a USB-connected device (as one would 
+usually use Gnuk).
+
+## Building Gnuk
 
 Install additional dependencies (Debian 11: `# apt install make usbip`,
 Fedora 34: `# dnf install make usbip`)
@@ -75,18 +92,19 @@ git checkout master
 cd ../src
 ```
 
-## Build the emulated Gnuk
+Now we can build the emulated Gnuk.
 
-We aren't using KDF in our tests, so we disable Gnuk's default behavior 
+We don't want to use KDF in our tests, so we disable Gnuk's default behavior 
 (by default, emulated Gnuk considers KDF "required") with the 
-"kdf_do=optional" variable.
+"kdf_do=optional" variable (I am not aware of any OpenPGP card that 
+requires KDF by default, so the tests currently don't use KDF).
 
 ```
 kdf_do=optional ./configure --target=GNU_LINUX --enable-factory-reset
 make
 ```
 
-## Run the emulated Gnuk
+## Running the emulated Gnuk
 
 Emulated Gnuk connects to the system via http://usbip.sourceforge.net/.
 This means that we need to load the kernel module `vhci_hcd` to connect 
@@ -119,8 +137,8 @@ Scanning present readers...
 
 ## Run the card-functionality tests against the emulated Gnuk
 
-Determine the ident of connected OpenPGP cards (and specifically of our 
-emulated Gnuk instance):
+First, we determine the ident of connected OpenPGP cards (and specifically of 
+our emulated Gnuk instance):
 
 ```
 $ cargo run --bin list-cards
@@ -130,8 +148,8 @@ The following OpenPGP cards are connected to your system:
  FFFE:F1420A7A
 ```
 
-Edit the test config file in `config/test-cards.toml` to use this emulated 
-Gnuk, e.g. like this:
+The we edit the test config file in `config/test-cards.toml` to use this 
+emulated Gnuk. The configuration should look like this:
 
 ```
 [card.gnuk_emu]
@@ -140,7 +158,7 @@ config.keygen = ["RSA2k/32", "Curve25519"]
 config.import = ["data/rsa2k.sec", "data/rsa4k.sec", "data/25519.sec"]
 ```
 
-Running the import and key generation tests:
+Now we can run the `card-functionality` tests, e.g. import and key generation:
 
 ```
 $ cargo run --bin import
