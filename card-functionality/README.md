@@ -16,24 +16,32 @@ The tests are built mostly on top of the `card-app` abstraction layer in
 
 # Building / Dependencies
 
-To build this crate on Debian 11, you need to install 
+To build this crate on Debian 11, these packages are needed: `apt install 
+rustc libpcsclite-dev pkg-config nettle-dev clang libclang-dev`.
 
-`apt install rustc libpcsclite-dev pkg-config nettle-dev clang libclang-dev`
-
-Fedora 34:
-`dnf install rustc cargo pcsc-lite-devel pkg-config nettle-devel clang clang-devel`
+(Fedora 34: `dnf install rustc cargo pcsc-lite-devel pkg-config 
+nettle-devel clang clang-devel`)
 
 # Purpose
 
-These tests assert (and fail) in cases where a certain behavior is
-expected from all cards, and a card doesn't conform.
+These tests fail in cases when essential and expected functionality of a 
+card is not working.
 
-However, card behavior diverges from the spec in some cases.
-It's not ok for us to just fail and reject the card's output, in some of 
-these cases, even when a card contradicts the OpenPGP card spec.
+The scope of what is expected from a specific card is defined in 
+`config/test-cards.toml` (in particular, this configuration specifies 
+which algorithms we expect a card to handle for on-card key generation and 
+for key import, respectively - cards can't signal in detail what they 
+support: e.g. a card may support RSA4096 when importing keys, but not be 
+able to generate such keys on the card).
 
-For such cases, these tests return a TestOutput (which is a
-Vec<TestResult>), to document the return values of the card in question.
+However, in practice, behavior of cards often diverges from the spec in 
+various small ways.
+In many of those cases, it's not ok for these tests to fail and reject 
+the card's output - even when a card contradicts the OpenPGP card spec.
+
+In such cases, these tests return information about the return values of 
+the card in the `TestOutput` data structure, to document that card's 
+behavior.
 
 ## Example for card-specific behavior that contradicts the spec
 
@@ -56,21 +64,26 @@ systemctl enable pcscd
 systemctl start pcscd
 ```
 
-(Alternatively, you could use the experimental scdaemon backend)
+(Alternatively, you could use the experimental
+[scdaemon backend](https://gitlab.com/hkos/openpgp-card/-/tree/scdc))
 
 
-# Running tests against emulated Gnuk via PC/SC
+# Running tests (against emulated Gnuk via PC/SC)
+
+In this section we will set up an "emulated Gnuk" OpenPGP card on your 
+computer that you can run the tests against.
+
 
 ## About Gnuk
 
 Gnuk is a free implementation of the OpenPGP card spec by 
-[Gniibe](https://www.gniibe.org/), see:
-http://www.fsij.org/doc-gnuk/. (Gniibe also designs and produces open 
-hardware to run the Gnuk software on, see https://www.gniibe.org/tag/fst-01.html)
+[Gniibe](https://www.gniibe.org/), see: http://www.fsij.org/doc-gnuk/
+(Gniibe also designs and produces
+[an open hardware USB token for Gnuk](https://www.gniibe.org/tag/fst-01.html))
 
-For our purposes, we will run the Gnuk code in "emulated" mode, meaning it 
-will run on our host, instead of on a USB-connected device (as one would 
-usually use Gnuk).
+For testing purposes, we will run the Gnuk code in "emulated" mode 
+(here, "emulated" means: Gnuk will run directly on our host system, 
+instead of on a USB-connected device as one would usually use Gnuk).
 
 ## Building Gnuk
 
@@ -96,7 +109,7 @@ Now we can build the emulated Gnuk.
 
 We don't want to use KDF in our tests, so we disable Gnuk's default behavior 
 (by default, emulated Gnuk considers KDF "required") with the 
-"kdf_do=optional" variable (I am not aware of any OpenPGP card that 
+`kdf_do=optional` variable (I am not aware of any OpenPGP card that 
 requires KDF by default, so the tests currently don't use KDF).
 
 ```
@@ -137,8 +150,10 @@ Scanning present readers...
 
 ## Run the card-functionality tests against the emulated Gnuk
 
-First, we determine the ident of connected OpenPGP cards (and specifically of 
-our emulated Gnuk instance):
+First, we determine the `ident` of all connected OpenPGP cards (we're 
+looking specifically for our emulated Gnuk instance, which will show up 
+with the manufacturer code "FFFE", from the "Range reserved for randomly 
+assigned serial numbers"):
 
 ```
 $ cargo run --bin list-cards
@@ -148,14 +163,14 @@ The following OpenPGP cards are connected to your system:
  FFFE:F1420A7A
 ```
 
-The we edit the test config file in `config/test-cards.toml` to use this 
+Then we edit the test config file in `config/test-cards.toml` to use this 
 emulated Gnuk. The configuration should look like this:
 
 ```
 [card.gnuk_emu]
 backend.pcsc = "FFFE:F1420A7A"
-config.keygen = ["RSA2k/32", "Curve25519"]
-config.import = ["data/rsa2k.sec", "data/rsa4k.sec", "data/25519.sec"]
+config.keygen = ["RSA2k/32", "NIST256", "Curve25519"]
+config.import = ["data/rsa2k.sec", "data/rsa4k.sec", "data/nist256.sec", "data/25519.sec"]
 ```
 
 Now we can run the `card-functionality` tests, e.g. import and key generation:
@@ -167,3 +182,17 @@ $ cargo run --bin import
 $ cargo run --bin keygen
 [...]
 ```
+
+# Running tests against a physical OpenPGP card token
+
+Instead of running these tests against an emulated Gnuk, you can of course 
+use a physical OpenPGP card. This is actually easier to do: you can just 
+plug in a physical card, without needing to build or run any code.
+
+However, be aware that these tests **delete all state on your card**!
+Any **keys on your card will be deleted** when you run these tests.
+
+To run the tests against any card, you need to explicitly configure that card
+in the configuration file `config/test-cards.toml`. Without specifying a 
+card's identifier in the test configuration, tests will not be run 
+against a card, even if you have the card plugged in while running tests.
