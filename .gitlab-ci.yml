@@ -1,6 +1,13 @@
 # SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 # SPDX-License-Identifier: CC0-1.0
 
+stages:
+  - build
+  - test
+  - docker-build
+  - docker-test
+  - deploy
+
 reuse:
   image:
     name: fsfe/reuse:latest
@@ -35,3 +42,81 @@ cargo-fmt:
   script:
     - rustup component add rustfmt
     - cargo fmt -- --check
+
+build_cardtest_smartpgp:
+  stage: docker-build
+  image: docker:stable
+
+  variables:
+    IMAGE_LATEST: $CI_REGISTRY_IMAGE/cardtest-smartpgp:latest
+    IMAGE_SHA: $CI_REGISTRY_IMAGE/cardtest-smartpgp:$CI_COMMIT_SHA
+  services:
+    - docker:stable-dind
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker pull $IMAGE_LATEST || true
+    - docker build -f card-functionality/docker/Dockerfile.cardtest.smartpgp --cache-from $IMAGE_LATEST -t $IMAGE_SHA -t $IMAGE_LATEST .
+    - docker push $IMAGE_SHA
+    - docker push $IMAGE_LATEST
+  needs: []
+
+build_cardtest_ykneo:
+  stage: docker-build
+  image: docker:stable
+
+  variables:
+    IMAGE_LATEST: $CI_REGISTRY_IMAGE/cardtest-ykneo:latest
+    IMAGE_SHA: $CI_REGISTRY_IMAGE/cardtest-ykneo:$CI_COMMIT_SHA
+  services:
+    - docker:stable-dind
+  before_script:
+    - docker info
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker pull $IMAGE_LATEST || true
+    - docker build -f card-functionality/docker/Dockerfile.cardtest.ykneo --cache-from $IMAGE_LATEST -t $IMAGE_SHA -t $IMAGE_LATEST .
+    - docker push $IMAGE_SHA
+    - docker push $IMAGE_LATEST
+  needs: []
+
+run_cardtest_smartpgp_import:
+  stage: docker-test
+  image: registry.gitlab.com/hkos/openpgp-card/cardtest-smartpgp
+
+  script:
+    - cd /
+    - sh run.sh import
+  needs: ["build_cardtest_smartpgp"]
+
+run_cardtest_smartpgp_keygen:
+  stage: docker-test
+  image: registry.gitlab.com/hkos/openpgp-card/cardtest-smartpgp
+
+  script:
+    - cd /
+    - sh run.sh keygen
+
+  # run after import test - running tests in parallel on the same card fails
+  needs: ["run_cardtest_smartpgp_import"]
+
+run_cardtest_ykneo_import:
+  stage: docker-test
+  image: registry.gitlab.com/hkos/openpgp-card/cardtest-ykneo
+
+  script:
+    - cd /
+    - sh run.sh import
+  needs: ["build_cardtest_ykneo"]
+
+run_cardtest_ykneo_keygen:
+  stage: docker-test
+  image: registry.gitlab.com/hkos/openpgp-card/cardtest-ykneo
+
+  script:
+    - cd /
+    - sh run.sh keygen
+
+  # run after import test - running tests in parallel on the same card fails
+  needs: ["run_cardtest_ykneo_import"]

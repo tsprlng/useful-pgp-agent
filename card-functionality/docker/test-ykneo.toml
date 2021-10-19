@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
+[card.ykneo]
+backend.pcsc = "0006:11112222"
+config.keygen = [
+    "RSA2k/17",
+]
+config.import = [
+    "data/rsa2k.sec",
+]
