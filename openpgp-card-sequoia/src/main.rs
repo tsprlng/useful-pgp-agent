@@ -117,29 +117,32 @@ fn main() -> Result<(), Box<dyn Error>> {
         let cert = Cert::from_file(TEST_KEY_PATH)?;
         let p = StandardPolicy::new();
 
-        println!("Upload decryption key");
-        let vka = openpgp_card_sequoia::sq_util::get_subkey(
-            &cert,
-            &p,
-            KeyType::Decryption,
-        )?;
-        admin.upload_key(vka, KeyType::Decryption, None)?;
-
-        println!("Upload signing key");
-        let vka = openpgp_card_sequoia::sq_util::get_subkey(
+        if let Some(vka) = openpgp_card_sequoia::sq_util::get_subkey(
             &cert,
             &p,
             KeyType::Signing,
-        )?;
-        admin.upload_key(vka, KeyType::Signing, None)?;
+        )? {
+            println!("Upload signing key");
+            admin.upload_key(vka, KeyType::Signing, None)?;
+        }
 
-        println!("Upload auth key");
-        let vka = openpgp_card_sequoia::sq_util::get_subkey(
+        if let Some(vka) = openpgp_card_sequoia::sq_util::get_subkey(
+            &cert,
+            &p,
+            KeyType::Decryption,
+        )? {
+            println!("Upload decryption key");
+            admin.upload_key(vka, KeyType::Decryption, None)?;
+        }
+
+        if let Some(vka) = openpgp_card_sequoia::sq_util::get_subkey(
             &cert,
             &p,
             KeyType::Authentication,
-        )?;
-        admin.upload_key(vka, KeyType::Authentication, None)?;
+        )? {
+            println!("Upload auth key");
+            admin.upload_key(vka, KeyType::Authentication, None)?;
+        }
 
         println!();
 

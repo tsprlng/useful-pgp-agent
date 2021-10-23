@@ -25,12 +25,13 @@ use openpgp_card::KeyType;
 
 /// Retrieve a (sub)key from a Cert, for a given KeyType.
 ///
-/// If no, or multiple suitable (sub)keys are found, an error is thrown.
+/// Returns Ok(None), if no such (sub)key exists.
+/// If multiple suitable (sub)keys are found, an error is returned.
 pub fn get_subkey<'a>(
     cert: &'a Cert,
     policy: &'a dyn Policy,
     key_type: KeyType,
-) -> Result<ValidErasedKeyAmalgamation<'a, SecretParts>> {
+) -> Result<Option<ValidErasedKeyAmalgamation<'a, SecretParts>>> {
     // Find all suitable (sub)keys for key_type.
     let valid_ka = cert
         .keys()
@@ -47,8 +48,10 @@ pub fn get_subkey<'a>(
 
     let mut vkas: Vec<_> = valid_ka.collect();
 
-    if vkas.len() == 1 {
-        Ok(vkas.pop().unwrap())
+    if vkas.is_empty() {
+        Ok(None)
+    } else if vkas.len() == 1 {
+        Ok(Some(vkas.pop().unwrap()))
     } else {
         Err(anyhow!(
             "Unexpected number of suitable (sub)key found: {}",

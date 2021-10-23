@@ -35,22 +35,22 @@ pub(crate) fn upload_subkeys(
         KeyType::Decryption,
         KeyType::Authentication,
     ] {
-        let vka = get_subkey(cert, policy, *kt)?;
+        if let Some(vka) = get_subkey(cert, policy, *kt)? {
+            // store fingerprint as return-value
+            let fp = vka.fingerprint().to_hex();
+            // store key creation time as return-value
+            let creation = vka
+                .creation_time()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as u32;
 
-        // store fingerprint as return-value
-        let fp = vka.fingerprint().to_hex();
-        // store key creation time as return-value
-        let creation = vka
-            .creation_time()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as u32;
+            out.push((fp, creation.into()));
 
-        out.push((fp, creation.into()));
-
-        // upload key
-        let cuk = vka_as_uploadable_key(vka, None);
-        ca.key_import(cuk, *kt)?;
+            // upload key
+            let cuk = vka_as_uploadable_key(vka, None);
+            ca.key_import(cuk, *kt)?;
+        }
     }
 
     Ok(out)
