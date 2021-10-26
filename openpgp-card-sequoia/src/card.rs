@@ -113,6 +113,15 @@ impl Open {
         self.card_app.change_pw1(old, new)
     }
 
+    pub fn reset_user_pin(
+        &mut self,
+        rst: &str,
+        new: &str,
+    ) -> Result<Response, Error> {
+        self.card_app
+            .reset_retry_counter_pw1(new.into(), Some(rst.into()))
+    }
+
     pub fn change_admin_pin(
         &mut self,
         old: &str,
@@ -362,6 +371,17 @@ impl Admin<'_> {
         } else {
             Err(anyhow!("URL too long").into())
         }
+    }
+
+    pub fn set_resetting_code(
+        &mut self,
+        pin: &str,
+    ) -> Result<Response, Error> {
+        self.oc.card_app.set_resetting_code(pin.into())
+    }
+
+    pub fn reset_user_pin(&mut self, new: &str) -> Result<Response, Error> {
+        self.oc.card_app.reset_retry_counter_pw1(new.into(), None)
     }
 
     /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.
