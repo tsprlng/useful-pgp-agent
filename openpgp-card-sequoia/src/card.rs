@@ -104,6 +104,23 @@ impl Open {
     pub fn check_admin_verified(&mut self) -> Result<Response, Error> {
         self.card_app.check_pw3()
     }
+
+    pub fn change_user_pin(
+        &mut self,
+        old: &str,
+        new: &str,
+    ) -> Result<Response, Error> {
+        self.card_app.change_pw1(old, new)
+    }
+
+    pub fn change_admin_pin(
+        &mut self,
+        old: &str,
+        new: &str,
+    ) -> Result<Response, Error> {
+        self.card_app.change_pw3(old, new)
+    }
+
     /// Get a view of the card authenticated for "User" commands.
     pub fn user_card(&mut self) -> Option<User> {
         if self.pw1 {
