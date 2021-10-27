@@ -3,7 +3,7 @@ Upstream-Name: OpenPGP card
 Upstream-Contact: Heiko Schaefer <heiko@schaefer.name>
 Source: https://gitlab.com/hkos/openpgp-card
 
-Files: example/*
+Files: openpgp-card-sequoia/example/*
 Copyright: 2021 Heiko Schaefer <heiko@schaefer.name>
 License: CC0-1.0
 

@@ -18,14 +18,14 @@ use openpgp_card_sequoia::sq_util::{decryption_helper, sign_helper};
 
 // Filename of test key and test message to use
 
-// const TEST_KEY_PATH: &str = "../example/test4k.sec";
-// const TEST_ENC_MSG: &str = "../example/encrypted_to_rsa4k.asc";
+// const TEST_KEY_PATH: &str = "example/test4k.sec";
+// const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
 
-// const TEST_KEY_PATH: &str = "../example/nist521.sec";
-// const TEST_ENC_MSG: &str = "../example/encrypted_to_nist521.asc";
+// const TEST_KEY_PATH: &str = "example/nist521.sec";
+// const TEST_ENC_MSG: &str = "example/encrypted_to_nist521.asc";
 
-const TEST_KEY_PATH: &str = "../example/test25519.sec";
-const TEST_ENC_MSG: &str = "../example/encrypted_to_25519.asc";
+const TEST_KEY_PATH: &str = "example/test25519.sec";
+const TEST_ENC_MSG: &str = "example/encrypted_to_25519.asc";
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
