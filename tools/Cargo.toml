@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2021 Wiktor Kwapisiewicz <wiktor@metacode.biz>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+name = "openpgp-card-tools"
+description = "Tools for using OpenPGP cards from the command line"
+license = "MIT OR Apache-2.0"
+version = "0.0.1"
+authors = ["Heiko Schaefer <heiko@schaefer.name>"]
+edition = "2018"
+repository = "https://gitlab.com/hkos/openpgp-card"
+documentation = "https://docs.rs/crate/openpgp-card-tools"
+
+[dependencies]
+sequoia-openpgp = "1.3"
+nettle = "7"
+openpgp-card = { path = "../openpgp-card", version = "0.0.4" }
+openpgp-card-pcsc = { path = "../pcsc", version = "0.0.4" }
+openpgp-card-scdc = { path = "../scdc", version = "0.0.2" }
+openpgp-card-sequoia = { path = "../openpgp-card-sequoia", version = "0.0.3" }
+rpassword = "5"
+chrono = "0.4"
+anyhow = "1"
+thiserror = "1"
+structopt = "0.3"
+clap = "2.33"
+env_logger = "0.8"
+log = "0.4"
