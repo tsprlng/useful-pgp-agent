@@ -542,6 +542,7 @@ pub fn test_change_pw(
     let mut out = vec![];
 
     // first do admin-less pw1 on gnuk
+    // (NOTE: Gnuk requires a key to be loaded before allowing pw changes!)
     println!("change pw1");
     ca.change_pw1("123456", "abcdef00")?;
 
