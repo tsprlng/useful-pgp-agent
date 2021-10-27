@@ -18,7 +18,7 @@ use openpgp::parse::{
 };
 use openpgp::policy::Policy;
 use openpgp::serialize::stream::{Message, Signer};
-use openpgp::Cert;
+use openpgp::{Cert, Fingerprint};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::KeyType;
@@ -54,6 +54,36 @@ pub fn get_subkey<'a>(
         Ok(Some(vkas.pop().unwrap()))
     } else {
         Err(anyhow!(
+            "Unexpected number of suitable (sub)key found: {}",
+            vkas.len()
+        ))
+    }
+}
+
+/// Retrieve a (sub)key from a Cert, with a specified fingerprint.
+pub fn get_subkey_by_fingerprint<'a>(
+    cert: &'a Cert,
+    policy: &'a dyn Policy,
+    fingerprint: &str,
+) -> Result<Option<ValidErasedKeyAmalgamation<'a, SecretParts>>> {
+    let fp = Fingerprint::from_hex(fingerprint)?;
+
+    // Find usable (sub)key with Fingerprint fp.
+    let mut vkas: Vec<_> = cert
+        .keys()
+        .with_policy(policy, None)
+        .secret()
+        .alive()
+        .revoked(false)
+        .filter(|vka| vka.fingerprint() == fp)
+        .collect();
+
+    if vkas.is_empty() {
+        Ok(None)
+    } else if vkas.len() == 1 {
+        Ok(Some(vkas.pop().unwrap()))
+    } else {
+        Err(anyhow::anyhow!(
             "Unexpected number of suitable (sub)key found: {}",
             vkas.len()
         ))

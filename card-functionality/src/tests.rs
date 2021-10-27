@@ -454,7 +454,7 @@ pub fn test_pw_status(
 
     ca.verify_pw3("12345678")?;
 
-    pws.set_pw1_cds_multi(true);
+    pws.set_pw1_cds_valid_once(false);
     pws.set_pw1_pin_block(true);
 
     ca.set_pw_status_bytes(&pws, false)?;

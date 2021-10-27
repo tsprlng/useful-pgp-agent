@@ -4,8 +4,10 @@
 //! OpenPGP card data objects (DO)
 
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Utc};
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::time::{Duration, UNIX_EPOCH};
 
 use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType};
 
@@ -193,6 +195,13 @@ impl KeyGenerationTime {
     pub fn get(&self) -> u32 {
         self.0
     }
+
+    pub fn formatted(&self) -> String {
+        let d = UNIX_EPOCH + Duration::from_secs(self.get() as u64);
+        let datetime = DateTime::<Utc>::from(d);
+
+        datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
 }
 
 /// 4.2.1 Application Identifier (AID)
@@ -312,7 +321,7 @@ impl From<u8> for Sex {
 /// PW status Bytes (see spec page 23)
 #[derive(Debug, PartialEq)]
 pub struct PWStatusBytes {
-    pub(crate) pw1_cds_multi: bool,
+    pub(crate) pw1_cds_valid_once: bool,
     pub(crate) pw1_pin_block: bool,
     pub(crate) pw1_len: u8,
     pub(crate) rc_len: u8,
@@ -324,8 +333,8 @@ pub struct PWStatusBytes {
 }
 
 impl PWStatusBytes {
-    pub fn set_pw1_cds_multi(&mut self, val: bool) {
-        self.pw1_cds_multi = val;
+    pub fn set_pw1_cds_valid_once(&mut self, val: bool) {
+        self.pw1_cds_valid_once = val;
     }
     pub fn set_pw1_pin_block(&mut self, val: bool) {
         self.pw1_pin_block = val;
@@ -333,11 +342,44 @@ impl PWStatusBytes {
     pub fn set_pw3_pin_block(&mut self, val: bool) {
         self.pw3_pin_block = val;
     }
+
+    pub fn get_pw1_cds_valid_once(&self) -> bool {
+        self.pw1_cds_valid_once
+    }
+
+    pub fn get_err_count_pw1(&self) -> u8 {
+        self.err_count_pw1
+    }
+    pub fn get_err_count_rst(&self) -> u8 {
+        self.err_count_rst
+    }
+    pub fn get_err_count_pw3(&self) -> u8 {
+        self.err_count_pw3
+    }
 }
 
 /// Fingerprint (see spec pg. 23)
 #[derive(Clone, Eq, PartialEq)]
 pub struct Fingerprint([u8; 20]);
+
+impl Fingerprint {
+    pub fn to_spaced_hex(&self) -> String {
+        let mut fp = String::new();
+
+        for i in 0..20 {
+            fp.push_str(&format!("{:02X}", self.0[i]));
+
+            if i < 19 && (i % 2 == 1) {
+                fp.push(' ');
+            }
+            if i == 9 {
+                fp.push(' ');
+            }
+        }
+
+        fp
+    }
+}
 
 /// Helper fn for nom parsing
 pub(crate) fn complete<O>(

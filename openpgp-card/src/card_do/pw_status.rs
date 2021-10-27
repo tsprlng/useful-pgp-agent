@@ -18,7 +18,7 @@ impl PWStatusBytes {
     pub(crate) fn serialize_for_put(&self, long: bool) -> Vec<u8> {
         let mut data = vec![];
 
-        data.push(if !self.pw1_cds_multi { 0 } else { 1 });
+        data.push(if self.pw1_cds_valid_once { 0 } else { 1 });
 
         if long {
             let mut b2 = self.pw1_len;
@@ -45,7 +45,7 @@ impl TryFrom<&[u8]> for PWStatusBytes {
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         if input.len() == 7 {
-            let pw1_cds_multi = input[0] == 0x01;
+            let pw1_cds_valid_once = input[0] == 0x00;
             let pw1_pin_block = input[1] & 0x80 != 0;
             let pw1_len = input[1] & 0x7f;
             let rc_len = input[2];
@@ -56,7 +56,7 @@ impl TryFrom<&[u8]> for PWStatusBytes {
             let err_count_pw3 = input[6];
 
             Ok(Self {
-                pw1_cds_multi,
+                pw1_cds_valid_once,
                 pw1_pin_block,
                 pw1_len,
                 rc_len,
@@ -90,7 +90,7 @@ mod test {
         assert_eq!(
             pws,
             PWStatusBytes {
-                pw1_cds_multi: false,
+                pw1_cds_valid_once: true,
                 pw1_pin_block: false,
                 pw1_len: 0x40,
                 rc_len: 0x40,
