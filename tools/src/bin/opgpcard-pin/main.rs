@@ -4,6 +4,7 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
+use openpgp_card::{Error, Response, StatusBytes};
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::card::Open;
 
@@ -23,6 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // verify pin
             card.verify_user(&pin)?;
+            println!("PIN was accepted by the card.\n");
 
             // get new user pin
             let newpin1 = rpassword::read_password_from_tty(Some(
@@ -37,9 +39,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // set new user pin
-            card.change_user_pin(&pin, &newpin1)?;
-
-            println!("\nUser PIN has been set.");
+            let res = card.change_user_pin(&pin, &newpin1);
+            if res.is_err() {
+                println!("\nFailed to change the user PIN!");
+                print_gnuk_note(res, card)?;
+            } else {
+                println!("\nUser PIN has been set.");
+            }
         }
         cli::Command::SetAdminPin {} => {
             // get current admin pin
@@ -73,6 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // verify admin pin
             card.verify_admin(&pin)?;
+            println!("PIN was accepted by the card.\n");
 
             if let Some(mut admin) = card.admin_card() {
                 // ask user for new resetting code
@@ -107,13 +114,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // verify pin
                 card.verify_admin(&pin)?;
+                println!("PIN was accepted by the card.\n");
 
                 None
             } else {
-                // get current admin pin
+                // get resetting code
                 let rst = rpassword::read_password_from_tty(Some(
                     "Enter resetting code: ",
                 ))?;
+
+                // NOTE: this code cannot be verified with the card!
 
                 Some(rst)
             };
@@ -129,19 +139,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if newpin1 != newpin2 {
                 return Err(anyhow::anyhow!("PINs do not match.").into());
             }
-            if let Some(rst) = rst {
+
+            let res = if let Some(rst) = rst {
                 // reset to new user pin
-                card.reset_user_pin(&rst, &newpin1)?;
+                card.reset_user_pin(&rst, &newpin1)
             } else {
                 if let Some(mut admin) = card.admin_card() {
-                    admin.reset_user_pin(&newpin1)?;
+                    admin.reset_user_pin(&newpin1)
                 } else {
-                    unimplemented!()
+                    return Err(anyhow::anyhow!(
+                        "Failed to use card in admin-mode."
+                    )
+                    .into());
                 }
+            };
+
+            if res.is_err() {
+                println!("\nFailed to change the user PIN!");
+                print_gnuk_note(res, card)?;
+            } else {
+                println!("\nUser PIN has been set.");
             }
-            println!("\nUser PIN has been set.");
         }
     }
 
+    Ok(())
+}
+
+/// Gnuk doesn't allow the User password (pw1) to be changed while no
+/// private key material exists on the card.
+///
+/// This fn checks for Gnuk's Status code and the case that no keys exist
+/// on the card, and prints a note to the user, pointing out that the
+/// absence of keys on the card might be the reason for the error they get.
+fn print_gnuk_note(res: Result<Response, Error>, card: Open) -> Result<()> {
+    if let Err(Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied)) =
+        res
+    {
+        // check if no keys exist on the card
+        let fps = card.fingerprints()?;
+        if fps.signature() == None
+            && fps.decryption() == None
+            && fps.authentication() == None
+        {
+            println!(
+                "\nNOTE: Some cards (e.g. Gnuk) don't allow \
+                        User PIN change while no keys exist on the card."
+            );
+        }
+    }
     Ok(())
 }
