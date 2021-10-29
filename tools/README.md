@@ -105,25 +105,25 @@ PIN on OpenPGP cards.
 
 Set the user PIN (requires admin PIN):
 ```
-opgpcard-pin -c 1234:12345678 set-user-pin
+opgpcard-pin -c ABCD:12345678 set-user-pin
 ```
 
 Set new admin PIN (requires admin PIN):
 ```
-opgpcard-pin -c 1234:12345678 set-admin-pin
+opgpcard-pin -c ABCD:12345678 set-admin-pin
 ```
 
 Reset user PIN after it has been blocked (requires admin PIN):
 ```
-opgpcard-pin -c 1234:12345678 reset-user-pin -a
+opgpcard-pin -c ABCD:12345678 reset-user-pin -a
 ```
 
 Set resetting code (requires admin PIN):
 ```
-opgpcard-pin -c 1234:12345678 set-reset-code
+opgpcard-pin -c ABCD:12345678 set-reset-code
 ```
 
 Reset user PIN (requires resetting code):
 ```
-opgpcard-pin -c 1234:12345678 reset-user-pin
+opgpcard-pin -c ABCD:12345678 reset-user-pin
 ```
