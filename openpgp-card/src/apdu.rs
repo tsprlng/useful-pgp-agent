@@ -45,7 +45,7 @@ pub(crate) fn send_command(
         )?)?;
     }
 
-    while let StatusBytes::OkBytesAvailable(_) = resp.status() {
+    while let StatusBytes::OkBytesAvailable(bytes) = resp.status() {
         // More data is available for this command from the card
         log::debug!(" chained response, getting more data");
 
@@ -53,7 +53,7 @@ pub(crate) fn send_command(
         let next = RawResponse::try_from(send_command_low_level(
             card_client,
             commands::get_response(),
-            Expect::Some,
+            Expect::Short(bytes),
         )?)?;
 
         match next.status() {
