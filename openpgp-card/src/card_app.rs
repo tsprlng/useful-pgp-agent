@@ -271,7 +271,8 @@ impl CardApp {
             let resp =
                 apdu::send_command(&mut self.card_client, verify, false)?;
             if !(resp.status() == StatusBytes::SecurityStatusNotSatisfied
-                || resp.status() == StatusBytes::AuthenticationMethodBlocked)
+                || resp.status() == StatusBytes::AuthenticationMethodBlocked
+                || matches!(resp.status(), StatusBytes::PasswordNotChecked(_)))
             {
                 return Err(anyhow!("Unexpected status for reset, at pw1."));
             }
@@ -285,7 +286,8 @@ impl CardApp {
                 apdu::send_command(&mut self.card_client, verify, false)?;
 
             if !(resp.status() == StatusBytes::SecurityStatusNotSatisfied
-                || resp.status() == StatusBytes::AuthenticationMethodBlocked)
+                || resp.status() == StatusBytes::AuthenticationMethodBlocked
+                || matches!(resp.status(), StatusBytes::PasswordNotChecked(_)))
             {
                 return Err(anyhow!("Unexpected status for reset, at pw3."));
             }
