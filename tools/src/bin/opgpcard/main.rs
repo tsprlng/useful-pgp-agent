@@ -19,6 +19,8 @@ mod cli;
 mod util;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+
     let cli = cli::Cli::from_args();
 
     match cli.cmd {
