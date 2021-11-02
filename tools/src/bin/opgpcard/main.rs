@@ -8,11 +8,14 @@ use structopt::StructOpt;
 use sequoia_openpgp::parse::{stream::DecryptorBuilder, Parse};
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::stream::{Armorer, Message, Signer};
+use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
-use openpgp_card_sequoia::card::Admin;
+use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::sq_util;
+use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
 
+use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::{card_do::Sex, KeyType};
 
 mod cli;
@@ -67,14 +70,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             pin_file,
             cmd,
         } => {
-            let mut open = util::open_card(&ident)?;
-            let mut admin = util::get_admin(&mut open, &pin_file)?;
+            let mut card = util::open_card(&ident)?.into();
+            let mut open = Open::open(&mut card)?;
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
+                    let mut admin = util::get_admin(&mut open, &pin_file)?;
+
                     let _ = admin.set_name(&name)?;
                 }
                 cli::AdminCommand::Url { url } => {
+                    let mut admin = util::get_admin(&mut open, &pin_file)?;
+
                     let _ = admin.set_url(&url)?;
                 }
                 cli::AdminCommand::Import {
@@ -83,6 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     dec_fp,
                     auth_fp,
                 } => {
+                    let admin = util::get_admin(&mut open, &pin_file)?;
                     let key = Cert::from_file(keyfile)?;
 
                     if (&sig_fp, &dec_fp, &auth_fp) == (&None, &None, &None) {
@@ -109,7 +117,9 @@ fn list_cards() -> Result<()> {
         println!("Available OpenPGP cards:");
 
         for card in cards {
-            println!(" {}", card.application_identifier()?.ident());
+            let mut card = card.into();
+            let open = Open::open(&mut card)?;
+            println!(" {}", open.application_identifier()?.ident());
         }
     } else {
         println!("No OpenPGP cards found.");
@@ -118,7 +128,7 @@ fn list_cards() -> Result<()> {
 }
 
 fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
-    let mut open = if let Some(ident) = ident {
+    let ccb = if let Some(ident) = ident {
         util::open_card(&ident)?
     } else {
         let mut cards = util::cards()?;
@@ -128,6 +138,8 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
             return Err(anyhow::anyhow!("Found {} cards", cards.len()).into());
         }
     };
+    let mut card = ccb.into();
+    let mut open = Open::open(&mut card)?;
 
     print!("OpenPGP card {}", open.application_identifier()?.ident());
 
@@ -258,7 +270,9 @@ fn decrypt(
 
     let input = util::open_or_stdin(input.as_deref())?;
 
-    let mut open = util::open_card(&ident)?;
+    let mut card = util::open_card(&ident)?.into();
+    let mut open = Open::open(&mut card)?;
+
     let mut user = util::get_user(&mut open, &pin_file)?;
     let d = user.decryptor(&cert, &p)?;
 
@@ -281,7 +295,9 @@ fn sign_detached(
 
     let mut input = util::open_or_stdin(input.as_deref())?;
 
-    let mut open = util::open_card(&ident)?;
+    let mut card = util::open_card(&ident)?.into();
+    let mut open = Open::open(&mut card)?;
+
     let mut sign = util::get_sign(&mut open, &pin_file)?;
     let s = sign.signer(&cert, &p)?;
 
@@ -296,7 +312,8 @@ fn sign_detached(
 
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
-    util::open_card(ident)?.factory_reset()
+    let mut card = util::open_card(ident)?.into();
+    Open::open(&mut card)?.factory_reset()
 }
 
 fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {

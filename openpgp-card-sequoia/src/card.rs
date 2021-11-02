@@ -11,7 +11,7 @@ use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::policy::Policy;
 use sequoia_openpgp::Cert;
 
-use openpgp_card::algorithm::{Algo, AlgoInfo};
+use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
     ExtendedCapabilities, ExtendedLengthInfo, Fingerprint, HistoricalBytes,
@@ -21,12 +21,14 @@ use openpgp_card::{CardApp, CardClientBox, Error, KeySet, KeyType, Response};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
-use crate::util::vka_as_uploadable_key;
+use crate::util::{public_to_fingerprint, vka_as_uploadable_key};
+use crate::PublicKey;
+use openpgp_card::crypto_data::PublicKeyMaterial;
 
 /// Representation of an opened OpenPGP card in its base state (i.e. no
 /// passwords have been verified, default authorization applies).
-pub struct Open {
-    card_app: CardApp,
+pub struct Open<'a> {
+    card_app: &'a mut CardApp,
 
     // Cache of "application related data".
     //
@@ -44,8 +46,16 @@ pub struct Open {
     pw3: bool,
 }
 
-impl Open {
-    fn new(card_app: CardApp, ard: ApplicationRelatedData) -> Self {
+impl<'a> Open<'a> {
+    pub fn open(card_app: &'a mut CardApp) -> Result<Self, Error> {
+        let ard = card_app.get_application_related_data()?;
+
+        card_app.init_caps(&ard)?;
+
+        Ok(Self::new(card_app, ard))
+    }
+
+    fn new(card_app: &'a mut CardApp, ard: ApplicationRelatedData) -> Self {
         Self {
             card_app,
             ard,
@@ -53,21 +63,6 @@ impl Open {
             pw1_sign: false,
             pw3: false,
         }
-    }
-
-    /// Set up connection to a CardClient (read and cache "application
-    /// related data").
-    ///
-    /// The OpenPGP applet must already be opened in the CardClient.
-    pub fn open_card(ccb: CardClientBox) -> Result<Self, Error> {
-        // read and cache "application related data"
-        let mut card_app = CardApp::from(ccb);
-
-        let ard = card_app.get_application_related_data()?;
-
-        card_app.init_caps(&ard)?;
-
-        Ok(Self::new(card_app, ard))
     }
 
     pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
@@ -131,7 +126,7 @@ impl Open {
     }
 
     /// Get a view of the card authenticated for "User" commands.
-    pub fn user_card(&mut self) -> Option<User> {
+    pub fn user_card<'b>(&'a mut self) -> Option<User<'a, 'b>> {
         if self.pw1 {
             Some(User { oc: self })
         } else {
@@ -140,7 +135,7 @@ impl Open {
     }
 
     /// Get a view of the card authenticated for Signing.
-    pub fn signing_card(&mut self) -> Option<Sign> {
+    pub fn signing_card<'b>(&'b mut self) -> Option<Sign<'a, 'b>> {
         if self.pw1_sign {
             Some(Sign { oc: self })
         } else {
@@ -149,7 +144,7 @@ impl Open {
     }
 
     /// Get a view of the card authenticated for "Admin" commands.
-    pub fn admin_card(&mut self) -> Option<Admin> {
+    pub fn admin_card<'b>(&'b mut self) -> Option<Admin<'a, 'b>> {
         if self.pw3 {
             Some(Admin { oc: self })
         } else {
@@ -288,11 +283,11 @@ impl Open {
 
 /// An OpenPGP card after successfully verifying PW1 in mode 82
 /// (verification for user operations other than signing)
-pub struct User<'a> {
-    oc: &'a mut Open,
+pub struct User<'app, 'open> {
+    oc: &'open mut Open<'app>,
 }
 
-impl User<'_> {
+impl User<'_, '_> {
     pub fn decryptor(
         &mut self,
         cert: &Cert,
@@ -304,11 +299,11 @@ impl User<'_> {
 
 /// An OpenPGP card after successfully verifying PW1 in mode 81
 /// (verification for signing)
-pub struct Sign<'a> {
-    oc: &'a mut Open,
+pub struct Sign<'app, 'open> {
+    oc: &'open mut Open<'app>,
 }
 
-impl Sign<'_> {
+impl Sign<'_, '_> {
     pub fn signer(
         &mut self,
         cert: &Cert,
@@ -319,14 +314,27 @@ impl Sign<'_> {
 
         CardSigner::new(&mut self.oc.card_app, cert, policy)
     }
+
+    pub fn signer_from_pubkey(&mut self, pubkey: PublicKey) -> CardSigner {
+        // FIXME: depending on the setting in "PW1 Status byte", only one
+        // signature can be made after verification for signing
+
+        CardSigner::with_pubkey(&mut self.oc.card_app, pubkey)
+    }
 }
 
 /// An OpenPGP card after successful verification of PW3 ("Admin privileges")
-pub struct Admin<'a> {
-    oc: &'a mut Open,
+pub struct Admin<'app, 'open> {
+    oc: &'open mut Open<'app>,
 }
 
-impl Admin<'_> {
+impl<'app, 'open> Admin<'app, 'open> {
+    pub fn get_open(&'_ mut self) -> &mut Open<'app> {
+        self.oc
+    }
+}
+
+impl Admin<'_, '_> {
     pub fn set_name(&mut self, name: &str) -> Result<Response, Error> {
         if name.len() >= 40 {
             return Err(anyhow!("name too long").into());
@@ -395,5 +403,17 @@ impl Admin<'_> {
     ) -> Result<(), Error> {
         let key = vka_as_uploadable_key(vka, password);
         self.oc.card_app.key_import(key, key_type)
+    }
+
+    pub fn generate_key_simple(
+        &mut self,
+        key_type: KeyType,
+        algo: AlgoSimple,
+    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
+        self.oc.card_app.generate_key_simple(
+            public_to_fingerprint,
+            key_type,
+            algo,
+        )
     }
 }

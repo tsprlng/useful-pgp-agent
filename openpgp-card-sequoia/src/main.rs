@@ -22,6 +22,7 @@ use openpgp_card_sequoia::sq_util::{decryption_helper, sign_helper};
 // const TEST_ENC_MSG: &str = "example/encrypted_to_rsa4k.asc";
 
 // const TEST_KEY_PATH: &str = "example/nist521.sec";
+// const TEST_KEY_PATH: &str = "example/nist521.sec";
 // const TEST_ENC_MSG: &str = "example/encrypted_to_nist521.asc";
 
 const TEST_KEY_PATH: &str = "example/test25519.sec";
@@ -34,8 +35,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let test_card_ident = env::var("TEST_CARD_IDENT");
 
     if let Ok(test_card_ident) = test_card_ident {
-        let mut open =
-            Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+        let mut card = PcscClient::open_by_ident(&test_card_ident)?.into();
+        let mut open = Open::open(&mut card)?;
 
         // card metadata
 
@@ -149,9 +150,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for decrypt
         // -----------------------------
-
-        let mut open =
-            Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+        let mut card = PcscClient::open_by_ident(&test_card_ident)?.into();
+        let mut open = Open::open(&mut card)?;
 
         // Check that we're still using the expected card
         let app_id = open.application_identifier()?;
@@ -189,8 +189,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let mut open =
-            Open::open_card(PcscClient::open_by_ident(&test_card_ident)?)?;
+        let mut card = PcscClient::open_by_ident(&test_card_ident)?.into();
+        let mut open = Open::open(&mut card)?;
 
         // Sign
         open.verify_user_for_signing("123456")?;
@@ -220,7 +220,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("The following OpenPGP cards are connected to your system:");
 
         for card in PcscClient::cards()? {
-            let open = Open::open_card(card)?;
+            let mut card = card.into();
+            let open = Open::open(&mut card)?;
             println!(" {}", open.application_identifier()?.ident());
         }
     }

@@ -15,6 +15,7 @@ use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{CardApp, Error, KeyType, StatusBytes};
+use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
 };
@@ -220,7 +221,7 @@ pub fn test_upload_keys(
 
 /// Generate keys for each of the three KeyTypes
 pub fn test_keygen(
-    ca: &mut CardApp,
+    mut ca: &mut CardApp,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     ca.verify_pw3("12345678")?;
@@ -253,8 +254,9 @@ pub fn test_keygen(
         public_key_material_to_key(&pkm, KeyType::Authentication, ts)?;
 
     // Generate a Cert for this set of generated keys
-
-    let cert = make_cert(ca, key_sig, key_dec, key_aut)?;
+    let mut open = Open::open(&mut ca)?;
+    let cert =
+        make_cert(&mut open, key_sig, Some(key_dec), Some(key_aut), "123456")?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
     let res = TestResult::Text(armored);

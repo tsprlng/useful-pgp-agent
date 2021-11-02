@@ -22,7 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pin_file = &args[1];
     let cert_file = &args[2];
 
-    let mut open = Open::open_card(PcscClient::open_by_ident(&card_ident)?)?;
+    let mut ca = PcscClient::open_by_ident(&card_ident)?.into();
+    let mut open = Open::open(&mut ca)?;
 
     let pin = std::fs::read_to_string(pin_file)?;
 

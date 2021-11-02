@@ -9,8 +9,9 @@ use openpgp_card_sequoia::card::Open;
 fn main() -> Result<()> {
     println!("The following OpenPGP cards are connected to your system:");
 
-    for card in PcscClient::cards()? {
-        let open = Open::open_card(card)?;
+    for ccb in PcscClient::cards()? {
+        let mut ca = ccb.into();
+        let open = Open::open(&mut ca)?;
         println!(" {}", open.application_identifier()?.ident());
     }
 

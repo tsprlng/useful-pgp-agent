@@ -4,7 +4,7 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
-use openpgp_card::{Error, Response, StatusBytes};
+use openpgp_card::{Error, StatusBytes};
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::card::Open;
 
@@ -13,8 +13,8 @@ mod cli;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = cli::Cli::from_args();
 
-    let ccb = PcscClient::open_by_ident(&cli.ident)?;
-    let mut card = Open::open_card(ccb)?;
+    let mut card = PcscClient::open_by_ident(&cli.ident)?.into();
+    let mut open = Open::open(&mut card)?;
 
     match cli.cmd {
         cli::Command::SetUserPin {} => {
@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rpassword::read_password_from_tty(Some("Enter user PIN: "))?;
 
             // verify pin
-            card.verify_user(&pin)?;
+            open.verify_user(&pin)?;
             println!("PIN was accepted by the card.\n");
 
             // get new user pin
@@ -39,10 +39,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // set new user pin
-            let res = card.change_user_pin(&pin, &newpin1);
+            let res = open.change_user_pin(&pin, &newpin1);
             if res.is_err() {
                 println!("\nFailed to change the user PIN!");
-                print_gnuk_note(res, card)?;
+                if let Err(err) = res {
+                    print_gnuk_note(err, &open)?;
+                }
             } else {
                 println!("\nUser PIN has been set.");
             }
@@ -53,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
             // verify pin
-            card.verify_admin(&pin)?;
+            open.verify_admin(&pin)?;
 
             // get new admin pin
             let newpin1 = rpassword::read_password_from_tty(Some(
@@ -68,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // set new user pin
-            card.change_admin_pin(&pin, &newpin1)?;
+            open.change_admin_pin(&pin, &newpin1)?;
 
             println!("\nAdmin PIN has been set.");
         }
@@ -78,10 +80,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
             // verify admin pin
-            card.verify_admin(&pin)?;
+            open.verify_admin(&pin)?;
             println!("PIN was accepted by the card.\n");
 
-            if let Some(mut admin) = card.admin_card() {
+            if let Some(mut admin) = open.admin_card() {
                 // ask user for new resetting code
                 let newpin1 = rpassword::read_password_from_tty(Some(
                     "Enter new resetting code: ",
@@ -113,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ))?;
 
                 // verify pin
-                card.verify_admin(&pin)?;
+                open.verify_admin(&pin)?;
                 println!("PIN was accepted by the card.\n");
 
                 None
@@ -142,9 +144,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let res = if let Some(rst) = rst {
                 // reset to new user pin
-                card.reset_user_pin(&rst, &newpin1)
+                open.reset_user_pin(&rst, &newpin1)
             } else {
-                if let Some(mut admin) = card.admin_card() {
+                if let Some(mut admin) = open.admin_card() {
                     admin.reset_user_pin(&newpin1)
                 } else {
                     return Err(anyhow::anyhow!(
@@ -156,7 +158,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if res.is_err() {
                 println!("\nFailed to change the user PIN!");
-                print_gnuk_note(res, card)?;
+                if let Err(err) = res {
+                    print_gnuk_note(err, &open)?;
+                }
             } else {
                 println!("\nUser PIN has been set.");
             }
@@ -172,10 +176,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// This fn checks for Gnuk's Status code and the case that no keys exist
 /// on the card, and prints a note to the user, pointing out that the
 /// absence of keys on the card might be the reason for the error they get.
-fn print_gnuk_note(res: Result<Response, Error>, card: Open) -> Result<()> {
-    if let Err(Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied)) =
-        res
-    {
+fn print_gnuk_note(err: Error, card: &Open) -> Result<()> {
+    if matches!(
+        err,
+        Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied)
+    ) {
         // check if no keys exist on the card
         let fps = card.fingerprints()?;
         if fps.signature() == None
