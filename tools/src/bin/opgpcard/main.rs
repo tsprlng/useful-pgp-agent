@@ -104,6 +104,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         )?;
                     }
                 }
+                cli::AdminCommand::Generate {
+                    no_decrypt,
+                    no_auth,
+                    algo,
+                } => {
+                    let pw3 = util::get_pin(&pin_file)?;
+                    // FIXME: get PW1 from user
+
+                    generate_keys(
+                        open,
+                        &pw3,
+                        "123456",
+                        !no_decrypt,
+                        !no_auth,
+                        algo,
+                    )?;
+                }
             }
         }
     }
@@ -391,6 +408,92 @@ fn key_import_explicit(
             println!("ERROR: Couldn't find {} as authentication key", auth_fp);
         }
     }
+
+    Ok(())
+}
+
+fn generate_keys(
+    mut open: Open,
+    pw3: &str,
+    pw1: &str,
+    decrypt: bool,
+    auth: bool,
+    algo: Option<String>,
+) -> Result<()> {
+    // Figure out which algorithm the user wants
+
+    // FIXME:
+    // (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519) or None
+    //     let alg = AlgoSimple::from(algo);
+
+    let a = algo.unwrap();
+    let a: &str = &a;
+
+    // temporary approach:
+    let alg = AlgoSimple::from(a);
+
+    // FIXME: if rsa, try 32 and 17 bit e
+
+    // FIXME: handle None (leave algo as is)
+
+    // ---
+
+    // Then, we make the card generate keys (we need "admin" access to
+    // the card for that).
+
+    open.verify_admin(pw3)?;
+
+    let (key_sig, key_dec, key_aut) = {
+        if let Some(mut admin) = open.admin_card() {
+            println!(" Generate subkey for Signing");
+            let (pkm, ts) =
+                admin.generate_key_simple(KeyType::Signing, alg)?;
+            let key_sig =
+                public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
+
+            let key_dec = if decrypt {
+                println!(" Generate subkey for Decryption");
+                let (pkm, ts) =
+                    admin.generate_key_simple(KeyType::Decryption, alg)?;
+                Some(public_key_material_to_key(
+                    &pkm,
+                    KeyType::Decryption,
+                    ts,
+                )?)
+            } else {
+                None
+            };
+
+            let key_aut = if auth {
+                println!(" Generate subkey for Authentication");
+                let (pkm, ts) =
+                    admin.generate_key_simple(KeyType::Authentication, alg)?;
+
+                Some(public_key_material_to_key(
+                    &pkm,
+                    KeyType::Authentication,
+                    ts,
+                )?)
+            } else {
+                None
+            };
+
+            (key_sig, key_dec, key_aut)
+        } else {
+            // FIXME: couldn't get admin mode
+            unimplemented!()
+        }
+    };
+
+    // Then we generate a Cert for this set of generated keys. For this, we
+    // need "signing" access to the card, to make a number of binding
+    // signatures.
+
+    // FIXME: get pw1 from user
+    let cert = make_cert(&mut open, key_sig, key_dec, key_aut, pw1)?;
+    let armored = String::from_utf8(cert.armored().to_vec()?)?;
+
+    println!("{}", armored);
 
     Ok(())
 }

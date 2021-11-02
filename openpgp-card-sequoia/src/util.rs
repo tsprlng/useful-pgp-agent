@@ -121,7 +121,10 @@ pub fn make_cert<'a, 'app>(
     // 6) add user id from name / email
     let cardholder = open.cardholder_related_data()?;
 
-    // FIXME: process name field? accept email as argument?!
+    // FIXME: process name field?
+
+    // FIXME: accept email as argument?!
+
     let uid: UserID =
         cardholder.name().expect("expecting name on card").into();
 

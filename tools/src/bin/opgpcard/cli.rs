@@ -116,4 +116,19 @@ pub enum AdminCommand {
         )]
         auth_fp: Option<String>,
     },
+    /// Generate a Key.
+    ///
+    /// A signing key is always created, decryption and authentication keys
+    /// are optional.
+    Generate {
+        #[structopt(long = "no-decrypt")]
+        no_decrypt: bool,
+
+        #[structopt(long = "no-auth")]
+        no_auth: bool,
+
+        #[structopt(about = "Algorithm \
+            (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519)")]
+        algo: Option<String>,
+    },
 }
