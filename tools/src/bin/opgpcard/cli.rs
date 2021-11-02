@@ -89,7 +89,9 @@ pub enum AdminCommand {
     Url { url: String },
 
     /// Import a Key.
-    /// If no fingerprint is provided, the key will
+    ///
+    /// If no fingerprint is provided, the key will only be imported if
+    /// there are zero or one (sub)keys for each key slot on the card.
     Import {
         keyfile: PathBuf,
 
