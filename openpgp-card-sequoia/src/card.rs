@@ -408,12 +408,19 @@ impl Admin<'_, '_> {
     pub fn generate_key_simple(
         &mut self,
         key_type: KeyType,
-        algo: AlgoSimple,
+        algo: Option<AlgoSimple>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        self.oc.card_app.generate_key_simple(
-            public_to_fingerprint,
-            key_type,
-            algo,
-        )
+        match algo {
+            Some(algo) => self.oc.card_app.generate_key_simple(
+                public_to_fingerprint,
+                key_type,
+                algo,
+            ),
+            None => self.oc.card_app.generate_key(
+                public_to_fingerprint,
+                key_type,
+                None,
+            ),
+        }
     }
 }
