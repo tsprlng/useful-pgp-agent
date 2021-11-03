@@ -62,6 +62,12 @@ $ opgpcard admin -c ABCD:12345678 -p <pin-file> import key.priv \
 When fingerprints are only specified for a subset of the roles, no 
 keys will be imported for the other roles.
 
+### Generate Keys on the card
+
+```
+$ opgpcard admin -c ABCD:12345678 -p <admin-pin-file> generate --user-pin-file <user-pin-file> -o <output-file> 25519
+```
+
 ### Set card metadata
 
 Set cardholder name:

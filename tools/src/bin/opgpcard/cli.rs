@@ -35,7 +35,7 @@ pub enum Command {
         #[structopt(name = "card ident", short = "c", long = "card")]
         ident: String,
 
-        #[structopt(name = "admin pin file", short = "p", long = "pin-file")]
+        #[structopt(name = "Admin PIN file", short = "p", long = "pin-file")]
         pin_file: PathBuf,
 
         #[structopt(subcommand)]
@@ -45,7 +45,7 @@ pub enum Command {
         #[structopt(name = "card ident", short = "c", long = "card")]
         ident: String,
 
-        #[structopt(name = "user pin file", short = "p", long = "pin-file")]
+        #[structopt(name = "User PIN file", short = "p", long = "pin-file")]
         pin_file: PathBuf,
 
         #[structopt(
@@ -121,6 +121,17 @@ pub enum AdminCommand {
     /// A signing key is always created, decryption and authentication keys
     /// are optional.
     Generate {
+        #[structopt(name = "User PIN file", long = "user-pin-file")]
+        user_pin_file: PathBuf,
+
+        #[structopt(
+            about = "Output file (stdout if unset)",
+            name = "output",
+            long = "output",
+            short = "o"
+        )]
+        output: Option<PathBuf>,
+
         #[structopt(long = "no-decrypt")]
         no_decrypt: bool,
 

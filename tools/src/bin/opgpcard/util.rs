@@ -58,3 +58,14 @@ pub(crate) fn open_or_stdin(
         None => Ok(Box::new(std::io::stdin())),
     }
 }
+
+pub(crate) fn open_or_stdout(
+    f: Option<&Path>,
+) -> Result<Box<dyn std::io::Write + Send + Sync>> {
+    match f {
+        Some(f) => Ok(Box::new(
+            std::fs::File::create(f).context("Failed to open input file")?,
+        )),
+        None => Ok(Box::new(std::io::stdout())),
+    }
+}

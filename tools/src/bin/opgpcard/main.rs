@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 use sequoia_openpgp::parse::{stream::DecryptorBuilder, Parse};
@@ -12,11 +12,12 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
 use openpgp_card_sequoia::card::{Admin, Open};
-use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
+use openpgp_card_sequoia::{sq_util, PublicKey};
 
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::{card_do::Sex, KeyType};
+use std::io::Write;
 
 mod cli;
 mod util;
@@ -105,17 +106,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 cli::AdminCommand::Generate {
+                    user_pin_file,
+                    output,
                     no_decrypt,
                     no_auth,
                     algo,
                 } => {
                     let pw3 = util::get_pin(&pin_file)?;
-                    // FIXME: get PW1 from user
+                    let pw1 = util::get_pin(&user_pin_file)?;
 
                     generate_keys(
                         open,
                         &pw3,
-                        "123456",
+                        &pw1,
+                        output,
                         !no_decrypt,
                         !no_auth,
                         algo,
@@ -416,84 +420,179 @@ fn generate_keys(
     mut open: Open,
     pw3: &str,
     pw1: &str,
+    output: Option<PathBuf>,
     decrypt: bool,
     auth: bool,
     algo: Option<String>,
 ) -> Result<()> {
-    // Figure out which algorithm the user wants
+    // 1) Interpret the user's choice of algorithm.
+    //
+    // Unset (None) means that the algorithm that is specified on the card
+    // should remain unchanged.
+    //
+    // For RSA, different cards use different exact algorithm
+    // specifications. In particular, the length of the value `e` differs
+    // between cards. Some devices use 32 bit length for e, others use 17 bit.
+    // In some cases, it's possible to get this information from the card,
+    // but I believe this information is not obtainable in all cases.
+    // Because of this, for generation of RSA keys, here we take the approach
+    // of first trying one variant, and then if that fails, try the other.
 
-    // FIXME:
-    // (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519) or None
-    //     let alg = AlgoSimple::from(algo);
+    let algos = match algo.as_deref() {
+        None => vec![],
+        Some("rsa2048") => vec![AlgoSimple::RSA2k(32), AlgoSimple::RSA2k(17)],
+        Some("rsa3072") => vec![AlgoSimple::RSA3k(32), AlgoSimple::RSA3k(17)],
+        Some("rsa4096") => vec![AlgoSimple::RSA4k(32), AlgoSimple::RSA4k(17)],
+        Some("nistp256") => vec![AlgoSimple::NIST256],
+        Some("nistp384") => vec![AlgoSimple::NIST384],
+        Some("nistp521") => vec![AlgoSimple::NIST521],
+        Some("25519") => vec![AlgoSimple::Curve25519],
+        _ => unimplemented!("unexpected algorithm"),
+    };
 
-    let a = algo.unwrap();
-    let a: &str = &a;
+    log::info!(
+        " Key generation will be attempted with these algos: {:?}",
+        algos
+    );
 
-    // temporary approach:
-    let alg = AlgoSimple::from(a);
-
-    // FIXME: if rsa, try 32 and 17 bit e
-
-    // FIXME: handle None (leave algo as is)
-
-    // ---
-
-    // Then, we make the card generate keys (we need "admin" access to
-    // the card for that).
+    // 2) Then, generate keys on the card.
+    // We need "admin" access to the card for this).
 
     open.verify_admin(pw3)?;
 
     let (key_sig, key_dec, key_aut) = {
         if let Some(mut admin) = open.admin_card() {
-            println!(" Generate subkey for Signing");
-            let (pkm, ts) =
-                admin.generate_key_simple(KeyType::Signing, alg)?;
-            let key_sig =
-                public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
-
-            let key_dec = if decrypt {
-                println!(" Generate subkey for Decryption");
-                let (pkm, ts) =
-                    admin.generate_key_simple(KeyType::Decryption, alg)?;
-                Some(public_key_material_to_key(
-                    &pkm,
-                    KeyType::Decryption,
-                    ts,
-                )?)
-            } else {
-                None
-            };
-
-            let key_aut = if auth {
-                println!(" Generate subkey for Authentication");
-                let (pkm, ts) =
-                    admin.generate_key_simple(KeyType::Authentication, alg)?;
-
-                Some(public_key_material_to_key(
-                    &pkm,
-                    KeyType::Authentication,
-                    ts,
-                )?)
-            } else {
-                None
-            };
-
-            (key_sig, key_dec, key_aut)
+            gen_subkeys(&mut admin, decrypt, auth, algos)?
         } else {
             // FIXME: couldn't get admin mode
             unimplemented!()
         }
     };
 
-    // Then we generate a Cert for this set of generated keys. For this, we
-    // need "signing" access to the card, to make a number of binding
-    // signatures.
+    // 3) Generate a Cert from the generated keys. For this, we
+    // need "signing" access to the card (to make binding signatures within
+    // the Cert).
 
-    // FIXME: get pw1 from user
     let cert = make_cert(&mut open, key_sig, key_dec, key_aut, pw1)?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
-    println!("{}", armored);
+    // Write armored certificate to the output file (or stdout)
+    let mut output = util::open_or_stdout(output.as_deref())?;
+    output.write(armored.as_bytes())?;
 
     Ok(())
+}
+
+fn gen_subkeys(
+    admin: &mut Admin,
+    decrypt: bool,
+    auth: bool,
+    algos: Vec<AlgoSimple>,
+) -> Result<(PublicKey, Option<PublicKey>, Option<PublicKey>)> {
+    // We begin with the signing subkey, which is mandatory.
+    // If there are multiple algorithms we should try (i.e. two rsa
+    // variants), we'll attempt to make the signing subkey with each of
+    // them, and continue with the first one that works, if any.
+
+    println!(" Generate subkey for Signing");
+    let (alg, key_sig) = if algos.is_empty() {
+        // Handle unset algorithm from user (-> leave algo as is on the card)
+        log::info!(" Running key generation with implicit algo");
+
+        let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, None)?;
+        let key = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
+
+        (None, key)
+    } else {
+        // Try list of algos until one works - or return list of all errors.
+
+        let mut errors = vec![];
+
+        let mut algo: Option<AlgoSimple> = None;
+        let mut key_sig: Option<PublicKey> = None;
+
+        // Check each algo while making key_sig.
+        //
+        // Return the result for the first one that works, and keep using
+        // that algo.
+        //
+        // If none of them work, fail and return all errors
+
+        for (n, alg) in algos.iter().enumerate() {
+            let a = Some(alg.clone());
+
+            log::info!(" Trying key generation with algo {:?}", alg);
+
+            match admin.generate_key_simple(KeyType::Signing, a) {
+                Ok((pkm, ts)) => {
+                    // generated a valid key -> return it
+                    let key = public_key_material_to_key(
+                        &pkm,
+                        KeyType::Signing,
+                        ts,
+                    )?;
+                    algo = a;
+                    key_sig = Some(key);
+                    break;
+                }
+                Err(e) => match (n, n == algos.len() - 1) {
+                    // there was only one algo, and it failed
+                    (0, true) => return Err(e.into()),
+
+                    // there was an error, but there are more algo to try
+                    (_, false) => errors.push(e),
+
+                    // there were multiple algo, there was an error, and
+                    // this is the last algo
+                    (_, true) => {
+                        errors.push(e);
+
+                        let err = anyhow::anyhow!(
+                            "Key generation failed for all algorithm \
+                            variants {:x?} ({:?})",
+                            errors,
+                            algos
+                        );
+                        return Err(err);
+                    }
+                },
+            };
+        }
+
+        // Neither of these should be possible, but the compiler can't tell.
+        assert!(algo.is_some());
+        assert!(key_sig.is_some());
+
+        (algo, key_sig.unwrap())
+    };
+
+    // make decryption subkey (unless disabled), with the same algorithm as
+    // the sig key
+
+    let key_dec = if decrypt {
+        println!(" Generate subkey for Decryption");
+        let (pkm, ts) = admin.generate_key_simple(KeyType::Decryption, alg)?;
+        Some(public_key_material_to_key(&pkm, KeyType::Decryption, ts)?)
+    } else {
+        None
+    };
+
+    // make authentication subkey (unless disabled), with the same
+    // algorithm as the sig key
+
+    let key_aut = if auth {
+        println!(" Generate subkey for Authentication");
+        let (pkm, ts) =
+            admin.generate_key_simple(KeyType::Authentication, alg)?;
+
+        Some(public_key_material_to_key(
+            &pkm,
+            KeyType::Authentication,
+            ts,
+        )?)
+    } else {
+        None
+    };
+
+    Ok((key_sig, key_dec, key_aut))
 }
