@@ -151,4 +151,4 @@ pub mod sq_util;
 pub mod util;
 
 /// Shorthand for Sequoia public key data (a single public (sub)key)
-pub(crate) type PublicKey = Key<key::PublicParts, key::UnspecifiedRole>;
+pub type PublicKey = Key<key::PublicParts, key::UnspecifiedRole>;
