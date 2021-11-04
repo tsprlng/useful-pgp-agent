@@ -180,6 +180,11 @@ pub(crate) fn decryption(data: Vec<u8>) -> Command {
     Command::new(0x00, 0x2A, 0x80, 0x86, data)
 }
 
+/// 7.2.13 PSO: INTERNAL AUTHENTICATE
+pub(crate) fn internal_authenticate(data: Vec<u8>) -> Command {
+    Command::new(0x00, 0x88, 0x00, 0x00, data)
+}
+
 /// 7.2.14 GENERATE ASYMMETRIC KEY PAIR
 pub(crate) fn gen_key(data: Vec<u8>) -> Command {
     Command::new(0x00, 0x47, 0x80, 0x00, data)

@@ -505,9 +505,23 @@ impl CardApp {
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Error> {
-        let dec_cmd = commands::signature(data);
+        let cds_cmd = commands::signature(data);
 
-        let resp = apdu::send_command(&mut self.card_client, dec_cmd, true)?;
+        let resp = apdu::send_command(&mut self.card_client, cds_cmd, true)?;
+
+        Ok(resp.data().map(|d| d.to_vec())?)
+    }
+
+    // --- internal authenticate ---
+
+    /// Run signing operation on the smartcard (low level operation)
+    /// (7.2.13 INTERNAL AUTHENTICATE)
+    fn internal_authenticate(
+        &mut self,
+        data: Vec<u8>,
+    ) -> Result<Vec<u8>, Error> {
+        let ia_cmd = commands::internal_authenticate(data);
+        let resp = apdu::send_command(&mut self.card_client, ia_cmd, true)?;
 
         Ok(resp.data().map(|d| d.to_vec())?)
     }
