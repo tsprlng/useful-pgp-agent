@@ -463,9 +463,15 @@ impl CardApp {
 
     /// Sign `hash`, on the card.
     ///
-    /// (This is a wrapper around the low-level
+    /// This is a wrapper around the low-level
     /// pso_compute_digital_signature operation.
-    /// It builds the required `data` field from `hash`)
+    /// It builds the required `data` field from `hash`.
+    ///
+    /// For RSA, this means a "DigestInfo" data structure is generated.
+    /// (see 7.2.10.2 DigestInfo for RSA).
+    ///
+    /// With ECC the hash data is processed as is, using
+    /// pso_compute_digital_signature.
     pub fn signature_for_hash(
         &mut self,
         hash: Hash,
