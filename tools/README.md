@@ -6,9 +6,30 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 # OpenPGP card tools
 
 This crate contains two tools for inspecting, configuring and using OpenPGP 
-cards:
+cards: `opgpcard` and `opgpcard-pin`.
 
-`opgpcard` and `opgpcard-pin`
+# Install
+
+One easy way to install this crate is via the "cargo" tool.  
+
+The following build dependencies are needed for current Debian:
+
+```
+# apt install rustc cargo clang pkg-config nettle-dev libpcsclite-dev
+```
+
+And for current Fedora:
+
+```
+# dnf install rustc cargo clang nettle-devel pcsc-lite-devel
+```
+
+Afterwards, you can install this crate by running:
+
+```
+$ cargo install openpgp-card-tools
+```
+
 
 ## opgpcard
 
