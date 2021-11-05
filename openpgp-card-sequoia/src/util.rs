@@ -32,7 +32,6 @@ use openpgp_card::{CardApp, Error, KeyType};
 
 use crate::card::Open;
 use crate::privkey::SequoiaKey;
-use crate::signer::CardSigner;
 use crate::{decryptor, signer, PublicKey};
 
 /// Create a Cert from the three subkeys on a card.

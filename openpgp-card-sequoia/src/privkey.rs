@@ -22,8 +22,6 @@ use openpgp_card::crypto_data::{
 use openpgp_card::Error;
 use sequoia_openpgp::types::Curve;
 
-use crate::util;
-
 /// A SequoiaKey represents the private cryptographic key material of an
 /// OpenPGP (sub)key to be uploaded to an OpenPGP card.
 pub(crate) struct SequoiaKey {
