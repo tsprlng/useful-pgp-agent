@@ -3,7 +3,7 @@
 
 [package]
 name = "openpgp-card-tools"
-description = "Tools for using OpenPGP cards from the command line"
+description = "CLI tools for OpenPGP cards"
 license = "MIT OR Apache-2.0"
 version = "0.0.1"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
