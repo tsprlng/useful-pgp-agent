@@ -30,6 +30,9 @@ Afterwards, you can install this crate by running:
 $ cargo install openpgp-card-tools
 ```
 
+Finally, add `$HOME/.cargo/bin` to your PATH to be able to run the 
+installed binaries.
+
 
 ## opgpcard
 
