@@ -59,7 +59,7 @@ $ opgpcard status -c ABCD:12345678
 ```
 
 Add `-v` for more verbose card status, including the list of supported
-algorithms of the card:
+algorithms of the card (older cards may return no additional information):
 ```
 $ opgpcard status -c ABCD:12345678 -v
 ```
@@ -69,7 +69,7 @@ $ opgpcard status -c ABCD:12345678 -v
 Import private key onto a card. This works if at most one (sub)key
 per role (sign, decrypt, auth) exists in `key.priv`:
 ```
-$ opgpcard admin -c ABCD:12345678 -p <pin-file> import key.priv
+$ opgpcard admin -c ABCD:12345678 -P <admin-pin-file> import key.priv
 ```
 
 Import private key onto a card while explicitly selecting subkeys.
@@ -77,7 +77,7 @@ Explicitly specified fingerprints are necessary if more than one subkey
 exists in `key.priv` for any role (note: spaces in fingerprints are 
 ignored).
 ```
-$ opgpcard admin -c ABCD:12345678 -p <pin-file> import key.priv \
+$ opgpcard admin -c ABCD:12345678 -P <admin-pin-file> import key.priv \
  --sig-fp "F290 DBBF 21DB 8634 3C96  157B 87BE 15B7 F548 D97C" \
  --dec-fp "3C6E 08F6 7613 8935 8B8D  7666 73C7 F1A9 EEDA C360" \
  --auth-fp "D6AA 48EF 39A2 6F26 C42D  5BCB AAD2 14D5 5332 C838"
@@ -89,19 +89,19 @@ keys will be imported for the other roles.
 ### Generate Keys on the card
 
 ```
-$ opgpcard admin -c ABCD:12345678 -p <admin-pin-file> generate --user-pin-file <user-pin-file> -o <output-file> 25519
+$ opgpcard admin -c ABCD:12345678 -P <admin-pin-file> generate -p <user-pin-file> -o <output-cert-file> 25519
 ```
 
 ### Set card metadata
 
 Set cardholder name:
 ```
-$ opgpcard admin -c ABCD:12345678 -p <pin-file> name "Bar<<Foo"
+$ opgpcard admin -c ABCD:12345678 -P <admin-pin-file> name "Bar<<Foo"
 ```
 
 Set cardholder URL:
 ```
-$ opgpcard admin -c ABCD:12345678 -p <pin-file> url "https://keyurl.example"
+$ opgpcard admin -c ABCD:12345678 -P <admin-pin-file> url "https://keyurl.example"
 ```
 
 ### Signing
@@ -110,7 +110,7 @@ For now, this tool only supports creating detached signatures, like this
 (if no input file is set, stdin is read):
 
 ```
-$ opgpcard sign --detached -c ABCD:12345678 -p <pin-file> -s <cert-file> <input-file>
+$ opgpcard sign --detached -c ABCD:12345678 -p <user-pin-file> -s <cert-file> <input-file>
 ```
 
 ### Decrypting
@@ -118,7 +118,7 @@ $ opgpcard sign --detached -c ABCD:12345678 -p <pin-file> -s <cert-file> <input-
 Decryption using a card (if no input file is set, stdin is read):
 
 ```
-$ opgpcard decrypt -c ABCD:12345678 -p <pin-file> -r <cert-file> <input-file>
+$ opgpcard decrypt -c ABCD:12345678 -p <user-pin-file> -r <cert-file> <input-file>
 ```
 
 ### Factory reset
@@ -127,6 +127,8 @@ Factory reset:
 ```
 $ opgpcard factory-reset -c ABCD:12345678
 ```
+
+NOTE: you do not need a PIN to reset a card
 
 ## opgpcard-pin
 

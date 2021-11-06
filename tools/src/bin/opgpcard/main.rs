@@ -36,15 +36,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cli::Command::Decrypt {
             ident,
-            pin_file,
+            user_pin,
             cert_file,
             input,
         } => {
-            decrypt(&ident, &pin_file, &cert_file, input.as_deref())?;
+            decrypt(&ident, &user_pin, &cert_file, input.as_deref())?;
         }
         cli::Command::Sign {
             ident,
-            pin_file,
+            user_pin,
             cert_file,
             detached,
             input,
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if detached {
                 sign_detached(
                     &ident,
-                    &pin_file,
+                    &user_pin,
                     &cert_file,
                     input.as_deref(),
                 )?;
@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cli::Command::Admin {
             ident,
-            pin_file,
+            admin_pin,
             cmd,
         } => {
             let mut card = util::open_card(&ident)?.into();
@@ -76,12 +76,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
-                    let mut admin = util::get_admin(&mut open, &pin_file)?;
+                    let mut admin = util::get_admin(&mut open, &admin_pin)?;
 
                     let _ = admin.set_name(&name)?;
                 }
                 cli::AdminCommand::Url { url } => {
-                    let mut admin = util::get_admin(&mut open, &pin_file)?;
+                    let mut admin = util::get_admin(&mut open, &admin_pin)?;
 
                     let _ = admin.set_url(&url)?;
                 }
@@ -91,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     dec_fp,
                     auth_fp,
                 } => {
-                    let admin = util::get_admin(&mut open, &pin_file)?;
+                    let admin = util::get_admin(&mut open, &admin_pin)?;
                     let key = Cert::from_file(keyfile)?;
 
                     if (&sig_fp, &dec_fp, &auth_fp) == (&None, &None, &None) {
@@ -106,14 +106,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 cli::AdminCommand::Generate {
-                    user_pin_file,
+                    user_pin,
                     output,
                     no_decrypt,
                     no_auth,
                     algo,
                 } => {
-                    let pw3 = util::get_pin(&pin_file)?;
-                    let pw1 = util::get_pin(&user_pin_file)?;
+                    let pw3 = util::get_pin(&admin_pin)?;
+                    let pw1 = util::get_pin(&user_pin)?;
 
                     generate_keys(
                         open,
