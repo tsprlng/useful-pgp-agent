@@ -9,7 +9,8 @@ standard, in Rust.
 
 ## Architecture
 
-The project consists of the following crates:
+This project consists of the following library crates:
+
 - [openpgp-card](https://crates.io/crates/openpgp-card), which offers a
   relatively low level OpenPGP card client API.
   It is PGP implementation agnostic.
@@ -23,20 +24,31 @@ The project consists of the following crates:
 - [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia),
   a higher level API for conveniently using openpgp-card with
   [Sequoia PGP](https://sequoia-pgp.org/).
-- [openpgp-card-tests](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality),
-  a testsuite to run OpenPGP card operations on smartcards.
+
+This is how the libraries relate to each other (and to applications):
 
 ```mermaid
 graph BT
     OP["openpgp-card-pcsc <br/> (pcsclite backend)"] --> OC
     OS["openpgp-card-scdc <br/> (scdaemon backend)"] --> OC["openpgp-card <br/> (low level API)"]
     OC --> OCS["openpgp-card-sequoia <br/> (high level Sequoia PGP-based API)"]
-    OC -.-> U2[applications using low level API]
-    OCS -.-> U3[Sequoia PGP-based applications]
+    OC -.-> U1[Applications based on low level API]
+    OCS -.-> U2[Sequoia PGP-based applications]
 
 classDef userApp fill:#f8f8f8,stroke-dasharray: 5 5;
-class U1,U2,U3 userApp;
+class U1,U2 userApp;
 ```
+
+Additionally, there are the following non-library crates that are built on 
+top of the libraries described above:
+
+- [openpgp-card-tools](https://crates.io/crates/openpgp-card-sequoia),
+  two CLI tools aimed at end users, to manage and use OpenPGP cards.
+- [openpgp-card-tests](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality),
+  a test-suite that runs OpenPGP card operations on smartcards.
+- [openpgp-card-examples](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-examples),
+  small example applications that demonstrate how you can use these 
+  libraries in your own projects to access OpenPGP card functionality.
 
 ### The openpgp-card crate
 
