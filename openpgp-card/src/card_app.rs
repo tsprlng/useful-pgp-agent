@@ -461,22 +461,8 @@ impl CardApp {
 
     // --- sign ---
 
-    /// Sign `hash`, on the card.
-    ///
-    /// This is a wrapper around the low-level
-    /// pso_compute_digital_signature operation.
-    /// It builds the required `data` field from `hash`.
-    ///
-    /// For RSA, this means a "DigestInfo" data structure is generated.
-    /// (see 7.2.10.2 DigestInfo for RSA).
-    ///
-    /// With ECC the hash data is processed as is, using
-    /// pso_compute_digital_signature.
-    pub fn signature_for_hash(
-        &mut self,
-        hash: Hash,
-    ) -> Result<Vec<u8>, Error> {
-        let data = match hash {
+    fn digestinfo(hash: Hash) -> Vec<u8> {
+        match hash {
             Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
                 let tlv = Tlv::new(
                     [0x30],
@@ -500,9 +486,25 @@ impl CardApp {
             }
             Hash::EdDSA(d) => d.to_vec(),
             Hash::ECDSA(d) => d.to_vec(),
-        };
+        }
+    }
 
-        self.pso_compute_digital_signature(data)
+    /// Sign `hash`, on the card.
+    ///
+    /// This is a wrapper around the low-level
+    /// pso_compute_digital_signature operation.
+    /// It builds the required `data` field from `hash`.
+    ///
+    /// For RSA, this means a "DigestInfo" data structure is generated.
+    /// (see 7.2.10.2 DigestInfo for RSA).
+    ///
+    /// With ECC the hash data is processed as is, using
+    /// pso_compute_digital_signature.
+    pub fn signature_for_hash(
+        &mut self,
+        hash: Hash,
+    ) -> Result<Vec<u8>, Error> {
+        self.pso_compute_digital_signature(Self::digestinfo(hash))
     }
 
     /// Run signing operation on the smartcard (low level operation)
@@ -520,9 +522,26 @@ impl CardApp {
 
     // --- internal authenticate ---
 
+    /// Auth-sign `hash`, on the card.
+    ///
+    /// This is a wrapper around the low-level
+    /// internal_authenticate operation.
+    /// It builds the required `data` field from `hash`.
+    ///
+    /// For RSA, this means a "DigestInfo" data structure is generated.
+    /// (see 7.2.10.2 DigestInfo for RSA).
+    ///
+    /// With ECC the hash data is processed as is.
+    pub fn authenticate_for_hash(
+        &mut self,
+        hash: Hash,
+    ) -> Result<Vec<u8>, Error> {
+        self.internal_authenticate(Self::digestinfo(hash))
+    }
+
     /// Run signing operation on the smartcard (low level operation)
     /// (7.2.13 INTERNAL AUTHENTICATE)
-    pub fn internal_authenticate(
+    fn internal_authenticate(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Error> {
