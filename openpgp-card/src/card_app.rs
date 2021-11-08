@@ -509,7 +509,7 @@ impl CardApp {
 
     /// Run signing operation on the smartcard (low level operation)
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    fn pso_compute_digital_signature(
+    pub fn pso_compute_digital_signature(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Error> {
@@ -541,7 +541,7 @@ impl CardApp {
 
     /// Run signing operation on the smartcard (low level operation)
     /// (7.2.13 INTERNAL AUTHENTICATE)
-    fn internal_authenticate(
+    pub fn internal_authenticate(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Error> {
