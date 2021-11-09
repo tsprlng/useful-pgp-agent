@@ -424,6 +424,7 @@ impl CardApp {
     pub fn decipher(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
         match dm {
             Cryptogram::RSA(message) => {
+                // "Padding indicator byte (00) for RSA" (pg. 69)
                 let mut data = vec![0x0];
 
                 // FIXME: The spec says we should "format according to PKCS#1"
@@ -434,6 +435,12 @@ impl CardApp {
                 self.pso_decipher(data)
             }
             Cryptogram::ECDH(eph) => {
+                // "In case of ECDH the card supports a partial decrypt
+                // only. The input is a cipher DO with the following data:"
+                // A6 xx Cipher DO
+                //  -> 7F49 xx Public Key DO
+                //    -> 86 xx External Public Key
+
                 // External Public Key
                 let epk = Tlv::new([0x86], Value::S(eph.to_vec()));
 

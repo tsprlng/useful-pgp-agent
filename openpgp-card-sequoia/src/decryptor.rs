@@ -103,6 +103,12 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 mpi::PublicKey::ECDH { ref curve, .. },
             ) => {
                 let dm = if curve == &Curve::Cv25519 {
+                    assert_eq!(
+                        e.value()[0],
+                        0x40,
+                        "Unexpected shape of decrypted Cv25519 data"
+                    );
+
                     // Ephemeral key without header byte 0x40
                     Cryptogram::ECDH(&e.value()[1..])
                 } else {
@@ -119,7 +125,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 if curve == &Curve::NistP256 && dec.len() == 65 {
                     assert_eq!(
                         dec[0], 0x04,
-                        "unexpected shape of decrypted data"
+                        "Unexpected shape of decrypted NistP256 data"
                     );
 
                     // see Gnuk src/call-ec.c:82
