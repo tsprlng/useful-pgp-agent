@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             admin_pin,
             cmd,
         } => {
-            let mut card = util::open_card(&ident)?.into();
+            let mut card = util::open_card(&ident)?;
             let mut open = Open::open(&mut card)?;
 
             match cmd {
@@ -137,8 +137,7 @@ fn list_cards() -> Result<()> {
     if !cards.is_empty() {
         println!("Available OpenPGP cards:");
 
-        for card in cards {
-            let mut card = card.into();
+        for mut card in cards {
             let open = Open::open(&mut card)?;
             println!(" {}", open.application_identifier()?.ident());
         }
@@ -149,18 +148,17 @@ fn list_cards() -> Result<()> {
 }
 
 fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
-    let ccb = if let Some(ident) = ident {
+    let mut ca = if let Some(ident) = ident {
         util::open_card(&ident)?
     } else {
         let mut cards = util::cards()?;
         if cards.len() == 1 {
             cards.pop().unwrap()
         } else {
-            return Err(anyhow::anyhow!("Found {} cards", cards.len()).into());
+            return Err(anyhow::anyhow!("Found {} cards", cards.len()));
         }
     };
-    let mut card = ccb.into();
-    let mut open = Open::open(&mut card)?;
+    let mut open = Open::open(&mut ca)?;
 
     print!("OpenPGP card {}", open.application_identifier()?.ident());
 
@@ -291,10 +289,10 @@ fn decrypt(
 
     let input = util::open_or_stdin(input.as_deref())?;
 
-    let mut card = util::open_card(&ident)?.into();
+    let mut card = util::open_card(ident)?;
     let mut open = Open::open(&mut card)?;
 
-    let mut user = util::get_user(&mut open, &pin_file)?;
+    let mut user = util::get_user(&mut open, pin_file)?;
     let d = user.decryptor(&cert, &p)?;
 
     let db = DecryptorBuilder::from_reader(input)?;
@@ -316,10 +314,10 @@ fn sign_detached(
 
     let mut input = util::open_or_stdin(input.as_deref())?;
 
-    let mut card = util::open_card(&ident)?.into();
+    let mut card = util::open_card(ident)?;
     let mut open = Open::open(&mut card)?;
 
-    let mut sign = util::get_sign(&mut open, &pin_file)?;
+    let mut sign = util::get_sign(&mut open, pin_file)?;
     let s = sign.signer(&cert, &p)?;
 
     let message = Armorer::new(Message::new(std::io::stdout())).build()?;
@@ -333,7 +331,7 @@ fn sign_detached(
 
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
-    let mut card = util::open_card(ident)?.into();
+    let mut card = util::open_card(ident)?;
     Open::open(&mut card)?.factory_reset()
 }
 
@@ -341,16 +339,16 @@ fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {
     let p = StandardPolicy::new();
 
     let sig =
-        openpgp_card_sequoia::sq_util::get_subkey(&key, &p, KeyType::Signing)?;
+        openpgp_card_sequoia::sq_util::get_subkey(key, &p, KeyType::Signing)?;
 
     let dec = openpgp_card_sequoia::sq_util::get_subkey(
-        &key,
+        key,
         &p,
         KeyType::Decryption,
     )?;
 
     let auth = openpgp_card_sequoia::sq_util::get_subkey(
-        &key,
+        key,
         &p,
         KeyType::Authentication,
     )?;
@@ -382,7 +380,7 @@ fn key_import_explicit(
 
     if let Some(sig_fp) = sig_fp {
         if let Some(sig) =
-            sq_util::get_subkey_by_fingerprint(&key, &p, &sig_fp)?
+            sq_util::get_subkey_by_fingerprint(key, &p, &sig_fp)?
         {
             println!("Uploading {} as signing key", sig.fingerprint());
             admin.upload_key(sig, KeyType::Signing, None)?;
@@ -393,7 +391,7 @@ fn key_import_explicit(
 
     if let Some(dec_fp) = dec_fp {
         if let Some(dec) =
-            sq_util::get_subkey_by_fingerprint(&key, &p, &dec_fp)?
+            sq_util::get_subkey_by_fingerprint(key, &p, &dec_fp)?
         {
             println!("Uploading {} as decryption key", dec.fingerprint());
             admin.upload_key(dec, KeyType::Decryption, None)?;
@@ -404,7 +402,7 @@ fn key_import_explicit(
 
     if let Some(auth_fp) = auth_fp {
         if let Some(auth) =
-            sq_util::get_subkey_by_fingerprint(&key, &p, &auth_fp)?
+            sq_util::get_subkey_by_fingerprint(key, &p, &auth_fp)?
         {
             println!("Uploading {} as authentication key", auth.fingerprint());
             admin.upload_key(auth, KeyType::Authentication, None)?;
@@ -478,7 +476,7 @@ fn generate_keys(
 
     // Write armored certificate to the output file (or stdout)
     let mut output = util::open_or_stdout(output.as_deref())?;
-    output.write(armored.as_bytes())?;
+    output.write_all(armored.as_bytes())?;
 
     Ok(())
 }
@@ -519,7 +517,7 @@ fn gen_subkeys(
         // If none of them work, fail and return all errors
 
         for (n, alg) in algos.iter().enumerate() {
-            let a = Some(alg.clone());
+            let a = Some(*alg);
 
             log::info!(" Trying key generation with algo {:?}", alg);
 

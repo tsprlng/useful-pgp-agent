@@ -25,10 +25,8 @@
 //! crate offers a higher level wrapper based on the
 //! [Sequoia PGP](https://sequoia-pgp.org/) implementation.
 
-use anyhow::Result;
-
 pub mod algorithm;
-mod apdu;
+pub(crate) mod apdu;
 mod card_app;
 pub mod card_do;
 pub mod crypto_data;
@@ -39,6 +37,11 @@ mod tlv;
 pub use crate::apdu::response::Response;
 pub use crate::card_app::CardApp;
 pub use crate::errors::{Error, SmartcardError, StatusBytes};
+
+use anyhow::Result;
+use std::convert::TryInto;
+
+use crate::apdu::commands;
 
 /// The CardClient trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate
@@ -74,6 +77,14 @@ pub trait CardClient {
 
 /// A boxed CardClient (which is Send+Sync).
 pub type CardClientBox = Box<dyn CardClient + Send + Sync>;
+
+impl dyn CardClient {
+    /// Select the OpenPGP card application
+    pub fn select(&mut self) -> Result<Response, Error> {
+        let select_openpgp = commands::select_openpgp();
+        apdu::send_command(self, select_openpgp, false)?.try_into()
+    }
+}
 
 /// Configuration of the capabilities of the card.
 ///

@@ -13,7 +13,7 @@ mod cli;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = cli::Cli::from_args();
 
-    let mut card = PcscClient::open_by_ident(&cli.ident)?.into();
+    let mut card = PcscClient::open_by_ident(&cli.ident)?;
     let mut open = Open::open(&mut card)?;
 
     match cli.cmd {
@@ -145,15 +145,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let res = if let Some(rst) = rst {
                 // reset to new user pin
                 open.reset_user_pin(&rst, &newpin1)
+            } else if let Some(mut admin) = open.admin_card() {
+                admin.reset_user_pin(&newpin1)
             } else {
-                if let Some(mut admin) = open.admin_card() {
-                    admin.reset_user_pin(&newpin1)
-                } else {
-                    return Err(anyhow::anyhow!(
-                        "Failed to use card in admin-mode."
-                    )
-                    .into());
-                }
+                return Err(anyhow::anyhow!(
+                    "Failed to use card in admin-mode."
+                )
+                .into());
             };
 
             if res.is_err() {

@@ -13,7 +13,7 @@ use std::convert::TryFrom;
 
 use crate::apdu::command::Expect;
 use crate::apdu::{command::Command, response::RawResponse};
-use crate::{CardClientBox, Error, StatusBytes};
+use crate::{CardClient, Error, StatusBytes};
 
 /// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
 const MAX_BUFFER_SIZE: usize = 264;
@@ -23,7 +23,7 @@ const MAX_BUFFER_SIZE: usize = 264;
 /// If the reply is truncated, this fn assembles all the parts and returns
 /// them as one aggregated Response.
 pub(crate) fn send_command(
-    card_client: &mut CardClientBox,
+    card_client: &mut dyn CardClient,
     cmd: Command,
     expect_reply: bool,
 ) -> Result<RawResponse, Error> {
@@ -82,7 +82,7 @@ pub(crate) fn send_command(
 /// If the response is chained, this fn only returns one chunk, the caller
 /// needs to re-assemble the chained response-parts.
 fn send_command_low_level(
-    card_client: &mut CardClientBox,
+    card_client: &mut dyn CardClient,
     cmd: Command,
     expect_response: Expect,
 ) -> Result<Vec<u8>, Error> {

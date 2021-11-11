@@ -135,9 +135,7 @@ pub(crate) fn generate_asymmetric_key_pair(
     let crt = get_crt(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
 
-    let card_client = card_app.get_card_client();
-
-    let resp = apdu::send_command(card_client, gen_key_cmd, true)?;
+    let resp = apdu::send_command(card_app.card_client(), gen_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -164,7 +162,7 @@ pub(crate) fn get_pub_key(
     let get_pub_key_cmd = commands::get_pub_key(crt.serialize().to_vec());
 
     let resp =
-        apdu::send_command(card_app.get_card_client(), get_pub_key_cmd, true)?;
+        apdu::send_command(card_app.card_client(), get_pub_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -216,8 +214,7 @@ pub(crate) fn key_import(
         card_app.set_algorithm_attributes(key_type, &algo)?;
     }
 
-    apdu::send_command(card_app.get_card_client(), key_cmd, false)?
-        .check_ok()?;
+    apdu::send_command(card_app.card_client(), key_cmd, false)?.check_ok()?;
     card_app.set_fingerprint(fp, key_type)?;
     card_app.set_creation_time(key.get_ts(), key_type)?;
 

@@ -3,16 +3,16 @@
 
 use anyhow::{Context, Result};
 
-use openpgp_card::{CardClientBox, Error};
+use openpgp_card::{CardApp, Error};
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 use std::path::Path;
 
-pub(crate) fn cards() -> Result<Vec<CardClientBox>> {
+pub(crate) fn cards() -> Result<Vec<CardApp>> {
     PcscClient::cards()
 }
 
-pub(crate) fn open_card(ident: &str) -> Result<CardClientBox, Error> {
+pub(crate) fn open_card(ident: &str) -> Result<CardApp, Error> {
     PcscClient::open_by_ident(ident)
 }
 
