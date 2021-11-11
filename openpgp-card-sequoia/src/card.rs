@@ -47,22 +47,18 @@ pub struct Open<'a> {
 }
 
 impl<'a> Open<'a> {
-    pub fn open(card_app: &'a mut CardApp) -> Result<Self, Error> {
+    pub fn new(card_app: &'a mut CardApp) -> Result<Self, Error> {
         let ard = card_app.get_application_related_data()?;
 
         card_app.init_caps(&ard)?;
 
-        Ok(Self::new(card_app, ard))
-    }
-
-    fn new(card_app: &'a mut CardApp, ard: ApplicationRelatedData) -> Self {
-        Self {
+        Ok(Self {
             card_app,
             ard,
             pw1: false,
             pw1_sign: false,
             pw3: false,
-        }
+        })
     }
 
     pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {

@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd,
         } => {
             let mut card = util::open_card(&ident)?;
-            let mut open = Open::open(&mut card)?;
+            let mut open = Open::new(&mut card)?;
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
@@ -138,7 +138,7 @@ fn list_cards() -> Result<()> {
         println!("Available OpenPGP cards:");
 
         for mut card in cards {
-            let open = Open::open(&mut card)?;
+            let open = Open::new(&mut card)?;
             println!(" {}", open.application_identifier()?.ident());
         }
     } else {
@@ -158,7 +158,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
             return Err(anyhow::anyhow!("Found {} cards", cards.len()));
         }
     };
-    let mut open = Open::open(&mut ca)?;
+    let mut open = Open::new(&mut ca)?;
 
     print!("OpenPGP card {}", open.application_identifier()?.ident());
 
@@ -290,7 +290,7 @@ fn decrypt(
     let input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut open = Open::open(&mut card)?;
+    let mut open = Open::new(&mut card)?;
 
     let mut user = util::get_user(&mut open, pin_file)?;
     let d = user.decryptor(&cert, &p)?;
@@ -315,7 +315,7 @@ fn sign_detached(
     let mut input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut open = Open::open(&mut card)?;
+    let mut open = Open::new(&mut card)?;
 
     let mut sign = util::get_sign(&mut open, pin_file)?;
     let s = sign.signer(&cert, &p)?;
@@ -332,7 +332,7 @@ fn sign_detached(
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
     let mut card = util::open_card(ident)?;
-    Open::open(&mut card)?.factory_reset()
+    Open::new(&mut card)?.factory_reset()
 }
 
 fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {

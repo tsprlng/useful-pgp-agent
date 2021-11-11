@@ -254,7 +254,7 @@ pub fn test_keygen(
         public_key_material_to_key(&pkm, KeyType::Authentication, ts)?;
 
     // Generate a Cert for this set of generated keys
-    let mut open = Open::open(&mut ca)?;
+    let mut open = Open::new(&mut ca)?;
     let cert =
         make_cert(&mut open, key_sig, Some(key_dec), Some(key_aut), "123456")?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;

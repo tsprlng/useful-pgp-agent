@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = cli::Cli::from_args();
 
     let mut card = PcscClient::open_by_ident(&cli.ident)?;
-    let mut open = Open::open(&mut card)?;
+    let mut open = Open::new(&mut card)?;
 
     match cli.cmd {
         cli::Command::SetUserPin {} => {

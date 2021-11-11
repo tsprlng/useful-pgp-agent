@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         let mut card = PcscClient::open_by_ident(&test_card_ident)?;
-        let mut open = Open::open(&mut card)?;
+        let mut open = Open::new(&mut card)?;
 
         // card metadata
 
@@ -151,7 +151,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
         let mut card = PcscClient::open_by_ident(&test_card_ident)?;
-        let mut open = Open::open(&mut card)?;
+        let mut open = Open::new(&mut card)?;
 
         // Check that we're still using the expected card
         let app_id = open.application_identifier()?;
@@ -190,7 +190,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         let mut card = PcscClient::open_by_ident(&test_card_ident)?;
-        let mut open = Open::open(&mut card)?;
+        let mut open = Open::new(&mut card)?;
 
         // Sign
         open.verify_user_for_signing("123456")?;
@@ -220,7 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("The following OpenPGP cards are connected to your system:");
 
         for mut card in PcscClient::cards()? {
-            let open = Open::open(&mut card)?;
+            let open = Open::new(&mut card)?;
             println!(" {}", open.application_identifier()?.ident());
         }
     }
