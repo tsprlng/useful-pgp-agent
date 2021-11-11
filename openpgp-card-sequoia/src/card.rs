@@ -154,14 +154,6 @@ impl<'a> Open<'a> {
 
     // --- application data ---
 
-    /// Load "application related data".
-    ///
-    /// This is done once, after opening the OpenPGP card applet
-    /// (the data is stored in the OpenPGPCard object).
-    fn application_related_data(&mut self) -> Result<ApplicationRelatedData> {
-        self.card_app.get_application_related_data()
-    }
-
     pub fn application_identifier(
         &self,
     ) -> Result<ApplicationIdentifier, Error> {
@@ -178,10 +170,12 @@ impl<'a> Open<'a> {
         self.ard.get_extended_length_information()
     }
 
+    #[allow(dead_code)]
     fn general_feature_management() -> Option<bool> {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn discretionary_data_objects() {
         unimplemented!()
     }
@@ -205,6 +199,7 @@ impl<'a> Open<'a> {
         self.ard.get_fingerprints()
     }
 
+    #[allow(dead_code)]
     fn ca_fingerprints(&self) {
         unimplemented!()
     }
@@ -215,22 +210,27 @@ impl<'a> Open<'a> {
         self.ard.get_key_generation_times()
     }
 
+    #[allow(dead_code)]
     fn key_information() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn uif_pso_cds() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn uif_pso_dec() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn uif_pso_aut() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn uif_attestation() {
         unimplemented!()
     }

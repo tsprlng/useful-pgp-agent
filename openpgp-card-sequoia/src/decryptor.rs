@@ -164,14 +164,13 @@ impl<'a> DecryptionHelper for CardDecryptor<'a> {
         for pkesk in pkesks {
             // Only attempt decryption if the KeyIDs match
             // (this check is an optimization)
-            if pkesk.recipient() == &self.public.keyid() {
-                if pkesk
+            if pkesk.recipient() == &self.public.keyid()
+                && pkesk
                     .decrypt(self, sym_algo)
                     .map(|(algo, session_key)| dec_fn(algo, &session_key))
                     .unwrap_or(false)
-                {
-                    return Ok(Some(self.public.fingerprint()));
-                }
+            {
+                return Ok(Some(self.public.fingerprint()));
             }
         }
 

@@ -410,9 +410,11 @@ fn rsa_key_import_cmd(
 
     // Push e, padded with zero bytes from the left
     let e_as_bytes = rsa_key.get_e();
-    for _ in e_as_bytes.len()..(len_e_bytes as usize) {
-        key_data.push(0);
+
+    if len_e_bytes as usize > e_as_bytes.len() {
+        key_data.extend(vec![0; len_e_bytes as usize - e_as_bytes.len()]);
     }
+
     key_data.extend(e_as_bytes);
 
     // -- Prime1: p + Prime2: q --

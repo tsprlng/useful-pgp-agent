@@ -409,7 +409,7 @@ pub fn test_cardholder_cert(
     let data = "Foo bar baz!".as_bytes();
 
     match ca.set_cardholder_certificate(data.to_vec()) {
-        Ok(resp) => out.push(TestResult::Text("set cert ok".to_string())),
+        Ok(_resp) => out.push(TestResult::Text("set cert ok".to_string())),
         Err(e) => {
             out.push(TestResult::Text(format!(
                 "set_cardholder_certificate: {:?}",
@@ -433,7 +433,7 @@ pub fn test_cardholder_cert(
     // try using slot 2
 
     match ca.select_data(2, &[0x7F, 0x21]) {
-        Ok(res) => out.push(TestResult::Text("select_data ok".to_string())),
+        Ok(_res) => out.push(TestResult::Text("select_data ok".to_string())),
         Err(e) => {
             out.push(TestResult::Text(format!("select_data: {:?}", e)));
             return Ok(out);
@@ -639,7 +639,7 @@ pub fn test_reset_retry_counter(
 
     println!("reset retry counter");
     // ca.reset_retry_counter_pw1("abcdef".as_bytes().to_vec(), None)?;
-    let res = ca.reset_retry_counter_pw1(
+    let _res = ca.reset_retry_counter_pw1(
         "abcdef".as_bytes().to_vec(),
         Some("abcdefgh".as_bytes().to_vec()),
     );

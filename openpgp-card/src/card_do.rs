@@ -77,10 +77,12 @@ impl ApplicationRelatedData {
         }
     }
 
+    #[allow(dead_code)]
     fn get_general_feature_management() -> Option<bool> {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn get_discretionary_data_objects() {
         unimplemented!()
     }

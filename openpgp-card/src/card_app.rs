@@ -129,26 +129,32 @@ impl CardApp {
         Ok(resp.data()?.to_vec())
     }
 
+    #[allow(dead_code)]
     fn get_ca_fingerprints() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn get_key_information() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn get_uif_pso_cds() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn get_uif_pso_dec() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn get_uif_pso_aut() {
         unimplemented!()
     }
 
+    #[allow(dead_code)]
     fn get_uif_attestation() {
         unimplemented!()
     }

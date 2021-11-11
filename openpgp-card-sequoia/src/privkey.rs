@@ -141,6 +141,7 @@ struct SqRSA {
 }
 
 impl SqRSA {
+    #[allow(clippy::many_single_char_names)]
     fn new(
         e: MPI,
         d: ProtectedMPI,
