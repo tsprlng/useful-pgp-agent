@@ -12,6 +12,46 @@ pub struct PcscClient {
 }
 
 impl PcscClient {
+    /// Return all cards on which the OpenPGP application could be selected.
+    ///
+    /// Each card has the OpenPGP application selected, CardCaps have been
+    /// initialized.
+    pub fn cards() -> Result<Vec<CardApp>> {
+        let mut cards = vec![];
+
+        for mut card in Self::unopened_cards()? {
+            if Self::select(&mut card).is_ok() {
+                if let Ok(ca) = card.into_card_app() {
+                    cards.push(ca);
+                }
+            }
+        }
+
+        Ok(cards)
+    }
+
+    /// Returns the OpenPGP card that matches `ident`, if it is available.
+    /// A fully initialized CardApp is returned: the OpenPGP application has
+    /// been selected, CardCaps have been set.
+    pub fn open_by_ident(ident: &str) -> Result<CardApp, Error> {
+        for mut card in Self::unopened_cards()? {
+            if Self::select(&mut card).is_ok() {
+                let mut ca = card.into_card_app()?;
+
+                let ard = ca.get_application_related_data()?;
+                let aid = ard.get_application_id()?;
+
+                if aid.ident() == ident {
+                    return Ok(ca);
+                }
+            }
+        }
+
+        Err(Error::Smartcard(SmartcardError::CardNotFound(
+            ident.to_string(),
+        )))
+    }
+
     fn new(card: Card) -> Self {
         Self {
             card,
@@ -19,13 +59,14 @@ impl PcscClient {
         }
     }
 
-    /// Get an initialized CardApp from a card
+    /// Make an initialized CardApp from a PcscClient
     fn into_card_app(self) -> Result<CardApp> {
         CardApp::initialize(Box::new(self))
     }
 
-    /// Opened PCSC Cards without selecting the OpenPGP card application
-    fn pcsc_cards() -> Result<Vec<Card>, SmartcardError> {
+    /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
+    /// application)
+    fn raw_pcsc_cards() -> Result<Vec<Card>, SmartcardError> {
         let ctx = match Context::establish(Scope::User) {
             Ok(ctx) => ctx,
             Err(err) => {
@@ -77,29 +118,11 @@ impl PcscClient {
 
     /// All PCSC cards, wrapped as PcscClient
     fn unopened_cards() -> Result<Vec<PcscClient>> {
-        Ok(Self::pcsc_cards()
+        Ok(Self::raw_pcsc_cards()
             .map_err(|err| anyhow!(err))?
             .into_iter()
             .map(PcscClient::new)
             .collect())
-    }
-
-    /// Return all cards on which the OpenPGP application could be selected.
-    ///
-    /// Each card has the OpenPGP application selected, CardCaps have been
-    /// initialized.
-    pub fn cards() -> Result<Vec<CardApp>> {
-        let mut cards = vec![];
-
-        for mut card in Self::unopened_cards()? {
-            if Self::select(&mut card).is_ok() {
-                if let Ok(ca) = card.into_card_app() {
-                    cards.push(ca);
-                }
-            }
-        }
-
-        Ok(cards)
     }
 
     /// Try to select the OpenPGP application on a card
@@ -109,28 +132,6 @@ impl PcscClient {
         } else {
             Err(Error::Smartcard(SmartcardError::SelectOpenPGPCardFailed))
         }
-    }
-
-    /// Returns the OpenPGP card that matches `ident`, if it is available.
-    /// A fully initialized CardApp is returned: the OpenPGP application has
-    /// been selected, CardCaps have been set.
-    pub fn open_by_ident(ident: &str) -> Result<CardApp, Error> {
-        for mut card in Self::unopened_cards()? {
-            if Self::select(&mut card).is_ok() {
-                let mut ca = card.into_card_app()?;
-
-                let ard = ca.get_application_related_data()?;
-                let aid = ard.get_application_id()?;
-
-                if aid.ident() == ident {
-                    return Ok(ca);
-                }
-            }
-        }
-
-        Err(Error::Smartcard(SmartcardError::CardNotFound(
-            ident.to_string(),
-        )))
     }
 }
 
