@@ -39,7 +39,7 @@ const ASSUAN_LINELENGTH: usize = 1000;
 ///
 /// Each command byte gets sent via Assuan as a two-character hex string.
 ///
-/// 18 characters are used to send "APDU --exlen=abcd "
+/// 22 characters are used to send "SCD APDU --exlen=abcd "
 /// (So, as a defensive limit, 25 characters are subtracted).
 ///
 /// In concrete terms, this limit means that some commands (with big
@@ -47,7 +47,7 @@ const ASSUAN_LINELENGTH: usize = 1000;
 /// command chaining (like the floss-shop "OpenPGP Smart Card 3.4").
 ///
 /// In particular, uploading rsa4096 keys fails via scdaemon, with such cards.
-const CMD_SIZE_MAX: usize = ASSUAN_LINELENGTH / 2 - 25;
+const APDU_CMD_BYTES_MAX: usize = (ASSUAN_LINELENGTH - 25) / 2;
 
 pub struct ScdClient {
     agent: Agent,
@@ -252,6 +252,6 @@ impl CardClient for ScdClient {
     /// Return limit for APDU command size via scdaemon (based on Assuan
     /// maximum line length)
     fn max_cmd_len(&self) -> Option<usize> {
-        Some(CMD_SIZE_MAX)
+        Some(APDU_CMD_BYTES_MAX)
     }
 }
