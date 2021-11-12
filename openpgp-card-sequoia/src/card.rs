@@ -50,8 +50,6 @@ impl<'a> Open<'a> {
     pub fn new(card_app: &'a mut CardApp) -> Result<Self, Error> {
         let ard = card_app.get_application_related_data()?;
 
-        card_app.init_caps(&ard)?;
-
         Ok(Self {
             card_app,
             ard,

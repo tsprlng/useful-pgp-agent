@@ -35,11 +35,12 @@ pub struct CardApp {
 impl CardApp {
     /// Get a CardApp based on a CardClient.
     ///
-    /// It is expected that SELECT has already been performed on the card.
+    /// It is expected that SELECT has already been performed on the card
+    /// beforehand.
     ///
-    /// This fn calls CardClient::init_caps(). It should probably only be used
-    /// by backend implementations, not by user code. User Code should get
-    /// a fully initialized CardApp from their backend implementation.
+    /// This fn initializes the CardCaps by requesting
+    /// application_related_data from the card, and setting the
+    /// capabilities accordingly.
     pub fn initialize(card_client: CardClientBox) -> Result<Self> {
         let mut ca = Self { card_client };
 
@@ -49,7 +50,7 @@ impl CardApp {
         Ok(ca)
     }
 
-    /// Get the CardClient for this CardApp
+    /// Get the CardClient of this CardApp
     pub(crate) fn card_client(&mut self) -> &mut dyn CardClient {
         &mut *self.card_client
     }
@@ -58,7 +59,7 @@ impl CardApp {
     /// from the data in `ard`.
     ///
     /// This should be done at an early point, soon after opening the card.
-    pub fn init_caps(&mut self, ard: &ApplicationRelatedData) -> Result<()> {
+    fn init_caps(&mut self, ard: &ApplicationRelatedData) -> Result<()> {
         // Determine chaining/extended length support from card
         // metadata and cache this information in CardApp (as a
         // CardCaps)

@@ -86,8 +86,8 @@ impl PcscClient {
 
     /// Return all cards on which the OpenPGP application could be selected.
     ///
-    /// Each card is opened and has the OpenPGP application selected.
-    /// Cards are initialized via init_caps().
+    /// Each card has the OpenPGP application selected, CardCaps have been
+    /// initialized.
     pub fn cards() -> Result<Vec<CardApp>> {
         let mut cards = vec![];
 
@@ -112,18 +112,19 @@ impl PcscClient {
     }
 
     /// Returns the OpenPGP card that matches `ident`, if it is available.
-    /// A fully initialized CardApp is returned: application has been
-    /// selected, init_caps() has been performed.
+    /// A fully initialized CardApp is returned: the OpenPGP application has
+    /// been selected, CardCaps have been set.
     pub fn open_by_ident(ident: &str) -> Result<CardApp, Error> {
         for mut card in Self::unopened_cards()? {
-            Self::select(&mut card)?;
-            let mut ca = card.into_card_app()?;
+            if Self::select(&mut card).is_ok() {
+                let mut ca = card.into_card_app()?;
 
-            let ard = ca.get_application_related_data()?;
-            let aid = ard.get_application_id()?;
+                let ard = ca.get_application_related_data()?;
+                let aid = ard.get_application_id()?;
 
-            if aid.ident() == ident {
-                return Ok(ca);
+                if aid.ident() == ident {
+                    return Ok(ca);
+                }
             }
         }
 

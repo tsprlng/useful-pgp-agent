@@ -112,15 +112,8 @@ impl TestCard {
                 Err(anyhow!("Pcsc card {} not found", ident))
             }
             Self::Scdc(serial) => {
-                let mut ca = ScdClient::open_by_serial(None, serial)?;
-
-                // Set Card Capabilities (chaining, command length, ..)
-                let ard = ca.get_application_related_data()?;
-                ca.init_caps(&ard)?;
-
-                // println!("opened scdc card {}", serial);
-
-                Ok(ca)
+                // println!("open scdc card {}", serial);
+                Ok(ScdClient::open_by_serial(None, serial)?)
             }
         }
     }

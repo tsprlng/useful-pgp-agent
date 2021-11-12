@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
 use openpgp_card::{CardApp, Error};
-use openpgp_card::{CardCaps, CardClient, CardClientBox};
+use openpgp_card::{CardCaps, CardClient};
 
 lazy_static! {
     static ref RT: Mutex<Runtime> =
@@ -108,9 +108,10 @@ impl ScdClient {
     /// Create a CardClientBox object that uses an scdaemon instance as its
     /// backend. If multiple cards are available, scdaemon implicitly
     /// selects one.
-    pub fn open(agent: Option<Agent>) -> Result<CardClientBox, Error> {
+    pub fn open(agent: Option<Agent>) -> Result<CardApp, Error> {
         let card = ScdClient::new(agent, true)?;
-        Ok(Box::new(card) as CardClientBox)
+
+        Ok(CardApp::initialize(Box::new(card))?)
     }
 
     /// Create a CardClientBox object that uses an scdaemon instance as its
