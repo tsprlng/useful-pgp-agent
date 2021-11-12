@@ -55,6 +55,40 @@ pub struct ScdClient {
 }
 
 impl ScdClient {
+    /// Open a CardApp that uses an scdaemon instance as its backend.
+    ///
+    /// If multiple cards are available, scdaemon implicitly selects one.
+    /// (NOTE: implicitly picking some card seems like a bad idea. You might
+    /// want to avoid using this fn.)
+    pub fn open_yolo(agent: Option<Agent>) -> Result<CardApp, Error> {
+        let card = ScdClient::new(agent, true)?;
+
+        Ok(CardApp::initialize(Box::new(card))?)
+    }
+
+    /// Open a CardApp that uses an scdaemon instance as its backend.
+    /// The specific card with AID `serial` is requested from scdaemon.
+    pub fn open_by_serial(
+        agent: Option<Agent>,
+        serial: &str,
+    ) -> Result<CardApp, Error> {
+        let mut card = ScdClient::new(agent, true)?;
+        card.select_card(serial)?;
+
+        Ok(CardApp::initialize(Box::new(card))?)
+    }
+
+    /// Helper fn that shuts down scdaemon via GnuPG Agent.
+    /// This may be useful to obtain access to a Smard card via PCSC.
+    pub fn shutdown_scd(agent: Option<Agent>) -> Result<()> {
+        let mut scdc = Self::new(agent, false)?;
+
+        scdc.send("SCD RESTART")?;
+        scdc.send("SCD BYE")?;
+
+        Ok(())
+    }
+
     /// Initialize an ScdClient object that is connected to an scdaemon
     /// instance via a GnuPG `agent` instance.
     ///
@@ -75,15 +109,15 @@ impl ScdClient {
         };
 
         if init {
-            // call "SCD SERIALNO", which causes scdaemon to be started by gpg
-            // agent (if it's not running yet)
-            scdc.init()?;
+            scdc.serialno()?;
         }
 
         Ok(scdc)
     }
 
-    fn init(&mut self) -> Result<()> {
+    /// Call "SCD SERIALNO", which causes scdaemon to be started by gpg
+    /// agent (if it's not running yet).
+    fn serialno(&mut self) -> Result<()> {
         let mut rt = RT.lock().unwrap();
 
         let send = "SCD SERIALNO";
@@ -103,27 +137,6 @@ impl ScdClient {
         }
 
         Err(anyhow!("SCDC init() failed"))
-    }
-
-    /// Create a CardClientBox object that uses an scdaemon instance as its
-    /// backend. If multiple cards are available, scdaemon implicitly
-    /// selects one.
-    pub fn open(agent: Option<Agent>) -> Result<CardApp, Error> {
-        let card = ScdClient::new(agent, true)?;
-
-        Ok(CardApp::initialize(Box::new(card))?)
-    }
-
-    /// Create a CardClientBox object that uses an scdaemon instance as its
-    /// backend. Requests the specific card `serial`.
-    pub fn open_by_serial(
-        agent: Option<Agent>,
-        serial: &str,
-    ) -> Result<CardApp, Error> {
-        let mut card = ScdClient::new(agent, true)?;
-        card.select_card(serial)?;
-
-        Ok(CardApp::initialize(Box::new(card))?)
     }
 
     /// Ask scdameon to switch to using a specific OpenPGP card, based on
@@ -177,15 +190,6 @@ impl ScdClient {
         }
 
         Err(anyhow!("Error sending command {}", cmd))
-    }
-
-    pub fn shutdown_scd(agent: Option<Agent>) -> Result<()> {
-        let mut scdc = Self::new(agent, false)?;
-
-        scdc.send("SCD RESTART")?;
-        scdc.send("SCD BYE")?;
-
-        Ok(())
     }
 }
 
