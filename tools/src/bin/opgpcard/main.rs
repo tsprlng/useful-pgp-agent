@@ -218,6 +218,11 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     if let Some(kgt) = kgt.signature() {
         println! {"  created: {}",kgt.formatted()};
     }
+    if verbose {
+        if let Ok(pkm) = open.get_pub_key(KeyType::Signing) {
+            println! {"  public key material: {}", pkm};
+        }
+    }
 
     println!();
     println!(
@@ -230,6 +235,11 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     if let Some(kgt) = kgt.decryption() {
         println! {"  created: {}",kgt.formatted()};
     }
+    if verbose {
+        if let Ok(pkm) = open.get_pub_key(KeyType::Decryption) {
+            println! {"  public key material: {}", pkm};
+        }
+    }
 
     println!();
     println!(
@@ -241,6 +251,11 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     }
     if let Some(kgt) = kgt.authentication() {
         println! {"  created: {}",kgt.formatted()};
+    }
+    if verbose {
+        if let Ok(pkm) = open.get_pub_key(KeyType::Authentication) {
+            println! {"  public key material: {}", pkm};
+        }
     }
 
     // technical details about the card and its state
