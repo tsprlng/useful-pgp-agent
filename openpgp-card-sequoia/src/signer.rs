@@ -4,6 +4,7 @@
 use std::convert::TryInto;
 
 use anyhow::anyhow;
+
 use openpgp::crypto;
 use openpgp::crypto::mpi;
 use openpgp::policy::Policy;
@@ -13,6 +14,7 @@ use sequoia_openpgp as openpgp;
 use openpgp_card::crypto_data::Hash;
 use openpgp_card::{CardApp, Error};
 
+use crate::sq_util;
 use crate::PublicKey;
 
 pub struct CardSigner<'a> {
@@ -42,25 +44,22 @@ impl<'a> CardSigner<'a> {
             // Transform into Sequoia Fingerprint
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
-            // Find the matching signing-capable (sub)key in `cert`
-            let keys: Vec<_> = cert
-                .keys()
-                .with_policy(policy, None)
-                .alive()
-                .revoked(false)
-                .for_signing()
-                .filter(|ka| ka.fingerprint() == fp)
-                .map(|ka| ka.key())
-                .collect();
-
-            // Exactly one matching (sub)key should be found. If not, fail!
-            if keys.len() == 1 {
-                let public = keys[0].clone();
-
-                Ok(Self::with_pubkey(ca, public))
+            if let Some(vk) =
+                sq_util::get_subkey_by_fingerprint(cert, policy, &fp)?
+            {
+                if vk.for_signing() {
+                    let key = vk.key().clone();
+                    Ok(Self::with_pubkey(ca, key))
+                } else {
+                    Err(Error::InternalError(anyhow!(
+                        "(Sub)key {} in the cert isn't signing capable",
+                        fp
+                    )))
+                }
             } else {
                 Err(Error::InternalError(anyhow!(
-                    "Failed to find a matching (sub)key in cert"
+                    "Failed to find (sub)key {} in cert",
+                    fp
                 )))
             }
         } else {

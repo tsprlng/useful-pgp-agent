@@ -14,7 +14,7 @@ use openpgp_card::KeyType;
 use openpgp_card_pcsc::PcscClient;
 
 use openpgp_card_sequoia::card::Open;
-use openpgp_card_sequoia::sq_util::{decryption_helper, sign_helper};
+use openpgp_card_sequoia::sq_util;
 
 // Filename of test key and test message to use
 
@@ -118,29 +118,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         let cert = Cert::from_file(TEST_KEY_PATH)?;
         let p = StandardPolicy::new();
 
-        if let Some(vka) = openpgp_card_sequoia::sq_util::get_subkey(
-            &cert,
-            &p,
-            KeyType::Signing,
-        )? {
+        if let Some(vka) =
+            sq_util::get_subkey_by_type(&cert, &p, KeyType::Signing)?
+        {
             println!("Upload signing key");
             admin.upload_key(vka, KeyType::Signing, None)?;
         }
 
-        if let Some(vka) = openpgp_card_sequoia::sq_util::get_subkey(
-            &cert,
-            &p,
-            KeyType::Decryption,
-        )? {
+        if let Some(vka) =
+            sq_util::get_subkey_by_type(&cert, &p, KeyType::Decryption)?
+        {
             println!("Upload decryption key");
             admin.upload_key(vka, KeyType::Decryption, None)?;
         }
 
-        if let Some(vka) = openpgp_card_sequoia::sq_util::get_subkey(
-            &cert,
-            &p,
-            KeyType::Authentication,
-        )? {
+        if let Some(vka) =
+            sq_util::get_subkey_by_type(&cert, &p, KeyType::Authentication)?
+        {
             println!("Upload auth key");
             admin.upload_key(vka, KeyType::Authentication, None)?;
         }
@@ -179,7 +173,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let sp = StandardPolicy::new();
         let d = user.decryptor(&cert, &sp)?;
-        let res = decryption_helper(d, msg.into_bytes(), &sp)?;
+        let res = sq_util::decryption_helper(d, msg.into_bytes(), &sp)?;
 
         let plain = String::from_utf8_lossy(&res);
         println!("Decrypted plaintext: {}", plain);
@@ -204,7 +198,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let text = "Hello world, I am signed.";
 
         let signer = sign.signer(&cert, &StandardPolicy::new())?;
-        let sig = sign_helper(signer, &mut text.as_bytes())?;
+        let sig = sq_util::sign_helper(signer, &mut text.as_bytes())?;
 
         println!("Signature from card:\n{}", sig)
 

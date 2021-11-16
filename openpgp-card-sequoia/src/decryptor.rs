@@ -18,6 +18,7 @@ use sequoia_openpgp as openpgp;
 use openpgp_card::crypto_data::Cryptogram;
 use openpgp_card::{CardApp, Error};
 
+use crate::sq_util;
 use crate::PublicKey;
 
 pub struct CardDecryptor<'a> {
@@ -47,23 +48,23 @@ impl<'a> CardDecryptor<'a> {
             // Transform into Sequoia Fingerprint
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
-            // Find the matching encryption-capable (sub)key in `cert`
-            let keys: Vec<_> = cert
-                .keys()
-                .with_policy(policy, None)
-                .for_storage_encryption()
-                .for_transport_encryption()
-                .filter(|ka| ka.fingerprint() == fp)
-                .map(|ka| ka.key())
-                .collect();
-
-            // Exactly one matching (sub)key should be found. If not, fail!
-            if keys.len() == 1 {
-                let public = keys[0].clone();
-                Ok(Self { ca, public })
+            if let Some(vk) =
+                sq_util::get_subkey_by_fingerprint(cert, policy, &fp)?
+            {
+                if vk.for_storage_encryption() || vk.for_transport_encryption()
+                {
+                    let public = vk.key().clone();
+                    Ok(Self { ca, public })
+                } else {
+                    Err(Error::InternalError(anyhow!(
+                        "(Sub)key {} in the cert isn't encryption capable",
+                        fp
+                    )))
+                }
             } else {
                 Err(Error::InternalError(anyhow!(
-                    "Failed to find a matching (sub)key in cert"
+                    "Failed to find (sub)key {} in cert",
+                    fp
                 )))
             }
         } else {

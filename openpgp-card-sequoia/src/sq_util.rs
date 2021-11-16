@@ -9,25 +9,28 @@ use anyhow::{anyhow, Context, Result};
 use std::io;
 
 use openpgp::armor;
-use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
+use openpgp::cert::amalgamation::{
+    key::ValidErasedKeyAmalgamation, ValidAmalgamation, ValidateAmalgamation,
+};
 use openpgp::crypto;
-use openpgp::packet::key::SecretParts;
+use openpgp::packet::key::{PublicParts, SecretParts};
 use openpgp::parse::{
     stream::{DecryptionHelper, DecryptorBuilder, VerificationHelper},
     Parse,
 };
 use openpgp::policy::Policy;
 use openpgp::serialize::stream::{Message, Signer};
+use openpgp::types::RevocationStatus;
 use openpgp::{Cert, Fingerprint};
 use sequoia_openpgp as openpgp;
 
-use openpgp_card::KeyType;
+use openpgp_card::{Error, KeyType};
 
 /// Retrieve a (sub)key from a Cert, for a given KeyType.
 ///
 /// Returns Ok(None), if no such (sub)key exists.
 /// If multiple suitable (sub)keys are found, an error is returned.
-pub fn get_subkey<'a>(
+pub fn get_subkey_by_type<'a>(
     cert: &'a Cert,
     policy: &'a dyn Policy,
     key_type: KeyType,
@@ -60,8 +63,8 @@ pub fn get_subkey<'a>(
     }
 }
 
-/// Retrieve a (sub)key from a Cert, with a specified fingerprint.
-pub fn get_subkey_by_fingerprint<'a>(
+/// Retrieve a private (sub)key from a Cert, by fingerprint.
+pub fn get_priv_subkey_by_fingerprint<'a>(
     cert: &'a Cert,
     policy: &'a dyn Policy,
     fingerprint: &str,
@@ -87,6 +90,51 @@ pub fn get_subkey_by_fingerprint<'a>(
             "Unexpected number of suitable (sub)key found: {}",
             vkas.len()
         ))
+    }
+}
+
+/// Retrieve a public (sub)key from a Cert, by fingerprint.
+pub fn get_subkey_by_fingerprint<'a>(
+    cert: &'a Cert,
+    policy: &'a dyn Policy,
+    fp: &Fingerprint,
+) -> Result<Option<ValidErasedKeyAmalgamation<'a, PublicParts>>, Error> {
+    // Find the (sub)key in `cert` that matches the fingerprint from
+    // the Card's signing-key slot.
+    let keys: Vec<_> =
+        cert.keys().filter(|ka| &ka.fingerprint() == fp).collect();
+
+    // Exactly one matching (sub)key should be found. If not, fail!
+    if keys.len() == 1 {
+        // Check if the (sub)key is valid/alive, return error
+        // otherwise
+        let validkey = keys[0].clone().with_policy(policy, None)?;
+        validkey.alive()?;
+
+        if let RevocationStatus::Revoked(_) = validkey.revocation_status() {
+            return Err(Error::InternalError(anyhow!(
+                "(Sub)key {} in the cert is revoked",
+                fp
+            )));
+        }
+
+        Ok(Some(validkey))
+    } else {
+        if keys.len() == 0 {
+            Ok(None)
+        } else if keys.len() == 2 {
+            Err(Error::InternalError(anyhow!(
+                "Found two results for {}, probably the cert has the \
+                 primary as a subkey?",
+                fp
+            )))
+        } else {
+            Err(Error::InternalError(anyhow!(
+                "Found {} results for (sub)key {}, this is unexpected",
+                keys.len(),
+                fp
+            )))
+        }
     }
 }
 

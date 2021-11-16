@@ -353,20 +353,11 @@ fn factory_reset(ident: &str) -> Result<()> {
 fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {
     let p = StandardPolicy::new();
 
-    let sig =
-        openpgp_card_sequoia::sq_util::get_subkey(key, &p, KeyType::Signing)?;
+    let sig = sq_util::get_subkey_by_type(key, &p, KeyType::Signing)?;
 
-    let dec = openpgp_card_sequoia::sq_util::get_subkey(
-        key,
-        &p,
-        KeyType::Decryption,
-    )?;
+    let dec = sq_util::get_subkey_by_type(key, &p, KeyType::Decryption)?;
 
-    let auth = openpgp_card_sequoia::sq_util::get_subkey(
-        key,
-        &p,
-        KeyType::Authentication,
-    )?;
+    let auth = sq_util::get_subkey_by_type(key, &p, KeyType::Authentication)?;
 
     if let Some(sig) = sig {
         println!("Uploading {} as signing key", sig.fingerprint());
@@ -395,7 +386,7 @@ fn key_import_explicit(
 
     if let Some(sig_fp) = sig_fp {
         if let Some(sig) =
-            sq_util::get_subkey_by_fingerprint(key, &p, &sig_fp)?
+            sq_util::get_priv_subkey_by_fingerprint(key, &p, &sig_fp)?
         {
             println!("Uploading {} as signing key", sig.fingerprint());
             admin.upload_key(sig, KeyType::Signing, None)?;
@@ -406,7 +397,7 @@ fn key_import_explicit(
 
     if let Some(dec_fp) = dec_fp {
         if let Some(dec) =
-            sq_util::get_subkey_by_fingerprint(key, &p, &dec_fp)?
+            sq_util::get_priv_subkey_by_fingerprint(key, &p, &dec_fp)?
         {
             println!("Uploading {} as decryption key", dec.fingerprint());
             admin.upload_key(dec, KeyType::Decryption, None)?;
@@ -417,7 +408,7 @@ fn key_import_explicit(
 
     if let Some(auth_fp) = auth_fp {
         if let Some(auth) =
-            sq_util::get_subkey_by_fingerprint(key, &p, &auth_fp)?
+            sq_util::get_priv_subkey_by_fingerprint(key, &p, &auth_fp)?
         {
             println!("Uploading {} as authentication key", auth.fingerprint());
             admin.upload_key(auth, KeyType::Authentication, None)?;

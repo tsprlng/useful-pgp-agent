@@ -18,7 +18,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::KeyGenerationTime;
 use openpgp_card::{CardApp, KeyType};
-use openpgp_card_sequoia::sq_util::get_subkey;
+use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::util::vka_as_uploadable_key;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();
@@ -35,7 +35,7 @@ pub(crate) fn upload_subkeys(
         KeyType::Decryption,
         KeyType::Authentication,
     ] {
-        if let Some(vka) = get_subkey(cert, policy, *kt)? {
+        if let Some(vka) = sq_util::get_subkey_by_type(cert, policy, *kt)? {
             // store fingerprint as return-value
             let fp = vka.fingerprint().to_hex();
             // store key creation time as return-value
