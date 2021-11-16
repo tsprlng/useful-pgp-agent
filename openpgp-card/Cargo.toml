@@ -14,6 +14,7 @@ documentation = "https://docs.rs/crate/openpgp-card"
 [dependencies]
 nom = "6"
 hex-literal = "0.3"
+hex-slice = "0.1"
 anyhow = "1"
 thiserror = "1"
 env_logger = "0.8"

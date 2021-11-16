@@ -120,6 +120,26 @@ pub enum PublicKeyMaterial {
     E(EccPub),
 }
 
+impl std::fmt::Display for PublicKeyMaterial {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use hex_slice::AsHex;
+
+        match self {
+            Self::R(rsa) => {
+                write!(
+                    f,
+                    "RSA, n: {:02X}, e: {:02X}",
+                    rsa.n.plain_hex(false),
+                    rsa.v.plain_hex(false)
+                )
+            }
+            Self::E(ecc) => {
+                write!(f, "ECC, data: {:02X}", ecc.data.plain_hex(false))
+            }
+        }
+    }
+}
+
 /// RSA-specific container for public key material from an OpenPGP card.
 #[derive(Debug)]
 #[non_exhaustive]
