@@ -269,6 +269,15 @@ impl<'a> Open<'a> {
 
     // ----------
 
+    pub fn get_pub_key(
+        &mut self,
+        key_type: KeyType,
+    ) -> Result<PublicKeyMaterial> {
+        self.card_app.get_pub_key(key_type).map_err(|e| e.into())
+    }
+
+    // ----------
+
     /// Delete all state on this OpenPGP card
     pub fn factory_reset(&mut self) -> Result<()> {
         self.card_app.factory_reset()
