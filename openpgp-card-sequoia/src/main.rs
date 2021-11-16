@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Try not to overwrite your production cards.
         // ---------------------------------------------
 
-        assert_eq!(app_id.ident(), test_card_ident);
+        assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
 
         let check = open.check_admin_verified();
         println!("has admin (pw3) been verified yet?\n{:x?}\n", check);
@@ -155,7 +155,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Check that we're still using the expected card
         let app_id = open.application_identifier()?;
-        assert_eq!(app_id.ident(), test_card_ident);
+        assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
 
         let check = open.check_user_verified();
         println!("has user (pw1/82) been verified yet?\n{:x?}\n", check);
