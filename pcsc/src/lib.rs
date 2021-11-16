@@ -41,7 +41,7 @@ impl PcscClient {
                 let ard = ca.get_application_related_data()?;
                 let aid = ard.get_application_id()?;
 
-                if aid.ident() == ident {
+                if aid.ident() == ident.to_ascii_uppercase() {
                     return Ok(ca);
                 }
             }
