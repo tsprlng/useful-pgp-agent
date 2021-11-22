@@ -98,7 +98,11 @@ pub fn get_subkey_by_fingerprint<'a>(
     cert: &'a Cert,
     policy: &'a dyn Policy,
     fp: &Fingerprint,
+    check_revocation: bool,
 ) -> Result<Option<ValidErasedKeyAmalgamation<'a, PublicParts>>, Error> {
+    // FIXME: if `test_revocation`, then first check if the primary key is
+    // revoked?
+
     // Find the (sub)key in `cert` that matches the fingerprint from
     // the Card's signing-key slot.
     let keys: Vec<_> =
@@ -111,11 +115,14 @@ pub fn get_subkey_by_fingerprint<'a>(
         let validkey = keys[0].clone().with_policy(policy, None)?;
         validkey.alive()?;
 
-        if let RevocationStatus::Revoked(_) = validkey.revocation_status() {
-            return Err(Error::InternalError(anyhow!(
-                "(Sub)key {} in the cert is revoked",
-                fp
-            )));
+        if check_revocation {
+            if let RevocationStatus::Revoked(_) = validkey.revocation_status()
+            {
+                return Err(Error::InternalError(anyhow!(
+                    "(Sub)key {} in the cert is revoked",
+                    fp
+                )));
+            }
         }
 
         Ok(Some(validkey))

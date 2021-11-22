@@ -45,7 +45,7 @@ impl<'a> CardSigner<'a> {
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
             if let Some(vk) =
-                sq_util::get_subkey_by_fingerprint(cert, policy, &fp)?
+                sq_util::get_subkey_by_fingerprint(cert, policy, &fp, true)?
             {
                 if vk.for_signing() {
                     let key = vk.key().clone();

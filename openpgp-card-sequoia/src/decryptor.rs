@@ -49,7 +49,7 @@ impl<'a> CardDecryptor<'a> {
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
             if let Some(vk) =
-                sq_util::get_subkey_by_fingerprint(cert, policy, &fp)?
+                sq_util::get_subkey_by_fingerprint(cert, policy, &fp, false)?
             {
                 if vk.for_storage_encryption() || vk.for_transport_encryption()
                 {
