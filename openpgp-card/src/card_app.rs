@@ -422,9 +422,6 @@ impl CardApp {
             Cryptogram::RSA(message) => {
                 // "Padding indicator byte (00) for RSA" (pg. 69)
                 let mut data = vec![0x0];
-
-                // FIXME: The spec says we should "format according to PKCS#1"
-
                 data.extend_from_slice(message);
 
                 // Call the card to decrypt `data`
