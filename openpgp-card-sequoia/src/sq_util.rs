@@ -126,22 +126,20 @@ pub fn get_subkey_by_fingerprint<'a>(
         }
 
         Ok(Some(validkey))
-    } else {
-        if keys.len() == 0 {
-            Ok(None)
-        } else if keys.len() == 2 {
-            Err(Error::InternalError(anyhow!(
-                "Found two results for {}, probably the cert has the \
+    } else if keys.is_empty() {
+        Ok(None)
+    } else if keys.len() == 2 {
+        Err(Error::InternalError(anyhow!(
+            "Found two results for {}, probably the cert has the \
                  primary as a subkey?",
-                fp
-            )))
-        } else {
-            Err(Error::InternalError(anyhow!(
-                "Found {} results for (sub)key {}, this is unexpected",
-                keys.len(),
-                fp
-            )))
-        }
+            fp
+        )))
+    } else {
+        Err(Error::InternalError(anyhow!(
+            "Found {} results for (sub)key {}, this is unexpected",
+            keys.len(),
+            fp
+        )))
     }
 }
 
