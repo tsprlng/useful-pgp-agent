@@ -199,11 +199,15 @@ impl CardClient for ScdClient {
 
         let hex = hex::encode(cmd);
 
+        // (Unwrap is ok here, not having a card_caps is fine)
         let ext = if self.card_caps.is_some()
             && self.card_caps.unwrap().get_ext_support()
         {
+            // If we know about card_caps, and can do extended length we
+            // set "exlen" accordingly ...
             format!("--exlen={} ", self.card_caps.unwrap().get_max_rsp_bytes())
         } else {
+            // ... otherwise don't send "exlen" to scdaemon
             "".to_string()
         };
 
