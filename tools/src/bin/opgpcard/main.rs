@@ -283,10 +283,19 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     // FIXME: add General key info; login data; KDF setting
 
     if verbose {
-        if let Some(ai) = open.algorithm_information()? {
+        // Algorithm information (list of supported algorithms)
+        if let Ok(Some(ai)) = open.algorithm_information() {
             println!();
             println!("Supported algorithms:");
             println!("{}", ai);
+        }
+
+        // YubiKey specific (?) firmware version
+        if let Ok(ver) = open.firmware_version() {
+            let ver =
+                ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
+
+            println!("Firmware Version: {}", ver);
         }
     }
 

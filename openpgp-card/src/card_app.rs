@@ -233,6 +233,17 @@ impl CardApp {
         Ok(Some(ai))
     }
 
+    /// Firmware Version (YubiKey specific (?))
+    pub fn get_firmware_version(&mut self) -> Result<Vec<u8>> {
+        let resp = apdu::send_command(
+            self.card_client(),
+            commands::get_firmware_version(),
+            true,
+        )?;
+
+        Ok(resp.data()?.into())
+    }
+
     /// SELECT DATA "select a DO in the current template"
     /// (e.g. for cardholder certificate)
     pub fn select_data(

@@ -66,6 +66,11 @@ pub(crate) fn get_algo_list() -> Command {
     get_data(&[0xFA])
 }
 
+/// GET Firmware Version (yubikey specific?)
+pub(crate) fn get_firmware_version() -> Command {
+    Command::new(0x00, 0xF1, 0x00, 0x00, vec![])
+}
+
 /// GET RESPONSE
 pub(crate) fn get_response() -> Command {
     Command::new(0x00, 0xC0, 0x00, 0x00, vec![])

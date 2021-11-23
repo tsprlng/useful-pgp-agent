@@ -267,6 +267,11 @@ impl<'a> Open<'a> {
         self.card_app.get_algo_info()
     }
 
+    /// Firmware Version, YubiKey specific (?)
+    pub fn firmware_version(&mut self) -> Result<Vec<u8>> {
+        self.card_app.get_firmware_version()
+    }
+
     // ----------
 
     pub fn get_pub_key(
