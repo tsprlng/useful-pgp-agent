@@ -77,6 +77,18 @@ pub trait CardClient {
     fn max_cmd_len(&self) -> Option<usize> {
         None
     }
+
+    /// Does the reader support FEATURE_VERIFY_PIN_DIRECT?
+    fn feature_pinpad_verify(&self) -> bool;
+
+    /// Does the reader support FEATURE_MODIFY_PIN_DIRECT?
+    fn feature_pinpad_modify(&self) -> bool;
+
+    /// Verify the PIN 'id' via the reader pinpad
+    fn pinpad_verify(&mut self, id: u8) -> Result<Vec<u8>>;
+
+    /// Modify the PIN 'id' via the reader pinpad
+    fn pinpad_modify(&mut self, id: u8) -> Result<Vec<u8>>;
 }
 
 /// A boxed CardClient (which is Send+Sync).
@@ -96,7 +108,7 @@ impl dyn CardClient {
 /// length can be used when communicating with the card.
 ///
 /// (This configuration is retrieved from card metadata, specifically from
-/// "Card Capabilities" and "Extended length information")
+/// "Card Capabilities", "Extended length information" and "PWStatus")
 #[derive(Clone, Copy, Debug)]
 pub struct CardCaps {
     /// Extended Lc and Le fields
@@ -110,6 +122,12 @@ pub struct CardCaps {
 
     /// Maximum number of bytes in a response APDU
     max_rsp_bytes: u16,
+
+    /// Maximum length of pw1
+    pw1_max_len: u8,
+
+    /// Maximum length of pw3
+    pw3_max_len: u8,
 }
 
 impl CardCaps {
@@ -119,6 +137,14 @@ impl CardCaps {
 
     pub fn get_max_rsp_bytes(&self) -> u16 {
         self.max_rsp_bytes
+    }
+
+    pub fn get_pw1_max_len(&self) -> u8 {
+        self.pw1_max_len
+    }
+
+    pub fn get_pw3_max_len(&self) -> u8 {
+        self.pw3_max_len
     }
 }
 

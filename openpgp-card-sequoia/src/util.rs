@@ -37,13 +37,18 @@ use crate::{decryptor, signer, PublicKey};
 /// Create a Cert from the three subkeys on a card.
 /// (Calling this multiple times will result in different Certs!)
 ///
+/// When pw1 is None, attempt to verify via pinpad.
+///
+/// `prompt` notifies the user when a pinpad needs the user pin as input.
+///
 /// FIXME: accept optional metadata for user_id(s)?
 pub fn make_cert<'a, 'app>(
     open: &'a mut Open<'app>,
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
-    pw1: &str,
+    pw1: Option<String>,
+    prompt: &dyn Fn(),
 ) -> Result<Cert> {
     let mut pp = vec![];
 
@@ -72,7 +77,11 @@ pub fn make_cert<'a, 'app>(
                     )?;
 
             // Allow signing on the card
-            open.verify_user_for_signing(pw1)?;
+            if let Some(pw1) = pw1.clone() {
+                open.verify_user_for_signing(&pw1)?;
+            } else {
+                open.verify_user_for_signing_pinpad(prompt)?;
+            }
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
                 let mut card_signer = sign.signer_from_pubkey(key_sig.clone());
@@ -100,7 +109,11 @@ pub fn make_cert<'a, 'app>(
                     .set_key_flags(KeyFlags::empty().set_authentication())?;
 
             // Allow signing on the card
-            open.verify_user_for_signing(pw1)?;
+            if let Some(pw1) = pw1.clone() {
+                open.verify_user_for_signing(&pw1)?;
+            } else {
+                open.verify_user_for_signing_pinpad(prompt)?;
+            }
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
                 let mut card_signer = sign.signer_from_pubkey(key_sig.clone());
@@ -141,7 +154,11 @@ pub fn make_cert<'a, 'app>(
                 )?;
 
         // Allow signing on the card
-        open.verify_user_for_signing(pw1)?;
+        if let Some(pw1) = pw1 {
+            open.verify_user_for_signing(&pw1)?;
+        } else {
+            open.verify_user_for_signing_pinpad(prompt)?;
+        }
 
         if let Some(mut sign) = open.signing_card() {
             // Card-backed signer for bindings

@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use std::path::{Path, PathBuf};
 
 use openpgp_card::{CardApp, Error};
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
-use std::path::Path;
 
 pub(crate) fn cards() -> Result<Vec<CardApp>> {
     PcscClient::cards()
@@ -18,29 +18,70 @@ pub(crate) fn open_card(ident: &str) -> Result<CardApp, Error> {
 
 pub(crate) fn get_user<'app, 'open>(
     open: &'app mut Open<'app>,
-    pin_file: &Path,
+    pin_file: Option<PathBuf>,
 ) -> Result<User<'app, 'open>, Box<dyn std::error::Error>> {
-    open.verify_user(&get_pin(pin_file)?)?;
+    if let Some(path) = pin_file {
+        open.verify_user(&get_pin(&path)?)?;
+    } else {
+        if !open.feature_pinpad_verify() {
+            return Err(anyhow!(
+                "No user PIN file provided, and no pinpad found"
+            )
+            .into());
+        };
+
+        open.verify_user_pinpad(&|| {
+            println!("Enter user PIN on card reader pinpad.")
+        })?;
+    }
+
     open.user_card()
-        .ok_or_else(|| anyhow::anyhow!("Couldn't get user access").into())
+        .ok_or_else(|| anyhow!("Couldn't get user access").into())
 }
 
 pub(crate) fn get_sign<'app, 'open>(
     open: &'app mut Open<'app>,
-    pin_file: &Path,
+    pin_file: Option<PathBuf>,
 ) -> Result<Sign<'app, 'open>, Box<dyn std::error::Error>> {
-    open.verify_user_for_signing(&get_pin(pin_file)?)?;
+    if let Some(path) = pin_file {
+        open.verify_user_for_signing(&get_pin(&path)?)?;
+    } else {
+        if !open.feature_pinpad_verify() {
+            return Err(anyhow!(
+                "No user PIN file provided, and no pinpad found"
+            )
+            .into());
+        }
+        open.verify_user_for_signing_pinpad(&|| {
+            println!("Enter user PIN on card reader pinpad.")
+        })?;
+    }
     open.signing_card()
-        .ok_or_else(|| anyhow::anyhow!("Couldn't get sign access").into())
+        .ok_or_else(|| anyhow!("Couldn't get sign access").into())
 }
 
+// pub fn admin_card<'b>(&'b mut self) -> Option<Admin<'a, 'b>> {
+
 pub(crate) fn get_admin<'app, 'open>(
-    open: &'app mut Open<'app>,
-    pin_file: &Path,
+    open: &'open mut Open<'app>,
+    pin_file: Option<PathBuf>,
 ) -> Result<Admin<'app, 'open>, Box<dyn std::error::Error>> {
-    open.verify_admin(&get_pin(pin_file)?)?;
+    if let Some(path) = pin_file {
+        open.verify_admin(&get_pin(&path)?)?;
+    } else {
+        if !open.feature_pinpad_verify() {
+            return Err(anyhow!(
+                "No admin PIN file provided, and no pinpad found"
+            )
+            .into());
+        }
+
+        open.verify_admin_pinpad(&|| {
+            println!("Enter admin PIN on card reader pinpad.")
+        })?;
+    }
     open.admin_card()
-        .ok_or_else(|| anyhow::anyhow!("Couldn't get admin access").into())
+        .ok_or_else(|| anyhow!("Couldn't get admin access").into())
 }
 
 pub(crate) fn get_pin(pin_file: &Path) -> Result<String> {

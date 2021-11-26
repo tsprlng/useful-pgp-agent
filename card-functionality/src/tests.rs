@@ -255,8 +255,14 @@ pub fn test_keygen(
 
     // Generate a Cert for this set of generated keys
     let mut open = Open::new(&mut ca)?;
-    let cert =
-        make_cert(&mut open, key_sig, Some(key_dec), Some(key_aut), "123456")?;
+    let cert = make_cert(
+        &mut open,
+        key_sig,
+        Some(key_dec),
+        Some(key_aut),
+        Some("123456".to_string()),
+        &|| {},
+    )?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
     let res = TestResult::Text(armored);

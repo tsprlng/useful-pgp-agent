@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cert_file,
             input,
         } => {
-            decrypt(&ident, &user_pin, &cert_file, input.as_deref())?;
+            decrypt(&ident, user_pin, &cert_file, input.as_deref())?;
         }
         cli::Command::Sign {
             ident,
@@ -53,12 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             input,
         } => {
             if detached {
-                sign_detached(
-                    &ident,
-                    &user_pin,
-                    &cert_file,
-                    input.as_deref(),
-                )?;
+                sign_detached(&ident, user_pin, &cert_file, input.as_deref())?;
             } else {
                 return Err(anyhow::anyhow!(
                     "Only detached signatures are supported for now"
@@ -79,12 +74,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
-                    let mut admin = util::get_admin(&mut open, &admin_pin)?;
+                    let mut admin = util::get_admin(&mut open, admin_pin)?;
 
                     let _ = admin.set_name(&name)?;
                 }
                 cli::AdminCommand::Url { url } => {
-                    let mut admin = util::get_admin(&mut open, &admin_pin)?;
+                    let mut admin = util::get_admin(&mut open, admin_pin)?;
 
                     let _ = admin.set_url(&url)?;
                 }
@@ -94,8 +89,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     dec_fp,
                     auth_fp,
                 } => {
-                    let admin = util::get_admin(&mut open, &admin_pin)?;
                     let key = Cert::from_file(keyfile)?;
+                    let admin = util::get_admin(&mut open, admin_pin)?;
 
                     if (&sig_fp, &dec_fp, &auth_fp) == (&None, &None, &None) {
                         // If no fingerprint has been provided, we check if
@@ -115,13 +110,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     no_auth,
                     algo,
                 } => {
-                    let pw3 = util::get_pin(&admin_pin)?;
-                    let pw1 = util::get_pin(&user_pin)?;
-
                     generate_keys(
                         open,
-                        &pw3,
-                        &pw1,
+                        admin_pin,
+                        user_pin,
                         output,
                         !no_decrypt,
                         !no_auth,
@@ -318,7 +310,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
 fn decrypt(
     ident: &str,
-    pin_file: &Path,
+    pin_file: Option<PathBuf>,
     cert_file: &Path,
     input: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -343,7 +335,7 @@ fn decrypt(
 
 fn sign_detached(
     ident: &str,
-    pin_file: &Path,
+    pin_file: Option<PathBuf>,
     cert_file: &Path,
     input: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -445,8 +437,8 @@ fn key_import_explicit(
 
 fn generate_keys(
     mut open: Open,
-    pw3: &str,
-    pw1: &str,
+    pw3_path: Option<PathBuf>,
+    pw1_path: Option<PathBuf>,
     output: Option<PathBuf>,
     decrypt: bool,
     auth: bool,
@@ -484,23 +476,37 @@ fn generate_keys(
 
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
-
-    open.verify_admin(pw3)?;
-
     let (key_sig, key_dec, key_aut) = {
-        if let Some(mut admin) = open.admin_card() {
+        if let Ok(mut admin) = util::get_admin(&mut open, pw3_path) {
             gen_subkeys(&mut admin, decrypt, auth, algos)?
         } else {
-            // FIXME: couldn't get admin mode
-            unimplemented!()
+            return Err(anyhow!("Failed to open card in admin mode."));
         }
     };
 
     // 3) Generate a Cert from the generated keys. For this, we
     // need "signing" access to the card (to make binding signatures within
     // the Cert).
+    let pin = if let Some(pw1) = pw1_path {
+        Some(util::get_pin(&pw1)?)
+    } else {
+        if open.feature_pinpad_verify() {
+            println!();
+            println!(
+                "Next: generating your public cert. You will need to enter \
+                your user PIN multiple times to make binding signatures."
+            );
+        } else {
+            return Err(anyhow!(
+                "No user PIN file provided, and no pinpad found"
+            ));
+        }
+        None
+    };
 
-    let cert = make_cert(&mut open, key_sig, key_dec, key_aut, pw1)?;
+    let cert = make_cert(&mut open, key_sig, key_dec, key_aut, pin, &|| {
+        println!("Enter user PIN on card reader pinpad.")
+    })?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
     // Write armored certificate to the output file (or stdout)

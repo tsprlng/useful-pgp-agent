@@ -43,7 +43,7 @@ pub enum Command {
         ident: String,
 
         #[structopt(name = "Admin PIN file", short = "P", long = "admin-pin")]
-        admin_pin: PathBuf,
+        admin_pin: Option<PathBuf>,
 
         #[structopt(subcommand)]
         cmd: AdminCommand,
@@ -53,7 +53,7 @@ pub enum Command {
         ident: String,
 
         #[structopt(name = "User PIN file", short = "p", long = "user-pin")]
-        user_pin: PathBuf,
+        user_pin: Option<PathBuf>,
 
         #[structopt(
             name = "recipient-cert-file",
@@ -70,7 +70,7 @@ pub enum Command {
         ident: String,
 
         #[structopt(name = "User PIN file", short = "p", long = "user-pin")]
-        user_pin: PathBuf,
+        user_pin: Option<PathBuf>,
 
         #[structopt(name = "detached", short = "d", long = "detached")]
         detached: bool,
@@ -129,7 +129,7 @@ pub enum AdminCommand {
     /// are optional.
     Generate {
         #[structopt(name = "User PIN file", short = "p", long = "user-pin")]
-        user_pin: PathBuf,
+        user_pin: Option<PathBuf>,
 
         #[structopt(
             about = "Output file (stdout if unset)",

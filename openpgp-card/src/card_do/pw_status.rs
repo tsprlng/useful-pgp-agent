@@ -21,7 +21,7 @@ impl PWStatusBytes {
         data.push(if self.pw1_cds_valid_once { 0 } else { 1 });
 
         if long {
-            let mut b2 = self.pw1_len;
+            let mut b2 = self.pw1_len_format;
             if self.pw1_pin_block {
                 b2 |= 0x80;
             }
@@ -29,7 +29,7 @@ impl PWStatusBytes {
 
             data.push(self.rc_len);
 
-            let mut b4 = self.pw3_len;
+            let mut b4 = self.pw3_len_format;
             if self.pw3_pin_block {
                 b4 |= 0x80;
             }
@@ -58,10 +58,10 @@ impl TryFrom<&[u8]> for PWStatusBytes {
             Ok(Self {
                 pw1_cds_valid_once,
                 pw1_pin_block,
-                pw1_len,
+                pw1_len_format: pw1_len,
                 rc_len,
                 pw3_pin_block,
-                pw3_len,
+                pw3_len_format: pw3_len,
                 err_count_pw1,
                 err_count_rst,
                 err_count_pw3,
@@ -92,10 +92,10 @@ mod test {
             PWStatusBytes {
                 pw1_cds_valid_once: true,
                 pw1_pin_block: false,
-                pw1_len: 0x40,
+                pw1_len_format: 0x40,
                 rc_len: 0x40,
                 pw3_pin_block: false,
-                pw3_len: 0x40,
+                pw3_len_format: 0x40,
                 err_count_pw1: 3,
                 err_count_rst: 0,
                 err_count_pw3: 3

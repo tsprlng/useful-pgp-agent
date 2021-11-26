@@ -9,6 +9,7 @@ use std::convert::TryInto;
 use anyhow::{anyhow, Result};
 
 use crate::algorithm::{Algo, AlgoInfo, AlgoSimple};
+use crate::apdu::response::RawResponse;
 use crate::apdu::{commands, response::Response};
 use crate::card_do::{
     ApplicationRelatedData, CardholderRelatedData, Fingerprint,
@@ -89,11 +90,17 @@ impl CardApp {
                 (255, 255)
             };
 
+        let pw_status = ard.get_pw_status_bytes()?;
+        let pw1_max = pw_status.get_pw1_max_len();
+        let pw3_max = pw_status.get_pw3_max_len();
+
         let caps = CardCaps {
             ext_support,
             chaining_support,
             max_cmd_bytes,
             max_rsp_bytes,
+            pw1_max_len: pw1_max,
+            pw3_max_len: pw3_max,
         };
 
         self.card_client.init_caps(caps);
@@ -335,6 +342,18 @@ impl CardApp {
         Ok(())
     }
 
+    // ----------
+
+    /// Does the cardreader support direct pinpad verify?
+    pub fn feature_pinpad_verify(&self) -> bool {
+        self.card_client.feature_pinpad_verify()
+    }
+
+    /// Does the cardreader support direct pinpad modify?
+    pub fn feature_pinpad_modify(&self) -> bool {
+        self.card_client.feature_pinpad_modify()
+    }
+
     /// Verify pw1 (user) for signing operation (mode 81) and set an
     /// appropriate access status.
     ///
@@ -347,6 +366,20 @@ impl CardApp {
     ) -> Result<Response, Error> {
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
         apdu::send_command(self.card_client(), verify, false)?.try_into()
+    }
+
+    /// Verify pw1 (user) for signing operation (mode 81) and set an
+    /// appropriate access status. This fn uses a pinpad on the card reader,
+    /// if no usable pinpad is found, an error is returned.
+    ///
+    /// Depending on the PW1 status byte (see Extended Capabilities) this
+    /// access condition is only valid for one PSO:CDS command or remains
+    /// valid for several attempts.
+    pub fn verify_pw1_for_signing_pinpad(
+        &mut self,
+    ) -> Result<Response, Error> {
+        let res = self.card_client.pinpad_verify(0x81)?;
+        RawResponse::try_from(res)?.try_into()
     }
 
     /// Check the current access of PW1 for signing (mode 81).
@@ -367,6 +400,15 @@ impl CardApp {
         apdu::send_command(self.card_client(), verify, false)?.try_into()
     }
 
+    /// Verify PW1 (user) and set an appropriate access status.
+    /// (For operations except signing, mode 82).
+    /// This fn uses a pinpad on the card reader, if no usable pinpad is
+    /// found, an error is returned.
+    pub fn verify_pw1_pinpad(&mut self) -> Result<Response, Error> {
+        let res = self.card_client.pinpad_verify(0x82)?;
+        RawResponse::try_from(res)?.try_into()
+    }
+
     /// Check the current access of PW1.
     /// (For operations except signing, mode 82).
     ///
@@ -383,6 +425,14 @@ impl CardApp {
     pub fn verify_pw3(&mut self, pin: &str) -> Result<Response, Error> {
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
         apdu::send_command(self.card_client(), verify, false)?.try_into()
+    }
+
+    /// Verify PW3 (admin) and set an appropriate access status.
+    /// This fn uses a pinpad on the card reader, if no usable pinpad is
+    /// found, an error is returned.
+    pub fn verify_pw3_pinpad(&mut self) -> Result<Response, Error> {
+        let res = self.card_client.pinpad_verify(0x83)?;
+        RawResponse::try_from(res)?.try_into()
     }
 
     /// Check the current access of PW3 (admin).
@@ -412,6 +462,14 @@ impl CardApp {
         apdu::send_command(self.card_client(), change, false)?.try_into()
     }
 
+    /// Change the value of PW1 (user password).
+    /// This fn uses a pinpad on the card reader, if no usable pinpad is
+    /// found, an error is returned.
+    pub fn change_pw1_pinpad(&mut self) -> Result<Response, Error> {
+        let res = self.card_client.pinpad_modify(0x81)?;
+        RawResponse::try_from(res)?.try_into()
+    }
+
     /// Change the value of PW3 (admin password).
     ///
     /// The current value of PW3 must be presented in `old` for authorization.
@@ -426,6 +484,14 @@ impl CardApp {
 
         let change = commands::change_pw3(data);
         apdu::send_command(self.card_client(), change, false)?.try_into()
+    }
+
+    /// Change the value of PW3 (admin password).
+    /// This fn uses a pinpad on the card reader, if no usable pinpad is
+    /// found, an error is returned.
+    pub fn change_pw3_pinpad(&mut self) -> Result<Response, Error> {
+        let res = self.card_client.pinpad_modify(0x83)?;
+        RawResponse::try_from(res)?.try_into()
     }
 
     /// Reset the error counter for PW1 (user password) and set a new value

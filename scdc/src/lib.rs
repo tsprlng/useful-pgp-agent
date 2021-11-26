@@ -262,4 +262,20 @@ impl CardClient for ScdClient {
     fn max_cmd_len(&self) -> Option<usize> {
         Some(APDU_CMD_BYTES_MAX)
     }
+
+    fn feature_pinpad_verify(&self) -> bool {
+        false // FIXME
+    }
+
+    fn feature_pinpad_modify(&self) -> bool {
+        false // FIXME
+    }
+
+    fn pinpad_verify(&mut self, _id: u8) -> Result<Vec<u8>> {
+        unimplemented!() // FIXME
+    }
+
+    fn pinpad_modify(&mut self, _id: u8) -> Result<Vec<u8>> {
+        unimplemented!() // FIXME
+    }
 }

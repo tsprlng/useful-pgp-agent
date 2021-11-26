@@ -325,10 +325,10 @@ impl From<u8> for Sex {
 pub struct PWStatusBytes {
     pub(crate) pw1_cds_valid_once: bool,
     pub(crate) pw1_pin_block: bool,
-    pub(crate) pw1_len: u8,
+    pub(crate) pw1_len_format: u8,
     pub(crate) rc_len: u8,
     pub(crate) pw3_pin_block: bool,
-    pub(crate) pw3_len: u8,
+    pub(crate) pw3_len_format: u8,
     pub(crate) err_count_pw1: u8,
     pub(crate) err_count_rst: u8,
     pub(crate) err_count_pw3: u8,
@@ -347,6 +347,18 @@ impl PWStatusBytes {
 
     pub fn get_pw1_cds_valid_once(&self) -> bool {
         self.pw1_cds_valid_once
+    }
+
+    pub fn get_pw1_max_len(&self) -> u8 {
+        self.pw1_len_format & 0x7f
+    }
+
+    pub fn get_rc_max_len(&self) -> u8 {
+        self.rc_len
+    }
+
+    pub fn get_pw3_max_len(&self) -> u8 {
+        self.pw3_len_format & 0x7f
     }
 
     pub fn get_err_count_pw1(&self) -> u8 {

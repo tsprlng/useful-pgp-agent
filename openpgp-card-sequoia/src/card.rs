@@ -58,9 +58,27 @@ impl<'a> Open<'a> {
             pw3: false,
         })
     }
+    pub fn feature_pinpad_verify(&self) -> bool {
+        self.card_app.feature_pinpad_verify()
+    }
+
+    pub fn feature_pinpad_modify(&self) -> bool {
+        self.card_app.feature_pinpad_modify()
+    }
 
     pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
         let _ = self.card_app.verify_pw1(pin)?;
+        self.pw1 = true;
+        Ok(())
+    }
+
+    pub fn verify_user_pinpad(
+        &mut self,
+        prompt: &dyn Fn(),
+    ) -> Result<(), Error> {
+        prompt();
+
+        let _ = self.card_app.verify_pw1_pinpad()?;
         self.pw1 = true;
         Ok(())
     }
@@ -74,8 +92,33 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
+    pub fn verify_user_for_signing_pinpad(
+        &mut self,
+        prompt: &dyn Fn(),
+    ) -> Result<(), Error> {
+        prompt();
+
+        let _ = self.card_app.verify_pw1_for_signing_pinpad()?;
+
+        // FIXME: depending on card mode, pw1_sign is only usable once
+
+        self.pw1_sign = true;
+        Ok(())
+    }
+
     pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
         let _ = self.card_app.verify_pw3(pin)?;
+        self.pw3 = true;
+        Ok(())
+    }
+
+    pub fn verify_admin_pinpad(
+        &mut self,
+        prompt: &dyn Fn(),
+    ) -> Result<(), Error> {
+        prompt();
+
+        let _ = self.card_app.verify_pw3_pinpad()?;
         self.pw3 = true;
         Ok(())
     }
@@ -102,6 +145,14 @@ impl<'a> Open<'a> {
         self.card_app.change_pw1(old, new)
     }
 
+    pub fn change_user_pin_pinpad(
+        &mut self,
+        prompt: &dyn Fn(),
+    ) -> Result<Response, Error> {
+        prompt();
+        self.card_app.change_pw1_pinpad()
+    }
+
     pub fn reset_user_pin(
         &mut self,
         rst: &str,
@@ -117,6 +168,14 @@ impl<'a> Open<'a> {
         new: &str,
     ) -> Result<Response, Error> {
         self.card_app.change_pw3(old, new)
+    }
+
+    pub fn change_admin_pin_pinpad(
+        &mut self,
+        prompt: &dyn Fn(),
+    ) -> Result<Response, Error> {
+        prompt();
+        self.card_app.change_pw3_pinpad()
     }
 
     /// Get a view of the card authenticated for "User" commands.
