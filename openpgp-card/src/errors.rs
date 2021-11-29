@@ -179,6 +179,9 @@ pub enum SmartcardError {
     #[error("Failed to connect to the card: {0}")]
     SmartCardConnectionError(String),
 
+    #[error("NotTransacted (SCARD_E_NOT_TRANSACTED)")]
+    NotTransacted,
+
     #[error("Generic SmartCard Error: {0}")]
     Error(String),
 }

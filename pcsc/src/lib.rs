@@ -136,15 +136,25 @@ impl PcscClient {
 }
 
 impl CardClient for PcscClient {
-    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>> {
+    fn transmit(
+        &mut self,
+        cmd: &[u8],
+        buf_size: usize,
+    ) -> Result<Vec<u8>, Error> {
         let mut resp_buffer = vec![0; buf_size];
 
-        let resp = self.card.transmit(cmd, &mut resp_buffer).map_err(|e| {
-            Error::Smartcard(SmartcardError::Error(format!(
-                "Transmit failed: {:?}",
-                e
-            )))
-        })?;
+        let resp =
+            self.card.transmit(cmd, &mut resp_buffer).map_err(
+                |e| match e {
+                    pcsc::Error::NotTransacted => {
+                        Error::Smartcard(SmartcardError::NotTransacted)
+                    }
+                    _ => Error::Smartcard(SmartcardError::Error(format!(
+                        "Transmit failed: {:?}",
+                        e
+                    ))),
+                },
+            )?;
 
         log::debug!(" <- APDU response: {:x?}", resp);
 

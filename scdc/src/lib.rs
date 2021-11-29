@@ -194,7 +194,7 @@ impl ScdClient {
 }
 
 impl CardClient for ScdClient {
-    fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>> {
+    fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>, Error> {
         log::trace!("SCDC cmd len {}", cmd.len());
 
         let hex = hex::encode(cmd);
@@ -215,10 +215,10 @@ impl CardClient for ScdClient {
         log::debug!("SCDC command: '{}'", send);
 
         if send.len() > ASSUAN_LINELENGTH {
-            return Err(anyhow!(
+            return Err(Error::InternalError(anyhow!(
                 "APDU command is too long ({}) to send via Assuan",
                 send.len()
-            ));
+            )));
         }
 
         self.agent.send(send)?;
@@ -228,10 +228,10 @@ impl CardClient for ScdClient {
         while let Some(response) = rt.block_on(self.agent.next()) {
             log::debug!("res: {:x?}", response);
             if response.is_err() {
-                return Err(anyhow!(
+                return Err(Error::InternalError(anyhow!(
                     "Unexpected error response from SCD {:?}",
                     response
-                ));
+                )));
             }
 
             if let Ok(Response::Data { partial }) = response {
@@ -246,7 +246,7 @@ impl CardClient for ScdClient {
             }
         }
 
-        Err(anyhow!("no response found"))
+        Err(Error::InternalError(anyhow!("no response found")))
     }
 
     fn init_caps(&mut self, caps: CardCaps) {

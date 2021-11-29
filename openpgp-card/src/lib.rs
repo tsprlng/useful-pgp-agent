@@ -51,7 +51,11 @@ pub trait CardClient {
     ///
     /// `buf_size` is a hint to the backend (the backend may ignore it)
     /// indicating the expected maximum response size.
-    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>>;
+    fn transmit(
+        &mut self,
+        cmd: &[u8],
+        buf_size: usize,
+    ) -> Result<Vec<u8>, Error>;
 
     /// Set the card capabilities in the CardClient.
     ///

@@ -34,6 +34,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Status { ident, verbose } => {
             print_status(ident, verbose)?;
         }
+        cli::Command::SetIdentity { ident, id } => {
+            set_identity(&ident, id)?;
+        }
         cli::Command::Decrypt {
             ident,
             user_pin,
@@ -144,6 +147,17 @@ fn list_cards() -> Result<()> {
     } else {
         println!("No OpenPGP cards found.");
     }
+    Ok(())
+}
+
+fn set_identity(
+    ident: &str,
+    id: u8,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut card = util::open_card(ident)?;
+
+    card.set_identity(id)?;
+
     Ok(())
 }
 

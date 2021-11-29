@@ -31,6 +31,13 @@ pub enum Command {
         #[structopt(name = "card ident", short = "c", long = "card")]
         ident: String,
     },
+    SetIdentity {
+        #[structopt(name = "card ident", short = "c", long = "card")]
+        ident: String,
+
+        #[structopt(name = "identity")]
+        id: u8,
+    },
     Admin {
         #[structopt(name = "card ident", short = "c", long = "card")]
         ident: String,

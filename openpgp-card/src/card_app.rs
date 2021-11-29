@@ -18,7 +18,9 @@ use crate::crypto_data::{
     CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial,
 };
 use crate::tlv::{tag::Tag, value::Value, Tlv};
-use crate::{apdu, keys, CardCaps, CardClient, CardClientBox, KeyType};
+use crate::{
+    apdu, keys, CardCaps, CardClient, CardClientBox, KeyType, SmartcardError,
+};
 use crate::{Error, StatusBytes};
 
 /// Low-level access to OpenPGP card functionality.
@@ -242,6 +244,26 @@ impl CardApp {
         )?;
 
         Ok(resp.data()?.into())
+    }
+
+    /// Set identity (Nitrokey Start specific (?)).
+    /// [see:
+    /// https://docs.nitrokey.com/start/linux/multiple-identities.html
+    /// https://github.com/Nitrokey/nitrokey-start-firmware/pull/33/]
+    pub fn set_identity(&mut self, id: u8) -> Result<Vec<u8>> {
+        let resp = apdu::send_command(
+            self.card_client(),
+            commands::set_identity(id),
+            false,
+        );
+
+        // Apparently it's normal to get "NotTransacted" from pcsclite when
+        // the identity switch was successful.
+        if let Err(Error::Smartcard(SmartcardError::NotTransacted)) = resp {
+            Ok(vec![])
+        } else {
+            Ok(resp?.data()?.into())
+        }
     }
 
     /// SELECT DATA "select a DO in the current template"
