@@ -100,9 +100,12 @@ impl PcscClient {
                         continue; // try next reader
                     }
                     Err(err) => {
-                        return Err(SmartcardError::SmartCardConnectionError(
-                            err.to_string(),
-                        ));
+                        log::warn!(
+                            "Error connecting to card in reader: {:x?}",
+                            err
+                        );
+
+                        continue;
                     }
                 };
 
