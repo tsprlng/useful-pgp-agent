@@ -165,8 +165,14 @@ impl fmt::Display for Algo {
             Self::Rsa(rsa) => {
                 write!(
                     f,
-                    "RSA {}, {} [format {}]",
-                    rsa.len_n, rsa.len_e, rsa.import_format
+                    "RSA {} [e {}{}]",
+                    rsa.len_n,
+                    rsa.len_e,
+                    if rsa.import_format != 0 {
+                        format!(", format {}", rsa.import_format)
+                    } else {
+                        "".to_string()
+                    }
                 )
             }
             Self::Ecc(ecc) => {
