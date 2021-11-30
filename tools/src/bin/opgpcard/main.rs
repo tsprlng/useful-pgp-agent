@@ -214,16 +214,15 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     let kgt = open.key_generation_times()?;
 
     println!();
-    println!(
-        "Signature key ({})",
-        open.algorithm_attributes(KeyType::Signing)?,
-    );
+    println!("Signature key");
     if let Some(fp) = fps.signature() {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
     if let Some(kgt) = kgt.signature() {
-        println! {"  created: {}",kgt.formatted()};
+        println! {"  created: {}", kgt.formatted()};
     }
+    println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Signing)?};
+
     if verbose {
         if let Ok(pkm) = open.get_pub_key(KeyType::Signing) {
             println! {"  public key material: {}", pkm};
@@ -231,16 +230,15 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     }
 
     println!();
-    println!(
-        "Decryption key ({})",
-        open.algorithm_attributes(KeyType::Decryption)?,
-    );
+    println!("Decryption key");
     if let Some(fp) = fps.decryption() {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
     if let Some(kgt) = kgt.decryption() {
-        println! {"  created: {}",kgt.formatted()};
+        println! {"  created: {}", kgt.formatted()};
     }
+    println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Decryption)?};
+
     if verbose {
         if let Ok(pkm) = open.get_pub_key(KeyType::Decryption) {
             println! {"  public key material: {}", pkm};
@@ -248,16 +246,14 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     }
 
     println!();
-    println!(
-        "Authentication key ({})",
-        open.algorithm_attributes(KeyType::Authentication)?,
-    );
+    println!("Authentication key");
     if let Some(fp) = fps.authentication() {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
     if let Some(kgt) = kgt.authentication() {
-        println! {"  created: {}",kgt.formatted()};
+        println! {"  created: {}", kgt.formatted()};
     }
+    println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
     if verbose {
         if let Ok(pkm) = open.get_pub_key(KeyType::Authentication) {
             println! {"  public key material: {}", pkm};
