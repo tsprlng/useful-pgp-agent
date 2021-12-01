@@ -36,11 +36,13 @@ pub enum AlgoSimple {
     Curve25519,
 }
 
-impl From<&str> for AlgoSimple {
-    fn from(algo: &str) -> Self {
+impl TryFrom<&str> for AlgoSimple {
+    type Error = anyhow::Error;
+
+    fn try_from(algo: &str) -> Result<Self, anyhow::Error> {
         use AlgoSimple::*;
 
-        match algo {
+        Ok(match algo {
             "RSA1k/17" => RSA1k(17),
             "RSA1k/32" => RSA1k(32),
             "RSA2k/17" => RSA2k(17),
@@ -53,8 +55,8 @@ impl From<&str> for AlgoSimple {
             "NIST384" => NIST384,
             "NIST521" => NIST521,
             "Curve25519" => Curve25519,
-            _ => panic!("unexpected algo {}", algo),
-        }
+            _ => return Err(anyhow!("unexpected algo {}", algo)),
+        })
     }
 }
 

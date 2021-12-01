@@ -22,6 +22,8 @@ pub enum Hash<'a> {
 }
 
 impl Hash<'_> {
+    /// This fn is currently only used in the context of creating a
+    /// digestinfo for SHA*. Other OIDs are not implemented.
     pub(crate) fn oid(&self) -> Option<&'static [u8]> {
         match self {
             Self::SHA256(_) => {
@@ -33,8 +35,8 @@ impl Hash<'_> {
             Self::SHA512(_) => {
                 Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03])
             }
-            Self::EdDSA(_) => panic!("This should not be called"),
-            Self::ECDSA(_) => panic!("This should not be called"),
+            Self::EdDSA(_) => panic!("OIDs for EdDSA are unimplemented"),
+            Self::ECDSA(_) => panic!("OIDs for ECDSA are unimplemented"),
         }
     }
 

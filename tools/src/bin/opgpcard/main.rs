@@ -464,7 +464,7 @@ fn generate_keys(
         Some("nistp384") => vec![AlgoSimple::NIST384],
         Some("nistp521") => vec![AlgoSimple::NIST521],
         Some("25519") => vec![AlgoSimple::Curve25519],
-        _ => unimplemented!("unexpected algorithm"),
+        _ => return Err(anyhow!("Unexpected algorithm")),
     };
 
     log::info!(

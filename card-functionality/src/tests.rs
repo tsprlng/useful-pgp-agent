@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
+use std::convert::TryFrom;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use thiserror;
@@ -229,7 +230,7 @@ pub fn test_keygen(
     // Generate all three subkeys on card
     let algo = param[0];
 
-    let alg = AlgoSimple::from(algo);
+    let alg = AlgoSimple::try_from(algo)?;
 
     println!(" Generate subkey for Signing");
     let (pkm, ts) =
