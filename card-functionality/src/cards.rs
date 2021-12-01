@@ -99,8 +99,8 @@ impl TestCard {
 
                 for mut ca in PcscClient::cards()? {
                     // Set Card Capabilities (chaining, command length, ..)
-                    let ard = ca.get_application_related_data()?;
-                    let app_id = ard.get_application_id()?;
+                    let ard = ca.application_related_data()?;
+                    let app_id = ard.application_id()?;
 
                     if app_id.ident().as_str() == ident.to_uppercase() {
                         // println!("opened pcsc card {}", ident);

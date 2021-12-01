@@ -47,7 +47,7 @@ impl CardApp {
     pub fn initialize(card_client: CardClientBox) -> Result<Self> {
         let mut ca = Self { card_client };
 
-        let ard = ca.get_application_related_data()?;
+        let ard = ca.application_related_data()?;
         ca.init_caps(&ard)?;
 
         Ok(ca)
@@ -70,18 +70,18 @@ impl CardApp {
         let mut ext_support = false;
         let mut chaining_support = false;
 
-        if let Ok(hist) = ard.get_historical() {
-            if let Some(cc) = hist.get_card_capabilities() {
-                chaining_support = cc.get_command_chaining();
-                ext_support = cc.get_extended_lc_le();
+        if let Ok(hist) = ard.historical_bytes() {
+            if let Some(cc) = hist.card_capabilities() {
+                chaining_support = cc.command_chaining();
+                ext_support = cc.extended_lc_le();
             }
         }
 
-        let ext_cap = ard.get_extended_capabilities()?;
+        let ext_cap = ard.extended_capabilities()?;
 
         let (max_cmd_bytes, max_rsp_bytes) =
         // FIXME: handle cmd/resp limits in ex-cap, for card <3.0 (?)
-            if let Ok(Some(eli)) = ard.get_extended_length_information() {
+            if let Ok(Some(eli)) = ard.extended_length_information() {
                 (eli.max_command_bytes(), eli.max_response_bytes())
             } else if let (Some(cmd), Some(rsp))
               = (ext_cap.max_cmd_len(), ext_cap.max_resp_len()) {
@@ -90,9 +90,9 @@ impl CardApp {
                 (255, 255)
             };
 
-        let pw_status = ard.get_pw_status_bytes()?;
-        let pw1_max = pw_status.get_pw1_max_len();
-        let pw3_max = pw_status.get_pw3_max_len();
+        let pw_status = ard.pw_status_bytes()?;
+        let pw1_max = pw_status.pw1_max_len();
+        let pw3_max = pw_status.pw3_max_len();
 
         let caps = CardCaps {
             ext_support,
@@ -103,7 +103,7 @@ impl CardApp {
             pw3_max_len: pw3_max,
         };
 
-        self.card_client.init_caps(caps);
+        self.card_client.init_card_caps(caps);
 
         Ok(())
     }
@@ -115,10 +115,10 @@ impl CardApp {
     /// (This data should probably be cached in a higher layer. Some parts of
     /// it are needed regularly, and it does not usually change during
     /// normal use of a card.)
-    pub fn get_application_related_data(
+    pub fn application_related_data(
         &mut self,
     ) -> Result<ApplicationRelatedData> {
-        let ad = commands::get_application_data();
+        let ad = commands::application_related_data();
         let resp = apdu::send_command(self.card_client(), ad, true)?;
         let value = Value::from(resp.data()?, true)?;
 
@@ -130,42 +130,42 @@ impl CardApp {
     /// Get data from "private use" DO.
     ///
     /// `num` must be between 1 and 4.
-    pub fn get_private(&mut self, num: u8) -> Result<Vec<u8>> {
+    pub fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>> {
         assert!((1..=4).contains(&num));
 
-        let cmd = commands::get_private_do(num);
+        let cmd = commands::private_do(num);
         let resp = apdu::send_command(self.card_client(), cmd, true)?;
 
         Ok(resp.data()?.to_vec())
     }
 
     #[allow(dead_code)]
-    fn get_ca_fingerprints() {
+    fn ca_fingerprints() {
         unimplemented!()
     }
 
     #[allow(dead_code)]
-    fn get_key_information() {
+    fn key_information() {
         unimplemented!()
     }
 
     #[allow(dead_code)]
-    fn get_uif_pso_cds() {
+    fn uif_pso_cds() {
         unimplemented!()
     }
 
     #[allow(dead_code)]
-    fn get_uif_pso_dec() {
+    fn uif_pso_dec() {
         unimplemented!()
     }
 
     #[allow(dead_code)]
-    fn get_uif_pso_aut() {
+    fn uif_pso_aut() {
         unimplemented!()
     }
 
     #[allow(dead_code)]
-    fn get_uif_attestation() {
+    fn uif_attestation() {
         unimplemented!()
     }
 
@@ -173,17 +173,16 @@ impl CardApp {
 
     // --- login data (5e) ---
 
-    // --- URL (5f50) ---
-
-    pub fn get_url(&mut self) -> Result<String> {
+    /// Get URL (5f50)
+    pub fn url(&mut self) -> Result<String> {
         let resp =
-            apdu::send_command(self.card_client(), commands::get_url(), true)?;
+            apdu::send_command(self.card_client(), commands::url(), true)?;
 
         Ok(String::from_utf8_lossy(resp.data()?).to_string())
     }
 
-    // --- cardholder related data (65) ---
-    pub fn get_cardholder_related_data(
+    /// Get cardholder related data (65)
+    pub fn cardholder_related_data(
         &mut self,
     ) -> Result<CardholderRelatedData> {
         let crd = commands::cardholder_related_data();
@@ -193,11 +192,11 @@ impl CardApp {
         CardholderRelatedData::try_from(resp.data()?)
     }
 
-    // --- security support template (7a) ---
-    pub fn get_security_support_template(
+    /// Get security support template (7a)
+    pub fn security_support_template(
         &mut self,
     ) -> Result<SecuritySupportTemplate> {
-        let sst = commands::get_security_support_template();
+        let sst = commands::security_support_template();
         let resp = apdu::send_command(self.card_client(), sst, true)?;
         resp.check_ok()?;
 
@@ -224,16 +223,16 @@ impl CardApp {
     ///
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
-    pub fn get_cardholder_certificate(&mut self) -> Result<Response, Error> {
-        let cmd = commands::get_cardholder_certificate();
+    pub fn cardholder_certificate(&mut self) -> Result<Response, Error> {
+        let cmd = commands::cardholder_certificate();
         apdu::send_command(self.card_client(), cmd, true)?.try_into()
     }
 
-    /// DO "Algorithm Information"
-    pub fn get_algo_info(&mut self) -> Result<Option<AlgoInfo>> {
+    /// Get "Algorithm Information"
+    pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>> {
         let resp = apdu::send_command(
             self.card_client(),
-            commands::get_algo_list(),
+            commands::algo_list(),
             true,
         )?;
         resp.check_ok()?;
@@ -243,10 +242,10 @@ impl CardApp {
     }
 
     /// Firmware Version (YubiKey specific (?))
-    pub fn get_firmware_version(&mut self) -> Result<Vec<u8>> {
+    pub fn firmware_version(&mut self) -> Result<Vec<u8>> {
         let resp = apdu::send_command(
             self.card_client(),
-            commands::get_firmware_version(),
+            commands::firmware_version(),
             true,
         )?;
 
@@ -702,10 +701,8 @@ impl CardApp {
             .copied()
             .collect();
 
-        let time_cmd = commands::put_data(
-            &[key_type.get_timestamp_put_tag()],
-            time_value,
-        );
+        let time_cmd =
+            commands::put_data(&[key_type.timestamp_put_tag()], time_value);
 
         apdu::send_command(self.card_client(), time_cmd, false)?.try_into()
     }
@@ -716,7 +713,7 @@ impl CardApp {
         key_type: KeyType,
     ) -> Result<Response, Error> {
         let fp_cmd = commands::put_data(
-            &[key_type.get_fingerprint_put_tag()],
+            &[key_type.fingerprint_put_tag()],
             fp.as_bytes().to_vec(),
         );
 
@@ -766,8 +763,8 @@ impl CardApp {
     ) -> Result<Response, Error> {
         // Command to PUT the algorithm attributes
         let cmd = commands::put_data(
-            &[key_type.get_algorithm_tag()],
-            algo.get_data()?,
+            &[key_type.algorithm_tag()],
+            algo.to_data_object()?,
         );
 
         apdu::send_command(self.card_client(), cmd, false)?.try_into()
@@ -790,7 +787,7 @@ impl CardApp {
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), Error> {
-        let algo_list = self.get_algo_info();
+        let algo_list = self.algorithm_information();
 
         // An error is ok - it's fine if a card doesn't offer a list of
         // supported algorithms
@@ -832,7 +829,7 @@ impl CardApp {
         key_type: KeyType,
         algo: AlgoSimple,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        let algo = algo.get_algo(key_type);
+        let algo = algo.as_algo(key_type);
         self.generate_key(fp_from_pub, key_type, Some(&algo))
     }
 
@@ -842,10 +839,10 @@ impl CardApp {
     /// OpenPGP key data structure).
     /// This data from the card is insufficient to create a typical
     /// full public key.
-    pub fn get_pub_key(
+    pub fn public_key(
         &mut self,
         key_type: KeyType,
     ) -> Result<PublicKeyMaterial, Error> {
-        keys::get_pub_key(self, key_type)
+        keys::public_key(self, key_type)
     }
 }

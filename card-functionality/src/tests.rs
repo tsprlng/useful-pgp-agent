@@ -112,10 +112,10 @@ fn check_key_upload_metadata(
     ca: &mut CardApp,
     meta: &[(String, KeyGenerationTime)],
 ) -> Result<()> {
-    let ard = ca.get_application_related_data()?;
+    let ard = ca.application_related_data()?;
 
     // check fingerprints
-    let card_fp = ard.get_fingerprints()?;
+    let card_fp = ard.fingerprints()?;
 
     let sig = card_fp.signature().expect("signature fingerprint");
     assert_eq!(format!("{:X}", sig), meta[0].0);
@@ -129,7 +129,7 @@ fn check_key_upload_metadata(
     assert_eq!(format!("{:X}", auth), meta[2].0);
 
     // get_key_generation_times
-    let card_kg = ard.get_key_generation_times()?;
+    let card_kg = ard.key_generation_times()?;
 
     let sig = card_kg.signature().expect("signature creation time");
     assert_eq!(sig, &meta[0].1);
@@ -156,18 +156,18 @@ pub fn test_print_caps(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.get_application_related_data()?;
+    let ard = ca.application_related_data()?;
 
-    let aid = ard.get_application_id()?;
+    let aid = ard.application_id()?;
     println!("aid: {:#x?}", aid);
 
-    let hist = ard.get_historical()?;
+    let hist = ard.historical_bytes()?;
     println!("hist: {:#?}", hist);
 
-    let ecap = ard.get_extended_capabilities()?;
+    let ecap = ard.extended_capabilities()?;
     println!("ecap: {:#?}", ecap);
 
-    let eli = ard.get_extended_length_information()?;
+    let eli = ard.extended_length_information()?;
     println!("eli: {:#?}", eli);
 
     Ok(vec![])
@@ -177,14 +177,14 @@ pub fn test_print_algo_info(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.get_application_related_data()?;
+    let ard = ca.application_related_data()?;
 
-    let dec = ard.get_algorithm_attributes(KeyType::Decryption)?;
+    let dec = ard.algorithm_attributes(KeyType::Decryption)?;
     println!("Current algorithm for the decrypt slot: {}", dec);
 
     println!();
 
-    let algo = ca.get_algo_info();
+    let algo = ca.algorithm_information();
     if let Ok(Some(algo)) = algo {
         println!("Card algorithm list:\n{}", algo);
     }
@@ -275,12 +275,12 @@ pub fn test_get_pub(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.get_application_related_data()?;
-    let key_gen = ard.get_key_generation_times()?;
+    let ard = ca.application_related_data()?;
+    let key_gen = ard.key_generation_times()?;
 
     // --
 
-    let sig = ca.get_pub_key(KeyType::Signing)?;
+    let sig = ca.public_key(KeyType::Signing)?;
     let ts = key_gen.signature().unwrap().get().into();
     let key = public_key_material_to_key(&sig, KeyType::Signing, ts)?;
 
@@ -288,7 +288,7 @@ pub fn test_get_pub(
 
     // --
 
-    let dec = ca.get_pub_key(KeyType::Decryption)?;
+    let dec = ca.public_key(KeyType::Decryption)?;
     let ts = key_gen.decryption().unwrap().get().into();
     let key = public_key_material_to_key(&dec, KeyType::Decryption, ts)?;
 
@@ -296,7 +296,7 @@ pub fn test_get_pub(
 
     // --
 
-    let auth = ca.get_pub_key(KeyType::Authentication)?;
+    let auth = ca.public_key(KeyType::Authentication)?;
     let ts = key_gen.authentication().unwrap().get().into();
     let key = public_key_material_to_key(&auth, KeyType::Authentication, ts)?;
 
@@ -342,7 +342,7 @@ pub fn test_set_user_data(
     ca.set_url("https://duckduckgo.com/")?;
 
     // read all the fields back again, expect equal data
-    let ch = ca.get_cardholder_related_data()?;
+    let ch = ca.cardholder_related_data()?;
 
     assert_eq!(ch.name(), Some("Bar<<Foo"));
     assert_eq!(
@@ -351,7 +351,7 @@ pub fn test_set_user_data(
     );
     assert_eq!(ch.sex(), Some(Sex::Female));
 
-    let url = ca.get_url()?;
+    let url = ca.url()?;
     assert_eq!(url, "https://duckduckgo.com/".to_string());
 
     Ok(vec![])
@@ -365,7 +365,7 @@ pub fn test_private_data(
 
     println!();
 
-    let d = ca.get_private(1)?;
+    let d = ca.private_use_do(1)?;
     println!("data 1 {:?}", d);
 
     ca.verify_pw1("123456")?;
@@ -378,13 +378,13 @@ pub fn test_private_data(
     ca.set_private(2, "Foo bar2!".as_bytes().to_vec())?;
     ca.set_private(4, "Foo bar4!".as_bytes().to_vec())?;
 
-    let d = ca.get_private(1)?;
+    let d = ca.private_use_do(1)?;
     println!("data 1 {:?}", d);
-    let d = ca.get_private(2)?;
+    let d = ca.private_use_do(2)?;
     println!("data 2 {:?}", d);
-    let d = ca.get_private(3)?;
+    let d = ca.private_use_do(3)?;
     println!("data 3 {:?}", d);
-    let d = ca.get_private(4)?;
+    let d = ca.private_use_do(4)?;
     println!("data 4 {:?}", d);
 
     Ok(out)
@@ -398,7 +398,7 @@ pub fn test_cardholder_cert(
 
     println!();
 
-    match ca.get_cardholder_certificate() {
+    match ca.cardholder_certificate() {
         Ok(res) => out
             .push(TestResult::Text(format!("got cert {:x?}", res.get_data()))),
         Err(e) => {
@@ -425,7 +425,7 @@ pub fn test_cardholder_cert(
         }
     }
 
-    let res = ca.get_cardholder_certificate()?;
+    let res = ca.cardholder_certificate()?;
     out.push(TestResult::Text("get cert ok".to_string()));
 
     if res.get_data() != data {
@@ -455,8 +455,8 @@ pub fn test_pw_status(
 ) -> Result<TestOutput, TestError> {
     let mut out = vec![];
 
-    let ard = ca.get_application_related_data()?;
-    let mut pws = ard.get_pw_status_bytes()?;
+    let ard = ca.application_related_data()?;
+    let mut pws = ard.pw_status_bytes()?;
 
     println!("pws {:?}", pws);
 
@@ -467,8 +467,8 @@ pub fn test_pw_status(
 
     ca.set_pw_status_bytes(&pws, false)?;
 
-    let ard = ca.get_application_related_data()?;
-    let pws = ard.get_pw_status_bytes()?;
+    let ard = ca.application_related_data()?;
+    let pws = ard.pw_status_bytes()?;
     println!("pws {:?}", pws);
 
     Ok(out)
@@ -519,7 +519,7 @@ pub fn test_verify(
 
     ca.set_name("Admin<<Hello")?;
 
-    let cardholder = ca.get_cardholder_related_data()?;
+    let cardholder = ca.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("Admin<<Hello"));
 
     ca.verify_pw1("123456")?;
@@ -537,7 +537,7 @@ pub fn test_verify(
 
     ca.set_name("There<<Hello")?;
 
-    let cardholder = ca.get_cardholder_related_data()?;
+    let cardholder = ca.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("There<<Hello"));
 
     Ok(out)
@@ -673,8 +673,8 @@ pub fn run_test(
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut ca = card.get_card_app()?;
-    let ard = ca.get_application_related_data()?;
-    let _app_id = ard.get_application_id()?;
+    let ard = ca.application_related_data()?;
+    let _app_id = ard.application_id()?;
 
     t(&mut ca, param)
 }

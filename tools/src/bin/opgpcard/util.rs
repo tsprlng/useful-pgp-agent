@@ -16,12 +16,12 @@ pub(crate) fn open_card(ident: &str) -> Result<CardApp, Error> {
     PcscClient::open_by_ident(ident)
 }
 
-pub(crate) fn get_user<'app, 'open>(
+pub(crate) fn verify_to_user<'app, 'open>(
     open: &'app mut Open<'app>,
     pin_file: Option<PathBuf>,
 ) -> Result<User<'app, 'open>, Box<dyn std::error::Error>> {
     if let Some(path) = pin_file {
-        open.verify_user(&get_pin(&path)?)?;
+        open.verify_user(&load_pin(&path)?)?;
     } else {
         if !open.feature_pinpad_verify() {
             return Err(anyhow!(
@@ -39,12 +39,12 @@ pub(crate) fn get_user<'app, 'open>(
         .ok_or_else(|| anyhow!("Couldn't get user access").into())
 }
 
-pub(crate) fn get_sign<'app, 'open>(
+pub(crate) fn verify_to_sign<'app, 'open>(
     open: &'app mut Open<'app>,
     pin_file: Option<PathBuf>,
 ) -> Result<Sign<'app, 'open>, Box<dyn std::error::Error>> {
     if let Some(path) = pin_file {
-        open.verify_user_for_signing(&get_pin(&path)?)?;
+        open.verify_user_for_signing(&load_pin(&path)?)?;
     } else {
         if !open.feature_pinpad_verify() {
             return Err(anyhow!(
@@ -62,12 +62,12 @@ pub(crate) fn get_sign<'app, 'open>(
 
 // pub fn admin_card<'b>(&'b mut self) -> Option<Admin<'a, 'b>> {
 
-pub(crate) fn get_admin<'app, 'open>(
+pub(crate) fn verify_to_admin<'app, 'open>(
     open: &'open mut Open<'app>,
     pin_file: Option<PathBuf>,
 ) -> Result<Admin<'app, 'open>, Box<dyn std::error::Error>> {
     if let Some(path) = pin_file {
-        open.verify_admin(&get_pin(&path)?)?;
+        open.verify_admin(&load_pin(&path)?)?;
     } else {
         if !open.feature_pinpad_verify() {
             return Err(anyhow!(
@@ -84,7 +84,7 @@ pub(crate) fn get_admin<'app, 'open>(
         .ok_or_else(|| anyhow!("Couldn't get admin access").into())
 }
 
-pub(crate) fn get_pin(pin_file: &Path) -> Result<String> {
+pub(crate) fn load_pin(pin_file: &Path) -> Result<String> {
     let pin = std::fs::read_to_string(pin_file)?;
     Ok(pin.trim().to_string())
 }

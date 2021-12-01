@@ -9,15 +9,15 @@ use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 
 impl CardCapabilities {
-    pub fn get_command_chaining(&self) -> bool {
+    pub fn command_chaining(&self) -> bool {
         self.command_chaining
     }
 
-    pub fn get_extended_lc_le(&self) -> bool {
+    pub fn extended_lc_le(&self) -> bool {
         self.extended_lc_le
     }
 
-    pub fn get_extended_length_information(&self) -> bool {
+    pub fn extended_length_information(&self) -> bool {
         self.extended_length_information
     }
 }
@@ -72,7 +72,7 @@ fn split_tl(tl: u8) -> (u8, u8) {
 }
 
 impl HistoricalBytes {
-    pub fn get_card_capabilities(&self) -> Option<&CardCapabilities> {
+    pub fn card_capabilities(&self) -> Option<&CardCapabilities> {
         self.cc.as_ref()
     }
 }

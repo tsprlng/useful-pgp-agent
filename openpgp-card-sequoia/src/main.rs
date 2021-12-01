@@ -119,21 +119,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         let p = StandardPolicy::new();
 
         if let Some(vka) =
-            sq_util::get_subkey_by_type(&cert, &p, KeyType::Signing)?
+            sq_util::subkey_by_type(&cert, &p, KeyType::Signing)?
         {
             println!("Upload signing key");
             admin.upload_key(vka, KeyType::Signing, None)?;
         }
 
         if let Some(vka) =
-            sq_util::get_subkey_by_type(&cert, &p, KeyType::Decryption)?
+            sq_util::subkey_by_type(&cert, &p, KeyType::Decryption)?
         {
             println!("Upload decryption key");
             admin.upload_key(vka, KeyType::Decryption, None)?;
         }
 
         if let Some(vka) =
-            sq_util::get_subkey_by_type(&cert, &p, KeyType::Authentication)?
+            sq_util::subkey_by_type(&cert, &p, KeyType::Authentication)?
         {
             println!("Upload auth key");
             admin.upload_key(vka, KeyType::Authentication, None)?;

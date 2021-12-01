@@ -201,11 +201,11 @@ impl CardClient for ScdClient {
 
         // (Unwrap is ok here, not having a card_caps is fine)
         let ext = if self.card_caps.is_some()
-            && self.card_caps.unwrap().get_ext_support()
+            && self.card_caps.unwrap().ext_support()
         {
             // If we know about card_caps, and can do extended length we
             // set "exlen" accordingly ...
-            format!("--exlen={} ", self.card_caps.unwrap().get_max_rsp_bytes())
+            format!("--exlen={} ", self.card_caps.unwrap().max_rsp_bytes())
         } else {
             // ... otherwise don't send "exlen" to scdaemon
             "".to_string()
@@ -249,11 +249,11 @@ impl CardClient for ScdClient {
         Err(Error::InternalError(anyhow!("no response found")))
     }
 
-    fn init_caps(&mut self, caps: CardCaps) {
+    fn init_card_caps(&mut self, caps: CardCaps) {
         self.card_caps = Some(caps);
     }
 
-    fn get_caps(&self) -> Option<&CardCaps> {
+    fn card_caps(&self) -> Option<&CardCaps> {
         self.card_caps.as_ref()
     }
 

@@ -45,8 +45,8 @@ impl PcscClient {
             if Self::select(&mut card).is_ok() {
                 let mut ca = card.into_card_app()?;
 
-                let ard = ca.get_application_related_data()?;
-                let aid = ard.get_application_id()?;
+                let ard = ca.application_related_data()?;
+                let aid = ard.application_id()?;
 
                 if aid.ident() == ident.to_ascii_uppercase() {
                     return Ok(ca);
@@ -155,7 +155,7 @@ impl PcscClient {
     }
 
     /// Get the minimum pin length for pin_id.
-    fn get_min_len(&self, pin_id: u8) -> Result<u8> {
+    fn min_pin_len(&self, pin_id: u8) -> Result<u8> {
         match pin_id {
             0x81 | 0x82 => Ok(6),
             0x83 => Ok(8),
@@ -163,11 +163,11 @@ impl PcscClient {
         }
     }
     /// Get the maximum pin length for pin_id.
-    fn get_max_len(&self, pin_id: u8) -> Result<u8> {
+    fn max_pin_len(&self, pin_id: u8) -> Result<u8> {
         if let Some(card_caps) = self.card_caps {
             match pin_id {
-                0x81 | 0x82 => Ok(card_caps.get_pw1_max_len()),
-                0x83 => Ok(card_caps.get_pw3_max_len()),
+                0x81 | 0x82 => Ok(card_caps.pw1_max_len()),
+                0x83 => Ok(card_caps.pw3_max_len()),
                 _ => Err(anyhow!("Unexpected pin_id {}", pin_id)),
             }
         } else {
@@ -221,11 +221,11 @@ impl CardClient for PcscClient {
         Ok(resp.to_vec())
     }
 
-    fn init_caps(&mut self, caps: CardCaps) {
+    fn init_card_caps(&mut self, caps: CardCaps) {
         self.card_caps = Some(caps);
     }
 
-    fn get_caps(&self) -> Option<&CardCaps> {
+    fn card_caps(&self) -> Option<&CardCaps> {
         self.card_caps.as_ref()
     }
 
@@ -238,8 +238,8 @@ impl CardClient for PcscClient {
     }
 
     fn pinpad_verify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
-        let pin_min_size = self.get_min_len(pin_id)?;
-        let pin_max_size = self.get_max_len(pin_id)?;
+        let pin_min_size = self.min_pin_len(pin_id)?;
+        let pin_max_size = self.max_pin_len(pin_id)?;
 
         // Default to varlen, for now.
         // (NOTE: Some readers don't support varlen, and need explicit length
@@ -329,8 +329,8 @@ impl CardClient for PcscClient {
     }
 
     fn pinpad_modify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
-        let pin_min_size = self.get_min_len(pin_id)?;
-        let pin_max_size = self.get_max_len(pin_id)?;
+        let pin_min_size = self.min_pin_len(pin_id)?;
+        let pin_max_size = self.max_pin_len(pin_id)?;
 
         // Default to varlen, for now.
         // (NOTE: Some readers don't support varlen, and need explicit length

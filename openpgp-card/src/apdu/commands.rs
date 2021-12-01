@@ -32,17 +32,17 @@ fn get_data(tag: &[u8]) -> Command {
 }
 
 /// GET DO "Application related data"
-pub(crate) fn get_application_data() -> Command {
+pub(crate) fn application_related_data() -> Command {
     get_data(&[0x6E])
 }
 
 /// GET DO "private use"
-pub(crate) fn get_private_do(num: u8) -> Command {
+pub(crate) fn private_do(num: u8) -> Command {
     get_data(&[0x01, num])
 }
 
 /// GET DO "Uniform resource locator"
-pub(crate) fn get_url() -> Command {
+pub(crate) fn url() -> Command {
     get_data(&[0x5F, 0x50])
 }
 
@@ -52,22 +52,22 @@ pub(crate) fn cardholder_related_data() -> Command {
 }
 
 /// GET DO "Security support template"
-pub(crate) fn get_security_support_template() -> Command {
+pub(crate) fn security_support_template() -> Command {
     get_data(&[0x7A])
 }
 
 /// GET DO "Cardholder certificate"
-pub(crate) fn get_cardholder_certificate() -> Command {
+pub(crate) fn cardholder_certificate() -> Command {
     get_data(&[0x7F, 0x21])
 }
 
 /// GET DO "List of supported Algorithm attributes"
-pub(crate) fn get_algo_list() -> Command {
+pub(crate) fn algo_list() -> Command {
     get_data(&[0xFA])
 }
 
 /// GET Firmware Version (yubikey specific?)
-pub(crate) fn get_firmware_version() -> Command {
+pub(crate) fn firmware_version() -> Command {
     Command::new(0x00, 0xF1, 0x00, 0x00, vec![])
 }
 

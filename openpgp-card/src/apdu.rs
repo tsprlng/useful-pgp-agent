@@ -87,7 +87,7 @@ fn send_command_low_level(
     expect_response: Expect,
 ) -> Result<Vec<u8>, Error> {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
-        if let Some(caps) = card_client.get_caps() {
+        if let Some(caps) = card_client.card_caps() {
             log::debug!("found card caps data!");
 
             (

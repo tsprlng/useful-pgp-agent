@@ -74,12 +74,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
-                    let mut admin = util::get_admin(&mut open, admin_pin)?;
+                    let mut admin =
+                        util::verify_to_admin(&mut open, admin_pin)?;
 
                     let _ = admin.set_name(&name)?;
                 }
                 cli::AdminCommand::Url { url } => {
-                    let mut admin = util::get_admin(&mut open, admin_pin)?;
+                    let mut admin =
+                        util::verify_to_admin(&mut open, admin_pin)?;
 
                     let _ = admin.set_url(&url)?;
                 }
@@ -90,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     auth_fp,
                 } => {
                     let key = Cert::from_file(keyfile)?;
-                    let admin = util::get_admin(&mut open, admin_pin)?;
+                    let admin = util::verify_to_admin(&mut open, admin_pin)?;
 
                     if (&sig_fp, &dec_fp, &auth_fp) == (&None, &None, &None) {
                         // If no fingerprint has been provided, we check if
@@ -224,7 +226,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Signing)?};
 
     if verbose {
-        if let Ok(pkm) = open.get_pub_key(KeyType::Signing) {
+        if let Ok(pkm) = open.public_key(KeyType::Signing) {
             println! {"  public key material: {}", pkm};
         }
     }
@@ -240,7 +242,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Decryption)?};
 
     if verbose {
-        if let Ok(pkm) = open.get_pub_key(KeyType::Decryption) {
+        if let Ok(pkm) = open.public_key(KeyType::Decryption) {
             println! {"  public key material: {}", pkm};
         }
     }
@@ -255,7 +257,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
     if verbose {
-        if let Ok(pkm) = open.get_pub_key(KeyType::Authentication) {
+        if let Ok(pkm) = open.public_key(KeyType::Authentication) {
             println! {"  public key material: {}", pkm};
         }
     }
@@ -265,21 +267,21 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     println!();
 
     let sst = open.security_support_template()?;
-    println!("Signature counter: {}", sst.get_signature_count());
+    println!("Signature counter: {}", sst.signature_count());
 
     let pws = open.pw_status_bytes()?;
 
     println!(
         "Signature pin only valid once: {}",
-        pws.get_pw1_cds_valid_once()
+        pws.pw1_cds_valid_once()
     );
 
     println!("Password validation retry count:");
     println!(
         "  user pw: {}, reset: {}, admin pw: {}",
-        pws.get_err_count_pw1(),
-        pws.get_err_count_rst(),
-        pws.get_err_count_pw3(),
+        pws.err_count_pw1(),
+        pws.err_count_rc(),
+        pws.err_count_pw3(),
     );
 
     // FIXME: add General key info; login data; KDF setting
@@ -318,7 +320,7 @@ fn decrypt(
     let mut card = util::open_card(ident)?;
     let mut open = Open::new(&mut card)?;
 
-    let mut user = util::get_user(&mut open, pin_file)?;
+    let mut user = util::verify_to_user(&mut open, pin_file)?;
     let d = user.decryptor(&cert, &p)?;
 
     let db = DecryptorBuilder::from_reader(input)?;
@@ -343,7 +345,7 @@ fn sign_detached(
     let mut card = util::open_card(ident)?;
     let mut open = Open::new(&mut card)?;
 
-    let mut sign = util::get_sign(&mut open, pin_file)?;
+    let mut sign = util::verify_to_sign(&mut open, pin_file)?;
     let s = sign.signer(&cert, &p)?;
 
     let message = Armorer::new(Message::new(std::io::stdout())).build()?;
@@ -364,11 +366,11 @@ fn factory_reset(ident: &str) -> Result<()> {
 fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {
     let p = StandardPolicy::new();
 
-    let sig = sq_util::get_subkey_by_type(key, &p, KeyType::Signing)?;
+    let sig = sq_util::subkey_by_type(key, &p, KeyType::Signing)?;
 
-    let dec = sq_util::get_subkey_by_type(key, &p, KeyType::Decryption)?;
+    let dec = sq_util::subkey_by_type(key, &p, KeyType::Decryption)?;
 
-    let auth = sq_util::get_subkey_by_type(key, &p, KeyType::Authentication)?;
+    let auth = sq_util::subkey_by_type(key, &p, KeyType::Authentication)?;
 
     if let Some(sig) = sig {
         println!("Uploading {} as signing key", sig.fingerprint());
@@ -397,7 +399,7 @@ fn key_import_explicit(
 
     if let Some(sig_fp) = sig_fp {
         if let Some(sig) =
-            sq_util::get_priv_subkey_by_fingerprint(key, &p, &sig_fp)?
+            sq_util::private_subkey_by_fingerprint(key, &p, &sig_fp)?
         {
             println!("Uploading {} as signing key", sig.fingerprint());
             admin.upload_key(sig, KeyType::Signing, None)?;
@@ -408,7 +410,7 @@ fn key_import_explicit(
 
     if let Some(dec_fp) = dec_fp {
         if let Some(dec) =
-            sq_util::get_priv_subkey_by_fingerprint(key, &p, &dec_fp)?
+            sq_util::private_subkey_by_fingerprint(key, &p, &dec_fp)?
         {
             println!("Uploading {} as decryption key", dec.fingerprint());
             admin.upload_key(dec, KeyType::Decryption, None)?;
@@ -419,7 +421,7 @@ fn key_import_explicit(
 
     if let Some(auth_fp) = auth_fp {
         if let Some(auth) =
-            sq_util::get_priv_subkey_by_fingerprint(key, &p, &auth_fp)?
+            sq_util::private_subkey_by_fingerprint(key, &p, &auth_fp)?
         {
             println!("Uploading {} as authentication key", auth.fingerprint());
             admin.upload_key(auth, KeyType::Authentication, None)?;
@@ -473,7 +475,7 @@ fn generate_keys(
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
     let (key_sig, key_dec, key_aut) = {
-        if let Ok(mut admin) = util::get_admin(&mut open, pw3_path) {
+        if let Ok(mut admin) = util::verify_to_admin(&mut open, pw3_path) {
             gen_subkeys(&mut admin, decrypt, auth, algos)?
         } else {
             return Err(anyhow!("Failed to open card in admin mode."));
@@ -484,7 +486,7 @@ fn generate_keys(
     // need "signing" access to the card (to make binding signatures within
     // the Cert).
     let pin = if let Some(pw1) = pw1_path {
-        Some(util::get_pin(&pw1)?)
+        Some(util::load_pin(&pw1)?)
     } else {
         if open.feature_pinpad_verify() {
             println!();

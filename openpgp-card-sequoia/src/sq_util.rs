@@ -30,7 +30,7 @@ use openpgp_card::{Error, KeyType};
 ///
 /// Returns Ok(None), if no such (sub)key exists.
 /// If multiple suitable (sub)keys are found, an error is returned.
-pub fn get_subkey_by_type<'a>(
+pub fn subkey_by_type<'a>(
     cert: &'a Cert,
     policy: &'a dyn Policy,
     key_type: KeyType,
@@ -64,7 +64,7 @@ pub fn get_subkey_by_type<'a>(
 }
 
 /// Retrieve a private (sub)key from a Cert, by fingerprint.
-pub fn get_priv_subkey_by_fingerprint<'a>(
+pub fn private_subkey_by_fingerprint<'a>(
     cert: &'a Cert,
     policy: &'a dyn Policy,
     fingerprint: &str,

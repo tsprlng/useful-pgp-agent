@@ -33,8 +33,8 @@ mod pw_status;
 pub struct ApplicationRelatedData(pub(crate) Tlv);
 
 impl ApplicationRelatedData {
-    /// Application identifier (AID), ISO 7816-4
-    pub fn get_application_id(&self) -> Result<ApplicationIdentifier, Error> {
+    /// Get application identifier (AID), ISO 7816-4
+    pub fn application_id(&self) -> Result<ApplicationIdentifier, Error> {
         // get from cached "application related data"
         let aid = self.0.find(&[0x4f].into());
 
@@ -45,8 +45,8 @@ impl ApplicationRelatedData {
         }
     }
 
-    /// Historical bytes
-    pub fn get_historical(&self) -> Result<HistoricalBytes, Error> {
+    /// Get historical bytes
+    pub fn historical_bytes(&self) -> Result<HistoricalBytes, Error> {
         // get from cached "application related data"
         let hist = self.0.find(&[0x5f, 0x52].into());
 
@@ -58,9 +58,9 @@ impl ApplicationRelatedData {
         }
     }
 
-    /// Extended length information (ISO 7816-4) with maximum number of
-    /// bytes for command and response.
-    pub fn get_extended_length_information(
+    /// Get extended length information (ISO 7816-4), which
+    /// contains maximum number of bytes for command and response.
+    pub fn extended_length_information(
         &self,
     ) -> Result<Option<ExtendedLengthInfo>> {
         // get from cached "application related data"
@@ -78,21 +78,21 @@ impl ApplicationRelatedData {
     }
 
     #[allow(dead_code)]
-    fn get_general_feature_management() -> Option<bool> {
+    fn general_feature_management() -> Option<bool> {
         unimplemented!()
     }
 
     #[allow(dead_code)]
-    fn get_discretionary_data_objects() {
+    fn discretionary_data_objects() {
         unimplemented!()
     }
 
-    /// Extended Capabilities
-    pub fn get_extended_capabilities(
+    /// Get extended Capabilities
+    pub fn extended_capabilities(
         &self,
     ) -> Result<ExtendedCapabilities, Error> {
         // FIXME: caching?
-        let app_id = self.get_application_id()?;
+        let app_id = self.application_id()?;
         let version = app_id.version();
 
         // get from cached "application related data"
@@ -108,10 +108,10 @@ impl ApplicationRelatedData {
         }
     }
 
-    /// Algorithm attributes (for each key type)
-    pub fn get_algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
+    /// Get algorithm attributes (for each key type)
+    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
         // get from cached "application related data"
-        let aa = self.0.find(&[key_type.get_algorithm_tag()].into());
+        let aa = self.0.find(&[key_type.algorithm_tag()].into());
 
         if let Some(aa) = aa {
             Algo::try_from(&aa.serialize()[..])
@@ -123,8 +123,8 @@ impl ApplicationRelatedData {
         }
     }
 
-    /// PW status Bytes
-    pub fn get_pw_status_bytes(&self) -> Result<PWStatusBytes> {
+    /// Get PW status Bytes
+    pub fn pw_status_bytes(&self) -> Result<PWStatusBytes> {
         // get from cached "application related data"
         let psb = self.0.find(&[0xc4].into());
 
@@ -141,7 +141,7 @@ impl ApplicationRelatedData {
 
     /// Fingerprint, per key type.
     /// Zero bytes indicate a not defined private key.
-    pub fn get_fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
+    pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
         // Get from cached "application related data"
         let fp = self.0.find(&[0xc5].into());
 
@@ -157,7 +157,7 @@ impl ApplicationRelatedData {
     }
 
     /// Generation dates/times of key pairs
-    pub fn get_key_generation_times(
+    pub fn key_generation_times(
         &self,
     ) -> Result<KeySet<KeyGenerationTime>, Error> {
         let kg = self.0.find(&[0xcd].into());
@@ -184,7 +184,7 @@ pub struct SecuritySupportTemplate {
 }
 
 impl SecuritySupportTemplate {
-    pub fn get_signature_count(&self) -> u32 {
+    pub fn signature_count(&self) -> u32 {
         self.dsc
     }
 }
@@ -335,39 +335,57 @@ pub struct PWStatusBytes {
 }
 
 impl PWStatusBytes {
-    pub fn set_pw1_cds_valid_once(&mut self, val: bool) {
-        self.pw1_cds_valid_once = val;
-    }
+    /// Set format of PW1:
+    /// `false` for UTF-8 or derived password,
+    /// `true` for PIN block format 2.
     pub fn set_pw1_pin_block(&mut self, val: bool) {
         self.pw1_pin_block = val;
     }
+
+    /// Set format of PW3:
+    /// `false` for UTF-8 or derived password,
+    /// `true` for PIN block format 2.
     pub fn set_pw3_pin_block(&mut self, val: bool) {
         self.pw3_pin_block = val;
     }
 
-    pub fn get_pw1_cds_valid_once(&self) -> bool {
+    /// Is PW1 (no. 81) only valid for one PSO:CDS command?
+    pub fn pw1_cds_valid_once(&self) -> bool {
         self.pw1_cds_valid_once
     }
 
-    pub fn get_pw1_max_len(&self) -> u8 {
+    /// Configure if PW1 (no. 81) is only valid for one PSO:CDS command.
+    pub fn set_pw1_cds_valid_once(&mut self, val: bool) {
+        self.pw1_cds_valid_once = val;
+    }
+
+    /// Max length of PW1
+    pub fn pw1_max_len(&self) -> u8 {
         self.pw1_len_format & 0x7f
     }
 
-    pub fn get_rc_max_len(&self) -> u8 {
+    /// Max length of Resetting Code (RC) for PW1
+    pub fn rc_max_len(&self) -> u8 {
         self.rc_len
     }
 
-    pub fn get_pw3_max_len(&self) -> u8 {
+    /// Max length of PW3
+    pub fn pw3_max_len(&self) -> u8 {
         self.pw3_len_format & 0x7f
     }
 
-    pub fn get_err_count_pw1(&self) -> u8 {
+    /// Error counter of PW1 (if 0, then PW1 is blocked).
+    pub fn err_count_pw1(&self) -> u8 {
         self.err_count_pw1
     }
-    pub fn get_err_count_rst(&self) -> u8 {
+
+    /// Error counter of Resetting Code (RC) (if 0, then RC is blocked).
+    pub fn err_count_rc(&self) -> u8 {
         self.err_count_rst
     }
-    pub fn get_err_count_pw3(&self) -> u8 {
+
+    /// Error counter of PW3 (if 0, then PW3 is blocked).
+    pub fn err_count_pw3(&self) -> u8 {
         self.err_count_pw3
     }
 }

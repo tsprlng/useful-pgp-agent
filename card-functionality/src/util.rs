@@ -35,7 +35,7 @@ pub(crate) fn upload_subkeys(
         KeyType::Decryption,
         KeyType::Authentication,
     ] {
-        if let Some(vka) = sq_util::get_subkey_by_type(cert, policy, *kt)? {
+        if let Some(vka) = sq_util::subkey_by_type(cert, policy, *kt)? {
             // store fingerprint as return-value
             let fp = vka.fingerprint().to_hex();
             // store key creation time as return-value

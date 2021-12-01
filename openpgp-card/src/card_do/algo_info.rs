@@ -16,7 +16,7 @@ use crate::card_do::{algo_attrs, complete};
 use crate::KeyType;
 
 impl AlgoInfo {
-    pub fn get_by_keytype(&self, kt: KeyType) -> Vec<&Algo> {
+    pub fn filter_by_keytype(&self, kt: KeyType) -> Vec<&Algo> {
         self.0
             .iter()
             .filter(|(k, _)| *k == kt)

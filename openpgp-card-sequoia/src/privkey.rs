@@ -51,7 +51,7 @@ impl SequoiaKey {
 /// Implement the `CardUploadableKey` trait that openpgp-card uses to
 /// upload (sub)keys to a card.
 impl CardUploadableKey for SequoiaKey {
-    fn get_key(&self) -> Result<PrivateKeyMaterial> {
+    fn private_key(&self) -> Result<PrivateKeyMaterial> {
         // Decrypt key with password, if set
         let key = match &self.password {
             None => self.key.clone(),
@@ -116,7 +116,7 @@ impl CardUploadableKey for SequoiaKey {
 
     /// Number of non-leap seconds since January 1, 1970 0:00:00 UTC
     /// (aka "UNIX timestamp")
-    fn get_ts(&self) -> KeyGenerationTime {
+    fn timestamp(&self) -> KeyGenerationTime {
         let ts: Timestamp = Timestamp::try_from(self.key.creation_time())
             .expect("Creation time cannot be converted into u32 timestamp");
         let ts: u32 = ts.into();
@@ -124,7 +124,7 @@ impl CardUploadableKey for SequoiaKey {
         ts.into()
     }
 
-    fn get_fp(&self) -> Result<Fingerprint, Error> {
+    fn fingerprint(&self) -> Result<Fingerprint, Error> {
         let fp = self.key.fingerprint();
         fp.as_bytes().try_into()
     }
@@ -161,32 +161,32 @@ impl SqRSA {
 }
 
 impl RSAKey for SqRSA {
-    fn get_e(&self) -> &[u8] {
+    fn e(&self) -> &[u8] {
         self.e.value()
     }
 
-    fn get_p(&self) -> &[u8] {
+    fn p(&self) -> &[u8] {
         self.p.value()
     }
 
-    fn get_q(&self) -> &[u8] {
+    fn q(&self) -> &[u8] {
         self.q.value()
     }
 
-    fn get_pq(&self) -> Box<[u8]> {
+    fn pq(&self) -> Box<[u8]> {
         let (_, _, inv) = self.nettle.d_crt();
         inv
     }
-    fn get_dp1(&self) -> Box<[u8]> {
+    fn dp1(&self) -> Box<[u8]> {
         let (dp, _, _) = self.nettle.d_crt();
         dp
     }
-    fn get_dq1(&self) -> Box<[u8]> {
+    fn dq1(&self) -> Box<[u8]> {
         let (_, dq, _) = self.nettle.d_crt();
         dq
     }
 
-    fn get_n(&self) -> &[u8] {
+    fn n(&self) -> &[u8] {
         self.n.value()
     }
 }
@@ -217,11 +217,11 @@ impl SqEccKey {
 }
 
 impl EccKey for SqEccKey {
-    fn get_oid(&self) -> &[u8] {
+    fn oid(&self) -> &[u8] {
         self.curve.oid()
     }
 
-    fn get_private(&self) -> Vec<u8> {
+    fn private(&self) -> Vec<u8> {
         // FIXME: padding for 25519?
         match self.curve {
             Curve::NistP256 => self.private.value_padded(0x20).to_vec(),
@@ -231,12 +231,12 @@ impl EccKey for SqEccKey {
         }
     }
 
-    fn get_public(&self) -> Vec<u8> {
+    fn public(&self) -> Vec<u8> {
         // FIXME: padding?
         self.public.value().to_vec()
     }
 
-    fn get_type(&self) -> EccType {
+    fn ecc_type(&self) -> EccType {
         self.ecc_type
     }
 }

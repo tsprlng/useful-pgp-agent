@@ -63,13 +63,13 @@ pub trait CardClient {
     /// process: the information about the card's capabilities is typically
     /// requested from the card using the same CardClient instance, before
     /// the card's capabilities have been initialized.
-    fn init_caps(&mut self, caps: CardCaps);
+    fn init_card_caps(&mut self, caps: CardCaps);
 
     /// Request the card's capabilities
     ///
     /// (apdu serialization makes use of this information, e.g. to
     /// determine if extended length can be used)
-    fn get_caps(&self) -> Option<&CardCaps>;
+    fn card_caps(&self) -> Option<&CardCaps>;
 
     /// If a CardClient implementation introduces an additional,
     /// backend-specific limit for maximum number of bytes per command,
@@ -131,19 +131,19 @@ pub struct CardCaps {
 }
 
 impl CardCaps {
-    pub fn get_ext_support(&self) -> bool {
+    pub fn ext_support(&self) -> bool {
         self.ext_support
     }
 
-    pub fn get_max_rsp_bytes(&self) -> u16 {
+    pub fn max_rsp_bytes(&self) -> u16 {
         self.max_rsp_bytes
     }
 
-    pub fn get_pw1_max_len(&self) -> u8 {
+    pub fn pw1_max_len(&self) -> u8 {
         self.pw1_max_len
     }
 
-    pub fn get_pw3_max_len(&self) -> u8 {
+    pub fn pw3_max_len(&self) -> u8 {
         self.pw3_max_len
     }
 }
@@ -160,7 +160,7 @@ pub enum KeyType {
 
 impl KeyType {
     /// Get C1/C2/C3/DA values for this KeyTypes, to use as Tag
-    fn get_algorithm_tag(&self) -> u8 {
+    fn algorithm_tag(&self) -> u8 {
         use KeyType::*;
 
         match self {
@@ -175,7 +175,7 @@ impl KeyType {
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// fingerprint information from the card uses the combined Tag C5)
-    fn get_fingerprint_put_tag(&self) -> u8 {
+    fn fingerprint_put_tag(&self) -> u8 {
         use KeyType::*;
 
         match self {
@@ -190,7 +190,7 @@ impl KeyType {
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// timestamp information from the card uses the combined Tag CD)
-    fn get_timestamp_put_tag(&self) -> u8 {
+    fn timestamp_put_tag(&self) -> u8 {
         use KeyType::*;
 
         match self {

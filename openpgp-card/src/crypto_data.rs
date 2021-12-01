@@ -65,13 +65,13 @@ pub enum Cryptogram<'a> {
 /// to an OpenPGP card
 pub trait CardUploadableKey {
     /// private key data
-    fn get_key(&self) -> Result<PrivateKeyMaterial>;
+    fn private_key(&self) -> Result<PrivateKeyMaterial>;
 
     /// timestamp of (sub)key creation
-    fn get_ts(&self) -> KeyGenerationTime;
+    fn timestamp(&self) -> KeyGenerationTime;
 
     /// fingerprint
-    fn get_fp(&self) -> Result<Fingerprint, Error>;
+    fn fingerprint(&self) -> Result<Fingerprint, Error>;
 }
 
 /// Algorithm-independent container for private key material to upload to
@@ -88,15 +88,15 @@ pub trait RSAKey {
     // FIXME: use a mechanism like sequoia_openpgp::crypto::mem::Protected
     // for private key material?
 
-    fn get_e(&self) -> &[u8];
-    fn get_p(&self) -> &[u8];
-    fn get_q(&self) -> &[u8];
+    fn e(&self) -> &[u8];
+    fn p(&self) -> &[u8];
+    fn q(&self) -> &[u8];
 
-    fn get_pq(&self) -> Box<[u8]>;
-    fn get_dp1(&self) -> Box<[u8]>;
-    fn get_dq1(&self) -> Box<[u8]>;
+    fn pq(&self) -> Box<[u8]>;
+    fn dp1(&self) -> Box<[u8]>;
+    fn dq1(&self) -> Box<[u8]>;
 
-    fn get_n(&self) -> &[u8];
+    fn n(&self) -> &[u8];
 }
 
 /// ECC-specific container for private key material to upload to an OpenPGP
@@ -105,10 +105,10 @@ pub trait EccKey {
     // FIXME: use a mechanism like sequoia_openpgp::crypto::mem::Protected
     // for private key material?
 
-    fn get_oid(&self) -> &[u8];
-    fn get_private(&self) -> Vec<u8>;
-    fn get_public(&self) -> Vec<u8>;
-    fn get_type(&self) -> EccType;
+    fn oid(&self) -> &[u8];
+    fn private(&self) -> Vec<u8>;
+    fn public(&self) -> Vec<u8>;
+    fn ecc_type(&self) -> EccType;
 }
 
 /// Algorithm-independent container for public key material retrieved from

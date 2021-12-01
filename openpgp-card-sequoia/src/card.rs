@@ -48,7 +48,7 @@ pub struct Open<'a> {
 
 impl<'a> Open<'a> {
     pub fn new(card_app: &'a mut CardApp) -> Result<Self, Error> {
-        let ard = card_app.get_application_related_data()?;
+        let ard = card_app.application_related_data()?;
 
         Ok(Self {
             card_app,
@@ -210,17 +210,17 @@ impl<'a> Open<'a> {
     pub fn application_identifier(
         &self,
     ) -> Result<ApplicationIdentifier, Error> {
-        self.ard.get_application_id()
+        self.ard.application_id()
     }
 
     pub fn historical_bytes(&self) -> Result<HistoricalBytes, Error> {
-        self.ard.get_historical()
+        self.ard.historical_bytes()
     }
 
     pub fn extended_length_information(
         &self,
     ) -> Result<Option<ExtendedLengthInfo>> {
-        self.ard.get_extended_length_information()
+        self.ard.extended_length_information()
     }
 
     #[allow(dead_code)]
@@ -236,20 +236,20 @@ impl<'a> Open<'a> {
     pub fn extended_capabilities(
         &self,
     ) -> Result<ExtendedCapabilities, Error> {
-        self.ard.get_extended_capabilities()
+        self.ard.extended_capabilities()
     }
 
     pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
-        self.ard.get_algorithm_attributes(key_type)
+        self.ard.algorithm_attributes(key_type)
     }
 
     /// PW status Bytes
     pub fn pw_status_bytes(&self) -> Result<PWStatusBytes> {
-        self.ard.get_pw_status_bytes()
+        self.ard.pw_status_bytes()
     }
 
     pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
-        self.ard.get_fingerprints()
+        self.ard.fingerprints()
     }
 
     #[allow(dead_code)]
@@ -260,7 +260,7 @@ impl<'a> Open<'a> {
     pub fn key_generation_times(
         &self,
     ) -> Result<KeySet<KeyGenerationTime>, Error> {
-        self.ard.get_key_generation_times()
+        self.ard.key_generation_times()
     }
 
     #[allow(dead_code)]
@@ -295,21 +295,21 @@ impl<'a> Open<'a> {
     // --- URL (5f50) ---
 
     pub fn url(&mut self) -> Result<String> {
-        self.card_app.get_url()
+        self.card_app.url()
     }
 
     // --- cardholder related data (65) ---
     pub fn cardholder_related_data(
         &mut self,
     ) -> Result<CardholderRelatedData> {
-        self.card_app.get_cardholder_related_data()
+        self.card_app.cardholder_related_data()
     }
 
     // --- security support template (7a) ---
     pub fn security_support_template(
         &mut self,
     ) -> Result<SecuritySupportTemplate> {
-        self.card_app.get_security_support_template()
+        self.card_app.security_support_template()
     }
 
     // DO "Algorithm Information" (0xFA)
@@ -323,21 +323,21 @@ impl<'a> Open<'a> {
             return Ok(None);
         }
 
-        self.card_app.get_algo_info()
+        self.card_app.algorithm_information()
     }
 
     /// Firmware Version, YubiKey specific (?)
     pub fn firmware_version(&mut self) -> Result<Vec<u8>> {
-        self.card_app.get_firmware_version()
+        self.card_app.firmware_version()
     }
 
     // ----------
 
-    pub fn get_pub_key(
+    pub fn public_key(
         &mut self,
         key_type: KeyType,
     ) -> Result<PublicKeyMaterial> {
-        self.card_app.get_pub_key(key_type).map_err(|e| e.into())
+        self.card_app.public_key(key_type).map_err(|e| e.into())
     }
 
     // ----------
@@ -396,7 +396,7 @@ pub struct Admin<'app, 'open> {
 }
 
 impl<'app, 'open> Admin<'app, 'open> {
-    pub fn get_open(&'_ mut self) -> &mut Open<'app> {
+    pub fn as_open(&'_ mut self) -> &mut Open<'app> {
         self.oc
     }
 }

@@ -43,8 +43,8 @@ pub(crate) fn gen_key_with_metadata(
     // Set algo on card if it's Some
     if let Some(target_algo) = algo {
         // FIXME: caching
-        let ard = card_app.get_application_related_data()?; // no caching, here!
-        let ecap = ard.get_extended_capabilities()?;
+        let ard = card_app.application_related_data()?; // no caching, here!
+        let ecap = ard.extended_capabilities()?;
 
         // Only set algo if card supports setting of algo attr
         if ecap.algo_attrs_changeable() {
@@ -65,8 +65,8 @@ pub(crate) fn gen_key_with_metadata(
     }
 
     // get new state of algo
-    let ard = card_app.get_application_related_data()?; // no caching, here!
-    let cur_algo = ard.get_algorithm_attributes(key_type)?;
+    let ard = card_app.application_related_data()?; // no caching, here!
+    let cur_algo = ard.algorithm_attributes(key_type)?;
 
     // generate key
     let tlv = generate_asymmetric_key_pair(card_app, key_type)?;
@@ -132,7 +132,7 @@ pub(crate) fn generate_asymmetric_key_pair(
     key_type: KeyType,
 ) -> Result<Tlv, Error> {
     // generate key
-    let crt = get_crt(key_type)?;
+    let crt = control_reference_template(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
 
     let resp = apdu::send_command(card_app.card_client(), gen_key_cmd, true)?;
@@ -149,16 +149,16 @@ pub(crate) fn generate_asymmetric_key_pair(
 /// in the card or imported")
 ///
 /// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
-pub(crate) fn get_pub_key(
+pub(crate) fn public_key(
     card_app: &mut CardApp,
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error> {
     // get current algo
-    let ard = card_app.get_application_related_data()?; // FIXME: caching
-    let algo = ard.get_algorithm_attributes(key_type)?;
+    let ard = card_app.application_related_data()?; // FIXME: caching
+    let algo = ard.algorithm_attributes(key_type)?;
 
     // get public key
-    let crt = get_crt(key_type)?;
+    let crt = control_reference_template(key_type)?;
     let get_pub_key_cmd = commands::get_pub_key(crt.serialize().to_vec());
 
     let resp =
@@ -183,9 +183,9 @@ pub(crate) fn key_import(
     algo_list: Option<AlgoInfo>,
 ) -> Result<(), Error> {
     // FIXME: caching?
-    let ard = card_app.get_application_related_data()?;
+    let ard = card_app.application_related_data()?;
 
-    let (algo, key_cmd) = match key.get_key()? {
+    let (algo, key_cmd) = match key.private_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
             let rsa_attrs =
                 determine_rsa_attrs(&ard, &*rsa_key, key_type, algo_list)?;
@@ -204,19 +204,19 @@ pub(crate) fn key_import(
         }
     };
 
-    let fp = key.get_fp()?;
+    let fp = key.fingerprint()?;
 
     // Now that we have marshalled all necessary information, perform all
     // set-operations on the card.
 
     // Only set algo attrs if "Extended Capabilities" lists the feature
-    if ard.get_extended_capabilities()?.algo_attrs_changeable() {
+    if ard.extended_capabilities()?.algo_attrs_changeable() {
         card_app.set_algorithm_attributes(key_type, &algo)?;
     }
 
     apdu::send_command(card_app.card_client(), key_cmd, false)?.check_ok()?;
     card_app.set_fingerprint(fp, key_type)?;
-    card_app.set_creation_time(key.get_ts(), key_type)?;
+    card_app.set_creation_time(key.timestamp(), key_type)?;
 
     Ok(())
 }
@@ -234,7 +234,7 @@ fn determine_rsa_attrs(
 ) -> Result<RsaAttrs> {
     // RSA bitsize
     // (round up to 4-bytes, in case the key has 8+ leading zeros)
-    let rsa_bits = (((rsa_key.get_n().len() * 8 + 31) / 32) * 32) as u16;
+    let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
 
     // Figure out suitable RSA algorithm parameters:
 
@@ -242,11 +242,11 @@ fn determine_rsa_attrs(
     let rsa_attrs = if let Some(algo_list) = algo_list {
         // Yes -> Look up the parameters for key_type and rsa_bits.
         // (Or error, if the list doesn't have an entry for rsa_bits)
-        get_card_algo_rsa(algo_list, key_type, rsa_bits)?
+        card_algo_rsa(algo_list, key_type, rsa_bits)?
     } else {
         // No -> Get the current algorithm attributes for key_type.
 
-        let algo = ard.get_algorithm_attributes(key_type)?;
+        let algo = ard.algorithm_attributes(key_type)?;
 
         // Is the algorithm on the card currently set to RSA?
         if let Algo::Rsa(rsa) = algo {
@@ -280,7 +280,7 @@ fn determine_ecc_attrs(
 ) -> Result<EccAttrs> {
     // If we have an algo_list, refuse upload if oid is not listed
     if let Some(algo_list) = algo_list {
-        let oid = ecc_key.get_oid();
+        let oid = ecc_key.oid();
         let algos = check_card_algo_ecc(algo_list, key_type, oid);
         if algos.is_empty() {
             // If oid is not in algo_list, return error.
@@ -298,8 +298,8 @@ fn determine_ecc_attrs(
 
         if !algos.is_empty() {
             return Ok(EccAttrs::new(
-                ecc_key.get_type(),
-                Curve::try_from(ecc_key.get_oid())?,
+                ecc_key.ecc_type(),
+                Curve::try_from(ecc_key.oid())?,
                 algos[0].import_format(),
             ));
         }
@@ -309,14 +309,14 @@ fn determine_ecc_attrs(
     // (Do cards that support ecc but have no algo_list exist?)
 
     Ok(EccAttrs::new(
-        ecc_key.get_type(),
-        Curve::try_from(ecc_key.get_oid())?,
+        ecc_key.ecc_type(),
+        Curve::try_from(ecc_key.oid())?,
         None,
     ))
 }
 
 /// Look up RsaAttrs parameters in algo_list based on key_type and rsa_bits
-fn get_card_algo_rsa(
+fn card_algo_rsa(
     algo_list: AlgoInfo,
     key_type: KeyType,
     rsa_bits: u16,
@@ -324,7 +324,7 @@ fn get_card_algo_rsa(
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_list.get_by_keytype(key_type);
+    let keytype_algos: Vec<_> = algo_list.filter_by_keytype(key_type);
     // Get RSA algo attributes
     let rsa_algos: Vec<_> = keytype_algos
         .iter()
@@ -363,7 +363,7 @@ fn check_card_algo_ecc(
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_list.get_by_keytype(key_type);
+    let keytype_algos: Vec<_> = algo_list.filter_by_keytype(key_type);
 
     // Get attributes
     let ecc_algos: Vec<_> = keytype_algos
@@ -409,7 +409,7 @@ fn rsa_key_import_cmd(
     cpkt_data.push(len_e_bytes);
 
     // Push e, padded with zero bytes from the left
-    let e_as_bytes = rsa_key.get_e();
+    let e_as_bytes = rsa_key.e();
 
     if len_e_bytes as usize > e_as_bytes.len() {
         key_data.extend(vec![0; len_e_bytes as usize - e_as_bytes.len()]);
@@ -434,25 +434,25 @@ fn rsa_key_import_cmd(
 
     // FIXME: do p/q need to be padded from the left when many leading
     // bits are zero?
-    key_data.extend(rsa_key.get_p().iter());
-    key_data.extend(rsa_key.get_q().iter());
+    key_data.extend(rsa_key.p().iter());
+    key_data.extend(rsa_key.q().iter());
 
     // import format requires chinese remainder theorem fields
     if rsa_attrs.import_format() == 2 || rsa_attrs.import_format() == 3 {
         // PQ: 1/q mod p
-        let pq = rsa_key.get_pq();
+        let pq = rsa_key.pq();
         cpkt_data.push(0x94);
         cpkt_data.extend(&tlv_encode_length(pq.len() as u16));
         key_data.extend(pq.iter());
 
         // DP1: d mod (p - 1)
-        let dp1 = rsa_key.get_dp1();
+        let dp1 = rsa_key.dp1();
         cpkt_data.push(0x95);
         cpkt_data.extend(&tlv_encode_length(dp1.len() as u16));
         key_data.extend(dp1.iter());
 
         // DQ1: d mod (q - 1)
-        let dq1 = rsa_key.get_dq1();
+        let dq1 = rsa_key.dq1();
         cpkt_data.push(0x96);
         cpkt_data.extend(&tlv_encode_length(dq1.len() as u16));
         key_data.extend(dq1.iter());
@@ -460,7 +460,7 @@ fn rsa_key_import_cmd(
 
     // import format requires modulus n field
     if rsa_attrs.import_format() == 1 || rsa_attrs.import_format() == 3 {
-        let n = rsa_key.get_n();
+        let n = rsa_key.n();
         cpkt_data.push(0x97);
         cpkt_data.extend(&tlv_encode_length(n.len() as u16));
         key_data.extend(n.iter());
@@ -471,7 +471,7 @@ fn rsa_key_import_cmd(
     let cpk = Tlv::new([0x5F, 0x48], Value::S(key_data));
 
     // "Control Reference Template"
-    let crt = get_crt(key_type)?;
+    let crt = control_reference_template(key_type)?;
 
     // "Extended header list (DO 4D)"
     let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
@@ -486,7 +486,7 @@ fn ecc_key_import_cmd(
     ecc_key: Box<dyn EccKey>,
     ecc_attrs: &EccAttrs,
 ) -> Result<Command, Error> {
-    let private = ecc_key.get_private();
+    let private = ecc_key.private();
 
     // Collect data for "Cardholder private key template" DO (7F48)
     //
@@ -507,7 +507,7 @@ fn ecc_key_import_cmd(
 
     // Process "public", if the import format requires it
     if ecc_attrs.import_format() == Some(0xff) {
-        let p = ecc_key.get_public();
+        let p = ecc_key.public();
 
         cpkt_data.push(0x99);
         cpkt_data.extend_from_slice(&tlv_encode_length(p.len() as u16));
@@ -524,7 +524,7 @@ fn ecc_key_import_cmd(
     let cpk = Tlv::new([0x5F, 0x48], Value::S(key_data));
 
     // "Control Reference Template"
-    let crt = get_crt(key_type)?;
+    let crt = control_reference_template(key_type)?;
 
     // "Extended header list (DO 4D)" (contains the three inner TLV)
     let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
@@ -534,7 +534,7 @@ fn ecc_key_import_cmd(
 }
 
 /// Get "Control Reference Template" Tlv for `key_type`
-fn get_crt(key_type: KeyType) -> Result<Tlv, Error> {
+fn control_reference_template(key_type: KeyType) -> Result<Tlv, Error> {
     // "Control Reference Template" (0xB8 | 0xB6 | 0xA4)
     let tag = match key_type {
         KeyType::Decryption => 0xB8,

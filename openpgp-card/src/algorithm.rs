@@ -60,7 +60,7 @@ impl From<&str> for AlgoSimple {
 
 impl AlgoSimple {
     /// Get corresponding EccType by KeyType (except for Curve25519)
-    fn get_ecc_type(key_type: KeyType) -> EccType {
+    fn ecc_type(key_type: KeyType) -> EccType {
         match key_type {
             KeyType::Signing
             | KeyType::Authentication
@@ -70,7 +70,7 @@ impl AlgoSimple {
     }
 
     /// Get corresponding EccType by KeyType for Curve25519
-    fn get_ecc_type_25519(key_type: KeyType) -> EccType {
+    fn ecc_type_25519(key_type: KeyType) -> EccType {
         match key_type {
             KeyType::Signing
             | KeyType::Authentication
@@ -80,7 +80,7 @@ impl AlgoSimple {
     }
 
     /// Get corresponding Curve by KeyType for 25519 (Ed25519 vs Cv25519)
-    fn get_curve_for_25519(key_type: KeyType) -> Curve {
+    fn curve_for_25519(key_type: KeyType) -> Curve {
         match key_type {
             KeyType::Signing
             | KeyType::Authentication
@@ -89,7 +89,7 @@ impl AlgoSimple {
         }
     }
 
-    pub(crate) fn get_algo(&self, key_type: KeyType) -> Algo {
+    pub(crate) fn as_algo(&self, key_type: KeyType) -> Algo {
         match self {
             Self::RSA1k(e) => Algo::Rsa(RsaAttrs {
                 len_n: 1024,
@@ -113,22 +113,22 @@ impl AlgoSimple {
             }),
             Self::NIST256 => Algo::Ecc(EccAttrs {
                 curve: Curve::NistP256r1,
-                ecc_type: Self::get_ecc_type(key_type),
+                ecc_type: Self::ecc_type(key_type),
                 import_format: None,
             }),
             Self::NIST384 => Algo::Ecc(EccAttrs {
                 curve: Curve::NistP384r1,
-                ecc_type: Self::get_ecc_type(key_type),
+                ecc_type: Self::ecc_type(key_type),
                 import_format: None,
             }),
             Self::NIST521 => Algo::Ecc(EccAttrs {
                 curve: Curve::NistP521r1,
-                ecc_type: Self::get_ecc_type(key_type),
+                ecc_type: Self::ecc_type(key_type),
                 import_format: None,
             }),
             Self::Curve25519 => Algo::Ecc(EccAttrs {
-                curve: Self::get_curve_for_25519(key_type),
-                ecc_type: Self::get_ecc_type_25519(key_type),
+                curve: Self::curve_for_25519(key_type),
+                ecc_type: Self::ecc_type_25519(key_type),
                 import_format: None,
             }),
         }
@@ -198,7 +198,7 @@ impl fmt::Display for Algo {
 impl Algo {
     /// Get a DO representation of the Algo, for setting algorithm
     /// attributes on the card.
-    pub(crate) fn get_data(&self) -> Result<Vec<u8>, Error> {
+    pub(crate) fn to_data_object(&self) -> Result<Vec<u8>, Error> {
         match self {
             Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa),
             Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
