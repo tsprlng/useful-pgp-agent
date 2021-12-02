@@ -455,28 +455,25 @@ fn generate_keys(
     // Because of this, for generation of RSA keys, here we take the approach
     // of first trying one variant, and then if that fails, try the other.
 
-    let algos = match algo.as_deref() {
-        None => vec![],
-        Some("rsa2048") => vec![AlgoSimple::RSA2k(32), AlgoSimple::RSA2k(17)],
-        Some("rsa3072") => vec![AlgoSimple::RSA3k(32), AlgoSimple::RSA3k(17)],
-        Some("rsa4096") => vec![AlgoSimple::RSA4k(32), AlgoSimple::RSA4k(17)],
-        Some("nistp256") => vec![AlgoSimple::NIST256],
-        Some("nistp384") => vec![AlgoSimple::NIST384],
-        Some("nistp521") => vec![AlgoSimple::NIST521],
-        Some("25519") => vec![AlgoSimple::Curve25519],
+    let a = match algo.as_deref() {
+        None => None,
+        Some("rsa2048") => Some(AlgoSimple::RSA2k),
+        Some("rsa3072") => Some(AlgoSimple::RSA3k),
+        Some("rsa4096") => Some(AlgoSimple::RSA4k),
+        Some("nistp256") => Some(AlgoSimple::NIST256),
+        Some("nistp384") => Some(AlgoSimple::NIST384),
+        Some("nistp521") => Some(AlgoSimple::NIST521),
+        Some("25519") => Some(AlgoSimple::Curve25519),
         _ => return Err(anyhow!("Unexpected algorithm")),
     };
 
-    log::info!(
-        " Key generation will be attempted with these algos: {:?}",
-        algos
-    );
+    log::info!(" Key generation will be attempted with algo: {:?}", a);
 
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
     let (key_sig, key_dec, key_aut) = {
         if let Ok(mut admin) = util::verify_to_admin(&mut open, pw3_path) {
-            gen_subkeys(&mut admin, decrypt, auth, algos)?
+            gen_subkeys(&mut admin, decrypt, auth, a)?
         } else {
             return Err(anyhow!("Failed to open card in admin mode."));
         }
@@ -518,91 +515,19 @@ fn gen_subkeys(
     admin: &mut Admin,
     decrypt: bool,
     auth: bool,
-    algos: Vec<AlgoSimple>,
+    algo: Option<AlgoSimple>,
 ) -> Result<(PublicKey, Option<PublicKey>, Option<PublicKey>)> {
-    // We begin with the signing subkey, which is mandatory.
-    // If there are multiple algorithms we should try (i.e. two rsa
-    // variants), we'll attempt to make the signing subkey with each of
-    // them, and continue with the first one that works, if any.
-
+    // We begin by generating the signing subkey, which is mandatory.
     println!(" Generate subkey for Signing");
-    let (alg, key_sig) = if algos.is_empty() {
-        // Handle unset algorithm from user (-> leave algo as is on the card)
-        log::info!(" Running key generation with implicit algo");
-
-        let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, None)?;
-        let key = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
-
-        (None, key)
-    } else {
-        // Try list of algos until one works - or return list of all errors.
-
-        let mut errors = vec![];
-
-        let mut algo: Option<AlgoSimple> = None;
-        let mut key_sig: Option<PublicKey> = None;
-
-        // Check each algo while making key_sig.
-        //
-        // Return the result for the first one that works, and keep using
-        // that algo.
-        //
-        // If none of them work, fail and return all errors
-
-        for (n, alg) in algos.iter().enumerate() {
-            let a = Some(*alg);
-
-            log::info!(" Trying key generation with algo {:?}", alg);
-
-            match admin.generate_key_simple(KeyType::Signing, a) {
-                Ok((pkm, ts)) => {
-                    // generated a valid key -> return it
-                    let key = public_key_material_to_key(
-                        &pkm,
-                        KeyType::Signing,
-                        ts,
-                    )?;
-                    algo = a;
-                    key_sig = Some(key);
-                    break;
-                }
-                Err(e) => match (n, n == algos.len() - 1) {
-                    // there was only one algo, and it failed
-                    (0, true) => return Err(e.into()),
-
-                    // there was an error, but there are more algo to try
-                    (_, false) => errors.push(e),
-
-                    // there were multiple algo, there was an error, and
-                    // this is the last algo
-                    (_, true) => {
-                        errors.push(e);
-
-                        let err = anyhow::anyhow!(
-                            "Key generation failed for all algorithm \
-                            variants {:x?} ({:?})",
-                            errors,
-                            algos
-                        );
-                        return Err(err);
-                    }
-                },
-            };
-        }
-
-        // Neither of these should be possible, but the compiler can't tell.
-        assert!(algo.is_some());
-        assert!(key_sig.is_some());
-
-        (algo, key_sig.unwrap())
-    };
+    let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, algo)?;
+    let key_sig = public_key_material_to_key(&pkm, KeyType::Decryption, ts)?;
 
     // make decryption subkey (unless disabled), with the same algorithm as
     // the sig key
-
     let key_dec = if decrypt {
         println!(" Generate subkey for Decryption");
-        let (pkm, ts) = admin.generate_key_simple(KeyType::Decryption, alg)?;
+        let (pkm, ts) =
+            admin.generate_key_simple(KeyType::Decryption, algo)?;
         Some(public_key_material_to_key(&pkm, KeyType::Decryption, ts)?)
     } else {
         None
@@ -610,11 +535,10 @@ fn gen_subkeys(
 
     // make authentication subkey (unless disabled), with the same
     // algorithm as the sig key
-
     let key_aut = if auth {
         println!(" Generate subkey for Authentication");
         let (pkm, ts) =
-            admin.generate_key_simple(KeyType::Authentication, alg)?;
+            admin.generate_key_simple(KeyType::Authentication, algo)?;
 
         Some(public_key_material_to_key(
             &pkm,
