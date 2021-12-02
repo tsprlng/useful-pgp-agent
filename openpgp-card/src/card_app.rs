@@ -805,6 +805,10 @@ impl CardApp {
     ///
     /// If the `algo` parameter is Some, then this algorithm will be set on
     /// the card for "key_type".
+    ///
+    /// Note: `algo` needs to precisely specify the RSA bitsize of e (if
+    /// applicable), and import format, with values that the current card
+    /// supports.
     pub fn generate_key(
         &mut self,
         fp_from_pub: fn(
@@ -821,8 +825,12 @@ impl CardApp {
     /// Generate a key on the card.
     /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
     ///
-    /// This is a convenience wrapper around generate_key() which allows
+    /// This is a wrapper around generate_key() which allows
     /// using the simplified `AlgoSimple` algorithm selector enum.
+    ///
+    /// Note: AlgoSimple doesn't specify card specific details (such as
+    /// bitsize of e for RSA, and import format). This function determines
+    /// these values based on information from the card.
     pub fn generate_key_simple(
         &mut self,
         fp_from_pub: fn(
@@ -831,9 +839,13 @@ impl CardApp {
             KeyType,
         ) -> Result<Fingerprint, Error>,
         key_type: KeyType,
-        algo: AlgoSimple,
+        simple: AlgoSimple,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        let algo = algo.as_algo(key_type);
+        let ard = self.application_related_data()?;
+        let algo_info = self.algorithm_information()?;
+
+        let algo = simple.determine_algo(key_type, &ard, algo_info)?;
+
         self.generate_key(fp_from_pub, key_type, Some(&algo))
     }
 

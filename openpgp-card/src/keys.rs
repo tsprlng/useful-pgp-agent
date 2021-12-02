@@ -64,7 +64,7 @@ pub(crate) fn gen_key_with_metadata(
         }
     }
 
-    // get new state of algo
+    // get current (possibly updated) state of algo
     let ard = card_app.application_related_data()?; // no caching, here!
     let cur_algo = ard.algorithm_attributes(key_type)?;
 
@@ -230,7 +230,7 @@ pub(crate) fn key_import(
 /// If available, via lookup in `algo_list`, otherwise the current
 /// algorithm attributes are checked. If neither method yields a
 /// result, we 'guess' the RsaAttrs setting.
-fn determine_rsa_attrs(
+pub(crate) fn determine_rsa_attrs(
     rsa_bits: u16,
     key_type: KeyType,
     ard: &ApplicationRelatedData,
@@ -299,7 +299,7 @@ fn determine_ecc_attrs(
         if !algos.is_empty() {
             return Ok(EccAttrs::new(
                 ecc_key.ecc_type(),
-                Curve::try_from(ecc_key.oid())?,
+                Curve::try_from(oid)?,
                 algos[0].import_format(),
             ));
         }

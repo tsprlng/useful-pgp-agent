@@ -31,7 +31,7 @@ mod card_app;
 pub mod card_do;
 pub mod crypto_data;
 mod errors;
-mod keys;
+pub(crate) mod keys;
 mod tlv;
 
 pub use crate::apdu::response::Response;

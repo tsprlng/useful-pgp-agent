@@ -9,27 +9,22 @@
 //! [`AlgoSimple`] offers a shorthand for specifying an algorithm,
 //! specifically for key generation on the card.
 
+use crate::card_do::ApplicationRelatedData;
 use crate::crypto_data::EccType;
-use crate::{Error, KeyType};
+use crate::{keys, Error, KeyType};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 use std::fmt;
 
 /// A shorthand way to specify algorithms (e.g. for key generation).
-///
-/// RSA variants require "number of bits in 'e'" as parameter.
-///
-/// There are (at least) two common supported values for e:
-///  e=17 [YK4, YK5]
-///  e=32 [YK5, Floss3.4, Gnuk1.2]
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub enum AlgoSimple {
-    RSA1k(u16),
-    RSA2k(u16),
-    RSA3k(u16),
-    RSA4k(u16),
+    RSA1k,
+    RSA2k,
+    RSA3k,
+    RSA4k,
     NIST256,
     NIST384,
     NIST521,
@@ -43,14 +38,10 @@ impl TryFrom<&str> for AlgoSimple {
         use AlgoSimple::*;
 
         Ok(match algo {
-            "RSA1k/17" => RSA1k(17),
-            "RSA1k/32" => RSA1k(32),
-            "RSA2k/17" => RSA2k(17),
-            "RSA2k/32" => RSA2k(32),
-            "RSA3k/17" => RSA3k(17),
-            "RSA3k/32" => RSA3k(32),
-            "RSA4k/17" => RSA4k(17),
-            "RSA4k/32" => RSA4k(32),
+            "RSA1k" => RSA1k,
+            "RSA2k" => RSA2k,
+            "RSA3k" => RSA3k,
+            "RSA4k" => RSA4k,
             "NIST256" => NIST256,
             "NIST384" => NIST384,
             "NIST521" => NIST521,
@@ -91,28 +82,26 @@ impl AlgoSimple {
         }
     }
 
-    pub(crate) fn as_algo(&self, key_type: KeyType) -> Algo {
-        match self {
-            Self::RSA1k(e) => Algo::Rsa(RsaAttrs {
-                len_n: 1024,
-                len_e: *e,
-                import_format: 0,
-            }),
-            Self::RSA2k(e) => Algo::Rsa(RsaAttrs {
-                len_n: 2048,
-                len_e: *e,
-                import_format: 0,
-            }),
-            Self::RSA3k(e) => Algo::Rsa(RsaAttrs {
-                len_n: 3072,
-                len_e: *e,
-                import_format: 0,
-            }),
-            Self::RSA4k(e) => Algo::Rsa(RsaAttrs {
-                len_n: 4096,
-                len_e: *e,
-                import_format: 0,
-            }),
+    pub(crate) fn determine_algo(
+        &self,
+        key_type: KeyType,
+        ard: &ApplicationRelatedData,
+        algo_info: Option<AlgoInfo>,
+    ) -> Result<Algo> {
+        let algo = match self {
+            Self::RSA1k => Algo::Rsa(keys::determine_rsa_attrs(
+                1024, key_type, ard, algo_info,
+            )?),
+            Self::RSA2k => Algo::Rsa(keys::determine_rsa_attrs(
+                2048, key_type, ard, algo_info,
+            )?),
+            Self::RSA3k => Algo::Rsa(keys::determine_rsa_attrs(
+                3072, key_type, ard, algo_info,
+            )?),
+            Self::RSA4k => Algo::Rsa(keys::determine_rsa_attrs(
+                4096, key_type, ard, algo_info,
+            )?),
+
             Self::NIST256 => Algo::Ecc(EccAttrs {
                 curve: Curve::NistP256r1,
                 ecc_type: Self::ecc_type(key_type),
@@ -133,7 +122,9 @@ impl AlgoSimple {
                 ecc_type: Self::ecc_type_25519(key_type),
                 import_format: None,
             }),
-        }
+        };
+
+        Ok(algo)
     }
 }
 
