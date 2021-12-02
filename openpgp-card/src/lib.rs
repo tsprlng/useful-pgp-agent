@@ -12,9 +12,9 @@
 //! - without relying on a particular
 //! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
-//! This library doesn't itself implement a means to access cards. Instead,
-//! users need to supply an implementation of the [`CardClient`] trait, for
-//! access to cards.
+//! This library can't directly access cards by itself. Instead, users
+//! need to supply an implementation of the [`CardClient`] trait, to
+//! access cards.
 //!
 //! The companion crate
 //! [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
@@ -84,10 +84,10 @@ pub trait CardClient {
     /// Does the reader support FEATURE_MODIFY_PIN_DIRECT?
     fn feature_pinpad_modify(&self) -> bool;
 
-    /// Verify the PIN 'id' via the reader pinpad
+    /// Verify the PIN `id` via the reader pinpad
     fn pinpad_verify(&mut self, id: u8) -> Result<Vec<u8>>;
 
-    /// Modify the PIN 'id' via the reader pinpad
+    /// Modify the PIN `id` via the reader pinpad
     fn pinpad_modify(&mut self, id: u8) -> Result<Vec<u8>>;
 }
 
@@ -102,7 +102,7 @@ impl dyn CardClient {
     }
 }
 
-/// Configuration of the capabilities of the card.
+/// Configuration of the capabilities of a card.
 ///
 /// This configuration is used to determine e.g. if chaining or extended
 /// length can be used when communicating with the card.

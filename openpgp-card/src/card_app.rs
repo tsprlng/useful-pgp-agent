@@ -258,8 +258,8 @@ impl CardApp {
 
     /// Set identity (Nitrokey Start specific (?)).
     /// [see:
-    /// https://docs.nitrokey.com/start/linux/multiple-identities.html
-    /// https://github.com/Nitrokey/nitrokey-start-firmware/pull/33/]
+    /// <https://docs.nitrokey.com/start/linux/multiple-identities.html>
+    /// <https://github.com/Nitrokey/nitrokey-start-firmware/pull/33/>]
     pub fn set_identity(&mut self, id: u8) -> Result<Vec<u8>> {
         let resp = apdu::send_command(
             self.card_client(),
@@ -276,8 +276,8 @@ impl CardApp {
         }
     }
 
-    /// SELECT DATA "select a DO in the current template"
-    /// (e.g. for cardholder certificate)
+    /// SELECT DATA ("select a DO in the current template",
+    /// e.g. for cardholder certificate)
     pub fn select_data(
         &mut self,
         num: u8,
@@ -299,11 +299,18 @@ impl CardApp {
     /// Reset all state on this OpenPGP card.
     ///
     /// Note: the "factory reset" operation is not directly offered by the
-    /// card. It is implemented as a series of OpenPGP card commands:
-    /// - send 4 bad requests to verify pw1
-    /// - send 4 bad requests to verify pw3
-    /// - terminate_df
-    /// - activate_file
+    /// card spec. It is implemented as a series of OpenPGP card commands:
+    /// - send 4 bad requests to verify pw1,
+    /// - send 4 bad requests to verify pw3,
+    /// - terminate_df,
+    /// - activate_file.
+    ///
+    /// With most cards, this sequence of operations causes the card
+    /// to revert to a "blank" state.
+    ///
+    /// (However, e.g. vanilla Gnuk doesn't support this functionality.
+    /// Gnuk needs to be built with the `--enable-factory-reset`
+    /// option to the `configure` script to enable this functionality).
     pub fn factory_reset(&mut self) -> Result<()> {
         // send 4 bad requests to verify pw1
         // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
@@ -345,7 +352,7 @@ impl CardApp {
         Ok(())
     }
 
-    // ----------
+    // --- verify/modify ---
 
     /// Does the cardreader support direct pinpad verify?
     pub fn feature_pinpad_verify(&self) -> bool {
@@ -357,8 +364,7 @@ impl CardApp {
         self.card_client.feature_pinpad_modify()
     }
 
-    /// Verify pw1 (user) for signing operation (mode 81) and set an
-    /// appropriate access status.
+    /// Verify pw1 (user) for signing operation (mode 81).
     ///
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
@@ -371,9 +377,9 @@ impl CardApp {
         apdu::send_command(self.card_client(), verify, false)?.try_into()
     }
 
-    /// Verify pw1 (user) for signing operation (mode 81) and set an
-    /// appropriate access status. This fn uses a pinpad on the card reader,
-    /// if no usable pinpad is found, an error is returned.
+    /// Verify pw1 (user) for signing operation (mode 81) using a
+    /// pinpad on the card reader. If no usable pinpad is found, an error
+    /// is returned.
     ///
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
@@ -390,23 +396,23 @@ impl CardApp {
     /// If verification is not required, an empty Ok Response is returned.
     ///
     /// (Note: some cards don't correctly implement this feature,
-    /// e.g. yubikey 5)
+    /// e.g. YubiKey 5)
     pub fn check_pw1_for_signing(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(self.card_client(), verify, false)?.try_into()
     }
 
-    /// Verify PW1 (user) and set an appropriate access status.
+    /// Verify PW1 (user).
     /// (For operations except signing, mode 82).
     pub fn verify_pw1(&mut self, pin: &str) -> Result<Response, Error> {
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
         apdu::send_command(self.card_client(), verify, false)?.try_into()
     }
 
-    /// Verify PW1 (user) and set an appropriate access status.
-    /// (For operations except signing, mode 82).
-    /// This fn uses a pinpad on the card reader, if no usable pinpad is
-    /// found, an error is returned.
+    /// Verify PW1 (user) for operations except signing (mode 82),
+    /// using a pinpad on the card reader. If no usable pinpad is found,
+    /// an error is returned.
+
     pub fn verify_pw1_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.card_client.pinpad_verify(0x82)?;
         RawResponse::try_from(res)?.try_into()
@@ -418,21 +424,20 @@ impl CardApp {
     /// If verification is not required, an empty Ok Response is returned.
     ///
     /// (Note: some cards don't correctly implement this feature,
-    /// e.g. yubikey 5)
+    /// e.g. YubiKey 5)
     pub fn check_pw1(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(self.card_client(), verify, false)?.try_into()
     }
 
-    /// Verify PW3 (admin) and set an appropriate access status.
+    /// Verify PW3 (admin).
     pub fn verify_pw3(&mut self, pin: &str) -> Result<Response, Error> {
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
         apdu::send_command(self.card_client(), verify, false)?.try_into()
     }
 
-    /// Verify PW3 (admin) and set an appropriate access status.
-    /// This fn uses a pinpad on the card reader, if no usable pinpad is
-    /// found, an error is returned.
+    /// Verify PW3 (admin) using a pinpad on the card reader. If no usable
+    /// pinpad is found, an error is returned.
     pub fn verify_pw3_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.card_client.pinpad_verify(0x83)?;
         RawResponse::try_from(res)?.try_into()
@@ -443,7 +448,7 @@ impl CardApp {
     /// If verification is not required, an empty Ok Response is returned.
     ///
     /// (Note: some cards don't correctly implement this feature,
-    /// e.g. yubikey 5)
+    /// e.g. YubiKey 5)
     pub fn check_pw3(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw3(vec![]);
         apdu::send_command(self.card_client(), verify, false)?.try_into()
@@ -465,9 +470,8 @@ impl CardApp {
         apdu::send_command(self.card_client(), change, false)?.try_into()
     }
 
-    /// Change the value of PW1 (user password).
-    /// This fn uses a pinpad on the card reader, if no usable pinpad is
-    /// found, an error is returned.
+    /// Change the value of PW1 (user password)  using a pinpad on the
+    /// card reader. If no usable pinpad is found, an error is returned.
     pub fn change_pw1_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.card_client.pinpad_modify(0x81)?;
         RawResponse::try_from(res)?.try_into()
@@ -489,9 +493,8 @@ impl CardApp {
         apdu::send_command(self.card_client(), change, false)?.try_into()
     }
 
-    /// Change the value of PW3 (admin password).
-    /// This fn uses a pinpad on the card reader, if no usable pinpad is
-    /// found, an error is returned.
+    /// Change the value of PW3 (admin password) using a pinpad on the
+    /// card reader. If no usable pinpad is found, an error is returned.
     pub fn change_pw3_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.card_client.pinpad_modify(0x83)?;
         RawResponse::try_from(res)?.try_into()
@@ -851,10 +854,12 @@ impl CardApp {
 
     /// Get public key material from the card.
     ///
-    /// Note: this fn returns an uninterpreted set of raw values (not an
-    /// OpenPGP key data structure).
-    /// This data from the card is insufficient to create a typical
-    /// full public key.
+    /// Note: this fn returns a set of raw public key data (not an
+    /// OpenPGP data structure).
+    ///
+    /// Note also that the information from the card is insufficient to
+    /// reconstruct a pre-existing OpenPGP public key that corresponds to
+    /// the private key on the card.
     pub fn public_key(
         &mut self,
         key_type: KeyType,

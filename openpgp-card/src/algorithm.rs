@@ -311,6 +311,7 @@ impl EccAttrs {
     }
 }
 
+/// Enum for naming ECC curves, and mapping them to/from their OIDs.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Curve {

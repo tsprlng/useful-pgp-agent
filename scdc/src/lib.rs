@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! This crate provides `ScdClient`, which is an implementation of the
-//! CardClient trait that uses GnuPG's scdaemon to access OpenPGP cards.
-//! To access scdaemon, GnuPG Agent is used.
+//! This crate implements the experimental `ScdClient` backend for the
+//! `openpgp-card` crate.
+//! It uses GnuPG's scdaemon (via GnuPG Agent) to access OpenPGP cards.
 
 use anyhow::{anyhow, Result};
 use futures::StreamExt;
@@ -49,23 +49,14 @@ const ASSUAN_LINELENGTH: usize = 1000;
 /// In particular, uploading rsa4096 keys fails via scdaemon, with such cards.
 const APDU_CMD_BYTES_MAX: usize = (ASSUAN_LINELENGTH - 25) / 2;
 
+/// An implementation of the CardClient trait that uses GnuPG's scdaemon
+/// (via GnuPG Agent) to access OpenPGP card devices.
 pub struct ScdClient {
     agent: Agent,
     card_caps: Option<CardCaps>,
 }
 
 impl ScdClient {
-    /// Open a CardApp that uses an scdaemon instance as its backend.
-    ///
-    /// If multiple cards are available, scdaemon implicitly selects one.
-    /// (NOTE: implicitly picking some card seems like a bad idea. You might
-    /// want to avoid using this fn.)
-    pub fn open_yolo(agent: Option<Agent>) -> Result<CardApp, Error> {
-        let card = ScdClient::new(agent, true)?;
-
-        Ok(CardApp::initialize(Box::new(card))?)
-    }
-
     /// Open a CardApp that uses an scdaemon instance as its backend.
     /// The specific card with AID `serial` is requested from scdaemon.
     pub fn open_by_serial(
@@ -74,6 +65,18 @@ impl ScdClient {
     ) -> Result<CardApp, Error> {
         let mut card = ScdClient::new(agent, true)?;
         card.select_card(serial)?;
+
+        Ok(CardApp::initialize(Box::new(card))?)
+    }
+
+    /// Open a CardApp that uses an scdaemon instance as its backend.
+    ///
+    /// If multiple cards are available, scdaemon implicitly selects one.
+    ///
+    /// (NOTE: implicitly picking an unspecified card might be a bad idea.
+    /// You might want to avoid using this function.)
+    pub fn open_yolo(agent: Option<Agent>) -> Result<CardApp, Error> {
+        let card = ScdClient::new(agent, true)?;
 
         Ok(CardApp::initialize(Box::new(card))?)
     }
@@ -263,19 +266,23 @@ impl CardClient for ScdClient {
         Some(APDU_CMD_BYTES_MAX)
     }
 
+    /// FIXME: not implemented yet
     fn feature_pinpad_verify(&self) -> bool {
-        false // FIXME
+        false
     }
 
+    /// FIXME: not implemented yet
     fn feature_pinpad_modify(&self) -> bool {
-        false // FIXME
+        false
     }
 
+    /// FIXME: not implemented yet
     fn pinpad_verify(&mut self, _id: u8) -> Result<Vec<u8>> {
-        unimplemented!() // FIXME
+        unimplemented!()
     }
 
+    /// FIXME: not implemented yet
     fn pinpad_modify(&mut self, _id: u8) -> Result<Vec<u8>> {
-        unimplemented!() // FIXME
+        unimplemented!()
     }
 }

@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+//! This crate implements the `PcscClient` backend for the `openpgp-card`
+//! crate, which uses the PCSC lite middleware to access the OpenPGP
+//! application on smart cards.
+
 use anyhow::{anyhow, Result};
 use iso7816_tlv::simple::Tlv;
 use pcsc::{Card, Context, Protocols, Scope, ShareMode};
@@ -12,6 +16,8 @@ use openpgp_card::{CardApp, CardCaps, CardClient, Error, SmartcardError};
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
+/// An implementation of the CardClient trait that uses the PCSC lite
+/// middleware to access the OpenPGP card application on smart cards.
 pub struct PcscClient {
     card: Card,
     card_caps: Option<CardCaps>,
