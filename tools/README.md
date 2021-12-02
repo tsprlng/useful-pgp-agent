@@ -36,8 +36,8 @@ binaries.
 ## opgpcard
 
 A tool to inspect, configure and use OpenPGP cards. All calls of this tool are
-non-interactive (this tool is designed to be easily usable from shell-scripts)
-.
+non-interactive (this tool is designed to be easily usable from
+shell-scripts).
 
 ### List and inspect cards
 
@@ -151,6 +151,13 @@ $ opgpcard sign --detached -c ABCD:01234567 -p /dev/fd/3 -s <cert-file> 3<<<1234
 $ opgpcard admin -c ABCD:01234567 -P /dev/fd/3 generate -p /dev/fd/4 -o <output-cert-file> 25519 3<<<12345678 4<<<123456
 ```
 
+### Directly entering PINs on card readers with pinpad
+
+If your OpenPGP card is inserted in a card reader with a pinpad, this tool 
+offers you the option to use the pinpad to enter the user- or admin-PINs.
+To do this, you can omit the `-p` and/or '`-P`' parameters - then you will 
+be prompted to enter the user or admin PINs where needed. 
+
 ## opgpcard-pin
 
 An interactive tool to set the admin and user PINs, and to reset the user PIN
@@ -185,3 +192,9 @@ Reset user PIN (requires resetting code):
 ```
 opgpcard-pin -c ABCD:01234567 reset-user-pin
 ```
+
+### Directly entering PINs on card readers with pinpad
+
+If your OpenPGP card is inserted in a card reader with a pinpad, this tool
+assumes you will want to enter all PINs via that pinpad. It will prompt 
+you to enter PINs accordingly.
