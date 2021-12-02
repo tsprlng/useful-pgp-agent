@@ -187,8 +187,12 @@ pub(crate) fn key_import(
 
     let (algo, key_cmd) = match key.private_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
+            // RSA bitsize
+            // (round up to 4-bytes, in case the key has 8+ leading zero bits)
+            let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
+
             let rsa_attrs =
-                determine_rsa_attrs(&ard, &*rsa_key, key_type, algo_list)?;
+                determine_rsa_attrs(rsa_bits, key_type, &ard, algo_list)?;
 
             let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
@@ -221,21 +225,17 @@ pub(crate) fn key_import(
     Ok(())
 }
 
-/// Derive RsaAttrs for `rsa_key`.
+/// Determine RsaAttrs for the current card, for an `rsa_bits` sized key.
 ///
 /// If available, via lookup in `algo_list`, otherwise the current
-/// algorithm attributes are loaded and checked. If neither method yields a
+/// algorithm attributes are checked. If neither method yields a
 /// result, we 'guess' the RsaAttrs setting.
 fn determine_rsa_attrs(
-    ard: &ApplicationRelatedData,
-    rsa_key: &dyn RSAKey,
+    rsa_bits: u16,
     key_type: KeyType,
+    ard: &ApplicationRelatedData,
     algo_list: Option<AlgoInfo>,
 ) -> Result<RsaAttrs> {
-    // RSA bitsize
-    // (round up to 4-bytes, in case the key has 8+ leading zeros)
-    let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
-
     // Figure out suitable RSA algorithm parameters:
 
     // Does the card offer a list of algorithms?
