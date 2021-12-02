@@ -82,6 +82,11 @@ impl AlgoSimple {
         }
     }
 
+    /// Return the appropriate Algo for this AlgoSimple.
+    ///
+    /// This mapping differs between cards, based on `ard` and `algo_info`
+    /// (e.g. the exact Algo variant can have a different size for e, in RSA;
+    /// also, the import_format can differ).
     pub(crate) fn determine_algo(
         &self,
         key_type: KeyType,
@@ -101,27 +106,30 @@ impl AlgoSimple {
             Self::RSA4k => Algo::Rsa(keys::determine_rsa_attrs(
                 4096, key_type, ard, algo_info,
             )?),
-
-            Self::NIST256 => Algo::Ecc(EccAttrs {
-                curve: Curve::NistP256r1,
-                ecc_type: Self::ecc_type(key_type),
-                import_format: None,
-            }),
-            Self::NIST384 => Algo::Ecc(EccAttrs {
-                curve: Curve::NistP384r1,
-                ecc_type: Self::ecc_type(key_type),
-                import_format: None,
-            }),
-            Self::NIST521 => Algo::Ecc(EccAttrs {
-                curve: Curve::NistP521r1,
-                ecc_type: Self::ecc_type(key_type),
-                import_format: None,
-            }),
-            Self::Curve25519 => Algo::Ecc(EccAttrs {
-                curve: Self::curve_for_25519(key_type),
-                ecc_type: Self::ecc_type_25519(key_type),
-                import_format: None,
-            }),
+            Self::NIST256 => Algo::Ecc(keys::determine_ecc_attrs(
+                Curve::NistP256r1.oid(),
+                Self::ecc_type(key_type),
+                key_type,
+                algo_info,
+            )?),
+            Self::NIST384 => Algo::Ecc(keys::determine_ecc_attrs(
+                Curve::NistP384r1.oid(),
+                Self::ecc_type(key_type),
+                key_type,
+                algo_info,
+            )?),
+            Self::NIST521 => Algo::Ecc(keys::determine_ecc_attrs(
+                Curve::NistP521r1.oid(),
+                Self::ecc_type(key_type),
+                key_type,
+                algo_info,
+            )?),
+            Self::Curve25519 => Algo::Ecc(keys::determine_ecc_attrs(
+                Self::curve_for_25519(key_type).oid(),
+                Self::ecc_type_25519(key_type),
+                key_type,
+                algo_info,
+            )?),
         };
 
         Ok(algo)

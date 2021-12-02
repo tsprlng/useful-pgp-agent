@@ -13,8 +13,8 @@ use crate::apdu::commands;
 use crate::card_app::CardApp;
 use crate::card_do::{ApplicationRelatedData, Fingerprint, KeyGenerationTime};
 use crate::crypto_data::{
-    CardUploadableKey, EccKey, EccPub, PrivateKeyMaterial, PublicKeyMaterial,
-    RSAKey, RSAPub,
+    CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial,
+    PublicKeyMaterial, RSAKey, RSAPub,
 };
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
 use crate::Error;
@@ -199,8 +199,12 @@ pub(crate) fn key_import(
             (Algo::Rsa(rsa_attrs), key_cmd)
         }
         PrivateKeyMaterial::E(ecc_key) => {
-            let ecc_attrs =
-                determine_ecc_attrs(&*ecc_key, key_type, algo_list)?;
+            let ecc_attrs = determine_ecc_attrs(
+                ecc_key.oid(),
+                ecc_key.ecc_type(),
+                key_type,
+                algo_list,
+            )?;
 
             let key_cmd = ecc_key_import_cmd(key_type, ecc_key, &ecc_attrs)?;
 
@@ -225,7 +229,8 @@ pub(crate) fn key_import(
     Ok(())
 }
 
-/// Determine RsaAttrs for the current card, for an `rsa_bits` sized key.
+/// Determine suitable RsaAttrs for the current card, for an `rsa_bits`
+/// sized key.
 ///
 /// If available, via lookup in `algo_list`, otherwise the current
 /// algorithm attributes are checked. If neither method yields a
@@ -272,15 +277,16 @@ pub(crate) fn determine_rsa_attrs(
     Ok(rsa_attrs)
 }
 
-/// Derive EccAttrs from `ecc_key`, check if the OID is listed in algo_list.
-fn determine_ecc_attrs(
-    ecc_key: &dyn EccKey,
+/// Derive EccAttrs from `oid` and `ecc_type`, check if the OID is listed in
+/// algo_list.
+pub(crate) fn determine_ecc_attrs(
+    oid: &[u8],
+    ecc_type: EccType,
     key_type: KeyType,
     algo_list: Option<AlgoInfo>,
 ) -> Result<EccAttrs> {
     // If we have an algo_list, refuse upload if oid is not listed
     if let Some(algo_list) = algo_list {
-        let oid = ecc_key.oid();
         let algos = check_card_algo_ecc(algo_list, key_type, oid);
         if algos.is_empty() {
             // If oid is not in algo_list, return error.
@@ -290,15 +296,17 @@ fn determine_ecc_attrs(
             ));
         }
 
-        // (Looking up ecc_type in the card's "Algorithm Information"
+        // Note: Looking up ecc_type in the card's "Algorithm Information"
         // seems to do more harm than good, so we don't do it.
         // Some cards report erroneous information about supported algorithms
         // - e.g. Yubikey 5 reports support for EdDSA over Cv25519 and
-        // Ed25519, but not ECDH).
+        // Ed25519, but not ECDH.
+        //
+        // We do however, use import_format from algorithm information.
 
         if !algos.is_empty() {
             return Ok(EccAttrs::new(
-                ecc_key.ecc_type(),
+                ecc_type,
                 Curve::try_from(oid)?,
                 algos[0].import_format(),
             ));
@@ -308,11 +316,7 @@ fn determine_ecc_attrs(
     // Return a default when we have no algo_list.
     // (Do cards that support ecc but have no algo_list exist?)
 
-    Ok(EccAttrs::new(
-        ecc_key.ecc_type(),
-        Curve::try_from(ecc_key.oid())?,
-        None,
-    ))
+    Ok(EccAttrs::new(ecc_type, Curve::try_from(oid)?, None))
 }
 
 /// Look up RsaAttrs parameters in algo_list based on key_type and rsa_bits
