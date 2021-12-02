@@ -61,8 +61,8 @@ pub(crate) fn cardholder_certificate() -> Command {
     get_data(&[0x7F, 0x21])
 }
 
-/// GET DO "List of supported Algorithm attributes"
-pub(crate) fn algo_list() -> Command {
+/// GET DO "Algorithm Information"
+pub(crate) fn algo_info() -> Command {
     get_data(&[0xFA])
 }
 

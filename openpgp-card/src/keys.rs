@@ -180,7 +180,7 @@ pub(crate) fn key_import(
     card_app: &mut CardApp,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
-    algo_list: Option<AlgoInfo>,
+    algo_info: Option<AlgoInfo>,
 ) -> Result<(), Error> {
     // FIXME: caching?
     let ard = card_app.application_related_data()?;
@@ -192,7 +192,7 @@ pub(crate) fn key_import(
             let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
 
             let rsa_attrs =
-                determine_rsa_attrs(rsa_bits, key_type, &ard, algo_list)?;
+                determine_rsa_attrs(rsa_bits, key_type, &ard, algo_info)?;
 
             let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
@@ -203,7 +203,7 @@ pub(crate) fn key_import(
                 ecc_key.oid(),
                 ecc_key.ecc_type(),
                 key_type,
-                algo_list,
+                algo_info,
             )?;
 
             let key_cmd = ecc_key_import_cmd(key_type, ecc_key, &ecc_attrs)?;
@@ -232,22 +232,22 @@ pub(crate) fn key_import(
 /// Determine suitable RsaAttrs for the current card, for an `rsa_bits`
 /// sized key.
 ///
-/// If available, via lookup in `algo_list`, otherwise the current
+/// If available, via lookup in `algo_info`, otherwise the current
 /// algorithm attributes are checked. If neither method yields a
 /// result, we 'guess' the RsaAttrs setting.
 pub(crate) fn determine_rsa_attrs(
     rsa_bits: u16,
     key_type: KeyType,
     ard: &ApplicationRelatedData,
-    algo_list: Option<AlgoInfo>,
+    algo_info: Option<AlgoInfo>,
 ) -> Result<RsaAttrs> {
     // Figure out suitable RSA algorithm parameters:
 
     // Does the card offer a list of algorithms?
-    let rsa_attrs = if let Some(algo_list) = algo_list {
+    let rsa_attrs = if let Some(algo_info) = algo_info {
         // Yes -> Look up the parameters for key_type and rsa_bits.
         // (Or error, if the list doesn't have an entry for rsa_bits)
-        card_algo_rsa(algo_list, key_type, rsa_bits)?
+        card_algo_rsa(algo_info, key_type, rsa_bits)?
     } else {
         // No -> Get the current algorithm attributes for key_type.
 
@@ -278,20 +278,20 @@ pub(crate) fn determine_rsa_attrs(
 }
 
 /// Derive EccAttrs from `oid` and `ecc_type`, check if the OID is listed in
-/// algo_list.
+/// `algo_info`.
 pub(crate) fn determine_ecc_attrs(
     oid: &[u8],
     ecc_type: EccType,
     key_type: KeyType,
-    algo_list: Option<AlgoInfo>,
+    algo_info: Option<AlgoInfo>,
 ) -> Result<EccAttrs> {
-    // If we have an algo_list, refuse upload if oid is not listed
-    if let Some(algo_list) = algo_list {
-        let algos = check_card_algo_ecc(algo_list, key_type, oid);
+    // If we have an algo_info, refuse upload if oid is not listed
+    if let Some(algo_info) = algo_info {
+        let algos = check_card_algo_ecc(algo_info, key_type, oid);
         if algos.is_empty() {
-            // If oid is not in algo_list, return error.
+            // If oid is not in algo_info, return error.
             return Err(anyhow!(
-                "Oid {:?} unsupported according to algo_list",
+                "Oid {:?} unsupported according to algo_info",
                 oid
             ));
         }
@@ -313,22 +313,22 @@ pub(crate) fn determine_ecc_attrs(
         }
     }
 
-    // Return a default when we have no algo_list.
-    // (Do cards that support ecc but have no algo_list exist?)
+    // Return a default when we have no algo_info.
+    // (Do cards that support ecc but have no algo_info exist?)
 
     Ok(EccAttrs::new(ecc_type, Curve::try_from(oid)?, None))
 }
 
-/// Look up RsaAttrs parameters in algo_list based on key_type and rsa_bits
+/// Look up RsaAttrs parameters in algo_info based on key_type and rsa_bits
 fn card_algo_rsa(
-    algo_list: AlgoInfo,
+    algo_info: AlgoInfo,
     key_type: KeyType,
     rsa_bits: u16,
 ) -> Result<RsaAttrs, Error> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_list.filter_by_keytype(key_type);
+    let keytype_algos: Vec<_> = algo_info.filter_by_keytype(key_type);
     // Get RSA algo attributes
     let rsa_algos: Vec<_> = keytype_algos
         .iter()
@@ -349,25 +349,25 @@ fn card_algo_rsa(
         // Using the last option happens to work better, in that case.
         Ok((**algo.last().unwrap()).clone())
     } else {
-        // RSA with this bit length is not in algo_list
+        // RSA with this bit length is not in algo_info
         return Err(anyhow!(
-            "RSA {} unsupported according to algo_list",
+            "RSA {} unsupported according to algo_info",
             rsa_bits
         )
         .into());
     }
 }
 
-/// Get all entries from algo_list with matching `oid` and `key_type`.
+/// Get all entries from algo_info with matching `oid` and `key_type`.
 fn check_card_algo_ecc(
-    algo_list: AlgoInfo,
+    algo_info: AlgoInfo,
     key_type: KeyType,
     oid: &[u8],
 ) -> Vec<EccAttrs> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_list.filter_by_keytype(key_type);
+    let keytype_algos: Vec<_> = algo_info.filter_by_keytype(key_type);
 
     // Get attributes
     let ecc_algos: Vec<_> = keytype_algos
