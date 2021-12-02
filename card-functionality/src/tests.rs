@@ -400,8 +400,9 @@ pub fn test_cardholder_cert(
     println!();
 
     match ca.cardholder_certificate() {
-        Ok(res) => out
-            .push(TestResult::Text(format!("got cert {:x?}", res.get_data()))),
+        Ok(res) => {
+            out.push(TestResult::Text(format!("got cert {:x?}", res.data())))
+        }
         Err(e) => {
             out.push(TestResult::Text(format!(
                 "get_cardholder_certificate failed: {:?}",
@@ -429,7 +430,7 @@ pub fn test_cardholder_cert(
     let res = ca.cardholder_certificate()?;
     out.push(TestResult::Text("get cert ok".to_string()));
 
-    if res.get_data() != data {
+    if res.data() != data {
         out.push(TestResult::Text(format!(
             "get after set doesn't match original data: {:x?}",
             data

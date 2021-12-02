@@ -16,7 +16,7 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn get_data(&self) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         &self.data
     }
 }
