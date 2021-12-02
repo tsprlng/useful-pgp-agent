@@ -371,13 +371,13 @@ pub fn test_private_data(
 
     ca.verify_pw1("123456")?;
 
-    ca.set_private(1, "Foo bar1!".as_bytes().to_vec())?;
-    ca.set_private(3, "Foo bar3!".as_bytes().to_vec())?;
+    ca.set_private_use_do(1, "Foo bar1!".as_bytes().to_vec())?;
+    ca.set_private_use_do(3, "Foo bar3!".as_bytes().to_vec())?;
 
     ca.verify_pw3("12345678")?;
 
-    ca.set_private(2, "Foo bar2!".as_bytes().to_vec())?;
-    ca.set_private(4, "Foo bar4!".as_bytes().to_vec())?;
+    ca.set_private_use_do(2, "Foo bar2!".as_bytes().to_vec())?;
+    ca.set_private_use_do(4, "Foo bar4!".as_bytes().to_vec())?;
 
     let d = ca.private_use_do(1)?;
     println!("data 1 {:?}", d);

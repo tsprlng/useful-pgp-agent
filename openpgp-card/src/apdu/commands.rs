@@ -37,7 +37,7 @@ pub(crate) fn application_related_data() -> Command {
 }
 
 /// GET DO "private use"
-pub(crate) fn private_do(num: u8) -> Command {
+pub(crate) fn private_use_do(num: u8) -> Command {
     get_data(&[0x01, num])
 }
 
@@ -115,7 +115,7 @@ pub(crate) fn put_data(tag: &[u8], data: Vec<u8>) -> Command {
 }
 
 /// PUT DO "private use"
-pub(crate) fn put_private_do(num: u8, data: Vec<u8>) -> Command {
+pub(crate) fn put_private_use_do(num: u8, data: Vec<u8>) -> Command {
     put_data(&[0x01, num], data)
 }
 

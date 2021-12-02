@@ -131,18 +131,6 @@ impl CardApp {
         Ok(ApplicationRelatedData(Tlv::new(Tag::from([0x6E]), value)))
     }
 
-    /// Get data from "private use" DO.
-    ///
-    /// `num` must be between 1 and 4.
-    pub fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>> {
-        assert!((1..=4).contains(&num));
-
-        let cmd = commands::private_do(num);
-        let resp = apdu::send_command(self.card_client(), cmd, true)?;
-
-        Ok(resp.data()?.to_vec())
-    }
-
     #[allow(dead_code)]
     fn ca_fingerprints() {
         unimplemented!()
@@ -172,8 +160,6 @@ impl CardApp {
     fn uif_attestation() {
         unimplemented!()
     }
-
-    // --- optional private DOs (0101 - 0104) ---
 
     // --- login data (5e) ---
 
@@ -292,6 +278,40 @@ impl CardApp {
 
         let cmd = commands::select_data(num, data);
         apdu::send_command(self.card_client(), cmd, true)?.try_into()
+    }
+
+    // --- optional private DOs (0101 - 0104) ---
+
+    /// Get data from "private use" DO.
+    ///
+    /// `num` must be between 1 and 4.
+    pub fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>> {
+        assert!((1..=4).contains(&num));
+
+        let cmd = commands::private_use_do(num);
+        let resp = apdu::send_command(self.card_client(), cmd, true)?;
+
+        Ok(resp.data()?.to_vec())
+    }
+
+    /// Set data of "private use" DO.
+    ///
+    /// `num` must be between 1 and 4.
+    ///
+    /// Access condition:
+    /// - 1/3 need PW1 (82)
+    /// - 2/4 need PW3
+    pub fn set_private_use_do(
+        &mut self,
+        num: u8,
+        data: Vec<u8>,
+    ) -> Result<Vec<u8>> {
+        assert!((1..=4).contains(&num));
+
+        let cmd = commands::put_private_use_do(num, data);
+        let resp = apdu::send_command(self.card_client(), cmd, true)?;
+
+        Ok(resp.data()?.to_vec())
     }
 
     // ----------
@@ -657,22 +677,6 @@ impl CardApp {
     }
 
     // --- admin ---
-
-    /// Set data of "private use" DO.
-    ///
-    /// `num` must be between 1 and 4.
-    ///
-    /// Access condition:
-    /// - 1/3 need PW1 (82)
-    /// - 2/4 need PW3
-    pub fn set_private(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>> {
-        assert!((1..=4).contains(&num));
-
-        let cmd = commands::put_private_do(num, data);
-        let resp = apdu::send_command(self.card_client(), cmd, true)?;
-
-        Ok(resp.data()?.to_vec())
-    }
 
     pub fn set_name(&mut self, name: &str) -> Result<Response, Error> {
         let put_name = commands::put_name(name.as_bytes().to_vec());
