@@ -12,7 +12,12 @@ use sequoia_openpgp::Cert;
 fn main() -> Result<()> {
     env_logger::init();
 
-    let config = TestConfig::load("config/test-cards.toml")?;
+    let args: Vec<String> = std::env::args().collect();
+    let config = if args.len() <= 1 {
+        TestConfig::load("config/test-cards.toml")?
+    } else {
+        TestConfig::load(&args[1])?
+    };
 
     let cards = config.into_cardapps();
 
