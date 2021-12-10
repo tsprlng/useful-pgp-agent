@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
+[card.nitro_pro2]
+backend.pcsc = "0005:0000AB6D"
+config.keygen = [
+    "RSA2k", "RSA3k", "RSA4k",
+    "NIST256", "NIST384", "NIST521",
+]
+config.import = [
+    "data/rsa2k.sec",
+    "data/rsa3k.sec",
+    "data/rsa4k.sec",
+    "data/nist256.sec",
+    "data/nist384.sec",
+    "data/nist521.sec"
+]

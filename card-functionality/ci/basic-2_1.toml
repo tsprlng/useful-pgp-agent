@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
+[card.basic-2_1]
+backend.pcsc = "0005:00002E32"
+config.keygen = ["RSA2k", "RSA3k", "RSA4k"]
+config.import = ["data/rsa2k.sec", "data/rsa3k.sec", "data/rsa4k.sec"]

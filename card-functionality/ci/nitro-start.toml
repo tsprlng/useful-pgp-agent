@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
+[card.nitro_start]
+backend.pcsc = "FFFE:43233446"
+config.keygen = ["RSA2k", "NIST256", "Curve25519"]
+config.import = [
+    "data/rsa2k.sec",
+    "data/rsa4k.sec",
+    "data/nist256.sec",
+    "data/25519.sec",
+]
