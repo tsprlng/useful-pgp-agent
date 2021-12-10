@@ -2,18 +2,27 @@
 # SPDX-License-Identifier: CC0-1.0
 
 stages:
-  - build
+  - lint
   - test
-  - docker-build
-  - docker-test
-  - deploy
+  - virtual-build
+  - virtual-test
+  - hw-import
+  - hw-keygen
 
 reuse:
+  stage: lint
   image:
     name: fsfe/reuse:latest
     entrypoint: [""]
   script:
     - reuse lint
+
+cargo-fmt:
+  stage: lint
+  image: rust:latest
+  script:
+    - rustup component add rustfmt
+    - cargo fmt -- --check
 
 cargo-test:
   stage: test
@@ -37,14 +46,8 @@ cargo-test-debian-stable:
   script:
     - cargo test
 
-cargo-fmt:
-  image: rust:latest
-  script:
-    - rustup component add rustfmt
-    - cargo fmt -- --check
-
 build_cardtest_smartpgp:
-  stage: docker-build
+  stage: virtual-build
   image: docker:stable
 
   variables:
@@ -63,7 +66,7 @@ build_cardtest_smartpgp:
   needs: []
 
 build_cardtest_ykneo:
-  stage: docker-build
+  stage: virtual-build
   image: docker:stable
 
   variables:
@@ -82,7 +85,7 @@ build_cardtest_ykneo:
   needs: []
 
 run_cardtest_smartpgp_import:
-  stage: docker-test
+  stage: virtual-test
   image: registry.gitlab.com/hkos/openpgp-card/cardtest-smartpgp
 
   script:
@@ -91,7 +94,7 @@ run_cardtest_smartpgp_import:
   needs: ["build_cardtest_smartpgp"]
 
 run_cardtest_smartpgp_keygen:
-  stage: docker-test
+  stage: virtual-test
   image: registry.gitlab.com/hkos/openpgp-card/cardtest-smartpgp
 
   script:
@@ -102,7 +105,7 @@ run_cardtest_smartpgp_keygen:
   needs: ["run_cardtest_smartpgp_import"]
 
 run_cardtest_ykneo_import:
-  stage: docker-test
+  stage: virtual-test
   image: registry.gitlab.com/hkos/openpgp-card/cardtest-ykneo
 
   script:
@@ -111,7 +114,7 @@ run_cardtest_ykneo_import:
   needs: ["build_cardtest_ykneo"]
 
 run_cardtest_ykneo_keygen:
-  stage: docker-test
+  stage: virtual-test
   image: registry.gitlab.com/hkos/openpgp-card/cardtest-ykneo
 
   script:
@@ -120,3 +123,49 @@ run_cardtest_ykneo_keygen:
 
   # run after import test - running tests in parallel on the same card fails
   needs: ["run_cardtest_ykneo_import"]
+
+import:
+  stage: hw-import
+  image: rust:1-slim-bullseye
+  tags:
+    - card
+  parallel:
+    matrix:
+      - ARG: [ import ]
+        CONFIG:
+          - "ci/basic-2_1.toml"
+          - "ci/nitro-pro1.toml"
+          - "ci/nitro-pro2.toml"
+          - "ci/nitro-start.toml"
+  before_script:
+    # install dependencies
+    - apt-get update
+    - apt-get -y install --no-install-recommends libpcsclite-dev pkg-config nettle-dev clang libclang-dev pcscd pcsc-tools usbutils strace
+  script:
+    - /etc/init.d/pcscd start
+    #- sleep 5
+    - cd card-functionality
+    - cargo run --bin $ARG -- $CONFIG
+
+keygen:
+  stage: hw-keygen
+  image: rust:1-slim-bullseye
+  tags:
+    - card
+  parallel:
+    matrix:
+      - ARG: [ keygen ]
+        CONFIG:
+          - "ci/basic-2_1.toml"
+          - "ci/nitro-pro1.toml"
+          - "ci/nitro-pro2.toml"
+          - "ci/nitro-start.toml"
+  before_script:
+    # install dependencies
+    - apt-get update
+    - apt-get -y install --no-install-recommends libpcsclite-dev pkg-config nettle-dev clang libclang-dev pcscd pcsc-tools usbutils strace
+  script:
+    - /etc/init.d/pcscd start
+    #- sleep 5
+    - cd card-functionality
+    - cargo run --bin $ARG -- $CONFIG
