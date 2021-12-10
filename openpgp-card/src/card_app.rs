@@ -849,7 +849,11 @@ impl CardApp {
         simple: AlgoSimple,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         let ard = self.application_related_data()?;
-        let algo_info = self.algorithm_information()?;
+        let algo_info = if let Ok(ai) = self.algorithm_information() {
+            ai
+        } else {
+            None
+        };
 
         let algo = simple.determine_algo(key_type, &ard, algo_info)?;
 
