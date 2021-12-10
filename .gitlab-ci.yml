@@ -57,7 +57,7 @@ build_cardtest_smartpgp:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   script:
     - docker pull $IMAGE_LATEST || true
-    - docker build -f card-functionality/docker/Dockerfile.cardtest.smartpgp --cache-from $IMAGE_LATEST -t $IMAGE_SHA -t $IMAGE_LATEST .
+    - docker build -f card-functionality/docker/Dockerfile.cardtest.smartpgp -t $IMAGE_SHA -t $IMAGE_LATEST .
     - docker push $IMAGE_SHA
     - docker push $IMAGE_LATEST
   needs: []
@@ -76,7 +76,7 @@ build_cardtest_ykneo:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   script:
     - docker pull $IMAGE_LATEST || true
-    - docker build -f card-functionality/docker/Dockerfile.cardtest.ykneo --cache-from $IMAGE_LATEST -t $IMAGE_SHA -t $IMAGE_LATEST .
+    - docker build -f card-functionality/docker/Dockerfile.cardtest.ykneo -t $IMAGE_SHA -t $IMAGE_LATEST .
     - docker push $IMAGE_SHA
     - docker push $IMAGE_LATEST
   needs: []
