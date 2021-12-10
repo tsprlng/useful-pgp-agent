@@ -77,10 +77,11 @@ impl PcscClient {
     /// Obtain and store feature lists from reader (pinpad functionality).
     fn into_card_app(mut self) -> Result<CardApp> {
         // Get Features from reader (pinpad verify/modify)
-        let feat = self.features()?;
-        for tlv in feat {
-            log::debug!("Found reader feature {:?}", tlv);
-            self.reader_caps.insert(tlv.tag().into(), tlv);
+        if let Ok(feat) = self.features() {
+            for tlv in feat {
+                log::debug!("Found reader feature {:?}", tlv);
+                self.reader_caps.insert(tlv.tag().into(), tlv);
+            }
         }
 
         // Get initalized CardApp
