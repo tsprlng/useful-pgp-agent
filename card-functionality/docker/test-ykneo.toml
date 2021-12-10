@@ -4,7 +4,7 @@
 [card.ykneo]
 backend.pcsc = "0006:11112222"
 config.keygen = [
-    "RSA2k/17",
+    "RSA2k",
 ]
 config.import = [
     "data/rsa2k.sec",

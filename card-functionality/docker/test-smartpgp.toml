@@ -4,7 +4,7 @@
 [card.smartpgp]
 backend.pcsc = "FFFF:00001234"
 config.keygen = [
-    "RSA2k/17", "RSA3k/17", "RSA4k/17",
+    "RSA2k", "RSA3k", "RSA4k",
     "NIST256", "NIST384", "NIST521"
 ]
 config.import = [
