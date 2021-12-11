@@ -19,7 +19,6 @@ use openpgp::packet::{
     Key, UserID,
 };
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
-use openpgp::policy::Policy;
 use openpgp::serialize::stream::{Message, Signer};
 use openpgp::types::{KeyFlags, PublicKeyAlgorithm, SignatureType, Timestamp};
 use openpgp::{Cert, Packet};
@@ -33,6 +32,7 @@ use openpgp_card::{CardApp, Error, KeyType};
 use crate::card::Open;
 use crate::privkey::SequoiaKey;
 use crate::{decryptor, signer, PublicKey};
+use sequoia_openpgp::policy::Policy;
 
 /// Create a Cert from the three subkeys on a card.
 /// (Calling this multiple times will result in different Certs!)
@@ -294,11 +294,10 @@ pub fn sign(
     ca: &mut CardApp,
     cert: &Cert,
     input: &mut dyn io::Read,
-    p: &dyn Policy,
 ) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
     {
-        let s = signer::CardSigner::new(ca, cert, p)?;
+        let s = signer::CardSigner::new(ca, cert)?;
 
         let message = Message::new(&mut armorer);
         let mut message = Signer::new(message, s).detached().build()?;
@@ -325,7 +324,7 @@ pub fn decrypt(
     {
         let reader = io::BufReader::new(&msg[..]);
 
-        let d = decryptor::CardDecryptor::new(ca, cert, p)?;
+        let d = decryptor::CardDecryptor::new(ca, cert)?;
 
         let db = DecryptorBuilder::from_reader(reader)?;
         let mut decryptor = db.with_policy(p, None, d)?;

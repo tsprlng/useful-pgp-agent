@@ -172,7 +172,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Encrypted message:\n{}", msg);
 
         let sp = StandardPolicy::new();
-        let d = user.decryptor(&cert, &sp)?;
+        let d = user.decryptor(&cert)?;
         let res = sq_util::decryption_helper(d, msg.into_bytes(), &sp)?;
 
         let plain = String::from_utf8_lossy(&res);
@@ -197,7 +197,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let text = "Hello world, I am signed.";
 
-        let signer = sign.signer(&cert, &StandardPolicy::new())?;
+        let signer = sign.signer(&cert)?;
         let sig = sq_util::sign_helper(signer, &mut text.as_bytes())?;
 
         println!("Signature from card:\n{}", sig)

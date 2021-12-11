@@ -8,7 +8,6 @@ use anyhow::{anyhow, Result};
 
 use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
-use sequoia_openpgp::policy::Policy;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
@@ -355,12 +354,8 @@ pub struct User<'app, 'open> {
 }
 
 impl User<'_, '_> {
-    pub fn decryptor(
-        &mut self,
-        cert: &Cert,
-        policy: &dyn Policy,
-    ) -> Result<CardDecryptor, Error> {
-        CardDecryptor::new(&mut self.oc.card_app, cert, policy)
+    pub fn decryptor(&mut self, cert: &Cert) -> Result<CardDecryptor, Error> {
+        CardDecryptor::new(&mut self.oc.card_app, cert)
     }
 }
 
@@ -374,12 +369,11 @@ impl Sign<'_, '_> {
     pub fn signer(
         &mut self,
         cert: &Cert,
-        policy: &dyn Policy,
     ) -> std::result::Result<CardSigner, Error> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::new(&mut self.oc.card_app, cert, policy)
+        CardSigner::new(&mut self.oc.card_app, cert)
     }
 
     pub fn signer_from_pubkey(&mut self, pubkey: PublicKey) -> CardSigner {

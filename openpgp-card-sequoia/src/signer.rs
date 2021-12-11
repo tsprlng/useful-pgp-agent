@@ -7,7 +7,6 @@ use anyhow::anyhow;
 
 use openpgp::crypto;
 use openpgp::crypto::mpi;
-use openpgp::policy::Policy;
 use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
@@ -33,7 +32,6 @@ impl<'a> CardSigner<'a> {
     pub fn new(
         ca: &'a mut CardApp,
         cert: &openpgp::Cert,
-        policy: &dyn Policy,
     ) -> Result<CardSigner<'a>, Error> {
         // Get the fingerprint for the signing key from the card.
         let ard = ca.application_related_data()?;
@@ -44,18 +42,9 @@ impl<'a> CardSigner<'a> {
             // Transform into Sequoia Fingerprint
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
-            if let Some(vk) =
-                sq_util::get_subkey_by_fingerprint(cert, policy, &fp, true)?
-            {
-                if vk.for_signing() {
-                    let key = vk.key().clone();
-                    Ok(Self::with_pubkey(ca, key))
-                } else {
-                    Err(Error::InternalError(anyhow!(
-                        "(Sub)key {} in the cert isn't signing capable",
-                        fp
-                    )))
-                }
+            if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
+                let key = eka.key().clone();
+                Ok(Self::with_pubkey(ca, key))
             } else {
                 Err(Error::InternalError(anyhow!(
                     "Failed to find (sub)key {} in cert",

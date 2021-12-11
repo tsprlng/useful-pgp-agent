@@ -6,7 +6,6 @@ use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::card::Open;
 
 use openpgp::parse::Parse;
-use openpgp::policy::StandardPolicy;
 use openpgp::serialize::stream::{Armorer, Message, Signer};
 use openpgp::Cert;
 use sequoia_openpgp as openpgp;
@@ -32,9 +31,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut user = open.signing_card().unwrap();
 
-    let p = StandardPolicy::new();
     let cert = Cert::from_file(cert_file)?;
-    let s = user.signer(&cert, &p)?;
+    let s = user.signer(&cert)?;
 
     let stdout = std::io::stdout();
 

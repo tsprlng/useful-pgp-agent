@@ -93,15 +93,9 @@ pub fn test_sign(
 
     let cert = Cert::from_str(param[0])?;
 
-    let p = StandardPolicy::new();
-
     let msg = "Hello world, I am signed.";
-    let sig = openpgp_card_sequoia::util::sign(
-        &mut ca,
-        &cert,
-        &mut msg.as_bytes(),
-        &p,
-    )?;
+    let sig =
+        openpgp_card_sequoia::util::sign(&mut ca, &cert, &mut msg.as_bytes())?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);

@@ -321,7 +321,7 @@ fn decrypt(
     let mut open = Open::new(&mut card)?;
 
     let mut user = util::verify_to_user(&mut open, pin_file)?;
-    let d = user.decryptor(&cert, &p)?;
+    let d = user.decryptor(&cert)?;
 
     let db = DecryptorBuilder::from_reader(input)?;
     let mut decryptor = db.with_policy(&p, None, d)?;
@@ -337,7 +337,6 @@ fn sign_detached(
     cert_file: &Path,
     input: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let p = StandardPolicy::new();
     let cert = Cert::from_file(cert_file)?;
 
     let mut input = util::open_or_stdin(input.as_deref())?;
@@ -346,7 +345,7 @@ fn sign_detached(
     let mut open = Open::new(&mut card)?;
 
     let mut sign = util::verify_to_sign(&mut open, pin_file)?;
-    let s = sign.signer(&cert, &p)?;
+    let s = sign.signer(&cert)?;
 
     let message = Armorer::new(Message::new(std::io::stdout())).build()?;
     let mut signer = Signer::new(message, s).detached().build()?;

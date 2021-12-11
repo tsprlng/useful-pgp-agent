@@ -10,7 +10,6 @@ use openpgp::packet;
 use openpgp::parse::stream::{
     DecryptionHelper, MessageStructure, VerificationHelper,
 };
-use openpgp::policy::Policy;
 use openpgp::types::{Curve, SymmetricAlgorithm};
 use openpgp::Cert;
 use sequoia_openpgp as openpgp;
@@ -37,7 +36,6 @@ impl<'a> CardDecryptor<'a> {
     pub fn new(
         ca: &'a mut CardApp,
         cert: &Cert,
-        policy: &dyn Policy,
     ) -> Result<CardDecryptor<'a>, Error> {
         // Get the fingerprint for the decryption key from the card.
         let ard = ca.application_related_data()?;
@@ -48,19 +46,9 @@ impl<'a> CardDecryptor<'a> {
             // Transform into Sequoia Fingerprint
             let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
 
-            if let Some(vk) =
-                sq_util::get_subkey_by_fingerprint(cert, policy, &fp, false)?
-            {
-                if vk.for_storage_encryption() || vk.for_transport_encryption()
-                {
-                    let public = vk.key().clone();
-                    Ok(Self { ca, public })
-                } else {
-                    Err(Error::InternalError(anyhow!(
-                        "(Sub)key {} in the cert isn't encryption capable",
-                        fp
-                    )))
-                }
+            if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
+                let public = eka.key().clone();
+                Ok(Self { ca, public })
             } else {
                 Err(Error::InternalError(anyhow!(
                     "Failed to find (sub)key {} in cert",
