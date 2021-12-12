@@ -97,19 +97,7 @@ impl TestCard {
                 let res = ScdClient::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
-                for mut ca in PcscClient::cards()? {
-                    // Set Card Capabilities (chaining, command length, ..)
-                    let ard = ca.application_related_data()?;
-                    let app_id = ard.application_id()?;
-
-                    if app_id.ident().as_str() == ident.to_uppercase() {
-                        // println!("opened pcsc card {}", ident);
-
-                        return Ok(ca);
-                    }
-                }
-
-                Err(anyhow!("Pcsc card {} not found", ident))
+                Ok(PcscClient::open_by_ident(ident)?)
             }
             Self::Scdc(serial) => {
                 // println!("open scdc card {}", serial);
