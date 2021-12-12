@@ -25,44 +25,156 @@ pub struct PcscClient {
 }
 
 impl PcscClient {
+    /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
+    /// application)
+    fn raw_pcsc_cards() -> Result<Vec<Card>, SmartcardError> {
+        let ctx = match Context::establish(Scope::User) {
+            Ok(ctx) => ctx,
+            Err(err) => {
+                log::debug!("Context::establish failed: {:?}", err);
+                return Err(SmartcardError::ContextError(err.to_string()));
+            }
+        };
+
+        // List available readers.
+        let mut readers_buf = [0; 2048];
+        let readers = match ctx.list_readers(&mut readers_buf) {
+            Ok(readers) => readers,
+            Err(err) => {
+                log::debug!("list_readers failed: {:?}", err);
+                return Err(SmartcardError::ReaderError(err.to_string()));
+            }
+        };
+
+        log::debug!("readers: {:?}", readers);
+
+        let mut found_reader = false;
+
+        let mut cards = vec![];
+
+        // Find a reader with a SmartCard.
+        for reader in readers {
+            // We've seen at least one smartcard reader
+            found_reader = true;
+
+            log::debug!("Checking reader: {:?}", reader);
+
+            // Try connecting to card in this reader
+            let card =
+                match ctx.connect(reader, ShareMode::Shared, Protocols::ANY) {
+                    Ok(card) => card,
+                    Err(pcsc::Error::NoSmartcard) => {
+                        log::debug!("No Smartcard");
+
+                        continue; // try next reader
+                    }
+                    Err(err) => {
+                        log::warn!(
+                            "Error connecting to card in reader: {:x?}",
+                            err
+                        );
+
+                        continue;
+                    }
+                };
+
+            log::debug!("Found card");
+
+            cards.push(card);
+        }
+
+        if !found_reader {
+            Err(SmartcardError::NoReaderFoundError)
+        } else {
+            Ok(cards)
+        }
+    }
+
+    /// All PCSC cards, wrapped as PcscClient
+    fn unopened_cards() -> Result<Vec<PcscClient>> {
+        Ok(Self::raw_pcsc_cards()
+            .map_err(|err| anyhow!(err))?
+            .into_iter()
+            .map(PcscClient::new)
+            .collect())
+    }
+
+    fn cards_filter(ident: Option<&str>) -> Result<Vec<CardApp>> {
+        let mut cards = vec![];
+
+        for mut card in Self::unopened_cards()? {
+            log::debug!("cards_filter: next card");
+
+            // FIXME: start transaction
+            // let tx = card.card.transaction()?;
+
+            if let Err(e) = Self::select(&mut card) {
+                log::debug!("cards_filter: error during select: {:?}", e);
+            } else {
+                if let Ok(mut ca) = card.into_card_app() {
+                    if let Some(ident) = ident {
+                        let ard = ca.application_related_data()?;
+                        let aid = ard.application_id()?;
+
+                        if aid.ident() == ident.to_ascii_uppercase() {
+                            // FIXME: handle multiple cards with matching ident
+                            log::debug!(
+                                "open_by_ident: Opened and selected {:?}",
+                                ident
+                            );
+
+                            cards.push(ca);
+                        } else {
+                            log::debug!(
+                                "open_by_ident: Found, but won't use {:?}",
+                                aid.ident()
+                            );
+                        }
+                    } else {
+                        // return all cards
+                        cards.push(ca);
+                    }
+                }
+            }
+
+            // FIXME: end transaction
+            // tx.end(Disposition::LeaveCard).map_err(|(_, e)| {
+            //     Error::Smartcard(SmartcardError::Error(
+            //         format!("PCSC Transaction::end failed: {:?}", e)
+            //     ))
+            // })?;
+        }
+
+        log::debug!("cards_filter: found {} cards", cards.len());
+
+        Ok(cards)
+    }
+
     /// Return all cards on which the OpenPGP application could be selected.
     ///
     /// Each card has the OpenPGP application selected, CardCaps have been
     /// initialized.
     pub fn cards() -> Result<Vec<CardApp>> {
-        let mut cards = vec![];
-
-        for mut card in Self::unopened_cards()? {
-            if Self::select(&mut card).is_ok() {
-                if let Ok(ca) = card.into_card_app() {
-                    cards.push(ca);
-                }
-            }
-        }
-
-        Ok(cards)
+        Self::cards_filter(None)
     }
 
     /// Returns the OpenPGP card that matches `ident`, if it is available.
     /// A fully initialized CardApp is returned: the OpenPGP application has
     /// been selected, CardCaps have been set.
     pub fn open_by_ident(ident: &str) -> Result<CardApp, Error> {
-        for mut card in Self::unopened_cards()? {
-            if Self::select(&mut card).is_ok() {
-                let mut ca = card.into_card_app()?;
+        log::debug!("open_by_ident for {:?}", ident);
 
-                let ard = ca.application_related_data()?;
-                let aid = ard.application_id()?;
+        let mut cards = Self::cards_filter(Some(ident))?;
 
-                if aid.ident() == ident.to_ascii_uppercase() {
-                    return Ok(ca);
-                }
-            }
+        if !cards.is_empty() {
+            // FIXME: handle >1 cards found
+
+            Ok(cards.pop().unwrap())
+        } else {
+            Err(Error::Smartcard(SmartcardError::CardNotFound(
+                ident.to_string(),
+            )))
         }
-
-        Err(Error::Smartcard(SmartcardError::CardNotFound(
-            ident.to_string(),
-        )))
     }
 
     fn new(card: Card) -> Self {
@@ -86,70 +198,6 @@ impl PcscClient {
 
         // Get initalized CardApp
         CardApp::initialize(Box::new(self))
-    }
-
-    /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
-    /// application)
-    fn raw_pcsc_cards() -> Result<Vec<Card>, SmartcardError> {
-        let ctx = match Context::establish(Scope::User) {
-            Ok(ctx) => ctx,
-            Err(err) => {
-                return Err(SmartcardError::ContextError(err.to_string()))
-            }
-        };
-
-        // List available readers.
-        let mut readers_buf = [0; 2048];
-        let readers = match ctx.list_readers(&mut readers_buf) {
-            Ok(readers) => readers,
-            Err(err) => {
-                return Err(SmartcardError::ReaderError(err.to_string()));
-            }
-        };
-
-        let mut found_reader = false;
-
-        let mut cards = vec![];
-
-        // Find a reader with a SmartCard.
-        for reader in readers {
-            // We've seen at least one smartcard reader
-            found_reader = true;
-
-            // Try connecting to card in this reader
-            let card =
-                match ctx.connect(reader, ShareMode::Shared, Protocols::ANY) {
-                    Ok(card) => card,
-                    Err(pcsc::Error::NoSmartcard) => {
-                        continue; // try next reader
-                    }
-                    Err(err) => {
-                        log::warn!(
-                            "Error connecting to card in reader: {:x?}",
-                            err
-                        );
-
-                        continue;
-                    }
-                };
-
-            cards.push(card);
-        }
-
-        if !found_reader {
-            Err(SmartcardError::NoReaderFoundError)
-        } else {
-            Ok(cards)
-        }
-    }
-
-    /// All PCSC cards, wrapped as PcscClient
-    fn unopened_cards() -> Result<Vec<PcscClient>> {
-        Ok(Self::raw_pcsc_cards()
-            .map_err(|err| anyhow!(err))?
-            .into_iter()
-            .map(PcscClient::new)
-            .collect())
     }
 
     /// Try to select the OpenPGP application on a card
