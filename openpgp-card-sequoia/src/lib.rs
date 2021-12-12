@@ -68,7 +68,7 @@
 //! # let (cert, _) =
 //! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
 //! #       .generate()?;
-//! let decryptor = user.decryptor(&cert, &StandardPolicy::new());
+//! let decryptor = user.decryptor(&cert);
 //!
 //! // Perform decryption operation(s)
 //! // ..
@@ -109,7 +109,7 @@
 //! # let (cert, _) =
 //! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
 //! #       .generate()?;
-//! let signer = user.signer(&cert, &StandardPolicy::new());
+//! let signer = user.signer(&cert);
 //!
 //! // Perform signing operation(s)
 //! // ..
