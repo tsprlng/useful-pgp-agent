@@ -5,8 +5,8 @@
 backend.pcsc = "FFFE:43233446"
 config.keygen = ["RSA2k", "NIST256", "Curve25519"]
 config.import = [
-    "data/rsa2k.sec",
-    "data/rsa4k.sec",
-    "data/nist256.sec",
-    "data/25519.sec",
+    "card-functionality/data/rsa2k.sec",
+    "card-functionality/data/rsa4k.sec",
+    "card-functionality/data/nist256.sec",
+    "card-functionality/data/25519.sec",
 ]

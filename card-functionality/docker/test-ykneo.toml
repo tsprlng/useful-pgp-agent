@@ -7,5 +7,5 @@ config.keygen = [
     "RSA2k",
 ]
 config.import = [
-    "data/rsa2k.sec",
+    "card-functionality/data/rsa2k.sec",
 ]

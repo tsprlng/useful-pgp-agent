@@ -3,12 +3,23 @@
 # SPDX-License-Identifier: CC0-1.0
 
 stages:
-  - hw-builddeps
-  - hw-import
-  - hw-keygen
   - lint
   - test
   - virtual-test
+  - hw-builddeps
+  - hw-import
+  - hw-keygen
+
+variables:
+  CARGO_HOME: cargo/
+  CARGO_TERM_VERBOSE: 'true'
+
+cache: &general_cache_config
+  # default key is default
+  # default policy is pull-push
+  paths:
+    - target/
+    - $CARGO_HOME
 
 reuse:
   stage: lint
@@ -35,6 +46,11 @@ cargo-test:
     - apt clean
   script:
     - cargo test
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    key: "rust-latest"
 
 cargo-test-debian-bookworm:
   stage: test
@@ -46,6 +62,11 @@ cargo-test-debian-bookworm:
     - apt clean
   script:
     - cargo test
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    key: "bookworm"
 
 run_cardtest_smartpgp:
   stage: virtual-test
@@ -53,11 +74,15 @@ run_cardtest_smartpgp:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
-    - cd card-functionality
-    - cargo run --bin import -- $CONFIG
-    - cargo run --bin keygen -- $CONFIG
+    - cargo run -p openpgp-card-tests --bin import -- $CONFIG
+    - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
-    CONFIG: "docker/test-smartpgp.toml"
+    CONFIG: "card-functionality/docker/test-smartpgp.toml"
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    key: "bookworm"
 
 run_cardtest_ykneo:
   stage: virtual-test
@@ -65,11 +90,15 @@ run_cardtest_ykneo:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
-    - cd card-functionality
-    - cargo run --bin import -- $CONFIG
-    - cargo run --bin keygen -- $CONFIG
+    - cargo run -p openpgp-card-tests --bin import -- $CONFIG
+    - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
-    CONFIG: "docker/test-ykneo.toml"
+    CONFIG: "card-functionality/docker/test-ykneo.toml"
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    key: "bookworm"
 
 hardware-builddeps:
   stage: hw-builddeps
@@ -101,15 +130,20 @@ hardware-builddeps:
   parallel:
     matrix:
       - CONFIG:
-          - "ci/basic-2_1.toml"
-          - "ci/nitro-pro1.toml"
-          - "ci/nitro-pro2.toml"
-          - "ci/nitro-start.toml"
+          - "card-functionality/ci/basic-2_1.toml"
+          - "card-functionality/ci/nitro-pro1.toml"
+          - "card-functionality/ci/nitro-pro2.toml"
+          - "card-functionality/ci/nitro-start.toml"
   script:
     - /etc/init.d/pcscd start
     #- sleep 5
-    - cd card-functionality
     - cargo run --bin $ARG -- $CONFIG
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # cookiejar does not access the cache of the shared gitlab runners,
+    # so use a different key for clarity
+    key: "cookiejar"
 
 import:
   extends: .hw-test-template

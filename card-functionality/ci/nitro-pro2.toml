@@ -8,10 +8,10 @@ config.keygen = [
     "NIST256", "NIST384", "NIST521",
 ]
 config.import = [
-    "data/rsa2k.sec",
-    "data/rsa3k.sec",
-    "data/rsa4k.sec",
-    "data/nist256.sec",
-    "data/nist384.sec",
-    "data/nist521.sec"
+    "card-functionality/data/rsa2k.sec",
+    "card-functionality/data/rsa3k.sec",
+    "card-functionality/data/rsa4k.sec",
+    "card-functionality/data/nist256.sec",
+    "card-functionality/data/nist384.sec",
+    "card-functionality/data/nist521.sec"
 ]
