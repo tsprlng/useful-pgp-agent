@@ -36,9 +36,9 @@ cargo-test:
   script:
     - cargo test
 
-cargo-test-debian-stable:
+cargo-test-debian-bookworm:
   stage: test
-  image: debian:stable
+  image: debian:bookworm-slim
   before_script:
     - mkdir -p /run/user/$UID
     - apt update -y -qq
