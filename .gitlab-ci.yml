@@ -1,13 +1,14 @@
 # SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-FileCopyrightText: 2021 Nora Widdecke <mail@nora.pink>
 # SPDX-License-Identifier: CC0-1.0
 
 stages:
-  - lint
-  - test
-  - virtual-build
-  - virtual-test
+  - hw-builddeps
   - hw-import
   - hw-keygen
+  - lint
+  - test
+  - virtual-test
 
 reuse:
   stage: lint
@@ -46,126 +47,78 @@ cargo-test-debian-stable:
   script:
     - cargo test
 
-build_cardtest_smartpgp:
-  stage: virtual-build
-  image: docker:stable
-
+run_cardtest_smartpgp:
+  stage: virtual-test
+  image: registry.gitlab.com/hkos/openpgp-card-images/smartpgp-builddeps
+  script:
+    - /etc/init.d/pcscd start
+    - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - cd card-functionality
+    - cargo run --bin import -- $CONFIG
+    - cargo run --bin keygen -- $CONFIG
   variables:
-    IMAGE_LATEST: $CI_REGISTRY_IMAGE/cardtest-smartpgp:latest
-    IMAGE_SHA: $CI_REGISTRY_IMAGE/cardtest-smartpgp:$CI_COMMIT_SHA
+    CONFIG: "docker/test-smartpgp.toml"
+
+run_cardtest_ykneo:
+  stage: virtual-test
+  image: registry.gitlab.com/hkos/openpgp-card-images/ykneo-builddeps
+  script:
+    - /etc/init.d/pcscd start
+    - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - cd card-functionality
+    - cargo run --bin import -- $CONFIG
+    - cargo run --bin keygen -- $CONFIG
+  variables:
+    CONFIG: "docker/test-ykneo.toml"
+
+hardware-builddeps:
+  stage: hw-builddeps
+  needs: []
+  image: docker:stable
   services:
-    - docker:stable-dind
+    - docker:dind
   before_script:
     - docker info
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   script:
     - docker pull $IMAGE_LATEST || true
-    - docker build -f card-functionality/docker/Dockerfile.cardtest.smartpgp -t $IMAGE_SHA -t $IMAGE_LATEST .
+    - docker build --cache-from $IMAGE_LATEST --file=$DOCKERFILE -t $IMAGE_LATEST -t $IMAGE_SHA .
     - docker push $IMAGE_SHA
     - docker push $IMAGE_LATEST
-  needs: []
-
-build_cardtest_ykneo:
-  stage: virtual-build
-  image: docker:stable
-
+  only:
+    changes:
+      - card-functionality/docker/Dockerfile.hardware-builddeps
+      - .gitlab-ci.yml
   variables:
-    IMAGE_LATEST: $CI_REGISTRY_IMAGE/cardtest-ykneo:latest
-    IMAGE_SHA: $CI_REGISTRY_IMAGE/cardtest-ykneo:$CI_COMMIT_SHA
-  services:
-    - docker:stable-dind
-  before_script:
-    - docker info
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    IMAGE_LATEST: $CI_REGISTRY_IMAGE/hardware-builddeps:latest
+    IMAGE_SHA: $CI_REGISTRY_IMAGE/hardware-builddeps:$CI_COMMIT_SHA
+    DOCKERFILE: card-functionality/docker/Dockerfile.hardware-builddeps
+
+.hw-test-template:
+  image: registry.gitlab.com/hkos/openpgp-card/hardware-builddeps
+  tags:
+    - card
+  parallel:
+    matrix:
+      - CONFIG:
+          - "ci/basic-2_1.toml"
+          - "ci/nitro-pro1.toml"
+          - "ci/nitro-pro2.toml"
+          - "ci/nitro-start.toml"
   script:
-    - docker pull $IMAGE_LATEST || true
-    - docker build -f card-functionality/docker/Dockerfile.cardtest.ykneo -t $IMAGE_SHA -t $IMAGE_LATEST .
-    - docker push $IMAGE_SHA
-    - docker push $IMAGE_LATEST
-  needs: []
-
-run_cardtest_smartpgp_import:
-  stage: virtual-test
-  image: registry.gitlab.com/hkos/openpgp-card/cardtest-smartpgp
-
-  script:
-    - cd /
-    - sh run.sh import
-  needs: ["build_cardtest_smartpgp"]
-
-run_cardtest_smartpgp_keygen:
-  stage: virtual-test
-  image: registry.gitlab.com/hkos/openpgp-card/cardtest-smartpgp
-
-  script:
-    - cd /
-    - sh run.sh keygen
-
-  # run after import test - running tests in parallel on the same card fails
-  needs: ["run_cardtest_smartpgp_import"]
-
-run_cardtest_ykneo_import:
-  stage: virtual-test
-  image: registry.gitlab.com/hkos/openpgp-card/cardtest-ykneo
-
-  script:
-    - cd /
-    - sh run.sh import
-  needs: ["build_cardtest_ykneo"]
-
-run_cardtest_ykneo_keygen:
-  stage: virtual-test
-  image: registry.gitlab.com/hkos/openpgp-card/cardtest-ykneo
-
-  script:
-    - cd /
-    - sh run.sh keygen
-
-  # run after import test - running tests in parallel on the same card fails
-  needs: ["run_cardtest_ykneo_import"]
+    - /etc/init.d/pcscd start
+    #- sleep 5
+    - cd card-functionality
+    - cargo run --bin $ARG -- $CONFIG
 
 import:
+  extends: .hw-test-template
   stage: hw-import
-  image: rust:1-slim-bullseye
-  tags:
-    - card
-  parallel:
-    matrix:
-      - ARG: [ import ]
-        CONFIG:
-          - "ci/basic-2_1.toml"
-          - "ci/nitro-pro1.toml"
-          - "ci/nitro-pro2.toml"
-          - "ci/nitro-start.toml"
-  before_script:
-    # install dependencies
-    - apt-get update
-    - apt-get -y install --no-install-recommends libpcsclite-dev pkg-config nettle-dev clang libclang-dev pcscd pcsc-tools usbutils strace
-  script:
-    - /etc/init.d/pcscd start
-    #- sleep 5
-    - cd card-functionality
-    - cargo run --bin $ARG -- $CONFIG
+  variables:
+    ARG: import
 
 keygen:
+  extends: .hw-test-template
   stage: hw-keygen
-  image: rust:1-slim-bullseye
-  tags:
-    - card
-  parallel:
-    matrix:
-      - ARG: [ keygen ]
-        CONFIG:
-          - "ci/basic-2_1.toml"
-          - "ci/nitro-pro1.toml"
-          - "ci/nitro-pro2.toml"
-          - "ci/nitro-start.toml"
-  before_script:
-    # install dependencies
-    - apt-get update
-    - apt-get -y install --no-install-recommends libpcsclite-dev pkg-config nettle-dev clang libclang-dev pcscd pcsc-tools usbutils strace
-  script:
-    - /etc/init.d/pcscd start
-    #- sleep 5
-    - cd card-functionality
-    - cargo run --bin $ARG -- $CONFIG
+  variables:
+    ARG: keygen

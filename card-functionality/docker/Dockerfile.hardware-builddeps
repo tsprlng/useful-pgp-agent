@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-FileCopyrightText: 2021 Nora Widdecke <mail@nora.pink>
+# SPDX-License-Identifier: CC0-1.0
+
+FROM rust:1-slim-bullseye
+
+RUN apt update -y -qq \
+ && apt install -y -qq --no-install-recommends libpcsclite-dev pkg-config nettle-dev clang libclang-dev pcscd \
+ && apt clean
