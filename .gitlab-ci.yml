@@ -137,7 +137,7 @@ hardware-builddeps:
   script:
     - /etc/init.d/pcscd start
     #- sleep 5
-    - cargo run --bin $ARG -- $CONFIG
+    - RUST_LOG=debug cargo run --bin $ARG -- $CONFIG
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
