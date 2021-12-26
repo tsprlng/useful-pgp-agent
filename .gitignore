@@ -6,4 +6,4 @@ target/
 Cargo.lock
 _test/
 notes/
-card-functionality/config/test-cards.toml
+card-functionality/config/*.toml
