@@ -24,7 +24,7 @@
 [card.gnuk_emu]
 #backend.pcsc = "FFFE:F1420A7A"
 backend.scdc = "D276000124010200FFFEF1420A7A0000"
-config.keygen = ["RSA2k/32", "NIST256", "Curve25519"]
+config.keygen = ["RSA2k", "NIST256", "Curve25519"]
 config.import = ["data/rsa2k.sec", "data/rsa4k.sec",
     "data/25519.sec", "data/nist256.sec", "data/nist521.sec"]
 
@@ -32,7 +32,7 @@ config.import = ["data/rsa2k.sec", "data/rsa4k.sec",
 backend.pcsc = "0006:16019180"
 #backend.scdc = "D2760001240103040006160191800000"
 config.keygen = [
-    "RSA2k/17", "RSA3k/17", "RSA4k/17",
+    "RSA2k", "RSA3k", "RSA4k",
     "NIST256", "NIST384", "NIST521",
     "Curve25519"
 ]
