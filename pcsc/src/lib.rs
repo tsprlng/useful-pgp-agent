@@ -187,7 +187,7 @@ impl PcscClient {
     fn features(&mut self) -> Result<Vec<Tlv>, Error> {
         let mut recv = vec![0; 1024];
 
-        let cm_ioctl_get_feature_request = 0x42000000 + 3400;
+        let cm_ioctl_get_feature_request = pcsc::ctl_code(3400);
         let res = self
             .card
             .control(cm_ioctl_get_feature_request, &[], &mut recv)
@@ -325,7 +325,7 @@ impl CardClient for PcscClient {
             .try_into()?;
 
         let res = self.card.control(
-            u32::from_be_bytes(verify_ioctl) as u64,
+            u32::from_be_bytes(verify_ioctl).into(),
             &send,
             &mut recv,
         )?;
@@ -426,7 +426,7 @@ impl CardClient for PcscClient {
             .try_into()?;
 
         let res = self.card.control(
-            u32::from_be_bytes(modify_ioctl) as u64,
+            u32::from_be_bytes(modify_ioctl).into(),
             &send,
             &mut recv,
         )?;
