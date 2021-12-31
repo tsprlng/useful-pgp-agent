@@ -135,7 +135,7 @@ hardware-builddeps:
           - "card-functionality/ci/nitro-pro2.toml"
           - "card-functionality/ci/nitro-start.toml"
   script:
-    - /etc/init.d/pcscd start
+    #- /etc/init.d/pcscd start
     #- sleep 5
     - RUST_LOG=debug cargo run --bin $ARG -- $CONFIG
   cache:
