@@ -42,6 +42,10 @@ use anyhow::Result;
 use std::convert::TryInto;
 
 use crate::apdu::commands;
+use crate::card_do::ApplicationRelatedData;
+use crate::tlv::tag::Tag;
+use crate::tlv::value::Value;
+use crate::tlv::Tlv;
 
 /// The CardClient trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate
@@ -94,11 +98,24 @@ pub trait CardClient {
 /// A boxed CardClient (which is Send+Sync).
 pub type CardClientBox = Box<dyn CardClient + Send + Sync>;
 
-impl dyn CardClient {
+impl<'a> dyn CardClient + 'a {
     /// Select the OpenPGP card application
     pub fn select(&mut self) -> Result<Response, Error> {
         let select_openpgp = commands::select_openpgp();
         apdu::send_command(self, select_openpgp, false)?.try_into()
+    }
+
+    // FIXME: this is a duplicate from card_app
+    pub fn application_related_data(
+        &mut self,
+    ) -> Result<ApplicationRelatedData> {
+        let ad = commands::application_related_data();
+        let resp = apdu::send_command(self, ad, true)?;
+        let value = Value::from(resp.data()?, true)?;
+
+        log::debug!(" App data Value: {:x?}", value);
+
+        Ok(ApplicationRelatedData(Tlv::new(Tag::from([0x6E]), value)))
     }
 }
 

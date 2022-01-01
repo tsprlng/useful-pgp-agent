@@ -7,10 +7,13 @@
 
 use anyhow::{anyhow, Result};
 use iso7816_tlv::simple::Tlv;
-use pcsc::{Card, Context, Protocols, Scope, ShareMode};
+use pcsc::{
+    Card, Context, Disposition, Protocols, Scope, ShareMode, Transaction,
+};
 use std::collections::HashMap;
 use std::convert::TryInto;
 
+use openpgp_card::card_do::ApplicationRelatedData;
 use openpgp_card::{CardApp, CardCaps, CardClient, Error, SmartcardError};
 
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
@@ -22,6 +25,90 @@ pub struct PcscClient {
     card: Card,
     card_caps: Option<CardCaps>,
     reader_caps: HashMap<u8, Tlv>,
+}
+
+struct TxClient<'a, 'b> {
+    tx: &'a mut Transaction<'b>,
+}
+
+impl<'a, 'b> TxClient<'a, 'b> {
+    pub fn new(tx: &'a mut Transaction<'b>) -> Self {
+        TxClient { tx }
+    }
+}
+
+impl<'a, 'b> TxClient<'a, 'b> {
+    /// Try to select the OpenPGP application on a card
+    fn select(card_client: &'a mut TxClient) -> Result<(), Error> {
+        if <dyn CardClient>::select(card_client).is_ok() {
+            Ok(())
+        } else {
+            Err(Error::Smartcard(SmartcardError::SelectOpenPGPCardFailed))
+        }
+    }
+
+    /// Get application_related_data from card
+    fn application_related_data(
+        card_client: &mut TxClient,
+    ) -> Result<ApplicationRelatedData, Error> {
+        <dyn CardClient>::application_related_data(card_client).map_err(|e| {
+            Error::Smartcard(SmartcardError::Error(format!(
+                "TxClient: failed to get application_related_data {:x?}",
+                e
+            )))
+        })
+    }
+}
+
+impl CardClient for TxClient<'_, '_> {
+    fn transmit(
+        &mut self,
+        cmd: &[u8],
+        buf_size: usize,
+    ) -> Result<Vec<u8>, Error> {
+        let mut resp_buffer = vec![0; buf_size];
+
+        let resp =
+            self.tx
+                .transmit(cmd, &mut resp_buffer)
+                .map_err(|e| match e {
+                    pcsc::Error::NotTransacted => {
+                        Error::Smartcard(SmartcardError::NotTransacted)
+                    }
+                    _ => Error::Smartcard(SmartcardError::Error(format!(
+                        "Transmit failed: {:?}",
+                        e
+                    ))),
+                })?;
+
+        log::debug!(" <- APDU response: {:x?}", resp);
+
+        Ok(resp.to_vec())
+    }
+
+    fn init_card_caps(&mut self, caps: CardCaps) {
+        self.card_caps = Some(caps);
+    }
+
+    fn card_caps(&self) -> Option<&CardCaps> {
+        None
+    }
+
+    fn feature_pinpad_verify(&self) -> bool {
+        todo!()
+    }
+
+    fn feature_pinpad_modify(&self) -> bool {
+        todo!()
+    }
+
+    fn pinpad_verify(&mut self, _id: u8) -> Result<Vec<u8>> {
+        todo!()
+    }
+
+    fn pinpad_modify(&mut self, _id: u8) -> Result<Vec<u8>> {
+        todo!()
+    }
 }
 
 impl PcscClient {
@@ -90,64 +177,107 @@ impl PcscClient {
         }
     }
 
-    /// All PCSC cards, wrapped as PcscClient
-    fn unopened_cards() -> Result<Vec<PcscClient>> {
-        Ok(Self::raw_pcsc_cards()
-            .map_err(|err| anyhow!(err))?
-            .into_iter()
-            .map(PcscClient::new)
-            .collect())
-    }
-
     fn cards_filter(ident: Option<&str>) -> Result<Vec<CardApp>> {
-        let mut cards = vec![];
+        let mut cas: Vec<CardApp> = vec![];
 
-        for mut card in Self::unopened_cards()? {
+        for mut card in Self::raw_pcsc_cards()? {
             log::debug!("cards_filter: next card");
 
-            // FIXME: start transaction
-            // let tx = card.card.transaction()?;
+            let stat = card.status2_owned();
+            log::debug!("cards_filter, status2: {:x?}", stat);
 
-            if let Err(e) = Self::select(&mut card) {
-                log::debug!("cards_filter: error during select: {:?}", e);
-            } else {
-                if let Ok(mut ca) = card.into_card_app() {
-                    if let Some(ident) = ident {
-                        let ard = ca.application_related_data()?;
-                        let aid = ard.application_id()?;
+            let mut store_card = false;
+            {
+                // start transaction
+                log::debug!("1");
 
-                        if aid.ident() == ident.to_ascii_uppercase() {
-                            // FIXME: handle multiple cards with matching ident
-                            log::debug!(
-                                "open_by_ident: Opened and selected {:?}",
-                                ident
-                            );
+                let mut tx = loop {
+                    let res = card.transaction();
 
-                            cards.push(ca);
-                        } else {
-                            log::debug!(
-                                "open_by_ident: Found, but won't use {:?}",
-                                aid.ident()
-                            );
+                    match res {
+                        Ok(tx) => break tx,
+                        Err(pcsc::Error::ResetCard) => {
+                            // Card was reset, need to reconnect
+                            drop(res);
+
+                            log::debug!("1a");
+
+                            {
+                                card.reconnect(
+                                    ShareMode::Shared,
+                                    Protocols::ANY,
+                                    Disposition::ResetCard,
+                                )?;
+                            }
+
+                            log::debug!("1b");
+
+                            // try again
                         }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    };
+                };
+
+                log::debug!("2");
+                let mut txc = TxClient::new(&mut tx);
+                log::debug!("3");
+                {
+                    if let Err(e) = TxClient::select(&mut txc) {
+                        log::debug!("4a");
+                        log::debug!(
+                            "cards_filter: error during select: {:?}",
+                            e
+                        );
                     } else {
-                        // return all cards
-                        cards.push(ca);
+                        log::debug!("4b");
+                        // successfully opened the OpenPGP application
+
+                        if let Some(ident) = ident {
+                            let ard =
+                                TxClient::application_related_data(&mut txc)?;
+                            let aid = ard.application_id()?;
+
+                            if aid.ident() == ident.to_ascii_uppercase() {
+                                // FIXME: handle multiple cards with matching ident
+                                log::debug!(
+                                    "open_by_ident: Opened and selected {:?}",
+                                    ident
+                                );
+
+                                // we want to return this one card
+                                store_card = true;
+                            } else {
+                                log::debug!(
+                                    "open_by_ident: Found, but won't use {:?}",
+                                    aid.ident()
+                                );
+
+                                // FIXME: end transaction
+                                // txc.end();
+                            }
+                        } else {
+                            // we want to return all cards
+                            store_card = true;
+                        }
                     }
                 }
+
+                // transaction ends
+                // drop(txc);
+                // drop(tx);
             }
 
-            // FIXME: end transaction
-            // tx.end(Disposition::LeaveCard).map_err(|(_, e)| {
-            //     Error::Smartcard(SmartcardError::Error(
-            //         format!("PCSC Transaction::end failed: {:?}", e)
-            //     ))
-            // })?;
+            if store_card {
+                let pcsc = PcscClient::new(card);
+                cas.push(pcsc.into_card_app()?);
+            }
         }
 
-        log::debug!("cards_filter: found {} cards", cards.len());
+        log::debug!("cards_filter: found {} cards", cas.len());
 
-        Ok(cards)
+        Ok(cas)
     }
 
     /// Return all cards on which the OpenPGP application could be selected.
@@ -200,15 +330,6 @@ impl PcscClient {
         CardApp::initialize(Box::new(self))
     }
 
-    /// Try to select the OpenPGP application on a card
-    fn select(card_client: &mut PcscClient) -> Result<(), Error> {
-        if <dyn CardClient>::select(card_client).is_ok() {
-            Ok(())
-        } else {
-            Err(Error::Smartcard(SmartcardError::SelectOpenPGPCardFailed))
-        }
-    }
-
     /// Get the minimum pin length for pin_id.
     fn min_pin_len(&self, pin_id: u8) -> Result<u8> {
         match pin_id {
@@ -256,24 +377,72 @@ impl CardClient for PcscClient {
         cmd: &[u8],
         buf_size: usize,
     ) -> Result<Vec<u8>, Error> {
-        let mut resp_buffer = vec![0; buf_size];
+        let mut was_reset = false;
 
-        let resp =
-            self.card.transmit(cmd, &mut resp_buffer).map_err(
-                |e| match e {
-                    pcsc::Error::NotTransacted => {
-                        Error::Smartcard(SmartcardError::NotTransacted)
+        let stat = self.card.status2_owned();
+        log::debug!("PcscClient transmit - status2: {:x?}", stat);
+
+        let mut tx = loop {
+            let res = self.card.transaction();
+
+            match res {
+                Ok(mut tx) => {
+                    // A transaction has been successfully started
+
+                    if was_reset {
+                        log::debug!("card was reset, select() openpgp");
+
+                        let mut txc = TxClient::new(&mut tx);
+                        TxClient::select(&mut txc)?;
                     }
-                    _ => Error::Smartcard(SmartcardError::Error(format!(
-                        "Transmit failed: {:?}",
-                        e
-                    ))),
-                },
-            )?;
 
-        log::debug!(" <- APDU response: {:x?}", resp);
+                    break tx;
+                }
+                Err(pcsc::Error::ResetCard) => {
+                    // Error getting Transaction.
+                    // Card was reset -> need to reconnect.
 
-        Ok(resp.to_vec())
+                    was_reset = true;
+
+                    drop(res);
+
+                    log::debug!("PcscClient transmit 1a");
+
+                    {
+                        self.card
+                            .reconnect(
+                                ShareMode::Shared,
+                                Protocols::ANY,
+                                Disposition::ResetCard,
+                            )
+                            .map_err(|e| {
+                                Error::Smartcard(SmartcardError::Error(
+                                    format!("Reconnect failed: {:?}", e),
+                                ))
+                            })?;
+                    }
+
+                    log::debug!("PcscClient transmit 1b");
+
+                    // try again
+                }
+                Err(e) => {
+                    return Err(Error::Smartcard(SmartcardError::Error(
+                        format!("Error: {:?}", e),
+                    )));
+                }
+            };
+        };
+
+        log::debug!("PcscClient transmit 2");
+        let mut txc = TxClient::new(&mut tx);
+        log::debug!("PcscClient transmit 3 (got TxClient!)");
+
+        let res = txc.transmit(cmd, buf_size);
+
+        log::debug!("PcscClient transmit res {:x?}", res);
+
+        res
     }
 
     fn init_card_caps(&mut self, caps: CardCaps) {
