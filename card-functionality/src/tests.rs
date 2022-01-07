@@ -8,7 +8,7 @@ use std::string::FromUtf8Error;
 use thiserror;
 
 use sequoia_openpgp::parse::Parse;
-use sequoia_openpgp::policy::{NullPolicy, StandardPolicy};
+use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
@@ -356,7 +356,7 @@ pub fn test_private_data(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut out = vec![];
+    let out = vec![];
 
     println!();
 
@@ -449,7 +449,7 @@ pub fn test_pw_status(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut out = vec![];
+    let out = vec![];
 
     let ard = ca.application_related_data()?;
     let mut pws = ard.pw_status_bytes()?;
@@ -543,7 +543,7 @@ pub fn test_change_pw(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut out = vec![];
+    let out = vec![];
 
     // first do admin-less pw1 on gnuk
     // (NOTE: Gnuk requires a key to be loaded before allowing pw changes!)
@@ -601,7 +601,7 @@ pub fn test_reset_retry_counter(
     ca: &mut CardApp,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut out = vec![];
+    let out = vec![];
 
     // set pw3, then pw1 (to bring gnuk into non-admin mode)
     println!("set pw3");

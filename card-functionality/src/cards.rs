@@ -4,7 +4,7 @@
 //! Wrapping of cards for tests. Open a list of cards, based on a
 //! TestConfig configuration file
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
