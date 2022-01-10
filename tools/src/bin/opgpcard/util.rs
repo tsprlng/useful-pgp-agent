@@ -8,7 +8,7 @@ use openpgp_card::{CardApp, Error};
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
-pub(crate) fn cards() -> Result<Vec<CardApp>> {
+pub(crate) fn cards() -> Result<Vec<CardApp>, Error> {
     PcscClient::cards()
 }
 

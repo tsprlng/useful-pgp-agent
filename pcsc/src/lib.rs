@@ -19,6 +19,65 @@ use openpgp_card::{CardApp, CardCaps, CardClient, Error, SmartcardError};
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
+macro_rules! start_tx {
+    ($card:expr) => {{
+        let mut was_reset = false;
+
+        loop {
+            let res = $card.transaction();
+
+            match res {
+                Ok(mut tx) => {
+                    // A transaction has been successfully started
+
+                    if was_reset {
+                        log::debug!(
+                            "start_tx: card was reset, select() openpgp"
+                        );
+
+                        let mut txc = TxClient::new(&mut tx);
+                        TxClient::select(&mut txc)?;
+                    }
+
+                    break tx;
+                }
+                Err(pcsc::Error::ResetCard) => {
+                    // Card was reset, need to reconnect
+                    was_reset = true;
+
+                    drop(res);
+
+                    log::debug!("start_tx: do reconnect");
+
+                    {
+                        $card
+                            .reconnect(
+                                ShareMode::Shared,
+                                Protocols::ANY,
+                                Disposition::ResetCard,
+                            )
+                            .map_err(|e| {
+                                Error::Smartcard(SmartcardError::Error(
+                                    format!("Reconnect failed: {:?}", e),
+                                ))
+                            })?;
+                    }
+
+                    log::debug!("start_tx: reconnected.");
+
+                    // -> try opening a transaction again
+                }
+                Err(e) => {
+                    log::debug!("start_tx: error {:?}", e);
+                    return Err(Error::Smartcard(SmartcardError::Error(
+                        format!("Error: {:?}", e),
+                    )));
+                }
+            };
+        }
+    }};
+}
+
 /// An implementation of the CardClient trait that uses the PCSC lite
 /// middleware to access the OpenPGP card application on smart cards.
 pub struct PcscClient {
@@ -177,10 +236,12 @@ impl PcscClient {
         }
     }
 
-    fn cards_filter(ident: Option<&str>) -> Result<Vec<CardApp>> {
+    fn cards_filter(ident: Option<&str>) -> Result<Vec<CardApp>, Error> {
         let mut cas: Vec<CardApp> = vec![];
 
-        for mut card in Self::raw_pcsc_cards()? {
+        for mut card in
+            Self::raw_pcsc_cards().map_err(|sce| Error::Smartcard(sce))?
+        {
             log::debug!("cards_filter: next card");
 
             let stat = card.status2_owned();
@@ -190,37 +251,8 @@ impl PcscClient {
             {
                 // start transaction
                 log::debug!("1");
+                let mut tx: Transaction = start_tx!(card);
 
-                let mut tx = loop {
-                    let res = card.transaction();
-
-                    match res {
-                        Ok(tx) => break tx,
-                        Err(pcsc::Error::ResetCard) => {
-                            // Card was reset, need to reconnect
-                            drop(res);
-
-                            log::debug!("1a");
-
-                            {
-                                card.reconnect(
-                                    ShareMode::Shared,
-                                    Protocols::ANY,
-                                    Disposition::ResetCard,
-                                )?;
-                            }
-
-                            log::debug!("1b");
-
-                            // try again
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    };
-                };
-
-                log::debug!("2");
                 let mut txc = TxClient::new(&mut tx);
                 log::debug!("3");
                 {
@@ -284,7 +316,7 @@ impl PcscClient {
     ///
     /// Each card has the OpenPGP application selected, CardCaps have been
     /// initialized.
-    pub fn cards() -> Result<Vec<CardApp>> {
+    pub fn cards() -> Result<Vec<CardApp>, Error> {
         Self::cards_filter(None)
     }
 
@@ -377,62 +409,10 @@ impl CardClient for PcscClient {
         cmd: &[u8],
         buf_size: usize,
     ) -> Result<Vec<u8>, Error> {
-        let mut was_reset = false;
-
         let stat = self.card.status2_owned();
         log::debug!("PcscClient transmit - status2: {:x?}", stat);
 
-        let mut tx = loop {
-            let res = self.card.transaction();
-
-            match res {
-                Ok(mut tx) => {
-                    // A transaction has been successfully started
-
-                    if was_reset {
-                        log::debug!("card was reset, select() openpgp");
-
-                        let mut txc = TxClient::new(&mut tx);
-                        TxClient::select(&mut txc)?;
-                    }
-
-                    break tx;
-                }
-                Err(pcsc::Error::ResetCard) => {
-                    // Error getting Transaction.
-                    // Card was reset -> need to reconnect.
-
-                    was_reset = true;
-
-                    drop(res);
-
-                    log::debug!("PcscClient transmit 1a");
-
-                    {
-                        self.card
-                            .reconnect(
-                                ShareMode::Shared,
-                                Protocols::ANY,
-                                Disposition::ResetCard,
-                            )
-                            .map_err(|e| {
-                                Error::Smartcard(SmartcardError::Error(
-                                    format!("Reconnect failed: {:?}", e),
-                                ))
-                            })?;
-                    }
-
-                    log::debug!("PcscClient transmit 1b");
-
-                    // try again
-                }
-                Err(e) => {
-                    return Err(Error::Smartcard(SmartcardError::Error(
-                        format!("Error: {:?}", e),
-                    )));
-                }
-            };
-        };
+        let mut tx: Transaction = start_tx!(self.card);
 
         log::debug!("PcscClient transmit 2");
         let mut txc = TxClient::new(&mut tx);
