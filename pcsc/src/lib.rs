@@ -274,8 +274,22 @@ impl PcscClient {
                             e
                         );
                     } else {
-                        log::debug!("4b");
+                        log::debug!(
+                            "4b: opened the OpenPGP application, will read ARD"
+                        );
                         // successfully opened the OpenPGP application
+
+                        // -- debug: status --
+                        drop(txc);
+                        let stat = tx.status2_owned().map_err(|e| {
+                            Error::Smartcard(SmartcardError::Error(format!(
+                                "{:?}",
+                                e
+                            )))
+                        })?;
+                        log::debug!("4b card status: {:x?}", stat);
+                        let mut txc = PcscTxClient::new(&mut tx, None);
+                        // -- /debug: status --
 
                         if let Some(ident) = ident {
                             let ard = PcscTxClient::application_related_data(
