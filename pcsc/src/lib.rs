@@ -19,7 +19,7 @@ const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
 #[macro_export]
 macro_rules! start_tx {
-    ($card:expr) => {{
+    ($card:expr, $reselect:expr) => {{
         use pcsc::{Disposition, Protocols, ShareMode};
 
         let mut was_reset = false;
@@ -37,7 +37,9 @@ macro_rules! start_tx {
                         );
 
                         let mut txc = PcscTxClient::new(&mut tx, None);
-                        PcscTxClient::select(&mut txc)?;
+                        if $reselect {
+                            PcscTxClient::select(&mut txc)?;
+                        }
                     }
 
                     break Ok(tx);
@@ -260,7 +262,7 @@ impl PcscClient {
             {
                 // start transaction
                 log::debug!("1");
-                let mut tx: Transaction = start_tx!(card)?;
+                let mut tx: Transaction = start_tx!(card, false)?;
 
                 let mut txc = PcscTxClient::new(&mut tx, None);
                 log::debug!("3");
@@ -430,7 +432,7 @@ impl CardClient for PcscClient {
         let stat = self.card.status2_owned();
         log::debug!("PcscClient transmit - status2: {:x?}", stat);
 
-        let mut tx: Transaction = start_tx!(self.card)?;
+        let mut tx: Transaction = start_tx!(self.card, true)?;
 
         log::debug!("PcscClient transmit 2");
         let mut txc = PcscTxClient::new(&mut tx, self.card_caps);

@@ -706,8 +706,9 @@ pub fn run_test(
 
     let card_caps = card_client.card_caps();
 
-    let mut tx: Transaction = openpgp_card_pcsc::start_tx!(card_client.card())
-        .map_err(|e| anyhow!(e))?;
+    let mut tx: Transaction =
+        openpgp_card_pcsc::start_tx!(card_client.card(), true)
+            .map_err(|e| anyhow!(e))?;
     let mut txc = PcscTxClient::new(&mut tx, card_caps);
 
     t(&mut txc, param)
