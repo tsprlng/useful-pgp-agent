@@ -314,7 +314,7 @@ impl PcscClient {
 
             if store_card {
                 let pcsc = PcscClient::new(card);
-                cas.push(pcsc.into_card_app()?);
+                cas.push(pcsc.initialize_card()?);
             }
         }
 
@@ -360,7 +360,9 @@ impl PcscClient {
 
     /// Make an initialized CardApp from a PcscClient.
     /// Obtain and store feature lists from reader (pinpad functionality).
-    fn into_card_app(mut self) -> Result<Self> {
+    fn initialize_card(mut self) -> Result<Self> {
+        log::debug!("pcsc initialize_card");
+
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = self.features() {
             for tlv in feat {

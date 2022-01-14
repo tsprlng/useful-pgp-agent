@@ -707,11 +707,7 @@ pub fn run_test(
 
     let mut tx: Transaction = openpgp_card_pcsc::start_tx!(card_client.card())
         .map_err(|e| anyhow!(e))?;
-
     let mut txc = PcscTxClient::new(&mut tx);
-
-    let ard = CardApp::application_related_data(&mut txc)?;
-    let _app_id = ard.application_id()?;
 
     t(&mut txc, param)
 }
