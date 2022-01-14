@@ -15,7 +15,7 @@ use sequoia_openpgp::Cert;
 use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
-use openpgp_card::{CardApp, Error, KeyType, StatusBytes};
+use openpgp_card::{CardApp, CardClient, Error, KeyType, StatusBytes};
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
@@ -53,7 +53,7 @@ pub enum TestError {
 
 /// Run after each "upload keys", if key *was* uploaded (?)
 pub fn test_decrypt(
-    mut ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     assert_eq!(
@@ -65,12 +65,12 @@ pub fn test_decrypt(
     let cert = Cert::from_str(param[0])?;
     let msg = param[1].to_string();
 
-    ca.verify_pw1("123456")?;
+    CardApp::verify_pw1(card_client, "123456")?;
 
     let p = StandardPolicy::new();
 
     let res = openpgp_card_sequoia::util::decrypt(
-        &mut ca,
+        card_client,
         &cert,
         msg.into_bytes(),
         &p,
@@ -84,18 +84,21 @@ pub fn test_decrypt(
 
 /// Run after each "upload keys", if key *was* uploaded (?)
 pub fn test_sign(
-    mut ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
 
-    ca.verify_pw1_for_signing("123456")?;
+    CardApp::verify_pw1_for_signing(card_client, "123456")?;
 
     let cert = Cert::from_str(param[0])?;
 
     let msg = "Hello world, I am signed.";
-    let sig =
-        openpgp_card_sequoia::util::sign(&mut ca, &cert, &mut msg.as_bytes())?;
+    let sig = openpgp_card_sequoia::util::sign(
+        card_client,
+        &cert,
+        &mut msg.as_bytes(),
+    )?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);
@@ -104,10 +107,10 @@ pub fn test_sign(
 }
 
 fn check_key_upload_metadata(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     meta: &[(String, KeyGenerationTime)],
 ) -> Result<()> {
-    let ard = ca.application_related_data()?;
+    let ard = CardApp::application_related_data(card_client)?;
 
     // check fingerprints
     let card_fp = ard.fingerprints()?;
@@ -148,10 +151,10 @@ fn check_key_upload_algo_attrs() -> Result<()> {
 }
 
 pub fn test_print_caps(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.application_related_data()?;
+    let ard = CardApp::application_related_data(card_client)?;
 
     let aid = ard.application_id()?;
     println!("aid: {:#x?}", aid);
@@ -169,17 +172,17 @@ pub fn test_print_caps(
 }
 
 pub fn test_print_algo_info(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.application_related_data()?;
+    let ard = CardApp::application_related_data(card_client)?;
 
     let dec = ard.algorithm_attributes(KeyType::Decryption)?;
     println!("Current algorithm for the decrypt slot: {}", dec);
 
     println!();
 
-    let algo = ca.algorithm_information();
+    let algo = CardApp::algorithm_information(card_client);
     if let Ok(Some(algo)) = algo {
         println!("Card algorithm list:\n{}", algo);
     }
@@ -188,7 +191,7 @@ pub fn test_print_algo_info(
 }
 
 pub fn test_upload_keys(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     assert_eq!(
@@ -197,16 +200,16 @@ pub fn test_upload_keys(
         "test_upload_keys needs a filename for 'cert'"
     );
 
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
     let cert = Cert::from_file(param[0])?;
 
     let p = StandardPolicy::new();
 
-    let meta = util::upload_subkeys(ca, &cert, &p)
+    let meta = util::upload_subkeys(card_client, &cert, &p)
         .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
 
-    check_key_upload_metadata(ca, &meta)?;
+    check_key_upload_metadata(card_client, &meta)?;
 
     // FIXME: implement
     check_key_upload_algo_attrs()?;
@@ -216,10 +219,10 @@ pub fn test_upload_keys(
 
 /// Generate keys for each of the three KeyTypes
 pub fn test_keygen(
-    mut ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
     // Generate all three subkeys on card
     let algo = param[0];
@@ -227,12 +230,17 @@ pub fn test_keygen(
     let alg = AlgoSimple::try_from(algo)?;
 
     println!(" Generate subkey for Signing");
-    let (pkm, ts) =
-        ca.generate_key_simple(public_to_fingerprint, KeyType::Signing, alg)?;
+    let (pkm, ts) = CardApp::generate_key_simple(
+        card_client,
+        public_to_fingerprint,
+        KeyType::Signing,
+        alg,
+    )?;
     let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
 
     println!(" Generate subkey for Decryption");
-    let (pkm, ts) = ca.generate_key_simple(
+    let (pkm, ts) = CardApp::generate_key_simple(
+        card_client,
         public_to_fingerprint,
         KeyType::Decryption,
         alg,
@@ -240,7 +248,8 @@ pub fn test_keygen(
     let key_dec = public_key_material_to_key(&pkm, KeyType::Decryption, ts)?;
 
     println!(" Generate subkey for Authentication");
-    let (pkm, ts) = ca.generate_key_simple(
+    let (pkm, ts) = CardApp::generate_key_simple(
+        card_client,
         public_to_fingerprint,
         KeyType::Authentication,
         alg,
@@ -249,7 +258,7 @@ pub fn test_keygen(
         public_key_material_to_key(&pkm, KeyType::Authentication, ts)?;
 
     // Generate a Cert for this set of generated keys
-    let mut open = Open::new(&mut ca)?;
+    let mut open = Open::new(card_client)?;
     let cert = make_cert(
         &mut open,
         key_sig,
@@ -267,15 +276,15 @@ pub fn test_keygen(
 
 /// Construct public key based on data from the card
 pub fn test_get_pub(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = ca.application_related_data()?;
+    let ard = CardApp::application_related_data(card_client)?;
     let key_gen = ard.key_generation_times()?;
 
     // --
 
-    let sig = ca.public_key(KeyType::Signing)?;
+    let sig = CardApp::public_key(card_client, KeyType::Signing)?;
     let ts = key_gen.signature().unwrap().get().into();
     let key = public_key_material_to_key(&sig, KeyType::Signing, ts)?;
 
@@ -283,7 +292,7 @@ pub fn test_get_pub(
 
     // --
 
-    let dec = ca.public_key(KeyType::Decryption)?;
+    let dec = CardApp::public_key(card_client, KeyType::Decryption)?;
     let ts = key_gen.decryption().unwrap().get().into();
     let key = public_key_material_to_key(&dec, KeyType::Decryption, ts)?;
 
@@ -291,7 +300,7 @@ pub fn test_get_pub(
 
     // --
 
-    let auth = ca.public_key(KeyType::Authentication)?;
+    let auth = CardApp::public_key(card_client, KeyType::Authentication)?;
     let ts = key_gen.authentication().unwrap().get().into();
     let key = public_key_material_to_key(&auth, KeyType::Authentication, ts)?;
 
@@ -306,10 +315,10 @@ pub fn test_get_pub(
 }
 
 pub fn test_reset(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let _res = ca.factory_reset()?;
+    let _res = CardApp::factory_reset(card_client)?;
     Ok(vec![])
 }
 
@@ -319,25 +328,25 @@ pub fn test_reset(
 /// Returns an empty TestOutput, throws errors for unexpected Status codes
 /// and for unequal field values.
 pub fn test_set_user_data(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
     // name
-    ca.set_name("Bar<<Foo")?;
+    CardApp::set_name(card_client, "Bar<<Foo")?;
 
     // lang
-    ca.set_lang("deen")?;
+    CardApp::set_lang(card_client, "deen")?;
 
     // sex
-    ca.set_sex(Sex::Female)?;
+    CardApp::set_sex(card_client, Sex::Female)?;
 
     // url
-    ca.set_url("https://duckduckgo.com/")?;
+    CardApp::set_url(card_client, "https://duckduckgo.com/")?;
 
     // read all the fields back again, expect equal data
-    let ch = ca.cardholder_related_data()?;
+    let ch = CardApp::cardholder_related_data(card_client)?;
 
     assert_eq!(ch.name(), Some("Bar<<Foo"));
     assert_eq!(
@@ -346,54 +355,70 @@ pub fn test_set_user_data(
     );
     assert_eq!(ch.sex(), Some(Sex::Female));
 
-    let url = ca.url()?;
+    let url = CardApp::url(card_client)?;
     assert_eq!(url, "https://duckduckgo.com/".to_string());
 
     Ok(vec![])
 }
 
 pub fn test_private_data(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let out = vec![];
 
     println!();
 
-    let d = ca.private_use_do(1)?;
+    let d = CardApp::private_use_do(card_client, 1)?;
     println!("data 1 {:?}", d);
 
-    ca.verify_pw1("123456")?;
+    CardApp::verify_pw1(card_client, "123456")?;
 
-    ca.set_private_use_do(1, "Foo bar1!".as_bytes().to_vec())?;
-    ca.set_private_use_do(3, "Foo bar3!".as_bytes().to_vec())?;
+    CardApp::set_private_use_do(
+        card_client,
+        1,
+        "Foo bar1!".as_bytes().to_vec(),
+    )?;
+    CardApp::set_private_use_do(
+        card_client,
+        3,
+        "Foo bar3!".as_bytes().to_vec(),
+    )?;
 
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
-    ca.set_private_use_do(2, "Foo bar2!".as_bytes().to_vec())?;
-    ca.set_private_use_do(4, "Foo bar4!".as_bytes().to_vec())?;
+    CardApp::set_private_use_do(
+        card_client,
+        2,
+        "Foo bar2!".as_bytes().to_vec(),
+    )?;
+    CardApp::set_private_use_do(
+        card_client,
+        4,
+        "Foo bar4!".as_bytes().to_vec(),
+    )?;
 
-    let d = ca.private_use_do(1)?;
+    let d = CardApp::private_use_do(card_client, 1)?;
     println!("data 1 {:?}", d);
-    let d = ca.private_use_do(2)?;
+    let d = CardApp::private_use_do(card_client, 2)?;
     println!("data 2 {:?}", d);
-    let d = ca.private_use_do(3)?;
+    let d = CardApp::private_use_do(card_client, 3)?;
     println!("data 3 {:?}", d);
-    let d = ca.private_use_do(4)?;
+    let d = CardApp::private_use_do(card_client, 4)?;
     println!("data 4 {:?}", d);
 
     Ok(out)
 }
 
 pub fn test_cardholder_cert(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut out = vec![];
 
     println!();
 
-    match ca.cardholder_certificate() {
+    match CardApp::cardholder_certificate(card_client) {
         Ok(res) => {
             out.push(TestResult::Text(format!("got cert {:x?}", res.data())))
         }
@@ -406,11 +431,11 @@ pub fn test_cardholder_cert(
         }
     };
 
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
     let data = "Foo bar baz!".as_bytes();
 
-    match ca.set_cardholder_certificate(data.to_vec()) {
+    match CardApp::set_cardholder_certificate(card_client, data.to_vec()) {
         Ok(_resp) => out.push(TestResult::Text("set cert ok".to_string())),
         Err(e) => {
             out.push(TestResult::Text(format!(
@@ -421,7 +446,7 @@ pub fn test_cardholder_cert(
         }
     }
 
-    let res = ca.cardholder_certificate()?;
+    let res = CardApp::cardholder_certificate(card_client)?;
     out.push(TestResult::Text("get cert ok".to_string()));
 
     if res.data() != data {
@@ -434,7 +459,7 @@ pub fn test_cardholder_cert(
 
     // try using slot 2
 
-    match ca.select_data(2, &[0x7F, 0x21]) {
+    match CardApp::select_data(card_client, 2, &[0x7F, 0x21]) {
         Ok(_res) => out.push(TestResult::Text("select_data ok".to_string())),
         Err(e) => {
             out.push(TestResult::Text(format!("select_data: {:?}", e)));
@@ -446,24 +471,24 @@ pub fn test_cardholder_cert(
 }
 
 pub fn test_pw_status(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let out = vec![];
 
-    let ard = ca.application_related_data()?;
+    let ard = CardApp::application_related_data(card_client)?;
     let mut pws = ard.pw_status_bytes()?;
 
     println!("pws {:?}", pws);
 
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
     pws.set_pw1_cds_valid_once(false);
     pws.set_pw1_pin_block(true);
 
-    ca.set_pw_status_bytes(&pws, false)?;
+    CardApp::set_pw_status_bytes(card_client, &pws, false)?;
 
-    let ard = ca.application_related_data()?;
+    let ard = CardApp::application_related_data(card_client)?;
     let pws = ard.pw_status_bytes()?;
     println!("pws {:?}", pws);
 
@@ -474,7 +499,7 @@ pub fn test_pw_status(
 /// - verify pw3 (check) -> Status
 /// - verify pw1 (check) -> Status
 pub fn test_verify(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     // Steps:
@@ -492,7 +517,7 @@ pub fn test_verify(
     let mut out = vec![];
 
     // try to set name without verify, assert result is not ok!
-    let res = ca.set_name("Notverified<<Hello");
+    let res = CardApp::set_name(card_client, "Notverified<<Hello");
 
     if let Err(Error::CardStatus(s)) = res {
         assert_eq!(s, StatusBytes::SecurityStatusNotSatisfied);
@@ -500,9 +525,9 @@ pub fn test_verify(
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
 
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
-    match ca.check_pw3() {
+    match CardApp::check_pw3(card_client) {
         Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
@@ -513,14 +538,14 @@ pub fn test_verify(
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    ca.set_name("Admin<<Hello")?;
+    CardApp::set_name(card_client, "Admin<<Hello")?;
 
-    let cardholder = ca.cardholder_related_data()?;
+    let cardholder = CardApp::cardholder_related_data(card_client)?;
     assert_eq!(cardholder.name(), Some("Admin<<Hello"));
 
-    ca.verify_pw1("123456")?;
+    CardApp::verify_pw1(card_client, "123456")?;
 
-    match ca.check_pw3() {
+    match CardApp::check_pw3(card_client) {
         Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
@@ -531,16 +556,16 @@ pub fn test_verify(
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    ca.set_name("There<<Hello")?;
+    CardApp::set_name(card_client, "There<<Hello")?;
 
-    let cardholder = ca.cardholder_related_data()?;
+    let cardholder = CardApp::cardholder_related_data(card_client)?;
     assert_eq!(cardholder.name(), Some("There<<Hello"));
 
     Ok(out)
 }
 
 pub fn test_change_pw(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let out = vec![];
@@ -548,20 +573,20 @@ pub fn test_change_pw(
     // first do admin-less pw1 on gnuk
     // (NOTE: Gnuk requires a key to be loaded before allowing pw changes!)
     println!("change pw1");
-    ca.change_pw1("123456", "abcdef00")?;
+    CardApp::change_pw1(card_client, "123456", "abcdef00")?;
 
     // also set admin pw, which means pw1 is now only user-pw again, on gnuk
     println!("change pw3");
     // ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
-    ca.change_pw3("12345678", "abcdefgh")?;
+    CardApp::change_pw3(card_client, "12345678", "abcdefgh")?;
 
     println!("change pw1");
-    ca.change_pw1("abcdef00", "abcdef")?; // gnuk
+    CardApp::change_pw1(card_client, "abcdef00", "abcdef")?; // gnuk
 
     // ca.change_pw1("123456", "abcdef")?;
 
     println!("verify bad pw1");
-    match ca.verify_pw1("123456ab") {
+    match CardApp::verify_pw1(card_client, "123456ab") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -572,10 +597,10 @@ pub fn test_change_pw(
     }
 
     println!("verify good pw1");
-    ca.verify_pw1("abcdef")?;
+    CardApp::verify_pw1(card_client, "abcdef")?;
 
     println!("verify bad pw3");
-    match ca.verify_pw3("00000000") {
+    match CardApp::verify_pw3(card_client, "00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -586,34 +611,34 @@ pub fn test_change_pw(
     }
 
     println!("verify good pw3");
-    ca.verify_pw3("abcdefgh")?;
+    CardApp::verify_pw3(card_client, "abcdefgh")?;
 
     println!("change pw3 back to default");
-    ca.change_pw3("abcdefgh", "12345678")?;
+    CardApp::change_pw3(card_client, "abcdefgh", "12345678")?;
 
     println!("change pw1 back to default");
-    ca.change_pw1("abcdef", "123456")?;
+    CardApp::change_pw1(card_client, "abcdef", "123456")?;
 
     Ok(out)
 }
 
 pub fn test_reset_retry_counter(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let out = vec![];
 
     // set pw3, then pw1 (to bring gnuk into non-admin mode)
     println!("set pw3");
-    ca.change_pw3("12345678", "12345678")?;
+    CardApp::change_pw3(card_client, "12345678", "12345678")?;
     println!("set pw1");
-    ca.change_pw1("123456", "123456")?;
+    CardApp::change_pw1(card_client, "123456", "123456")?;
 
     println!("break pw1");
-    let _ = ca.verify_pw1("wrong0");
-    let _ = ca.verify_pw1("wrong0");
-    let _ = ca.verify_pw1("wrong0");
-    let res = ca.verify_pw1("wrong0");
+    let _ = CardApp::verify_pw1(card_client, "wrong0");
+    let _ = CardApp::verify_pw1(card_client, "wrong0");
+    let _ = CardApp::verify_pw1(card_client, "wrong0");
+    let res = CardApp::verify_pw1(card_client, "wrong0");
 
     match res {
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
@@ -634,23 +659,24 @@ pub fn test_reset_retry_counter(
     }
 
     println!("verify pw3");
-    ca.verify_pw3("12345678")?;
+    CardApp::verify_pw3(card_client, "12345678")?;
 
     println!("set resetting code");
-    ca.set_resetting_code("abcdefgh".as_bytes().to_vec())?;
+    CardApp::set_resetting_code(card_client, "abcdefgh".as_bytes().to_vec())?;
 
     println!("reset retry counter");
     // ca.reset_retry_counter_pw1("abcdef".as_bytes().to_vec(), None)?;
-    let _res = ca.reset_retry_counter_pw1(
+    let _res = CardApp::reset_retry_counter_pw1(
+        card_client,
         "abcdef".as_bytes().to_vec(),
         Some("abcdefgh".as_bytes().to_vec()),
     );
 
     println!("verify good pw1");
-    ca.verify_pw1("abcdef")?;
+    CardApp::verify_pw1(card_client, "abcdef")?;
 
     println!("verify bad pw1");
-    match ca.verify_pw1("00000000") {
+    match CardApp::verify_pw1(card_client, "00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -665,12 +691,15 @@ pub fn test_reset_retry_counter(
 
 pub fn run_test(
     card: &mut TestCardApp,
-    t: fn(&mut CardApp, &[&str]) -> Result<TestOutput, TestError>,
+    t: fn(
+        &mut (dyn CardClient + Send + Sync),
+        &[&str],
+    ) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut ca = card.get_card_app()?;
-    let ard = ca.application_related_data()?;
+    let mut card_client = card.get_card_client()?;
+    let ard = CardApp::application_related_data(&mut *card_client)?;
     let _app_id = ard.application_id()?;
 
-    t(&mut ca, param)
+    t(&mut *card_client, param)
 }

@@ -27,7 +27,7 @@ use sequoia_openpgp as openpgp;
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
-use openpgp_card::{CardApp, Error, KeyType};
+use openpgp_card::{CardClient, Error, KeyType};
 
 use crate::card::Open;
 use crate::privkey::SequoiaKey;
@@ -294,13 +294,13 @@ pub fn vka_as_uploadable_key(
 
 /// FIXME: this fn is used in card_functionality, but should be removed
 pub fn sign(
-    ca: &mut CardApp,
+    card_client: &mut (dyn CardClient + Send + Sync),
     cert: &Cert,
     input: &mut dyn io::Read,
 ) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
     {
-        let s = signer::CardSigner::new(ca, cert)?;
+        let s = signer::CardSigner::new(card_client, cert)?;
 
         let message = Message::new(&mut armorer);
         let mut message = Signer::new(message, s).detached().build()?;
@@ -318,7 +318,7 @@ pub fn sign(
 
 /// FIXME: this fn is used in card_functionality, but should be removed
 pub fn decrypt(
-    ca: &mut CardApp,
+    card_client: &mut dyn CardClient,
     cert: &Cert,
     msg: Vec<u8>,
     p: &dyn Policy,
@@ -327,7 +327,7 @@ pub fn decrypt(
     {
         let reader = io::BufReader::new(&msg[..]);
 
-        let d = decryptor::CardDecryptor::new(ca, cert)?;
+        let d = decryptor::CardDecryptor::new(card_client, cert)?;
 
         let db = DecryptorBuilder::from_reader(reader)?;
         let mut decryptor = db.with_policy(p, None, d)?;

@@ -16,7 +16,7 @@ use openpgp_card::card_do::{
     ExtendedCapabilities, ExtendedLengthInfo, Fingerprint, HistoricalBytes,
     KeyGenerationTime, PWStatusBytes, SecuritySupportTemplate, Sex,
 };
-use openpgp_card::{CardApp, Error, KeySet, KeyType, Response};
+use openpgp_card::{CardApp, CardClient, Error, KeySet, KeyType, Response};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
@@ -27,7 +27,7 @@ use openpgp_card::crypto_data::PublicKeyMaterial;
 /// Representation of an opened OpenPGP card in its base state (i.e. no
 /// passwords have been verified, default authorization applies).
 pub struct Open<'a> {
-    card_app: &'a mut CardApp,
+    card_client: &'a mut (dyn CardClient + Send + Sync),
 
     // Cache of "application related data".
     //
@@ -46,27 +46,29 @@ pub struct Open<'a> {
 }
 
 impl<'a> Open<'a> {
-    pub fn new(card_app: &'a mut CardApp) -> Result<Self, Error> {
-        let ard = card_app.application_related_data()?;
+    pub fn new(
+        card_client: &'a mut (dyn CardClient + Send + Sync),
+    ) -> Result<Self, Error> {
+        let ard = CardApp::application_related_data(card_client)?;
 
         Ok(Self {
-            card_app,
+            card_client,
             ard,
             pw1: false,
             pw1_sign: false,
             pw3: false,
         })
     }
-    pub fn feature_pinpad_verify(&self) -> bool {
-        self.card_app.feature_pinpad_verify()
+    pub fn feature_pinpad_verify(&mut self) -> bool {
+        CardApp::feature_pinpad_verify(self.card_client)
     }
 
-    pub fn feature_pinpad_modify(&self) -> bool {
-        self.card_app.feature_pinpad_modify()
+    pub fn feature_pinpad_modify(&mut self) -> bool {
+        CardApp::feature_pinpad_modify(self.card_client)
     }
 
     pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.card_app.verify_pw1(pin)?;
+        let _ = CardApp::verify_pw1(self.card_client, pin)?;
         self.pw1 = true;
         Ok(())
     }
@@ -77,13 +79,13 @@ impl<'a> Open<'a> {
     ) -> Result<(), Error> {
         prompt();
 
-        let _ = self.card_app.verify_pw1_pinpad()?;
+        let _ = CardApp::verify_pw1_pinpad(self.card_client)?;
         self.pw1 = true;
         Ok(())
     }
 
     pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.card_app.verify_pw1_for_signing(pin)?;
+        let _ = CardApp::verify_pw1_for_signing(self.card_client, pin)?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -97,7 +99,7 @@ impl<'a> Open<'a> {
     ) -> Result<(), Error> {
         prompt();
 
-        let _ = self.card_app.verify_pw1_for_signing_pinpad()?;
+        let _ = CardApp::verify_pw1_for_signing_pinpad(self.card_client)?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -106,7 +108,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.card_app.verify_pw3(pin)?;
+        let _ = CardApp::verify_pw3(self.card_client, pin)?;
         self.pw3 = true;
         Ok(())
     }
@@ -117,7 +119,7 @@ impl<'a> Open<'a> {
     ) -> Result<(), Error> {
         prompt();
 
-        let _ = self.card_app.verify_pw3_pinpad()?;
+        let _ = CardApp::verify_pw3_pinpad(self.card_client)?;
         self.pw3 = true;
         Ok(())
     }
@@ -126,14 +128,14 @@ impl<'a> Open<'a> {
     ///
     /// NOTE: on some cards this functionality seems broken.
     pub fn check_user_verified(&mut self) -> Result<Response, Error> {
-        self.card_app.check_pw1()
+        CardApp::check_pw1(self.card_client)
     }
 
     /// Ask the card if the admin password has been successfully verified.
     ///
     /// NOTE: on some cards this functionality seems broken.
     pub fn check_admin_verified(&mut self) -> Result<Response, Error> {
-        self.card_app.check_pw3()
+        CardApp::check_pw3(self.card_client)
     }
 
     pub fn change_user_pin(
@@ -141,7 +143,7 @@ impl<'a> Open<'a> {
         old: &str,
         new: &str,
     ) -> Result<Response, Error> {
-        self.card_app.change_pw1(old, new)
+        CardApp::change_pw1(self.card_client, old, new)
     }
 
     pub fn change_user_pin_pinpad(
@@ -149,7 +151,7 @@ impl<'a> Open<'a> {
         prompt: &dyn Fn(),
     ) -> Result<Response, Error> {
         prompt();
-        self.card_app.change_pw1_pinpad()
+        CardApp::change_pw1_pinpad(self.card_client)
     }
 
     pub fn reset_user_pin(
@@ -157,8 +159,11 @@ impl<'a> Open<'a> {
         rst: &str,
         new: &str,
     ) -> Result<Response, Error> {
-        self.card_app
-            .reset_retry_counter_pw1(new.into(), Some(rst.into()))
+        CardApp::reset_retry_counter_pw1(
+            self.card_client,
+            new.into(),
+            Some(rst.into()),
+        )
     }
 
     pub fn change_admin_pin(
@@ -166,7 +171,7 @@ impl<'a> Open<'a> {
         old: &str,
         new: &str,
     ) -> Result<Response, Error> {
-        self.card_app.change_pw3(old, new)
+        CardApp::change_pw3(self.card_client, old, new)
     }
 
     pub fn change_admin_pin_pinpad(
@@ -174,7 +179,7 @@ impl<'a> Open<'a> {
         prompt: &dyn Fn(),
     ) -> Result<Response, Error> {
         prompt();
-        self.card_app.change_pw3_pinpad()
+        CardApp::change_pw3_pinpad(self.card_client)
     }
 
     /// Get a view of the card authenticated for "User" commands.
@@ -294,21 +299,21 @@ impl<'a> Open<'a> {
     // --- URL (5f50) ---
 
     pub fn url(&mut self) -> Result<String> {
-        self.card_app.url()
+        CardApp::url(self.card_client)
     }
 
     // --- cardholder related data (65) ---
     pub fn cardholder_related_data(
         &mut self,
     ) -> Result<CardholderRelatedData> {
-        self.card_app.cardholder_related_data()
+        CardApp::cardholder_related_data(self.card_client)
     }
 
     // --- security support template (7a) ---
     pub fn security_support_template(
         &mut self,
     ) -> Result<SecuritySupportTemplate> {
-        self.card_app.security_support_template()
+        CardApp::security_support_template(self.card_client)
     }
 
     // DO "Algorithm Information" (0xFA)
@@ -322,12 +327,12 @@ impl<'a> Open<'a> {
             return Ok(None);
         }
 
-        self.card_app.algorithm_information()
+        CardApp::algorithm_information(self.card_client)
     }
 
     /// Firmware Version, YubiKey specific (?)
     pub fn firmware_version(&mut self) -> Result<Vec<u8>> {
-        self.card_app.firmware_version()
+        CardApp::firmware_version(self.card_client)
     }
 
     // ----------
@@ -336,14 +341,14 @@ impl<'a> Open<'a> {
         &mut self,
         key_type: KeyType,
     ) -> Result<PublicKeyMaterial> {
-        self.card_app.public_key(key_type).map_err(|e| e.into())
+        CardApp::public_key(self.card_client, key_type).map_err(|e| e.into())
     }
 
     // ----------
 
     /// Delete all state on this OpenPGP card
     pub fn factory_reset(&mut self) -> Result<()> {
-        self.card_app.factory_reset()
+        CardApp::factory_reset(self.card_client)
     }
 }
 
@@ -355,7 +360,7 @@ pub struct User<'app, 'open> {
 
 impl User<'_, '_> {
     pub fn decryptor(&mut self, cert: &Cert) -> Result<CardDecryptor, Error> {
-        CardDecryptor::new(&mut self.oc.card_app, cert)
+        CardDecryptor::new(self.oc.card_client, cert)
     }
 }
 
@@ -373,14 +378,14 @@ impl Sign<'_, '_> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::new(&mut self.oc.card_app, cert)
+        CardSigner::new(self.oc.card_client, cert)
     }
 
     pub fn signer_from_pubkey(&mut self, pubkey: PublicKey) -> CardSigner {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::with_pubkey(&mut self.oc.card_app, pubkey)
+        CardSigner::with_pubkey(self.oc.card_client, pubkey)
     }
 }
 
@@ -406,7 +411,7 @@ impl Admin<'_, '_> {
             return Err(anyhow!("Invalid char in name").into());
         };
 
-        self.oc.card_app.set_name(name)
+        CardApp::set_name(self.oc.card_client, name)
     }
 
     pub fn set_lang(&mut self, lang: &str) -> Result<Response, Error> {
@@ -414,11 +419,11 @@ impl Admin<'_, '_> {
             return Err(anyhow!("lang too long").into());
         }
 
-        self.oc.card_app.set_lang(lang)
+        CardApp::set_lang(self.oc.card_client, lang)
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
-        self.oc.card_app.set_sex(sex)
+        CardApp::set_sex(self.oc.card_client, sex)
     }
 
     pub fn set_url(&mut self, url: &str) -> Result<Response, Error> {
@@ -436,7 +441,7 @@ impl Admin<'_, '_> {
             // or if it's within the acceptable length:
             // send the url update to the card.
 
-            self.oc.card_app.set_url(url)
+            CardApp::set_url(self.oc.card_client, url)
         } else {
             Err(anyhow!("URL too long").into())
         }
@@ -446,11 +451,11 @@ impl Admin<'_, '_> {
         &mut self,
         pin: &str,
     ) -> Result<Response, Error> {
-        self.oc.card_app.set_resetting_code(pin.into())
+        CardApp::set_resetting_code(self.oc.card_client, pin.into())
     }
 
     pub fn reset_user_pin(&mut self, new: &str) -> Result<Response, Error> {
-        self.oc.card_app.reset_retry_counter_pw1(new.into(), None)
+        CardApp::reset_retry_counter_pw1(self.oc.card_client, new.into(), None)
     }
 
     /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.
@@ -463,7 +468,7 @@ impl Admin<'_, '_> {
         password: Option<String>,
     ) -> Result<(), Error> {
         let key = vka_as_uploadable_key(vka, password);
-        self.oc.card_app.key_import(key, key_type)
+        CardApp::key_import(self.oc.card_client, key, key_type)
     }
 
     pub fn generate_key_simple(
@@ -472,12 +477,14 @@ impl Admin<'_, '_> {
         algo: Option<AlgoSimple>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         match algo {
-            Some(algo) => self.oc.card_app.generate_key_simple(
+            Some(algo) => CardApp::generate_key_simple(
+                self.oc.card_client,
                 public_to_fingerprint,
                 key_type,
                 algo,
             ),
-            None => self.oc.card_app.generate_key(
+            None => CardApp::generate_key(
+                self.oc.card_client,
                 public_to_fingerprint,
                 key_type,
                 None,

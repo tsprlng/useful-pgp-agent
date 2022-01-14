@@ -8,7 +8,7 @@ use anyhow::Result;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
-use openpgp_card::CardApp;
+use openpgp_card::CardClient;
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_scdc::ScdClient;
 
@@ -38,7 +38,9 @@ pub struct TestCardApp {
 }
 
 impl TestCardApp {
-    pub(crate) fn get_card_app(&self) -> Result<CardApp> {
+    pub(crate) fn get_card_client(
+        &self,
+    ) -> Result<Box<dyn CardClient + Send + Sync>> {
         self.tc.open()
     }
 
@@ -89,7 +91,7 @@ pub enum TestCard {
 }
 
 impl TestCard {
-    pub fn open(&self) -> Result<CardApp> {
+    pub fn open(&self) -> Result<Box<dyn CardClient + Send + Sync>> {
         match self {
             Self::Pcsc(ident) => {
                 // Attempt to shutdown SCD, if it is running.
@@ -97,11 +99,11 @@ impl TestCard {
                 let res = ScdClient::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
-                Ok(PcscClient::open_by_ident(ident)?)
+                Ok(Box::new(PcscClient::open_by_ident(ident)?))
             }
             Self::Scdc(serial) => {
                 // println!("open scdc card {}", serial);
-                Ok(ScdClient::open_by_serial(None, serial)?)
+                Ok(Box::new(ScdClient::open_by_serial(None, serial)?))
             }
         }
     }

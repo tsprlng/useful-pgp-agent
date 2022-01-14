@@ -17,14 +17,14 @@ use sequoia_openpgp::serialize::stream::{
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::KeyGenerationTime;
-use openpgp_card::{CardApp, KeyType};
+use openpgp_card::{CardApp, CardClient, KeyType};
 use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::util::vka_as_uploadable_key;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();
 
 pub(crate) fn upload_subkeys(
-    ca: &mut CardApp,
+    card_client: &mut dyn CardClient,
     cert: &Cert,
     policy: &dyn Policy,
 ) -> Result<Vec<(String, KeyGenerationTime)>> {
@@ -49,7 +49,7 @@ pub(crate) fn upload_subkeys(
 
             // upload key
             let cuk = vka_as_uploadable_key(vka, None);
-            ca.key_import(cuk, *kt)?;
+            CardApp::key_import(card_client, cuk, *kt)?;
         }
     }
 

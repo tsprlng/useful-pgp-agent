@@ -15,14 +15,14 @@ use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Cryptogram;
-use openpgp_card::{CardApp, Error};
+use openpgp_card::{CardApp, CardClient, Error};
 
 use crate::sq_util;
 use crate::PublicKey;
 
 pub struct CardDecryptor<'a> {
     /// The OpenPGP card (authenticated to allow decryption operations)
-    ca: &'a mut CardApp,
+    card_client: &'a mut dyn CardClient,
 
     /// The matching public key for the card's decryption key
     public: PublicKey,
@@ -34,11 +34,11 @@ impl<'a> CardDecryptor<'a> {
     /// An Error is returned if no match between the card's decryption
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        ca: &'a mut CardApp,
+        card_client: &'a mut dyn CardClient,
         cert: &Cert,
     ) -> Result<CardDecryptor<'a>, Error> {
         // Get the fingerprint for the decryption key from the card.
-        let ard = ca.application_related_data()?;
+        let ard = CardApp::application_related_data(card_client)?;
         let fps = ard.fingerprints()?;
         let fp = fps.decryption();
 
@@ -48,7 +48,10 @@ impl<'a> CardDecryptor<'a> {
 
             if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
                 let public = eka.key().clone();
-                Ok(Self { ca, public })
+                Ok(Self {
+                    card_client,
+                    public,
+                })
             } else {
                 Err(Error::InternalError(anyhow!(
                     "Failed to find (sub)key {} in cert",
@@ -82,7 +85,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = Cryptogram::RSA(ct.value());
-                let dec = self.ca.decipher(dm)?;
+                let dec = CardApp::decipher(self.card_client, dm)?;
 
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
                 Ok(sk)
@@ -106,7 +109,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 };
 
                 // Decryption operation on the card
-                let mut dec = self.ca.decipher(dm)?;
+                let mut dec = CardApp::decipher(self.card_client, dm)?;
 
                 // Specifically handle return value format like Gnuk's
                 // (Gnuk returns a leading '0x04' byte and

@@ -62,11 +62,13 @@ impl ScdClient {
     pub fn open_by_serial(
         agent: Option<Agent>,
         serial: &str,
-    ) -> Result<CardApp, Error> {
+    ) -> Result<Self, Error> {
         let mut card = ScdClient::new(agent, true)?;
         card.select_card(serial)?;
 
-        Ok(CardApp::initialize(Box::new(card))?)
+        CardApp::initialize(&mut card)?;
+
+        Ok(card)
     }
 
     /// Open a CardApp that uses an scdaemon instance as its backend.
@@ -75,10 +77,12 @@ impl ScdClient {
     ///
     /// (NOTE: implicitly picking an unspecified card might be a bad idea.
     /// You might want to avoid using this function.)
-    pub fn open_yolo(agent: Option<Agent>) -> Result<CardApp, Error> {
-        let card = ScdClient::new(agent, true)?;
+    pub fn open_yolo(agent: Option<Agent>) -> Result<Self, Error> {
+        let mut card = ScdClient::new(agent, true)?;
 
-        Ok(CardApp::initialize(Box::new(card))?)
+        CardApp::initialize(&mut card)?;
+
+        Ok(card)
     }
 
     /// Helper fn that shuts down scdaemon via GnuPG Agent.

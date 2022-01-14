@@ -236,8 +236,8 @@ impl PcscClient {
         }
     }
 
-    fn cards_filter(ident: Option<&str>) -> Result<Vec<CardApp>, Error> {
-        let mut cas: Vec<CardApp> = vec![];
+    fn cards_filter(ident: Option<&str>) -> Result<Vec<PcscClient>, Error> {
+        let mut cas: Vec<PcscClient> = vec![];
 
         for mut card in
             Self::raw_pcsc_cards().map_err(|sce| Error::Smartcard(sce))?
@@ -316,14 +316,14 @@ impl PcscClient {
     ///
     /// Each card has the OpenPGP application selected, CardCaps have been
     /// initialized.
-    pub fn cards() -> Result<Vec<CardApp>, Error> {
+    pub fn cards() -> Result<Vec<PcscClient>, Error> {
         Self::cards_filter(None)
     }
 
     /// Returns the OpenPGP card that matches `ident`, if it is available.
     /// A fully initialized CardApp is returned: the OpenPGP application has
     /// been selected, CardCaps have been set.
-    pub fn open_by_ident(ident: &str) -> Result<CardApp, Error> {
+    pub fn open_by_ident(ident: &str) -> Result<PcscClient, Error> {
         log::debug!("open_by_ident for {:?}", ident);
 
         let mut cards = Self::cards_filter(Some(ident))?;
@@ -349,7 +349,7 @@ impl PcscClient {
 
     /// Make an initialized CardApp from a PcscClient.
     /// Obtain and store feature lists from reader (pinpad functionality).
-    fn into_card_app(mut self) -> Result<CardApp> {
+    fn into_card_app(mut self) -> Result<Self> {
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = self.features() {
             for tlv in feat {
@@ -359,7 +359,9 @@ impl PcscClient {
         }
 
         // Get initalized CardApp
-        CardApp::initialize(Box::new(self))
+        CardApp::initialize(&mut self)?;
+
+        Ok(self)
     }
 
     /// Get the minimum pin length for pin_id.
