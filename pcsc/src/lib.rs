@@ -7,9 +7,7 @@
 
 use anyhow::{anyhow, Result};
 use iso7816_tlv::simple::Tlv;
-use pcsc::{
-    Card, Context, Disposition, Protocols, Scope, ShareMode, Transaction,
-};
+use pcsc::{Card, Context, Protocols, Scope, ShareMode, Transaction};
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -22,10 +20,7 @@ const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 #[macro_export]
 macro_rules! start_tx {
     ($card:expr) => {{
-        use pcsc::{
-            Card, Context, Disposition, Protocols, Scope, ShareMode,
-            Transaction,
-        };
+        use pcsc::{Disposition, Protocols, ShareMode};
 
         let mut was_reset = false;
 
@@ -41,7 +36,7 @@ macro_rules! start_tx {
                             "start_tx: card was reset, select() openpgp"
                         );
 
-                        let mut txc = PcscTxClient::new(&mut tx);
+                        let mut txc = PcscTxClient::new(&mut tx, None);
                         PcscTxClient::select(&mut txc)?;
                     }
 
@@ -94,11 +89,15 @@ pub struct PcscClient {
 
 pub struct PcscTxClient<'a, 'b> {
     tx: &'a mut Transaction<'b>,
+    card_caps: Option<CardCaps>,
 }
 
 impl<'a, 'b> PcscTxClient<'a, 'b> {
-    pub fn new(tx: &'a mut Transaction<'b>) -> Self {
-        PcscTxClient { tx }
+    pub fn new(
+        tx: &'a mut Transaction<'b>,
+        card_caps: Option<CardCaps>,
+    ) -> Self {
+        PcscTxClient { tx, card_caps }
     }
 }
 
@@ -156,7 +155,7 @@ impl CardClient for PcscTxClient<'_, '_> {
     }
 
     fn card_caps(&self) -> Option<&CardCaps> {
-        None
+        self.card_caps.as_ref()
     }
 
     fn feature_pinpad_verify(&self) -> bool {
@@ -263,7 +262,7 @@ impl PcscClient {
                 log::debug!("1");
                 let mut tx: Transaction = start_tx!(card)?;
 
-                let mut txc = PcscTxClient::new(&mut tx);
+                let mut txc = PcscTxClient::new(&mut tx, None);
                 log::debug!("3");
                 {
                     if let Err(e) = PcscTxClient::select(&mut txc) {
@@ -416,6 +415,10 @@ impl PcscClient {
 
         Ok(Tlv::parse_all(res))
     }
+
+    pub fn card_caps(&self) -> Option<CardCaps> {
+        self.card_caps
+    }
 }
 
 impl CardClient for PcscClient {
@@ -430,7 +433,7 @@ impl CardClient for PcscClient {
         let mut tx: Transaction = start_tx!(self.card)?;
 
         log::debug!("PcscClient transmit 2");
-        let mut txc = PcscTxClient::new(&mut tx);
+        let mut txc = PcscTxClient::new(&mut tx, self.card_caps);
         log::debug!("PcscClient transmit 3 (got TxClient!)");
 
         let res = txc.transmit(cmd, buf_size);

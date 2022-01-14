@@ -8,7 +8,6 @@ use anyhow::Result;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
-use openpgp_card::CardClient;
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_scdc::ScdClient;
 
