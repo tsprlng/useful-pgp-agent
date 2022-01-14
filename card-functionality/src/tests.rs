@@ -16,6 +16,7 @@ use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{CardApp, CardClient, Error, KeyType, StatusBytes};
+use openpgp_card_pcsc::{PcscClient, PcscTxClient};
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
@@ -698,8 +699,19 @@ pub fn run_test(
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut card_client = card.get_card_client()?;
-    let ard = CardApp::application_related_data(&mut *card_client)?;
+
+    use anyhow::anyhow;
+    use openpgp_card::SmartcardError;
+    use openpgp_card_pcsc::PcscTxClient;
+    use pcsc::Transaction;
+
+    let mut tx: Transaction = openpgp_card_pcsc::start_tx!(card_client.card())
+        .map_err(|e| anyhow!(e))?;
+
+    let mut txc = PcscTxClient::new(&mut tx);
+
+    let ard = CardApp::application_related_data(&mut txc)?;
     let _app_id = ard.application_id()?;
 
-    t(&mut *card_client, param)
+    t(&mut txc, param)
 }

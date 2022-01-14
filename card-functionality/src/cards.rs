@@ -38,9 +38,7 @@ pub struct TestCardApp {
 }
 
 impl TestCardApp {
-    pub(crate) fn get_card_client(
-        &self,
-    ) -> Result<Box<dyn CardClient + Send + Sync>> {
+    pub(crate) fn get_card_client(&self) -> Result<Box<PcscClient>> {
         self.tc.open()
     }
 
@@ -91,7 +89,7 @@ pub enum TestCard {
 }
 
 impl TestCard {
-    pub fn open(&self) -> Result<Box<dyn CardClient + Send + Sync>> {
+    pub fn open(&self) -> Result<Box<PcscClient>> {
         match self {
             Self::Pcsc(ident) => {
                 // Attempt to shutdown SCD, if it is running.
@@ -102,8 +100,9 @@ impl TestCard {
                 Ok(Box::new(PcscClient::open_by_ident(ident)?))
             }
             Self::Scdc(serial) => {
-                // println!("open scdc card {}", serial);
-                Ok(Box::new(ScdClient::open_by_serial(None, serial)?))
+                unimplemented!();
+                println!("open scdc card {}", serial);
+                // Ok(Box::new(ScdClient::open_by_serial(None, serial)?))
             }
         }
     }

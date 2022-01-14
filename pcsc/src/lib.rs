@@ -19,8 +19,14 @@ use openpgp_card::{CardApp, CardCaps, CardClient, Error, SmartcardError};
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
+#[macro_export]
 macro_rules! start_tx {
     ($card:expr) => {{
+        use pcsc::{
+            Card, Context, Disposition, Protocols, Scope, ShareMode,
+            Transaction,
+        };
+
         let mut was_reset = false;
 
         loop {
@@ -35,11 +41,11 @@ macro_rules! start_tx {
                             "start_tx: card was reset, select() openpgp"
                         );
 
-                        let mut txc = TxClient::new(&mut tx);
-                        TxClient::select(&mut txc)?;
+                        let mut txc = PcscTxClient::new(&mut tx);
+                        PcscTxClient::select(&mut txc)?;
                     }
 
-                    break tx;
+                    break Ok(tx);
                 }
                 Err(pcsc::Error::ResetCard) => {
                     // Card was reset, need to reconnect
@@ -69,7 +75,7 @@ macro_rules! start_tx {
                 }
                 Err(e) => {
                     log::debug!("start_tx: error {:?}", e);
-                    return Err(Error::Smartcard(SmartcardError::Error(
+                    break Err(Error::Smartcard(SmartcardError::Error(
                         format!("Error: {:?}", e),
                     )));
                 }
@@ -86,19 +92,19 @@ pub struct PcscClient {
     reader_caps: HashMap<u8, Tlv>,
 }
 
-struct TxClient<'a, 'b> {
+pub struct PcscTxClient<'a, 'b> {
     tx: &'a mut Transaction<'b>,
 }
 
-impl<'a, 'b> TxClient<'a, 'b> {
+impl<'a, 'b> PcscTxClient<'a, 'b> {
     pub fn new(tx: &'a mut Transaction<'b>) -> Self {
-        TxClient { tx }
+        PcscTxClient { tx }
     }
 }
 
-impl<'a, 'b> TxClient<'a, 'b> {
+impl<'a, 'b> PcscTxClient<'a, 'b> {
     /// Try to select the OpenPGP application on a card
-    fn select(card_client: &'a mut TxClient) -> Result<(), Error> {
+    pub fn select(card_client: &'a mut PcscTxClient) -> Result<(), Error> {
         if <dyn CardClient>::select(card_client).is_ok() {
             Ok(())
         } else {
@@ -108,7 +114,7 @@ impl<'a, 'b> TxClient<'a, 'b> {
 
     /// Get application_related_data from card
     fn application_related_data(
-        card_client: &mut TxClient,
+        card_client: &mut PcscTxClient,
     ) -> Result<ApplicationRelatedData, Error> {
         <dyn CardClient>::application_related_data(card_client).map_err(|e| {
             Error::Smartcard(SmartcardError::Error(format!(
@@ -119,7 +125,7 @@ impl<'a, 'b> TxClient<'a, 'b> {
     }
 }
 
-impl CardClient for TxClient<'_, '_> {
+impl CardClient for PcscTxClient<'_, '_> {
     fn transmit(
         &mut self,
         cmd: &[u8],
@@ -171,6 +177,10 @@ impl CardClient for TxClient<'_, '_> {
 }
 
 impl PcscClient {
+    pub fn card(&mut self) -> &mut Card {
+        &mut self.card
+    }
+
     /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
     /// application)
     fn raw_pcsc_cards() -> Result<Vec<Card>, SmartcardError> {
@@ -251,12 +261,12 @@ impl PcscClient {
             {
                 // start transaction
                 log::debug!("1");
-                let mut tx: Transaction = start_tx!(card);
+                let mut tx: Transaction = start_tx!(card)?;
 
-                let mut txc = TxClient::new(&mut tx);
+                let mut txc = PcscTxClient::new(&mut tx);
                 log::debug!("3");
                 {
-                    if let Err(e) = TxClient::select(&mut txc) {
+                    if let Err(e) = PcscTxClient::select(&mut txc) {
                         log::debug!("4a");
                         log::debug!(
                             "cards_filter: error during select: {:?}",
@@ -267,8 +277,9 @@ impl PcscClient {
                         // successfully opened the OpenPGP application
 
                         if let Some(ident) = ident {
-                            let ard =
-                                TxClient::application_related_data(&mut txc)?;
+                            let ard = PcscTxClient::application_related_data(
+                                &mut txc,
+                            )?;
                             let aid = ard.application_id()?;
 
                             if aid.ident() == ident.to_ascii_uppercase() {
@@ -414,10 +425,10 @@ impl CardClient for PcscClient {
         let stat = self.card.status2_owned();
         log::debug!("PcscClient transmit - status2: {:x?}", stat);
 
-        let mut tx: Transaction = start_tx!(self.card);
+        let mut tx: Transaction = start_tx!(self.card)?;
 
         log::debug!("PcscClient transmit 2");
-        let mut txc = TxClient::new(&mut tx);
+        let mut txc = PcscTxClient::new(&mut tx);
         log::debug!("PcscClient transmit 3 (got TxClient!)");
 
         let res = txc.transmit(cmd, buf_size);
