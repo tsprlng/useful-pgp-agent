@@ -292,28 +292,35 @@ impl PcscClient {
                         // -- /debug: status --
 
                         if let Some(ident) = ident {
-                            let ard = PcscTxClient::application_related_data(
-                                &mut txc,
-                            )?;
-                            let aid = ard.application_id()?;
+                            if let Ok(ard) =
+                                PcscTxClient::application_related_data(
+                                    &mut txc,
+                                )
+                            {
+                                let aid = ard.application_id()?;
 
-                            if aid.ident() == ident.to_ascii_uppercase() {
-                                // FIXME: handle multiple cards with matching ident
-                                log::debug!(
+                                if aid.ident() == ident.to_ascii_uppercase() {
+                                    // FIXME: handle multiple cards with matching ident
+                                    log::debug!(
                                     "open_by_ident: Opened and selected {:?}",
                                     ident
                                 );
 
-                                // we want to return this one card
-                                store_card = true;
-                            } else {
-                                log::debug!(
+                                    // we want to return this one card
+                                    store_card = true;
+                                } else {
+                                    log::debug!(
                                     "open_by_ident: Found, but won't use {:?}",
                                     aid.ident()
                                 );
 
-                                // FIXME: end transaction
-                                // txc.end();
+                                    // FIXME: end transaction
+                                    // txc.end();
+                                }
+                            } else {
+                                // couldn't read ARD for this card ...
+                                // ignore and move on
+                                continue;
                             }
                         } else {
                             // we want to return all cards
