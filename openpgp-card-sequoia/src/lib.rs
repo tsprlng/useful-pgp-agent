@@ -16,9 +16,8 @@
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! for card in PcscClient::cards()? {
-//!     let mut ca = card.into();
-//!     let open = Open::new(&mut ca)?;
+//! for mut cc in PcscClient::cards()? {
+//!     let open = Open::new(&mut cc)?;
 //!     println!("Found OpenPGP card with ident '{}'",
 //!              open.application_identifier()?.ident());
 //! }
@@ -33,8 +32,8 @@
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let mut ca = PcscClient::open_by_ident("abcd:12345678")?.into();
-//! let mut open = Open::new(&mut ca)?;
+//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut open = Open::new(&mut cc)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -55,8 +54,8 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut ca = PcscClient::open_by_ident("abcd:12345678")?.into();
-//! let mut open = Open::new(&mut ca)?;
+//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut open = Open::new(&mut cc)?;
 //!
 //! // Get authorization for user access to the card with password
 //! open.verify_user("123456")?;
@@ -96,8 +95,8 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut ca = PcscClient::open_by_ident("abcd:12345678")?.into();
-//! let mut open = Open::new(&mut ca)?;
+//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut open = Open::new(&mut cc)?;
 //!
 //! // Get authorization for signing access to the card with password
 //! open.verify_user_for_signing("123456")?;
@@ -126,8 +125,8 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
-//! let mut ca = PcscClient::open_by_ident("abcd:12345678")?.into();
-//! let mut open = Open::new(&mut ca)?;
+//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut open = Open::new(&mut cc)?;
 //!
 //! // Get authorization for admin access to the card with password
 //! open.verify_admin("12345678")?;

@@ -4,7 +4,7 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
-use openpgp_card::{Error, StatusBytes};
+use openpgp_card::{CardClient, Error, StatusBytes};
 use openpgp_card_pcsc::PcscClient;
 use openpgp_card_sequoia::card::Open;
 

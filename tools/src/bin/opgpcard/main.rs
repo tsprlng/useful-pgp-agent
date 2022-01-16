@@ -11,12 +11,13 @@ use sequoia_openpgp::serialize::stream::{Armorer, Message, Signer};
 use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
+use openpgp_card::algorithm::AlgoSimple;
+use openpgp_card::{card_do::Sex, CardApp, KeyType};
+
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
 use openpgp_card_sequoia::{sq_util, PublicKey};
 
-use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::{card_do::Sex, KeyType};
 use std::io::Write;
 
 mod cli;
@@ -150,7 +151,7 @@ fn set_identity(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut card = util::open_card(ident)?;
 
-    card.set_identity(id)?;
+    CardApp::set_identity(&mut card, id)?;
 
     Ok(())
 }
