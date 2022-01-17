@@ -10,7 +10,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
-use crate::card_app::CardApp;
 use crate::card_do::{ApplicationRelatedData, Fingerprint, KeyGenerationTime};
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial,
@@ -43,16 +42,12 @@ pub(crate) fn gen_key_with_metadata(
     // Set algo on card if it's Some
     if let Some(target_algo) = algo {
         // FIXME: caching
-        let ard = CardApp::application_related_data(card_client)?; // no caching, here!
+        let ard = card_client.application_related_data()?; // no caching, here!
         let ecap = ard.extended_capabilities()?;
 
         // Only set algo if card supports setting of algo attr
         if ecap.algo_attrs_changeable() {
-            CardApp::set_algorithm_attributes(
-                card_client,
-                key_type,
-                target_algo,
-            )?;
+            card_client.set_algorithm_attributes(key_type, target_algo)?;
         } else {
             // Check if the current algo on the card is the one we want, if
             // not we return an error.
@@ -69,7 +64,7 @@ pub(crate) fn gen_key_with_metadata(
     }
 
     // get current (possibly updated) state of algo
-    let ard = CardApp::application_related_data(card_client)?; // no caching, here!
+    let ard = card_client.application_related_data()?; // no caching, here!
     let cur_algo = ard.algorithm_attributes(key_type)?;
 
     // generate key
@@ -91,11 +86,11 @@ pub(crate) fn gen_key_with_metadata(
 
     let ts = ts.into();
 
-    CardApp::set_creation_time(card_client, ts, key_type)?;
+    card_client.set_creation_time(ts, key_type)?;
 
     // calculate/store fingerprint
     let fp = fp_from_pub(&pubkey, ts, key_type)?;
-    CardApp::set_fingerprint(card_client, fp, key_type)?;
+    card_client.set_fingerprint(fp, key_type)?;
 
     Ok((pubkey, ts))
 }
@@ -158,7 +153,7 @@ pub(crate) fn public_key(
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error> {
     // get current algo
-    let ard = CardApp::application_related_data(card_client)?; // FIXME: caching
+    let ard = card_client.application_related_data()?; // FIXME: caching
     let algo = ard.algorithm_attributes(key_type)?;
 
     // get public key
@@ -186,7 +181,7 @@ pub(crate) fn key_import(
     algo_info: Option<AlgoInfo>,
 ) -> Result<(), Error> {
     // FIXME: caching?
-    let ard = CardApp::application_related_data(card_client)?;
+    let ard = card_client.application_related_data()?;
 
     let (algo, key_cmd) = match key.private_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
@@ -222,12 +217,12 @@ pub(crate) fn key_import(
 
     // Only set algo attrs if "Extended Capabilities" lists the feature
     if ard.extended_capabilities()?.algo_attrs_changeable() {
-        CardApp::set_algorithm_attributes(card_client, key_type, &algo)?;
+        card_client.set_algorithm_attributes(key_type, &algo)?;
     }
 
     apdu::send_command(card_client, key_cmd, false)?.check_ok()?;
-    CardApp::set_fingerprint(card_client, fp, key_type)?;
-    CardApp::set_creation_time(card_client, key.timestamp(), key_type)?;
+    card_client.set_fingerprint(fp, key_type)?;
+    card_client.set_creation_time(key.timestamp(), key_type)?;
 
     Ok(())
 }

@@ -34,7 +34,7 @@ impl<'a> CardSigner<'a> {
         cert: &openpgp::Cert,
     ) -> Result<CardSigner<'a>, Error> {
         // Get the fingerprint for the signing key from the card.
-        let ard = CardApp::application_related_data(card_client)?;
+        let ard = card_client.application_related_data()?;
         let fps = ard.fingerprints()?;
         let fp = fps.signature();
 
@@ -117,7 +117,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
                     }
                 };
 
-                let sig = CardApp::signature_for_hash(self.card_client, hash)?;
+                let sig = self.card_client.signature_for_hash(hash)?;
 
                 let mpi = mpi::MPI::new(&sig[..]);
                 Ok(mpi::Signature::RSA { s: mpi })
@@ -125,7 +125,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
             (PublicKeyAlgorithm::EdDSA, mpi::PublicKey::EdDSA { .. }) => {
                 let hash = Hash::EdDSA(digest);
 
-                let sig = CardApp::signature_for_hash(self.card_client, hash)?;
+                let sig = self.card_client.signature_for_hash(hash)?;
 
                 let r = mpi::MPI::new(&sig[..32]);
                 let s = mpi::MPI::new(&sig[32..]);
@@ -143,7 +143,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
                     _ => Hash::ECDSA(digest),
                 };
 
-                let sig = CardApp::signature_for_hash(self.card_client, hash)?;
+                let sig = self.card_client.signature_for_hash(hash)?;
 
                 let len_2 = sig.len() / 2;
                 let r = mpi::MPI::new(&sig[..len_2]);

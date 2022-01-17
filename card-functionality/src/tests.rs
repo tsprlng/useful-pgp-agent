@@ -66,7 +66,7 @@ pub fn test_decrypt(
     let cert = Cert::from_str(param[0])?;
     let msg = param[1].to_string();
 
-    CardApp::verify_pw1(card_client, "123456")?;
+    card_client.verify_pw1("123456")?;
 
     let p = StandardPolicy::new();
 
@@ -90,7 +90,7 @@ pub fn test_sign(
 ) -> Result<TestOutput, TestError> {
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
 
-    CardApp::verify_pw1_for_signing(card_client, "123456")?;
+    card_client.verify_pw1_for_signing("123456")?;
 
     let cert = Cert::from_str(param[0])?;
 
@@ -111,7 +111,7 @@ fn check_key_upload_metadata(
     card_client: &mut (dyn CardClient + Send + Sync),
     meta: &[(String, KeyGenerationTime)],
 ) -> Result<()> {
-    let ard = CardApp::application_related_data(card_client)?;
+    let ard = card_client.application_related_data()?;
 
     // check fingerprints
     let card_fp = ard.fingerprints()?;
@@ -155,7 +155,7 @@ pub fn test_print_caps(
     card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = CardApp::application_related_data(card_client)?;
+    let ard = card_client.application_related_data()?;
 
     let aid = ard.application_id()?;
     println!("aid: {:#x?}", aid);
@@ -176,14 +176,14 @@ pub fn test_print_algo_info(
     card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = CardApp::application_related_data(card_client)?;
+    let ard = card_client.application_related_data()?;
 
     let dec = ard.algorithm_attributes(KeyType::Decryption)?;
     println!("Current algorithm for the decrypt slot: {}", dec);
 
     println!();
 
-    let algo = CardApp::algorithm_information(card_client);
+    let algo = card_client.algorithm_information();
     if let Ok(Some(algo)) = algo {
         println!("Card algorithm list:\n{}", algo);
     }
@@ -201,7 +201,7 @@ pub fn test_upload_keys(
         "test_upload_keys needs a filename for 'cert'"
     );
 
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
     let cert = Cert::from_file(param[0])?;
 
@@ -223,7 +223,7 @@ pub fn test_keygen(
     card_client: &mut (dyn CardClient + Send + Sync),
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
     // Generate all three subkeys on card
     let algo = param[0];
@@ -231,8 +231,7 @@ pub fn test_keygen(
     let alg = AlgoSimple::try_from(algo)?;
 
     println!(" Generate subkey for Signing");
-    let (pkm, ts) = CardApp::generate_key_simple(
-        card_client,
+    let (pkm, ts) = card_client.generate_key_simple(
         public_to_fingerprint,
         KeyType::Signing,
         alg,
@@ -240,8 +239,7 @@ pub fn test_keygen(
     let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
 
     println!(" Generate subkey for Decryption");
-    let (pkm, ts) = CardApp::generate_key_simple(
-        card_client,
+    let (pkm, ts) = card_client.generate_key_simple(
         public_to_fingerprint,
         KeyType::Decryption,
         alg,
@@ -249,8 +247,7 @@ pub fn test_keygen(
     let key_dec = public_key_material_to_key(&pkm, KeyType::Decryption, ts)?;
 
     println!(" Generate subkey for Authentication");
-    let (pkm, ts) = CardApp::generate_key_simple(
-        card_client,
+    let (pkm, ts) = card_client.generate_key_simple(
         public_to_fingerprint,
         KeyType::Authentication,
         alg,
@@ -280,12 +277,12 @@ pub fn test_get_pub(
     card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let ard = CardApp::application_related_data(card_client)?;
+    let ard = card_client.application_related_data()?;
     let key_gen = ard.key_generation_times()?;
 
     // --
 
-    let sig = CardApp::public_key(card_client, KeyType::Signing)?;
+    let sig = card_client.public_key(KeyType::Signing)?;
     let ts = key_gen.signature().unwrap().get().into();
     let key = public_key_material_to_key(&sig, KeyType::Signing, ts)?;
 
@@ -293,7 +290,7 @@ pub fn test_get_pub(
 
     // --
 
-    let dec = CardApp::public_key(card_client, KeyType::Decryption)?;
+    let dec = card_client.public_key(KeyType::Decryption)?;
     let ts = key_gen.decryption().unwrap().get().into();
     let key = public_key_material_to_key(&dec, KeyType::Decryption, ts)?;
 
@@ -301,7 +298,7 @@ pub fn test_get_pub(
 
     // --
 
-    let auth = CardApp::public_key(card_client, KeyType::Authentication)?;
+    let auth = card_client.public_key(KeyType::Authentication)?;
     let ts = key_gen.authentication().unwrap().get().into();
     let key = public_key_material_to_key(&auth, KeyType::Authentication, ts)?;
 
@@ -319,7 +316,7 @@ pub fn test_reset(
     card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let _res = CardApp::factory_reset(card_client)?;
+    let _res = card_client.factory_reset()?;
     Ok(vec![])
 }
 
@@ -332,22 +329,22 @@ pub fn test_set_user_data(
     card_client: &mut (dyn CardClient + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
     // name
-    CardApp::set_name(card_client, "Bar<<Foo")?;
+    card_client.set_name("Bar<<Foo")?;
 
     // lang
-    CardApp::set_lang(card_client, "deen")?;
+    card_client.set_lang("deen")?;
 
     // sex
-    CardApp::set_sex(card_client, Sex::Female)?;
+    card_client.set_sex(Sex::Female)?;
 
     // url
-    CardApp::set_url(card_client, "https://duckduckgo.com/")?;
+    card_client.set_url("https://duckduckgo.com/")?;
 
     // read all the fields back again, expect equal data
-    let ch = CardApp::cardholder_related_data(card_client)?;
+    let ch = card_client.cardholder_related_data()?;
 
     assert_eq!(ch.name(), Some("Bar<<Foo"));
     assert_eq!(
@@ -356,7 +353,7 @@ pub fn test_set_user_data(
     );
     assert_eq!(ch.sex(), Some(Sex::Female));
 
-    let url = CardApp::url(card_client)?;
+    let url = card_client.url()?;
     assert_eq!(url, "https://duckduckgo.com/".to_string());
 
     Ok(vec![])
@@ -370,42 +367,26 @@ pub fn test_private_data(
 
     println!();
 
-    let d = CardApp::private_use_do(card_client, 1)?;
+    let d = card_client.private_use_do(1)?;
     println!("data 1 {:?}", d);
 
-    CardApp::verify_pw1(card_client, "123456")?;
+    card_client.verify_pw1("123456")?;
 
-    CardApp::set_private_use_do(
-        card_client,
-        1,
-        "Foo bar1!".as_bytes().to_vec(),
-    )?;
-    CardApp::set_private_use_do(
-        card_client,
-        3,
-        "Foo bar3!".as_bytes().to_vec(),
-    )?;
+    card_client.set_private_use_do(1, "Foo bar1!".as_bytes().to_vec())?;
+    card_client.set_private_use_do(3, "Foo bar3!".as_bytes().to_vec())?;
 
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
-    CardApp::set_private_use_do(
-        card_client,
-        2,
-        "Foo bar2!".as_bytes().to_vec(),
-    )?;
-    CardApp::set_private_use_do(
-        card_client,
-        4,
-        "Foo bar4!".as_bytes().to_vec(),
-    )?;
+    card_client.set_private_use_do(2, "Foo bar2!".as_bytes().to_vec())?;
+    card_client.set_private_use_do(4, "Foo bar4!".as_bytes().to_vec())?;
 
-    let d = CardApp::private_use_do(card_client, 1)?;
+    let d = card_client.private_use_do(1)?;
     println!("data 1 {:?}", d);
-    let d = CardApp::private_use_do(card_client, 2)?;
+    let d = card_client.private_use_do(2)?;
     println!("data 2 {:?}", d);
-    let d = CardApp::private_use_do(card_client, 3)?;
+    let d = card_client.private_use_do(3)?;
     println!("data 3 {:?}", d);
-    let d = CardApp::private_use_do(card_client, 4)?;
+    let d = card_client.private_use_do(4)?;
     println!("data 4 {:?}", d);
 
     Ok(out)
@@ -419,7 +400,7 @@ pub fn test_cardholder_cert(
 
     println!();
 
-    match CardApp::cardholder_certificate(card_client) {
+    match card_client.cardholder_certificate() {
         Ok(res) => {
             out.push(TestResult::Text(format!("got cert {:x?}", res.data())))
         }
@@ -432,11 +413,11 @@ pub fn test_cardholder_cert(
         }
     };
 
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
     let data = "Foo bar baz!".as_bytes();
 
-    match CardApp::set_cardholder_certificate(card_client, data.to_vec()) {
+    match card_client.set_cardholder_certificate(data.to_vec()) {
         Ok(_resp) => out.push(TestResult::Text("set cert ok".to_string())),
         Err(e) => {
             out.push(TestResult::Text(format!(
@@ -447,7 +428,7 @@ pub fn test_cardholder_cert(
         }
     }
 
-    let res = CardApp::cardholder_certificate(card_client)?;
+    let res = card_client.cardholder_certificate()?;
     out.push(TestResult::Text("get cert ok".to_string()));
 
     if res.data() != data {
@@ -460,7 +441,7 @@ pub fn test_cardholder_cert(
 
     // try using slot 2
 
-    match CardApp::select_data(card_client, 2, &[0x7F, 0x21]) {
+    match card_client.select_data(2, &[0x7F, 0x21]) {
         Ok(_res) => out.push(TestResult::Text("select_data ok".to_string())),
         Err(e) => {
             out.push(TestResult::Text(format!("select_data: {:?}", e)));
@@ -477,19 +458,19 @@ pub fn test_pw_status(
 ) -> Result<TestOutput, TestError> {
     let out = vec![];
 
-    let ard = CardApp::application_related_data(card_client)?;
+    let ard = card_client.application_related_data()?;
     let mut pws = ard.pw_status_bytes()?;
 
     println!("pws {:?}", pws);
 
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
     pws.set_pw1_cds_valid_once(false);
     pws.set_pw1_pin_block(true);
 
-    CardApp::set_pw_status_bytes(card_client, &pws, false)?;
+    card_client.set_pw_status_bytes(&pws, false)?;
 
-    let ard = CardApp::application_related_data(card_client)?;
+    let ard = card_client.application_related_data()?;
     let pws = ard.pw_status_bytes()?;
     println!("pws {:?}", pws);
 
@@ -518,7 +499,7 @@ pub fn test_verify(
     let mut out = vec![];
 
     // try to set name without verify, assert result is not ok!
-    let res = CardApp::set_name(card_client, "Notverified<<Hello");
+    let res = card_client.set_name("Notverified<<Hello");
 
     if let Err(Error::CardStatus(s)) = res {
         assert_eq!(s, StatusBytes::SecurityStatusNotSatisfied);
@@ -526,9 +507,9 @@ pub fn test_verify(
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
 
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
-    match CardApp::check_pw3(card_client) {
+    match card_client.check_pw3() {
         Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
@@ -539,14 +520,14 @@ pub fn test_verify(
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    CardApp::set_name(card_client, "Admin<<Hello")?;
+    card_client.set_name("Admin<<Hello")?;
 
-    let cardholder = CardApp::cardholder_related_data(card_client)?;
+    let cardholder = card_client.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("Admin<<Hello"));
 
-    CardApp::verify_pw1(card_client, "123456")?;
+    card_client.verify_pw1("123456")?;
 
-    match CardApp::check_pw3(card_client) {
+    match card_client.check_pw3() {
         Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
@@ -557,9 +538,9 @@ pub fn test_verify(
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    CardApp::set_name(card_client, "There<<Hello")?;
+    card_client.set_name("There<<Hello")?;
 
-    let cardholder = CardApp::cardholder_related_data(card_client)?;
+    let cardholder = card_client.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("There<<Hello"));
 
     Ok(out)
@@ -574,20 +555,20 @@ pub fn test_change_pw(
     // first do admin-less pw1 on gnuk
     // (NOTE: Gnuk requires a key to be loaded before allowing pw changes!)
     println!("change pw1");
-    CardApp::change_pw1(card_client, "123456", "abcdef00")?;
+    card_client.change_pw1("123456", "abcdef00")?;
 
     // also set admin pw, which means pw1 is now only user-pw again, on gnuk
     println!("change pw3");
     // ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
-    CardApp::change_pw3(card_client, "12345678", "abcdefgh")?;
+    card_client.change_pw3("12345678", "abcdefgh")?;
 
     println!("change pw1");
-    CardApp::change_pw1(card_client, "abcdef00", "abcdef")?; // gnuk
+    card_client.change_pw1("abcdef00", "abcdef")?; // gnuk
 
     // ca.change_pw1("123456", "abcdef")?;
 
     println!("verify bad pw1");
-    match CardApp::verify_pw1(card_client, "123456ab") {
+    match card_client.verify_pw1("123456ab") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -598,10 +579,10 @@ pub fn test_change_pw(
     }
 
     println!("verify good pw1");
-    CardApp::verify_pw1(card_client, "abcdef")?;
+    card_client.verify_pw1("abcdef")?;
 
     println!("verify bad pw3");
-    match CardApp::verify_pw3(card_client, "00000000") {
+    match card_client.verify_pw3("00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -612,13 +593,13 @@ pub fn test_change_pw(
     }
 
     println!("verify good pw3");
-    CardApp::verify_pw3(card_client, "abcdefgh")?;
+    card_client.verify_pw3("abcdefgh")?;
 
     println!("change pw3 back to default");
-    CardApp::change_pw3(card_client, "abcdefgh", "12345678")?;
+    card_client.change_pw3("abcdefgh", "12345678")?;
 
     println!("change pw1 back to default");
-    CardApp::change_pw1(card_client, "abcdef", "123456")?;
+    card_client.change_pw1("abcdef", "123456")?;
 
     Ok(out)
 }
@@ -631,15 +612,15 @@ pub fn test_reset_retry_counter(
 
     // set pw3, then pw1 (to bring gnuk into non-admin mode)
     println!("set pw3");
-    CardApp::change_pw3(card_client, "12345678", "12345678")?;
+    card_client.change_pw3("12345678", "12345678")?;
     println!("set pw1");
-    CardApp::change_pw1(card_client, "123456", "123456")?;
+    card_client.change_pw1("123456", "123456")?;
 
     println!("break pw1");
-    let _ = CardApp::verify_pw1(card_client, "wrong0");
-    let _ = CardApp::verify_pw1(card_client, "wrong0");
-    let _ = CardApp::verify_pw1(card_client, "wrong0");
-    let res = CardApp::verify_pw1(card_client, "wrong0");
+    let _ = card_client.verify_pw1("wrong0");
+    let _ = card_client.verify_pw1("wrong0");
+    let _ = card_client.verify_pw1("wrong0");
+    let res = card_client.verify_pw1("wrong0");
 
     match res {
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
@@ -660,24 +641,23 @@ pub fn test_reset_retry_counter(
     }
 
     println!("verify pw3");
-    CardApp::verify_pw3(card_client, "12345678")?;
+    card_client.verify_pw3("12345678")?;
 
     println!("set resetting code");
-    CardApp::set_resetting_code(card_client, "abcdefgh".as_bytes().to_vec())?;
+    card_client.set_resetting_code("abcdefgh".as_bytes().to_vec())?;
 
     println!("reset retry counter");
     // ca.reset_retry_counter_pw1("abcdef".as_bytes().to_vec(), None)?;
-    let _res = CardApp::reset_retry_counter_pw1(
-        card_client,
+    let _res = card_client.reset_retry_counter_pw1(
         "abcdef".as_bytes().to_vec(),
         Some("abcdefgh".as_bytes().to_vec()),
     );
 
     println!("verify good pw1");
-    CardApp::verify_pw1(card_client, "abcdef")?;
+    card_client.verify_pw1("abcdef")?;
 
     println!("verify bad pw1");
-    match CardApp::verify_pw1(card_client, "00000000") {
+    match card_client.verify_pw1("00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }

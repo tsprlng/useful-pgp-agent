@@ -13,8 +13,7 @@ use sequoia_ipc::gnupg::{Agent, Context};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-use openpgp_card::{CardApp, Error};
-use openpgp_card::{CardCaps, CardClient};
+use openpgp_card::{CardCaps, CardClient, Error};
 
 lazy_static! {
     static ref RT: Mutex<Runtime> =
@@ -66,7 +65,7 @@ impl ScdClient {
         let mut card = ScdClient::new(agent, true)?;
         card.select_card(serial)?;
 
-        CardApp::initialize(&mut card)?;
+        <dyn CardClient>::initialize(&mut card)?;
 
         Ok(card)
     }
@@ -80,7 +79,7 @@ impl ScdClient {
     pub fn open_yolo(agent: Option<Agent>) -> Result<Self, Error> {
         let mut card = ScdClient::new(agent, true)?;
 
-        CardApp::initialize(&mut card)?;
+        <dyn CardClient>::initialize(&mut card)?;
 
         Ok(card)
     }

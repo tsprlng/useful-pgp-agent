@@ -49,7 +49,7 @@ pub(crate) fn upload_subkeys(
 
             // upload key
             let cuk = vka_as_uploadable_key(vka, None);
-            CardApp::key_import(card_client, cuk, *kt)?;
+            card_client.key_import(cuk, *kt)?;
         }
     }
 

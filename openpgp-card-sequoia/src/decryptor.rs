@@ -38,7 +38,7 @@ impl<'a> CardDecryptor<'a> {
         cert: &Cert,
     ) -> Result<CardDecryptor<'a>, Error> {
         // Get the fingerprint for the decryption key from the card.
-        let ard = CardApp::application_related_data(card_client)?;
+        let ard = card_client.application_related_data()?;
         let fps = ard.fingerprints()?;
         let fp = fps.decryption();
 
@@ -85,7 +85,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = Cryptogram::RSA(ct.value());
-                let dec = CardApp::decipher(self.card_client, dm)?;
+                let dec = self.card_client.decipher(dm)?;
 
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
                 Ok(sk)
@@ -109,7 +109,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 };
 
                 // Decryption operation on the card
-                let mut dec = CardApp::decipher(self.card_client, dm)?;
+                let mut dec = self.card_client.decipher(dm)?;
 
                 // Specifically handle return value format like Gnuk's
                 // (Gnuk returns a leading '0x04' byte and

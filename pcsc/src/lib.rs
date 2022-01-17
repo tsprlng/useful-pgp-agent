@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 
 use openpgp_card::card_do::ApplicationRelatedData;
-use openpgp_card::{CardApp, CardCaps, CardClient, Error, SmartcardError};
+use openpgp_card::{CardCaps, CardClient, Error, SmartcardError};
 
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
@@ -393,8 +393,8 @@ impl PcscClient {
             }
         }
 
-        // Get initalized CardApp
-        CardApp::initialize(&mut self)?;
+        // Initalize CardClient (set CardCaps from ARD)
+        <dyn CardClient>::initialize(&mut self)?;
 
         Ok(self)
     }
