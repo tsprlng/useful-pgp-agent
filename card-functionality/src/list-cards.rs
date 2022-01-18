@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
-use pcsc::Transaction;
 
 use openpgp_card_pcsc::{PcscCard, TxClient};
 use openpgp_card_sequoia::card::Open;
@@ -11,12 +10,7 @@ fn main() -> Result<()> {
     println!("The following OpenPGP cards are connected to your system:");
 
     for mut card in PcscCard::cards()? {
-        let cc = card.card_caps();
-        let rc = card.reader_caps();
-
-        let mut tx: Transaction =
-            openpgp_card_pcsc::start_tx!(card.card(), true)?;
-        let mut txc = TxClient::new(&mut tx, cc, rc);
+        let mut txc: TxClient = openpgp_card_pcsc::get_txc!(card, true)?;
 
         let open = Open::new(&mut txc)?;
         println!(" {}", open.application_identifier()?.ident());

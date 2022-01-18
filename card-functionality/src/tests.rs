@@ -681,15 +681,10 @@ pub fn run_test(
     let mut card_client = card.get_card()?;
 
     use anyhow::anyhow;
-    use pcsc::Transaction;
 
-    let card_caps = card_client.card_caps();
-    let reader_caps = card_client.reader_caps();
-
-    let mut tx: Transaction =
-        openpgp_card_pcsc::start_tx!(card_client.card(), true)
-            .map_err(|e| anyhow!(e))?;
-    let mut txc = TxClient::new(&mut tx, card_caps, reader_caps);
+    let mut txc = openpgp_card_pcsc::get_txc!(card_client, true)
+        .map_err(|e| anyhow!(e))?;
+    // let mut txc = TxClient::new(&mut tx, card_caps, reader_caps);
 
     t(&mut txc, param)
 }
