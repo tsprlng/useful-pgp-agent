@@ -11,7 +11,7 @@ use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Hash;
-use openpgp_card::{CardApp, CardClient, Error};
+use openpgp_card::{CardClient, Error};
 
 use crate::sq_util;
 use crate::PublicKey;

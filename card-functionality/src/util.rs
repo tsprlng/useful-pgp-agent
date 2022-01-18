@@ -17,7 +17,7 @@ use sequoia_openpgp::serialize::stream::{
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::KeyGenerationTime;
-use openpgp_card::{CardApp, CardClient, KeyType};
+use openpgp_card::{CardClient, KeyType};
 use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::util::vka_as_uploadable_key;
 

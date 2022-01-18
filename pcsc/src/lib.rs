@@ -20,9 +20,8 @@ const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 #[macro_export]
 macro_rules! start_tx {
     ($card:expr, $reselect:expr) => {{
-        use anyhow::anyhow;
         use openpgp_card::{Error, SmartcardError};
-        use pcsc::{Disposition, Protocols, ShareMode, Transaction};
+        use pcsc::{Disposition, Protocols, ShareMode};
         use std::collections::HashMap;
 
         let mut was_reset = false;

@@ -16,7 +16,7 @@ use openpgp_card::card_do::{
     ExtendedCapabilities, ExtendedLengthInfo, Fingerprint, HistoricalBytes,
     KeyGenerationTime, PWStatusBytes, SecuritySupportTemplate, Sex,
 };
-use openpgp_card::{CardApp, CardClient, Error, KeySet, KeyType, Response};
+use openpgp_card::{CardClient, Error, KeySet, KeyType, Response};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;

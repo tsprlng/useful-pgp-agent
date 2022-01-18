@@ -15,7 +15,7 @@ use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Cryptogram;
-use openpgp_card::{CardApp, CardClient, Error};
+use openpgp_card::{CardClient, Error};
 
 use crate::sq_util;
 use crate::PublicKey;
