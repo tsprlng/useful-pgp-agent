@@ -12,11 +12,11 @@
 //! With `openpgp-card-pcsc` you can either open all available cards:
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_pcsc::PcscCard;
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! for mut cc in PcscClient::cards()? {
+//! for mut cc in PcscCard::cards()? {
 //!     let open = Open::new(&mut cc)?;
 //!     println!("Found OpenPGP card with ident '{}'",
 //!              open.application_identifier()?.ident());
@@ -28,11 +28,11 @@
 //! Or you can open one particular card, by ident:
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_pcsc::PcscCard;
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut cc = PcscCard::open_by_ident("abcd:12345678")?;
 //! let mut open = Open::new(&mut cc)?;
 //! # Ok(())
 //! # }
@@ -48,13 +48,13 @@
 //! that corresponds to the private encryption key on the card:
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_pcsc::PcscCard;
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut cc = PcscCard::open_by_ident("abcd:12345678")?;
 //! let mut open = Open::new(&mut cc)?;
 //!
 //! // Get authorization for user access to the card with password
@@ -89,13 +89,13 @@
 //! user password before each signing operation!)
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_pcsc::PcscCard;
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut cc = PcscCard::open_by_ident("abcd:12345678")?;
 //! let mut open = Open::new(&mut cc)?;
 //!
 //! // Get authorization for signing access to the card with password
@@ -120,12 +120,12 @@
 //! # Setting up and configuring a card
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscClient;
+//! use openpgp_card_pcsc::PcscCard;
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
-//! let mut cc = PcscClient::open_by_ident("abcd:12345678")?;
+//! let mut cc = PcscCard::open_by_ident("abcd:12345678")?;
 //! let mut open = Open::new(&mut cc)?;
 //!
 //! // Get authorization for admin access to the card with password

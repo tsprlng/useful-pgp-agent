@@ -1,9 +1,8 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! This crate implements the `PcscClient` backend for the `openpgp-card`
-//! crate, which uses the PCSC lite middleware to access the OpenPGP
-//! application on smart cards.
+//! This crate implements a `CardClient` backend for `openpgp-card`. It uses
+//! the PCSC middleware to access the OpenPGP application on smart cards.
 
 use anyhow::{anyhow, Result};
 use iso7816_tlv::simple::Tlv;
@@ -17,12 +16,14 @@ use openpgp_card::{CardCaps, CardClient, Error, SmartcardError};
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
+/// Get a TxClient from a Card
 #[macro_export]
 macro_rules! start_tx {
     ($card:expr, $reselect:expr) => {{
         use anyhow::anyhow;
         use openpgp_card::{Error, SmartcardError};
         use pcsc::{Disposition, Protocols, ShareMode, Transaction};
+        use std::collections::HashMap;
 
         let mut was_reset = false;
 
@@ -38,9 +39,17 @@ macro_rules! start_tx {
                             "start_tx: card was reset, select() openpgp"
                         );
 
-                        let mut txc = PcscTxClient::new(&mut tx, None);
+                        let mut txc =
+                            TxClient::new(&mut tx, None, HashMap::default());
+
+                        // In contexts where the caller of this macro
+                        // expects that the card has already been opened,
+                        // re-open the card here.
+                        // For initial card-opening, we don't do this, then
+                        // the caller always expects a card that has not
+                        // been "select"ed yet.
                         if $reselect {
-                            PcscTxClient::select(&mut txc)?;
+                            TxClient::select(&mut txc)?;
                         }
                     }
 
@@ -83,29 +92,49 @@ macro_rules! start_tx {
     }};
 }
 
-/// An implementation of the CardClient trait that uses the PCSC lite
-/// middleware to access the OpenPGP card application on smart cards.
-pub struct PcscClient {
+/// An opened PCSC Card (without open transaction).
+///
+/// This struct can be used to hold on to a Card, even while no operations
+/// are performed on the Card. To perform operations on the card, a
+/// `TxClient` object needs to be obtained.
+pub struct PcscCard {
     card: Card,
     card_caps: Option<CardCaps>,
     reader_caps: HashMap<u8, Tlv>,
 }
 
-pub struct PcscTxClient<'a, 'b> {
+/// An implementation of the CardClient trait that uses the PCSC lite
+/// middleware to access the OpenPGP card application on smart cards, via a
+/// PCSC "transaction".
+///
+/// This struct is created from a PcscRaw card by opening a transaction,
+/// using the `start_tx!` macro.
+///
+/// Transactions on a card cannot be opened and left idle
+/// (e.g. Microsoft documents that on Windows, they will be closed after
+/// 5s without a command:
+/// <https://docs.microsoft.com/en-us/windows/win32/api/winscard/nf-winscard-scardbegintransaction?redirectedfrom=MSDN#remarks>)
+pub struct TxClient<'a, 'b> {
     tx: &'a mut Transaction<'b>,
-    card_caps: Option<CardCaps>,
+    card_caps: Option<CardCaps>, // FIXME: manual copy from PcscCard
+    reader_caps: HashMap<u8, Tlv>, // FIXME: manual copy from PcscCard
 }
 
-impl<'a, 'b> PcscTxClient<'a, 'b> {
+impl<'a, 'b> TxClient<'a, 'b> {
     pub fn new(
         tx: &'a mut Transaction<'b>,
         card_caps: Option<CardCaps>,
+        reader_caps: HashMap<u8, Tlv>,
     ) -> Self {
-        PcscTxClient { tx, card_caps }
+        TxClient {
+            tx,
+            card_caps,
+            reader_caps,
+        }
     }
 
     /// Try to select the OpenPGP application on a card
-    pub fn select(card_client: &'a mut PcscTxClient) -> Result<(), Error> {
+    pub fn select(card_client: &'a mut TxClient) -> Result<(), Error> {
         if <dyn CardClient>::select(card_client).is_ok() {
             Ok(())
         } else {
@@ -115,7 +144,7 @@ impl<'a, 'b> PcscTxClient<'a, 'b> {
 
     /// Get application_related_data from card
     fn application_related_data(
-        card_client: &mut PcscTxClient,
+        card_client: &mut TxClient,
     ) -> Result<ApplicationRelatedData, Error> {
         <dyn CardClient>::application_related_data(card_client).map_err(|e| {
             Error::Smartcard(SmartcardError::Error(format!(
@@ -143,9 +172,30 @@ impl<'a, 'b> PcscTxClient<'a, 'b> {
 
         Ok(Tlv::parse_all(res))
     }
+
+    /// Get the minimum pin length for pin_id.
+    fn min_pin_len(&self, pin_id: u8) -> Result<u8> {
+        match pin_id {
+            0x81 | 0x82 => Ok(6),
+            0x83 => Ok(8),
+            _ => Err(anyhow!("Unexpected pin_id {}", pin_id)),
+        }
+    }
+    /// Get the maximum pin length for pin_id.
+    fn max_pin_len(&self, pin_id: u8) -> Result<u8> {
+        if let Some(card_caps) = self.card_caps {
+            match pin_id {
+                0x81 | 0x82 => Ok(card_caps.pw1_max_len()),
+                0x83 => Ok(card_caps.pw3_max_len()),
+                _ => Err(anyhow!("Unexpected pin_id {}", pin_id)),
+            }
+        } else {
+            Err(anyhow!("card_caps is None"))
+        }
+    }
 }
 
-impl CardClient for PcscTxClient<'_, '_> {
+impl CardClient for TxClient<'_, '_> {
     fn transmit(
         &mut self,
         cmd: &[u8],
@@ -180,23 +230,207 @@ impl CardClient for PcscTxClient<'_, '_> {
     }
 
     fn feature_pinpad_verify(&self) -> bool {
-        todo!()
+        self.reader_caps.contains_key(&FEATURE_VERIFY_PIN_DIRECT)
     }
 
     fn feature_pinpad_modify(&self) -> bool {
-        todo!()
+        self.reader_caps.contains_key(&FEATURE_MODIFY_PIN_DIRECT)
     }
 
-    fn pinpad_verify(&mut self, _id: u8) -> Result<Vec<u8>> {
-        todo!()
+    fn pinpad_verify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
+        let pin_min_size = self.min_pin_len(pin_id)?;
+        let pin_max_size = self.max_pin_len(pin_id)?;
+
+        // Default to varlen, for now.
+        // (NOTE: Some readers don't support varlen, and need explicit length
+        // information. Also see https://wiki.gnupg.org/CardReader/PinpadInput)
+        let fixedlen: u8 = 0;
+
+        // APDU: 00 20 00 pin_id <len> (ff)*
+        let mut ab_data = vec![
+            0x00,     /* CLA */
+            0x20,     /* INS: VERIFY */
+            0x00,     /* P1 */
+            pin_id,   /* P2 */
+            fixedlen, /* Lc: 'fixedlen' data bytes */
+        ];
+        ab_data.extend([0xff].repeat(fixedlen as usize));
+
+        // PC/SC v2.02.05 Part 10 PIN verification data structure
+        let mut send: Vec<u8> = vec![
+            // 0 bTimeOut BYTE timeout in seconds (00 means use default
+            // timeout)
+            0x00,
+            // 1 bTimeOut2 BYTE timeout in seconds after first key stroke
+            0x00,
+            // 2 bmFormatString BYTE formatting options USB_CCID_PIN_FORMAT_xxx
+            0x82,
+            // 3 bmPINBlockString BYTE
+            // bits 7-4 bit size of PIN length in APDU
+            // bits 3-0 PIN block size in bytes after justification and formatting
+            fixedlen,
+            // 4 bmPINLengthFormat BYTE
+            // bits 7-5 RFU, bit 4 set if system units are bytes clear if
+            // system units are bits,
+            // bits 3-0 PIN length position in system units
+            0x00,
+            // 5 wPINMaxExtraDigit USHORT XXYY, where XX is minimum PIN size
+            // in digits, YY is maximum
+            pin_max_size,
+            pin_min_size,
+            // 7 bEntryValidationCondition BYTE Conditions under which PIN
+            // entry should be considered complete.
+            //
+            // table for bEntryValidationCondition:
+            // 0x01: Max size reached
+            // 0x02: Validation key pressed
+            // 0x04: Timeout occurred
+            0x07,
+            // 8 bNumberMessage BYTE Number of messages to display for PIN
+            // verification
+            0x01,
+            // 9 wLangIdU SHORT Language for messages
+            0x04,
+            0x09, // US english
+            // 11 bMsgIndex BYTE Message index (should be 00)
+            0x00,
+            // 12 bTeoPrologue BYTE[3] T=1 I-block prologue field to use (fill with 00)
+            0x00,
+            0x00,
+            0x00,
+        ];
+
+        // 15 ulDataLength ULONG length of Data to be sent to the ICC
+        send.extend(&(ab_data.len() as u32).to_le_bytes());
+
+        // 19 abData BYTE[] Data to send to the ICC
+        send.extend(ab_data);
+
+        log::debug!("pcsc pinpad_verify send: {:x?}", send);
+
+        let mut recv = vec![0xAA; 256];
+
+        let verify_ioctl: [u8; 4] = self
+            .reader_caps
+            .get(&FEATURE_VERIFY_PIN_DIRECT)
+            .ok_or_else(|| anyhow!("no reader_capability"))?
+            .value()
+            .try_into()?;
+
+        let res = self.tx.control(
+            u32::from_be_bytes(verify_ioctl).into(),
+            &send,
+            &mut recv,
+        )?;
+
+        log::debug!(" <- pcsc pinpad_verify result: {:x?}", res);
+
+        Ok(res.to_vec())
     }
 
-    fn pinpad_modify(&mut self, _id: u8) -> Result<Vec<u8>> {
-        todo!()
+    fn pinpad_modify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
+        let pin_min_size = self.min_pin_len(pin_id)?;
+        let pin_max_size = self.max_pin_len(pin_id)?;
+
+        // Default to varlen, for now.
+        // (NOTE: Some readers don't support varlen, and need explicit length
+        // information. Also see https://wiki.gnupg.org/CardReader/PinpadInput)
+        let fixedlen: u8 = 0;
+
+        // APDU: 00 24 00 pin_id <len> [(ff)* x2]
+        let mut ab_data = vec![
+            0x00,         /* CLA */
+            0x24,         /* INS: CHANGE_REFERENCE_DATA */
+            0x00,         /* P1 */
+            pin_id,       /* P2 */
+            fixedlen * 2, /* Lc: 'fixedlen' data bytes */
+        ];
+        ab_data.extend([0xff].repeat(fixedlen as usize * 2));
+
+        // PC/SC v2.02.05 Part 10 PIN modification data structure
+        let mut send: Vec<u8> = vec![
+            // 0 bTimeOut BYTE timeout in seconds (00 means use default
+            // timeout)
+            0x00,
+            // 1 bTimeOut2 BYTE timeout in seconds after first key stroke
+            0x00,
+            // 2 bmFormatString BYTE formatting options USB_CCID_PIN_FORMAT_xxx
+            0x82,
+            // 3 bmPINBlockString BYTE
+            // bits 7-4 bit size of PIN length in APDU
+            // bits 3-0 PIN block size in bytes after justification and formatting
+            fixedlen,
+            // 4 bmPINLengthFormat BYTE
+            // bits 7-5 RFU, bit 4 set if system units are bytes clear if
+            // system units are bits,
+            // bits 3-0 PIN length position in system units
+            0x00,
+            // 5 bInsertionOffsetOld BYTE Insertion position offset in bytes for
+            // the current PIN
+            0x00,
+            // 6 bInsertionOffsetNew BYTE Insertion position offset in bytes for
+            // the new PIN
+            fixedlen,
+            // 7 wPINMaxExtraDigit USHORT XXYY, where XX is minimum PIN size
+            // in digits, YY is maximum
+            pin_max_size,
+            pin_min_size,
+            // 9 bConfirmPIN
+            0x03, // TODO check?
+            // 10 bEntryValidationCondition BYTE Conditions under which PIN
+            // entry should be considered complete.
+            //
+            // table for bEntryValidationCondition:
+            // 0x01: Max size reached
+            // 0x02: Validation key pressed
+            // 0x04: Timeout occurred
+            0x07,
+            // 11 bNumberMessage BYTE Number of messages to display for PIN
+            // verification
+            0x03, // TODO check? (match with bConfirmPIN?)
+            // 12 wLangId USHORT Language for messages
+            0x04,
+            0x09, // US english
+            // 14 bMsgIndex1-3
+            0x00,
+            0x01,
+            0x02,
+            // 17 bTeoPrologue BYTE[3] T=1 I-block prologue field to use (fill with 00)
+            0x00,
+            0x00,
+            0x00,
+        ];
+
+        // 15 ulDataLength ULONG length of Data to be sent to the ICC
+        send.extend(&(ab_data.len() as u32).to_le_bytes());
+
+        // 19 abData BYTE[] Data to send to the ICC
+        send.extend(ab_data);
+
+        log::debug!("pcsc pinpad_modify send: {:x?}", send);
+
+        let mut recv = vec![0xAA; 256];
+
+        let modify_ioctl: [u8; 4] = self
+            .reader_caps
+            .get(&FEATURE_MODIFY_PIN_DIRECT)
+            .ok_or_else(|| anyhow!("no reader_capability"))?
+            .value()
+            .try_into()?;
+
+        let res = self.tx.control(
+            u32::from_be_bytes(modify_ioctl).into(),
+            &send,
+            &mut recv,
+        )?;
+
+        log::debug!(" <- pcsc pinpad_modify result: {:x?}", res);
+
+        Ok(res.to_vec())
     }
 }
 
-impl PcscClient {
+impl PcscCard {
     pub fn card(&mut self) -> &mut Card {
         &mut self.card
     }
@@ -266,8 +500,8 @@ impl PcscClient {
         }
     }
 
-    fn cards_filter(ident: Option<&str>) -> Result<Vec<PcscClient>, Error> {
-        let mut cas: Vec<PcscClient> = vec![];
+    fn cards_filter(ident: Option<&str>) -> Result<Vec<PcscCard>, Error> {
+        let mut cas: Vec<PcscCard> = vec![];
 
         for mut card in
             Self::raw_pcsc_cards().map_err(|sce| Error::Smartcard(sce))?
@@ -283,10 +517,10 @@ impl PcscClient {
                 log::debug!("1");
                 let mut tx: Transaction = start_tx!(card, false)?;
 
-                let mut txc = PcscTxClient::new(&mut tx, None);
+                let mut txc = TxClient::new(&mut tx, None, HashMap::default());
                 log::debug!("3");
                 {
-                    if let Err(e) = PcscTxClient::select(&mut txc) {
+                    if let Err(e) = TxClient::select(&mut txc) {
                         log::debug!("4a");
                         log::debug!(
                             "cards_filter: error during select: {:?}",
@@ -307,14 +541,13 @@ impl PcscClient {
                             )))
                         })?;
                         log::debug!("4b card status: {:x?}", stat);
-                        let mut txc = PcscTxClient::new(&mut tx, None);
+                        let mut txc =
+                            TxClient::new(&mut tx, None, HashMap::default());
                         // -- /debug: status --
 
                         if let Some(ident) = ident {
                             if let Ok(ard) =
-                                PcscTxClient::application_related_data(
-                                    &mut txc,
-                                )
+                                TxClient::application_related_data(&mut txc)
                             {
                                 let aid = ard.application_id()?;
 
@@ -347,14 +580,10 @@ impl PcscClient {
                         }
                     }
                 }
-
-                // transaction ends
-                // drop(txc);
-                // drop(tx);
             }
 
             if store_card {
-                let pcsc = PcscClient::new(card);
+                let pcsc = PcscCard::new(card);
                 cas.push(pcsc.initialize_card()?);
             }
         }
@@ -368,14 +597,14 @@ impl PcscClient {
     ///
     /// Each card has the OpenPGP application selected, CardCaps have been
     /// initialized.
-    pub fn cards() -> Result<Vec<PcscClient>, Error> {
+    pub fn cards() -> Result<Vec<PcscCard>, Error> {
         Self::cards_filter(None)
     }
 
     /// Returns the OpenPGP card that matches `ident`, if it is available.
     /// A fully initialized CardApp is returned: the OpenPGP application has
     /// been selected, CardCaps have been set.
-    pub fn open_by_ident(ident: &str) -> Result<PcscClient, Error> {
+    pub fn open_by_ident(ident: &str) -> Result<PcscCard, Error> {
         log::debug!("open_by_ident for {:?}", ident);
 
         let mut cards = Self::cards_filter(Some(ident))?;
@@ -399,14 +628,15 @@ impl PcscClient {
         }
     }
 
-    /// Make an initialized CardApp from a PcscClient:
+    /// Initialized a PcscCard:
     /// - Obtain and store feature lists from reader (pinpad functionality).
     /// - Get ARD from card, set CardCaps based on ARD.
     fn initialize_card(mut self) -> Result<Self> {
         log::debug!("pcsc initialize_card");
 
         let mut tx: Transaction = start_tx!(self.card, true)?;
-        let mut txc = PcscTxClient::new(&mut tx, self.card_caps);
+        let mut txc =
+            TxClient::new(&mut tx, self.card_caps, self.reader_caps.clone());
 
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = txc.features() {
@@ -427,259 +657,10 @@ impl PcscClient {
         Ok(self)
     }
 
-    /// Get the minimum pin length for pin_id.
-    fn min_pin_len(&self, pin_id: u8) -> Result<u8> {
-        match pin_id {
-            0x81 | 0x82 => Ok(6),
-            0x83 => Ok(8),
-            _ => Err(anyhow!("Unexpected pin_id {}", pin_id)),
-        }
-    }
-    /// Get the maximum pin length for pin_id.
-    fn max_pin_len(&self, pin_id: u8) -> Result<u8> {
-        if let Some(card_caps) = self.card_caps {
-            match pin_id {
-                0x81 | 0x82 => Ok(card_caps.pw1_max_len()),
-                0x83 => Ok(card_caps.pw3_max_len()),
-                _ => Err(anyhow!("Unexpected pin_id {}", pin_id)),
-            }
-        } else {
-            Err(anyhow!("card_caps is None"))
-        }
-    }
-
     pub fn card_caps(&self) -> Option<CardCaps> {
         self.card_caps
     }
+    pub fn reader_caps(&self) -> HashMap<u8, Tlv> {
+        self.reader_caps.clone()
+    }
 }
-
-// impl CardClient for PcscClient {
-//     fn transmit(
-//         &mut self,
-//         cmd: &[u8],
-//         buf_size: usize,
-//     ) -> Result<Vec<u8>, Error> {
-//         let stat = self.card.status2_owned();
-//         log::debug!("PcscClient transmit - status2: {:x?}", stat);
-//
-//         let mut tx: Transaction = start_tx!(self.card, true)?;
-//
-//         log::debug!("PcscClient transmit 2");
-//         let mut txc = PcscTxClient::new(&mut tx, self.card_caps);
-//         log::debug!("PcscClient transmit 3 (got TxClient!)");
-//
-//         let res = txc.transmit(cmd, buf_size);
-//
-//         log::debug!("PcscClient transmit res {:x?}", res);
-//
-//         res
-//     }
-//
-//     fn init_card_caps(&mut self, caps: CardCaps) {
-//         self.card_caps = Some(caps);
-//     }
-//
-//     fn card_caps(&self) -> Option<&CardCaps> {
-//         self.card_caps.as_ref()
-//     }
-//
-//     fn feature_pinpad_verify(&self) -> bool {
-//         self.reader_caps.contains_key(&FEATURE_VERIFY_PIN_DIRECT)
-//     }
-//
-//     fn feature_pinpad_modify(&self) -> bool {
-//         self.reader_caps.contains_key(&FEATURE_MODIFY_PIN_DIRECT)
-//     }
-//
-//     fn pinpad_verify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
-//         let pin_min_size = self.min_pin_len(pin_id)?;
-//         let pin_max_size = self.max_pin_len(pin_id)?;
-//
-//         // Default to varlen, for now.
-//         // (NOTE: Some readers don't support varlen, and need explicit length
-//         // information. Also see https://wiki.gnupg.org/CardReader/PinpadInput)
-//         let fixedlen: u8 = 0;
-//
-//         // APDU: 00 20 00 pin_id <len> (ff)*
-//         let mut ab_data = vec![
-//             0x00,     /* CLA */
-//             0x20,     /* INS: VERIFY */
-//             0x00,     /* P1 */
-//             pin_id,   /* P2 */
-//             fixedlen, /* Lc: 'fixedlen' data bytes */
-//         ];
-//         ab_data.extend([0xff].repeat(fixedlen as usize));
-//
-//         // PC/SC v2.02.05 Part 10 PIN verification data structure
-//         let mut send: Vec<u8> = vec![
-//             // 0 bTimeOut BYTE timeout in seconds (00 means use default
-//             // timeout)
-//             0x00,
-//             // 1 bTimeOut2 BYTE timeout in seconds after first key stroke
-//             0x00,
-//             // 2 bmFormatString BYTE formatting options USB_CCID_PIN_FORMAT_xxx
-//             0x82,
-//             // 3 bmPINBlockString BYTE
-//             // bits 7-4 bit size of PIN length in APDU
-//             // bits 3-0 PIN block size in bytes after justification and formatting
-//             fixedlen,
-//             // 4 bmPINLengthFormat BYTE
-//             // bits 7-5 RFU, bit 4 set if system units are bytes clear if
-//             // system units are bits,
-//             // bits 3-0 PIN length position in system units
-//             0x00,
-//             // 5 wPINMaxExtraDigit USHORT XXYY, where XX is minimum PIN size
-//             // in digits, YY is maximum
-//             pin_max_size,
-//             pin_min_size,
-//             // 7 bEntryValidationCondition BYTE Conditions under which PIN
-//             // entry should be considered complete.
-//             //
-//             // table for bEntryValidationCondition:
-//             // 0x01: Max size reached
-//             // 0x02: Validation key pressed
-//             // 0x04: Timeout occurred
-//             0x07,
-//             // 8 bNumberMessage BYTE Number of messages to display for PIN
-//             // verification
-//             0x01,
-//             // 9 wLangIdU SHORT Language for messages
-//             0x04,
-//             0x09, // US english
-//             // 11 bMsgIndex BYTE Message index (should be 00)
-//             0x00,
-//             // 12 bTeoPrologue BYTE[3] T=1 I-block prologue field to use (fill with 00)
-//             0x00,
-//             0x00,
-//             0x00,
-//         ];
-//
-//         // 15 ulDataLength ULONG length of Data to be sent to the ICC
-//         send.extend(&(ab_data.len() as u32).to_le_bytes());
-//
-//         // 19 abData BYTE[] Data to send to the ICC
-//         send.extend(ab_data);
-//
-//         log::debug!("pcsc pinpad_verify send: {:x?}", send);
-//
-//         let mut recv = vec![0xAA; 256];
-//
-//         let verify_ioctl: [u8; 4] = self
-//             .reader_caps
-//             .get(&FEATURE_VERIFY_PIN_DIRECT)
-//             .ok_or_else(|| anyhow!("no reader_capability"))?
-//             .value()
-//             .try_into()?;
-//
-//         let res = self.card.control(
-//             u32::from_be_bytes(verify_ioctl).into(),
-//             &send,
-//             &mut recv,
-//         )?;
-//
-//         log::debug!(" <- pcsc pinpad_verify result: {:x?}", res);
-//
-//         Ok(res.to_vec())
-//     }
-//
-//     fn pinpad_modify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
-//         let pin_min_size = self.min_pin_len(pin_id)?;
-//         let pin_max_size = self.max_pin_len(pin_id)?;
-//
-//         // Default to varlen, for now.
-//         // (NOTE: Some readers don't support varlen, and need explicit length
-//         // information. Also see https://wiki.gnupg.org/CardReader/PinpadInput)
-//         let fixedlen: u8 = 0;
-//
-//         // APDU: 00 24 00 pin_id <len> [(ff)* x2]
-//         let mut ab_data = vec![
-//             0x00,         /* CLA */
-//             0x24,         /* INS: CHANGE_REFERENCE_DATA */
-//             0x00,         /* P1 */
-//             pin_id,       /* P2 */
-//             fixedlen * 2, /* Lc: 'fixedlen' data bytes */
-//         ];
-//         ab_data.extend([0xff].repeat(fixedlen as usize * 2));
-//
-//         // PC/SC v2.02.05 Part 10 PIN modification data structure
-//         let mut send: Vec<u8> = vec![
-//             // 0 bTimeOut BYTE timeout in seconds (00 means use default
-//             // timeout)
-//             0x00,
-//             // 1 bTimeOut2 BYTE timeout in seconds after first key stroke
-//             0x00,
-//             // 2 bmFormatString BYTE formatting options USB_CCID_PIN_FORMAT_xxx
-//             0x82,
-//             // 3 bmPINBlockString BYTE
-//             // bits 7-4 bit size of PIN length in APDU
-//             // bits 3-0 PIN block size in bytes after justification and formatting
-//             fixedlen,
-//             // 4 bmPINLengthFormat BYTE
-//             // bits 7-5 RFU, bit 4 set if system units are bytes clear if
-//             // system units are bits,
-//             // bits 3-0 PIN length position in system units
-//             0x00,
-//             // 5 bInsertionOffsetOld BYTE Insertion position offset in bytes for
-//             // the current PIN
-//             0x00,
-//             // 6 bInsertionOffsetNew BYTE Insertion position offset in bytes for
-//             // the new PIN
-//             fixedlen,
-//             // 7 wPINMaxExtraDigit USHORT XXYY, where XX is minimum PIN size
-//             // in digits, YY is maximum
-//             pin_max_size,
-//             pin_min_size,
-//             // 9 bConfirmPIN
-//             0x03, // TODO check?
-//             // 10 bEntryValidationCondition BYTE Conditions under which PIN
-//             // entry should be considered complete.
-//             //
-//             // table for bEntryValidationCondition:
-//             // 0x01: Max size reached
-//             // 0x02: Validation key pressed
-//             // 0x04: Timeout occurred
-//             0x07,
-//             // 11 bNumberMessage BYTE Number of messages to display for PIN
-//             // verification
-//             0x03, // TODO check? (match with bConfirmPIN?)
-//             // 12 wLangId USHORT Language for messages
-//             0x04,
-//             0x09, // US english
-//             // 14 bMsgIndex1-3
-//             0x00,
-//             0x01,
-//             0x02,
-//             // 17 bTeoPrologue BYTE[3] T=1 I-block prologue field to use (fill with 00)
-//             0x00,
-//             0x00,
-//             0x00,
-//         ];
-//
-//         // 15 ulDataLength ULONG length of Data to be sent to the ICC
-//         send.extend(&(ab_data.len() as u32).to_le_bytes());
-//
-//         // 19 abData BYTE[] Data to send to the ICC
-//         send.extend(ab_data);
-//
-//         log::debug!("pcsc pinpad_modify send: {:x?}", send);
-//
-//         let mut recv = vec![0xAA; 256];
-//
-//         let modify_ioctl: [u8; 4] = self
-//             .reader_caps
-//             .get(&FEATURE_MODIFY_PIN_DIRECT)
-//             .ok_or_else(|| anyhow!("no reader_capability"))?
-//             .value()
-//             .try_into()?;
-//
-//         let res = self.card.control(
-//             u32::from_be_bytes(modify_ioctl).into(),
-//             &send,
-//             &mut recv,
-//         )?;
-//
-//         log::debug!(" <- pcsc pinpad_modify result: {:x?}", res);
-//
-//         Ok(res.to_vec())
-//     }
-// }

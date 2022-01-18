@@ -15,14 +15,14 @@ use sequoia_openpgp::Cert;
 use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
-use openpgp_card::{CardApp, CardClient, Error, KeyType, StatusBytes};
-use openpgp_card_pcsc::PcscTxClient;
+use openpgp_card::{CardClient, Error, KeyType, StatusBytes};
+use openpgp_card_pcsc::TxClient;
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
 };
 
-use crate::cards::TestCardApp;
+use crate::cards::TestCardData;
 use crate::util;
 
 #[derive(Debug)]
@@ -671,25 +671,25 @@ pub fn test_reset_retry_counter(
 }
 
 pub fn run_test(
-    card: &mut TestCardApp,
+    card: &mut TestCardData,
     t: fn(
         &mut (dyn CardClient + Send + Sync),
         &[&str],
     ) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut card_client = card.get_card_client()?;
+    let mut card_client = card.get_card()?;
 
     use anyhow::anyhow;
-    use openpgp_card::SmartcardError;
     use pcsc::Transaction;
 
     let card_caps = card_client.card_caps();
+    let reader_caps = card_client.reader_caps();
 
     let mut tx: Transaction =
         openpgp_card_pcsc::start_tx!(card_client.card(), true)
             .map_err(|e| anyhow!(e))?;
-    let mut txc = PcscTxClient::new(&mut tx, card_caps);
+    let mut txc = TxClient::new(&mut tx, card_caps, reader_caps);
 
     t(&mut txc, param)
 }

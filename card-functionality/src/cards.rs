@@ -8,7 +8,7 @@ use anyhow::Result;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
-use openpgp_card_pcsc::PcscClient;
+use openpgp_card_pcsc::PcscCard;
 use openpgp_card_scdc::ScdClient;
 
 #[derive(Debug, Deserialize)]
@@ -30,14 +30,14 @@ pub struct Config {
 
 /// An "opened" card, via one particular backend, with test-metadata
 #[derive(Debug)]
-pub struct TestCardApp {
+pub struct TestCardData {
     name: String,
     tc: TestCard,
     config: Config,
 }
 
-impl TestCardApp {
-    pub(crate) fn get_card_client(&self) -> Result<Box<PcscClient>> {
+impl TestCardData {
+    pub(crate) fn get_card(&self) -> Result<Box<PcscCard>> {
         self.tc.open()
     }
 
@@ -58,7 +58,7 @@ impl TestConfig {
         Ok(config)
     }
 
-    pub fn into_cardapps(self) -> Vec<TestCardApp> {
+    pub fn into_cardapps(self) -> Vec<TestCardData> {
         let mut cards = vec![];
 
         for (name, card) in self.card {
@@ -69,7 +69,7 @@ impl TestConfig {
                     _ => panic!("unexpected backend {}", backend),
                 };
 
-                cards.push(TestCardApp {
+                cards.push(TestCardData {
                     name: name.clone(),
                     tc,
                     config: card.config.clone(),
@@ -88,7 +88,7 @@ pub enum TestCard {
 }
 
 impl TestCard {
-    pub fn open(&self) -> Result<Box<PcscClient>> {
+    pub fn open(&self) -> Result<Box<PcscCard>> {
         match self {
             Self::Pcsc(ident) => {
                 // Attempt to shutdown SCD, if it is running.
@@ -96,7 +96,7 @@ impl TestCard {
                 let res = ScdClient::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
-                Ok(Box::new(PcscClient::open_by_ident(ident)?))
+                Ok(Box::new(PcscCard::open_by_ident(ident)?))
             }
             Self::Scdc(serial) => {
                 unimplemented!();

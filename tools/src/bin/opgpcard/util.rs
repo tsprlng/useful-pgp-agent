@@ -5,15 +5,15 @@ use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
 
 use openpgp_card::Error;
-use openpgp_card_pcsc::PcscClient;
+use openpgp_card_pcsc::PcscCard;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
-pub(crate) fn cards() -> Result<Vec<PcscClient>, Error> {
-    PcscClient::cards()
+pub(crate) fn cards() -> Result<Vec<PcscCard>, Error> {
+    PcscCard::cards()
 }
 
-pub(crate) fn open_card(ident: &str) -> Result<PcscClient, Error> {
-    PcscClient::open_by_ident(ident)
+pub(crate) fn open_card(ident: &str) -> Result<PcscCard, Error> {
+    PcscCard::open_by_ident(ident)
 }
 
 pub(crate) fn verify_to_user<'app, 'open>(
