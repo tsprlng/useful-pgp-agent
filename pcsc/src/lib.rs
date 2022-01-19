@@ -101,10 +101,11 @@ macro_rules! get_txc {
 }
 
 /// An opened PCSC Card (without open transaction).
+/// The OpenPGP application on the card is `select`-ed while setting up a PcscCard object.
 ///
 /// This struct can be used to hold on to a Card, even while no operations
 /// are performed on the Card. To perform operations on the card, a
-/// `TxClient` object needs to be obtained.
+/// `TxClient` object needs to be obtained (via the `get_txc!()` macro).
 pub struct PcscCard {
     card: Card,
     card_caps: Option<CardCaps>,
@@ -115,8 +116,8 @@ pub struct PcscCard {
 /// middleware to access the OpenPGP card application on smart cards, via a
 /// PCSC "transaction".
 ///
-/// This struct is created from a PcscRaw card by opening a transaction,
-/// using the `start_tx!` macro.
+/// This struct is created from a PcscCard by opening a transaction, using the
+/// `start_tx!` macro.
 ///
 /// Transactions on a card cannot be opened and left idle
 /// (e.g. Microsoft documents that on Windows, they will be closed after
@@ -512,6 +513,10 @@ impl PcscCard {
         }
     }
 
+    /// Starts from a list of all pcsc cards, then compares their OpenPGP
+    /// application identity with `ident` (if `ident` is None, all Cards are
+    /// returned). Returns fully initialized PcscCard structs for all matching
+    /// cards.
     fn cards_filter(ident: Option<&str>) -> Result<Vec<PcscCard>, Error> {
         let mut cas: Vec<PcscCard> = vec![];
 
@@ -609,15 +614,15 @@ impl PcscCard {
 
     /// Return all cards on which the OpenPGP application could be selected.
     ///
-    /// Each card has the OpenPGP application selected, CardCaps have been
+    /// Each card has the OpenPGP application selected, card_caps and reader_caps have been
     /// initialized.
     pub fn cards() -> Result<Vec<PcscCard>, Error> {
         Self::cards_filter(None)
     }
 
     /// Returns the OpenPGP card that matches `ident`, if it is available.
-    /// A fully initialized CardApp is returned: the OpenPGP application has
-    /// been selected, CardCaps have been set.
+    /// A fully initialized PcscCard is returned: the OpenPGP application has
+    /// been selected, card_caps and reader_caps have been initialized.
     pub fn open_by_ident(ident: &str) -> Result<PcscCard, Error> {
         log::debug!("open_by_ident for {:?}", ident);
 
