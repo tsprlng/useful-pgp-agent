@@ -11,7 +11,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::Sex;
 use openpgp_card::KeyType;
-use openpgp_card_pcsc::PcscCard;
+use openpgp_card_pcsc::{PcscCard, TxClient};
 
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::sq_util;
@@ -36,7 +36,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         let mut card = PcscCard::open_by_ident(&test_card_ident)?;
-        let mut open = Open::new(&mut card)?;
+        let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+
+        let mut open = Open::new(&mut txc)?;
 
         // card metadata
 
@@ -145,7 +147,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
         let mut card = PcscCard::open_by_ident(&test_card_ident)?;
-        let mut open = Open::new(&mut card)?;
+        let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+
+        let mut open = Open::new(&mut txc)?;
 
         // Check that we're still using the expected card
         let app_id = open.application_identifier()?;
@@ -184,7 +188,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         let mut card = PcscCard::open_by_ident(&test_card_ident)?;
-        let mut open = Open::new(&mut card)?;
+        let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+
+        let mut open = Open::new(&mut txc)?;
 
         // Sign
         open.verify_user_for_signing("123456")?;
@@ -214,7 +220,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("The following OpenPGP cards are connected to your system:");
 
         for mut card in PcscCard::cards()? {
-            let open = Open::new(&mut card)?;
+            let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+
+            let open = Open::new(&mut txc)?;
             println!(" {}", open.application_identifier()?.ident());
         }
     }
