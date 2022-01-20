@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd,
         } => {
             let mut card = util::open_card(&ident)?;
-            let mut txc = get_txc!(card, true)?;
+            let mut txc = get_txc!(card)?;
 
             let mut open = Open::new(&mut txc)?;
 
@@ -139,7 +139,7 @@ fn list_cards() -> Result<()> {
         println!("Available OpenPGP cards:");
 
         for mut card in cards {
-            let mut txc = get_txc!(card, true)?;
+            let mut txc = get_txc!(card)?;
 
             let open = Open::new(&mut txc)?;
             println!(" {}", open.application_identifier()?.ident());
@@ -155,7 +155,7 @@ fn set_identity(
     id: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut card = util::open_card(ident)?;
-    let mut txc = get_txc!(card, true)?;
+    let mut txc = get_txc!(card)?;
 
     <dyn CardClient>::set_identity(&mut txc, id)?;
 
@@ -174,7 +174,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         }
     };
 
-    let mut txc = get_txc!(card, true)?;
+    let mut txc = get_txc!(card)?;
 
     let mut open = Open::new(&mut txc)?;
 
@@ -328,7 +328,7 @@ fn decrypt(
     let input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut txc = get_txc!(card, true)?;
+    let mut txc = get_txc!(card)?;
 
     let mut open = Open::new(&mut txc)?;
 
@@ -354,7 +354,7 @@ fn sign_detached(
     let mut input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut txc = get_txc!(card, true)?;
+    let mut txc = get_txc!(card)?;
 
     let mut open = Open::new(&mut txc)?;
 
@@ -373,7 +373,7 @@ fn sign_detached(
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
     let mut card = util::open_card(ident)?;
-    let mut txc = get_txc!(card, true)?;
+    let mut txc = get_txc!(card)?;
 
     Open::new(&mut txc)?.factory_reset()
 }

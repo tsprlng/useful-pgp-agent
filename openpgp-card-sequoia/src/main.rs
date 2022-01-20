@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         let mut card = PcscCard::open_by_ident(&test_card_ident)?;
-        let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+        let mut txc = openpgp_card_pcsc::get_txc!(card)?;
 
         let mut open = Open::new(&mut txc)?;
 
@@ -147,7 +147,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
         let mut card = PcscCard::open_by_ident(&test_card_ident)?;
-        let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+        let mut txc = openpgp_card_pcsc::get_txc!(card)?;
 
         let mut open = Open::new(&mut txc)?;
 
@@ -188,7 +188,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         let mut card = PcscCard::open_by_ident(&test_card_ident)?;
-        let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+        let mut txc = openpgp_card_pcsc::get_txc!(card)?;
 
         let mut open = Open::new(&mut txc)?;
 
@@ -220,7 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("The following OpenPGP cards are connected to your system:");
 
         for mut card in PcscCard::cards()? {
-            let mut txc = openpgp_card_pcsc::get_txc!(card, true)?;
+            let mut txc = openpgp_card_pcsc::get_txc!(card)?;
 
             let open = Open::new(&mut txc)?;
             println!(" {}", open.application_identifier()?.ident());

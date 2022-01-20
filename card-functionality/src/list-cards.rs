@@ -10,7 +10,7 @@ fn main() -> Result<()> {
     println!("The following OpenPGP cards are connected to your system:");
 
     for mut card in PcscCard::cards()? {
-        let mut txc: TxClient = openpgp_card_pcsc::get_txc!(card, true)?;
+        let mut txc: TxClient = openpgp_card_pcsc::get_txc!(card)?;
 
         let open = Open::new(&mut txc)?;
         println!(" {}", open.application_identifier()?.ident());

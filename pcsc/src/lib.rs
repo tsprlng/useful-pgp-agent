@@ -20,10 +20,15 @@ const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 /// in PcscCard)
 #[macro_export]
 macro_rules! get_txc {
-    ($card:expr, $reselect:expr) => {{
+    ($card:expr $(, $reselect:expr)? ) => {{
         use openpgp_card::{Error, SmartcardError};
         use pcsc::{Disposition, Protocols, ShareMode};
-        // use std::collections::HashMap;
+
+        #[allow(unused_assignments)]
+        let mut reselect = true;
+        $(
+            reselect = $reselect;
+        )?
 
         let mut was_reset = false;
 
@@ -52,7 +57,7 @@ macro_rules! get_txc {
                         // For initial card-opening, we don't do this, then
                         // the caller always expects a card that has not
                         // been "select"ed yet.
-                        if $reselect {
+                        if reselect {
                             TxClient::select(&mut txc)?;
                         }
 
