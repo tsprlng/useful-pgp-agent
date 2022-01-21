@@ -5,11 +5,14 @@
 //! TestConfig configuration file
 
 use anyhow::Result;
+use pcsc::ShareMode;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
 use openpgp_card_pcsc::PcscCard;
 use openpgp_card_scdc::ScdClient;
+
+const SHARE_MODE: Option<ShareMode> = Some(ShareMode::Shared);
 
 #[derive(Debug, Deserialize)]
 pub struct TestConfig {
@@ -96,7 +99,7 @@ impl TestCard {
                 let res = ScdClient::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
-                Ok(Box::new(PcscCard::open_by_ident(ident)?))
+                Ok(Box::new(PcscCard::open_by_ident(ident, SHARE_MODE)?))
             }
             Self::Scdc(serial) => {
                 unimplemented!();

@@ -9,11 +9,11 @@ use openpgp_card_pcsc::PcscCard;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
 pub(crate) fn cards() -> Result<Vec<PcscCard>, Error> {
-    PcscCard::cards()
+    PcscCard::cards(None)
 }
 
 pub(crate) fn open_card(ident: &str) -> Result<PcscCard, Error> {
-    PcscCard::open_by_ident(ident)
+    PcscCard::open_by_ident(ident, None)
 }
 
 pub(crate) fn verify_to_user<'app, 'open>(

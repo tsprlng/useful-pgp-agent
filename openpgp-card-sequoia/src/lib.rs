@@ -16,7 +16,7 @@
 //! use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! for mut card in PcscCard::cards()? {
+//! for mut card in PcscCard::cards(None)? {
 //!     let mut txc = get_txc!(card)?;
 //!     let open = Open::new(&mut txc)?;
 //!     println!("Found OpenPGP card with ident '{}'",
@@ -33,7 +33,7 @@
 //! use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let mut card = PcscCard::open_by_ident("abcd:12345678")?;
+//! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
 //! let mut txc = get_txc!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //! # Ok(())
@@ -56,7 +56,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut card = PcscCard::open_by_ident("abcd:12345678")?;
+//! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
 //! let mut txc = get_txc!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //!
@@ -98,7 +98,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut card = PcscCard::open_by_ident("abcd:12345678")?;
+//! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
 //! let mut txc = get_txc!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //!
@@ -129,7 +129,7 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
-//! let mut card = PcscCard::open_by_ident("abcd:12345678")?;
+//! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
 //! let mut txc = get_txc!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //!

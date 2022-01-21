@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pin_file = &args[1];
     let cert_file = &args[2];
 
-    let mut card = PcscCard::open_by_ident(card_ident)?;
+    let mut card = PcscCard::open_by_ident(card_ident, None)?;
     let mut txc = get_txc!(card)?;
 
     let mut open = Open::new(&mut txc)?;

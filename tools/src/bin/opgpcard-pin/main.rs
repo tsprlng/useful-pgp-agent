@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cli = cli::Cli::from_args();
 
-    let mut card = PcscCard::open_by_ident(&cli.ident)?;
+    let mut card = PcscCard::open_by_ident(&cli.ident, None)?;
     let mut txc = get_txc!(card)?;
 
     let pinpad_verify = txc.feature_pinpad_verify();
