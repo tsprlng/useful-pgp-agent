@@ -9,6 +9,7 @@ use pcsc::ShareMode;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
+use openpgp_card::Error;
 use openpgp_card_pcsc::PcscCard;
 use openpgp_card_scdc::ScdClient;
 
@@ -99,7 +100,23 @@ impl TestCard {
                 let res = ScdClient::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
-                Ok(Box::new(PcscCard::open_by_ident(ident, SHARE_MODE)?))
+                // Make three attempts to open the card before failing
+                // (this can be useful in ShareMode::Exclusive)
+                let mut i = 1;
+                let card: Result<PcscCard, Error> = loop {
+                    let res = PcscCard::open_by_ident(ident, SHARE_MODE);
+
+                    if i == 3 || res.is_ok() {
+                        break res;
+                    }
+
+                    // sleep for 100ms
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+
+                    i += 1;
+                };
+
+                Ok(Box::new(card?))
             }
             Self::Scdc(serial) => {
                 unimplemented!();
