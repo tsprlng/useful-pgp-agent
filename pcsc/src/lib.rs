@@ -471,6 +471,8 @@ impl PcscCard {
     /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
     /// application)
     fn raw_pcsc_cards(mode: ShareMode) -> Result<Vec<Card>, SmartcardError> {
+        log::debug!("raw_pcsc_cards start");
+
         let ctx = match Context::establish(Scope::User) {
             Ok(ctx) => ctx,
             Err(err) => {
@@ -478,6 +480,8 @@ impl PcscCard {
                 return Err(SmartcardError::ContextError(err.to_string()));
             }
         };
+
+        log::debug!("raw_pcsc_cards got context");
 
         // List available readers.
         let mut readers_buf = [0; 2048];
