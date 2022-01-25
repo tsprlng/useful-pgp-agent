@@ -80,7 +80,17 @@ impl HistoricalBytes {
 impl TryFrom<&[u8]> for HistoricalBytes {
     type Error = Error;
 
-    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
+    fn try_from(mut data: &[u8]) -> Result<Self, Self::Error> {
+        // workaround-hack for "ledger" with zero-padded historical bytes
+        if data.ends_with(&[0x90, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]) {
+            data = data.strip_suffix(&[0x0, 0x0, 0x0, 0x0, 0x0]).unwrap();
+        }
+
+        // workaround-hack for "ledger": fix status indicator byte 7
+        if data == &[0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x7, 0x90, 0x0] {
+            data = &[0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x5, 0x90, 0x0];
+        }
+
         let len = data.len();
 
         if len < 4 {
@@ -336,6 +346,38 @@ mod test {
                     extended_length_information: false
                 }),
                 sib: 0
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ledger_nano_s() -> Result<()> {
+        let data: &[u8] = &[
+            0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x7, 0x90, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0,
+        ];
+        let hist: HistoricalBytes = data.try_into()?;
+
+        assert_eq!(
+            hist,
+            HistoricalBytes {
+                cib: 0,
+                csd: Some(CardServiceData {
+                    select_by_full_df_name: true,
+                    select_by_partial_df_name: true,
+                    dos_available_in_ef_dir: false,
+                    dos_available_in_ef_atr_info: false,
+                    access_services: [false, true, false],
+                    mf: true
+                }),
+                cc: Some(CardCapabilities {
+                    command_chaining: true,
+                    extended_lc_le: false,
+                    extended_length_information: false
+                }),
+                sib: 5
             }
         );
 
