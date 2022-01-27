@@ -227,6 +227,9 @@ pub fn public_key_material_to_key(
                     }
                     KeyType::Decryption => {
                         if algo_ecc.curve() == Curve::Cv25519 {
+                            // FIXME: not setting `hash` and `sym` is not
+                            // ok when a cert already exists
+
                             // EdDSA
                             let k4 = Key4::import_public_cv25519(
                                 ecc.data(),
