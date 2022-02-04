@@ -519,7 +519,7 @@ fn gen_subkeys(
     // We begin by generating the signing subkey, which is mandatory.
     println!(" Generate subkey for Signing");
     let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, algo)?;
-    let key_sig = public_key_material_to_key(&pkm, KeyType::Decryption, ts)?;
+    let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
 
     // make decryption subkey (unless disabled), with the same algorithm as
     // the sig key
