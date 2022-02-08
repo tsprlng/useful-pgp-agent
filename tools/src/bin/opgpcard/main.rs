@@ -178,6 +178,8 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
     let mut open = Open::new(&mut txc)?;
 
+    let ident = open.application_identifier()?.ident();
+
     print!("OpenPGP card {}", open.application_identifier()?.ident());
 
     let ai = open.application_identifier()?;
@@ -262,12 +264,20 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     if let Some(fp) = fps.authentication() {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
+    let pubkey = open.public_key(KeyType::Authentication);
+    if let Ok(pkm) = &pubkey {
+        if let Ok(ssh) = util::get_ssh_pubkey_string(pkm, ident) {
+            // print auth key as openssh public key string
+            println!("  {}", ssh);
+        }
+    }
+
     if let Some(kgt) = kgt.authentication() {
         println! {"  created: {}", kgt.formatted()};
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
     if verbose {
-        if let Ok(pkm) = open.public_key(KeyType::Authentication) {
+        if let Ok(pkm) = pubkey {
             println! {"  public key material: {}", pkm};
         }
     }
