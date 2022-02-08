@@ -35,9 +35,11 @@ impl Command {
     /// `data` must be smaller than 64 kbyte. If a larger `data` is passed,
     /// this fn will panic.
     pub fn new(cla: u8, ins: u8, p1: u8, p2: u8, data: Vec<u8>) -> Self {
-        // This constructor is the only place it gets set, so it's
+        // This constructor is the only place `data` gets set, so it's
         // sufficient to check it here.
-        assert!(data.len() < 0x10000, "'data' too big, must be <64 kbyte");
+        if data.len() > u16::MAX as usize {
+            panic!("'data' too big, must be <64 kbyte");
+        }
 
         Command {
             cla,
@@ -77,6 +79,7 @@ impl Command {
         //  thus disable Le in this case.
 
         // "number of bytes in the command data field"
+        assert!(self.data.len() <= u16::MAX as usize);
         let nc = self.data.len() as u16;
 
         let mut buf = vec![self.cla, self.ins, self.p1, self.p2];
@@ -102,7 +105,7 @@ impl Command {
         } else if !ext_len {
             vec![len as u8]
         } else {
-            vec![0, (len as u16 >> 8) as u8, (len as u16 & 255) as u8]
+            vec![0, (len >> 8) as u8, (len & 255) as u8]
         }
     }
 
