@@ -17,53 +17,49 @@ pub(crate) fn select_openpgp() -> Command {
     )
 }
 
-/// 7.2.6 GET DATA
-/// ('tag' must consist of either one or two bytes)
-fn get_data(tag: &[u8]) -> Command {
-    assert!(!tag.is_empty() && tag.len() <= 2);
+/// 7.2.6 GET DATA (tag consists one byte)
+fn get_data1(tag0: u8) -> Command {
+    Command::new(0x00, 0xCA, 0, tag0, vec![])
+}
 
-    let (p1, p2) = if tag.len() == 2 {
-        (tag[0], tag[1])
-    } else {
-        (0, tag[0])
-    };
-
-    Command::new(0x00, 0xCA, p1, p2, vec![])
+/// 7.2.6 GET DATA (tag consists of two bytes)
+fn get_data2(tag0: u8, tag1: u8) -> Command {
+    Command::new(0x00, 0xCA, tag0, tag1, vec![])
 }
 
 /// GET DO "Application related data"
 pub(crate) fn application_related_data() -> Command {
-    get_data(&[0x6E])
+    get_data1(0x6E)
 }
 
 /// GET DO "private use"
 pub(crate) fn private_use_do(num: u8) -> Command {
-    get_data(&[0x01, num])
+    get_data2(0x01, num)
 }
 
 /// GET DO "Uniform resource locator"
 pub(crate) fn url() -> Command {
-    get_data(&[0x5F, 0x50])
+    get_data2(0x5F, 0x50)
 }
 
 /// GET DO "Cardholder related data"
 pub(crate) fn cardholder_related_data() -> Command {
-    get_data(&[0x65])
+    get_data1(0x65)
 }
 
 /// GET DO "Security support template"
 pub(crate) fn security_support_template() -> Command {
-    get_data(&[0x7A])
+    get_data1(0x7A)
 }
 
 /// GET DO "Cardholder certificate"
 pub(crate) fn cardholder_certificate() -> Command {
-    get_data(&[0x7F, 0x21])
+    get_data2(0x7F, 0x21)
 }
 
 /// GET DO "Algorithm Information"
 pub(crate) fn algo_info() -> Command {
-    get_data(&[0xFA])
+    get_data1(0xFA)
 }
 
 /// GET Firmware Version (yubikey specific?)
