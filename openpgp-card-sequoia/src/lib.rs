@@ -13,11 +13,11 @@
 //!
 //! ```no_run
 //! use openpgp_card_sequoia::card::Open;
-//! use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
+//! use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! for mut card in PcscCard::cards(None)? {
-//!     let mut txc = get_txc!(card)?;
+//!     let mut txc = transaction!(card)?;
 //!     let open = Open::new(&mut txc)?;
 //!     println!("Found OpenPGP card with ident '{}'",
 //!              open.application_identifier()?.ident());
@@ -30,11 +30,11 @@
 //!
 //! ```no_run
 //! use openpgp_card_sequoia::card::Open;
-//! use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
+//! use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = get_txc!(card)?;
+//! let mut txc = transaction!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //! # Ok(())
 //! # }
@@ -51,13 +51,13 @@
 //!
 //! ```no_run
 //! use openpgp_card_sequoia::card::Open;
-//! use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
+//! use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = get_txc!(card)?;
+//! let mut txc = transaction!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //!
 //! // Get authorization for user access to the card with password
@@ -93,13 +93,13 @@
 //!
 //! ```no_run
 //! use openpgp_card_sequoia::card::Open;
-//! use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
+//! use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = get_txc!(card)?;
+//! let mut txc = transaction!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //!
 //! // Get authorization for signing access to the card with password
@@ -125,12 +125,12 @@
 //!
 //! ```no_run
 //! use openpgp_card_sequoia::card::Open;
-//! use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
+//! use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = get_txc!(card)?;
+//! let mut txc = transaction!(card)?;
 //! let mut open = Open::new(&mut txc)?;
 //!
 //! // Get authorization for admin access to the card with password

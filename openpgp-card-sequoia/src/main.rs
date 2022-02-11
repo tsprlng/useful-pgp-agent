@@ -11,7 +11,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::Sex;
 use openpgp_card::KeyType;
-use openpgp_card_pcsc::{get_txc, PcscCard, TxClient};
+use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
 
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::sq_util;
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         let mut card = PcscCard::open_by_ident(&test_card_ident, None)?;
-        let mut txc = get_txc!(card)?;
+        let mut txc = transaction!(card)?;
 
         let mut open = Open::new(&mut txc)?;
 
@@ -147,7 +147,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
         let mut card = PcscCard::open_by_ident(&test_card_ident, None)?;
-        let mut txc = get_txc!(card)?;
+        let mut txc = transaction!(card)?;
 
         let mut open = Open::new(&mut txc)?;
 
@@ -188,7 +188,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         let mut card = PcscCard::open_by_ident(&test_card_ident, None)?;
-        let mut txc = get_txc!(card)?;
+        let mut txc = transaction!(card)?;
 
         let mut open = Open::new(&mut txc)?;
 
@@ -220,7 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("The following OpenPGP cards are connected to your system:");
 
         for mut card in PcscCard::cards(None)? {
-            let mut txc = get_txc!(card)?;
+            let mut txc = transaction!(card)?;
 
             let open = Open::new(&mut txc)?;
             println!(" {}", open.application_identifier()?.ident());

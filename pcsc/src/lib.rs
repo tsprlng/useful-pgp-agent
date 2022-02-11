@@ -19,7 +19,7 @@ const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 /// Get a TxClient from a PcscCard (this starts a transaction on the card
 /// in PcscCard)
 #[macro_export]
-macro_rules! get_txc {
+macro_rules! transaction {
     ( $card:expr, $reselect:expr ) => {{
         use openpgp_card::{Error, SmartcardError};
         use pcsc::{Disposition, Protocols};
@@ -100,7 +100,7 @@ macro_rules! get_txc {
         }
     }};
     ( $card:expr ) => {
-        get_txc!($card, true)
+        transaction!($card, true)
     };
 }
 
@@ -556,7 +556,7 @@ impl PcscCard {
                 // start transaction
                 log::debug!("1");
                 let mut p = PcscCard::new(card, mode);
-                let mut txc: TxClient = get_txc!(p, false)?;
+                let mut txc: TxClient = transaction!(p, false)?;
 
                 log::debug!("3");
                 {
@@ -682,7 +682,7 @@ impl PcscCard {
 
         let mut h: HashMap<u8, Tlv> = HashMap::default();
 
-        let mut txc: TxClient = get_txc!(self, true)?;
+        let mut txc: TxClient = transaction!(self, true)?;
 
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = txc.features() {
