@@ -54,7 +54,10 @@ macro_rules! transaction {
                         // the caller always expects a card that has not
                         // been "select"ed yet.
                         if $reselect {
-                            TxClient::select(&mut txc)?;
+                            match TxClient::select(&mut txc) {
+                                Ok(_) => {}
+                                Err(err) => break Err(err),
+                            }
                         }
 
                         tx = txc.tx();
@@ -73,17 +76,21 @@ macro_rules! transaction {
                     log::debug!("start_tx: do reconnect");
 
                     {
-                        c.reconnect(
+                        match c.reconnect(
                             mode,
                             Protocols::ANY,
                             Disposition::ResetCard,
-                        )
-                        .map_err(|e| {
-                            Error::Smartcard(SmartcardError::Error(format!(
-                                "Reconnect failed: {:?}",
-                                e
-                            )))
-                        })?;
+                        ) {
+                            Ok(_) => {}
+                            Err(err) => {
+                                break Err(Error::Smartcard(
+                                    SmartcardError::Error(format!(
+                                        "Reconnect failed: {:?}",
+                                        err
+                                    )),
+                                ))
+                            }
+                        }
                     }
 
                     log::debug!("start_tx: reconnected.");
