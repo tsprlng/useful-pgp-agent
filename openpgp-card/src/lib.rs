@@ -295,7 +295,8 @@ impl<'a> dyn CardClient + 'a {
     ///
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
-    pub fn cardholder_certificate(&mut self) -> Result<Response, Error> {
+    #[allow(dead_code)]
+    fn cardholder_certificate(&mut self) -> Result<Response, Error> {
         let cmd = commands::cardholder_certificate();
         apdu::send_command(self, cmd, true)?.try_into()
     }

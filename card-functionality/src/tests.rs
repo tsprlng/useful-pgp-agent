@@ -391,65 +391,65 @@ pub fn test_private_data(
     Ok(out)
 }
 
-pub fn test_cardholder_cert(
-    card_client: &mut (dyn CardClient + Send + Sync),
-    _param: &[&str],
-) -> Result<TestOutput, TestError> {
-    let mut out = vec![];
-
-    println!();
-
-    match card_client.cardholder_certificate() {
-        Ok(res) => {
-            out.push(TestResult::Text(format!("got cert {:x?}", res.data())))
-        }
-        Err(e) => {
-            out.push(TestResult::Text(format!(
-                "get_cardholder_certificate failed: {:?}",
-                e
-            )));
-            return Ok(out);
-        }
-    };
-
-    card_client.verify_pw3("12345678")?;
-
-    let data = "Foo bar baz!".as_bytes();
-
-    match card_client.set_cardholder_certificate(data.to_vec()) {
-        Ok(_resp) => out.push(TestResult::Text("set cert ok".to_string())),
-        Err(e) => {
-            out.push(TestResult::Text(format!(
-                "set_cardholder_certificate: {:?}",
-                e
-            )));
-            return Ok(out);
-        }
-    }
-
-    let res = card_client.cardholder_certificate()?;
-    out.push(TestResult::Text("get cert ok".to_string()));
-
-    if res.data() != data {
-        out.push(TestResult::Text(format!(
-            "get after set doesn't match original data: {:x?}",
-            data
-        )));
-        return Ok(out);
-    };
-
-    // try using slot 2
-
-    match card_client.select_data(2, &[0x7F, 0x21]) {
-        Ok(_res) => out.push(TestResult::Text("select_data ok".to_string())),
-        Err(e) => {
-            out.push(TestResult::Text(format!("select_data: {:?}", e)));
-            return Ok(out);
-        }
-    }
-
-    Ok(out)
-}
+// pub fn test_cardholder_cert(
+//     card_client: &mut (dyn CardClient + Send + Sync),
+//     _param: &[&str],
+// ) -> Result<TestOutput, TestError> {
+//     let mut out = vec![];
+//
+//     println!();
+//
+//     match card_client.cardholder_certificate() {
+//         Ok(res) => {
+//             out.push(TestResult::Text(format!("got cert {:x?}", res.data())))
+//         }
+//         Err(e) => {
+//             out.push(TestResult::Text(format!(
+//                 "get_cardholder_certificate failed: {:?}",
+//                 e
+//             )));
+//             return Ok(out);
+//         }
+//     };
+//
+//     card_client.verify_pw3("12345678")?;
+//
+//     let data = "Foo bar baz!".as_bytes();
+//
+//     match card_client.set_cardholder_certificate(data.to_vec()) {
+//         Ok(_resp) => out.push(TestResult::Text("set cert ok".to_string())),
+//         Err(e) => {
+//             out.push(TestResult::Text(format!(
+//                 "set_cardholder_certificate: {:?}",
+//                 e
+//             )));
+//             return Ok(out);
+//         }
+//     }
+//
+//     let res = card_client.cardholder_certificate()?;
+//     out.push(TestResult::Text("get cert ok".to_string()));
+//
+//     if res.data() != data {
+//         out.push(TestResult::Text(format!(
+//             "get after set doesn't match original data: {:x?}",
+//             data
+//         )));
+//         return Ok(out);
+//     };
+//
+//     // try using slot 2
+//
+//     match card_client.select_data(2, &[0x7F, 0x21]) {
+//         Ok(_res) => out.push(TestResult::Text("select_data ok".to_string())),
+//         Err(e) => {
+//             out.push(TestResult::Text(format!("select_data: {:?}", e)));
+//             return Ok(out);
+//         }
+//     }
+//
+//     Ok(out)
+// }
 
 pub fn test_pw_status(
     card_client: &mut (dyn CardClient + Send + Sync),
