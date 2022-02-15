@@ -247,10 +247,10 @@ impl<'a> dyn CardClient + 'a {
     // --- login data (5e) ---
 
     /// Get URL (5f50)
-    pub fn url(&mut self) -> Result<String> {
+    pub fn url(&mut self) -> Result<Vec<u8>> {
         let resp = apdu::send_command(self, commands::url(), true)?;
 
-        Ok(String::from_utf8_lossy(resp.data()?).to_string())
+        Ok(resp.data()?.to_vec())
     }
 
     /// Get cardholder related data (65)
@@ -749,13 +749,13 @@ impl<'a> dyn CardClient + 'a {
 
     // --- admin ---
 
-    pub fn set_name(&mut self, name: &str) -> Result<Response, Error> {
-        let put_name = commands::put_name(name.as_bytes().to_vec());
+    pub fn set_name(&mut self, name: &[u8]) -> Result<Response, Error> {
+        let put_name = commands::put_name(name.to_vec());
         apdu::send_command(self, put_name, false)?.try_into()
     }
 
-    pub fn set_lang(&mut self, lang: &str) -> Result<Response, Error> {
-        let put_lang = commands::put_lang(lang.as_bytes().to_vec());
+    pub fn set_lang(&mut self, lang: &[u8]) -> Result<Response, Error> {
+        let put_lang = commands::put_lang(lang.to_vec());
         apdu::send_command(self, put_lang, false)?.try_into()
     }
 
@@ -764,8 +764,8 @@ impl<'a> dyn CardClient + 'a {
         apdu::send_command(self, put_sex, false)?.try_into()
     }
 
-    pub fn set_url(&mut self, url: &str) -> Result<Response, Error> {
-        let put_url = commands::put_url(url.as_bytes().to_vec());
+    pub fn set_url(&mut self, url: &[u8]) -> Result<Response, Error> {
+        let put_url = commands::put_url(url.to_vec());
         apdu::send_command(self, put_url, false)?.try_into()
     }
 

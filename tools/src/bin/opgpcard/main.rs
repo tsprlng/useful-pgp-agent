@@ -189,6 +189,8 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     let crd = open.cardholder_related_data()?;
 
     if let Some(name) = crd.name() {
+        let name = String::from_utf8_lossy(name).to_string();
+
         print!("Cardholder: ");
 
         // This field is silly, maybe ignore it?!
@@ -215,7 +217,9 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     if let Some(lang) = crd.lang() {
         let lang = lang
             .iter()
-            .map(|lang| lang.iter().collect::<String>())
+            .map(|lang| {
+                lang.iter().map(|&u| char::from(u)).collect::<String>()
+            })
             .collect::<Vec<_>>()
             .join(", ");
         println!("Language preferences '{}'", lang);

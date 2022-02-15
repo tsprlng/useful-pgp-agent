@@ -296,7 +296,7 @@ impl<'a> Open<'a> {
     // --- URL (5f50) ---
 
     pub fn url(&mut self) -> Result<String> {
-        self.card_client.url()
+        Ok(String::from_utf8_lossy(&self.card_client.url()?).to_string())
     }
 
     // --- cardholder related data (65) ---
@@ -408,7 +408,7 @@ impl Admin<'_, '_> {
             return Err(anyhow!("Invalid char in name").into());
         };
 
-        self.oc.card_client.set_name(name)
+        self.oc.card_client.set_name(name.as_bytes())
     }
 
     pub fn set_lang(&mut self, lang: &str) -> Result<Response, Error> {
@@ -416,7 +416,7 @@ impl Admin<'_, '_> {
             return Err(anyhow!("lang too long").into());
         }
 
-        self.oc.card_client.set_lang(lang)
+        self.oc.card_client.set_lang(lang.as_bytes())
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
@@ -438,7 +438,7 @@ impl Admin<'_, '_> {
             // or if it's within the acceptable length:
             // send the url update to the card.
 
-            self.oc.card_client.set_url(url)
+            self.oc.card_client.set_url(url.as_bytes())
         } else {
             Err(anyhow!("URL too long").into())
         }

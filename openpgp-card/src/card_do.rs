@@ -284,8 +284,8 @@ pub struct ExtendedLengthInfo {
 /// Cardholder Related Data (see spec pg. 22)
 #[derive(Debug, PartialEq)]
 pub struct CardholderRelatedData {
-    name: Option<String>,
-    lang: Option<Vec<[char; 2]>>,
+    name: Option<Vec<u8>>,
+    lang: Option<Vec<[u8; 2]>>,
     sex: Option<Sex>,
 }
 

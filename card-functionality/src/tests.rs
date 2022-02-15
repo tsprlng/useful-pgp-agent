@@ -331,29 +331,29 @@ pub fn test_set_user_data(
     card_client.verify_pw3("12345678")?;
 
     // name
-    card_client.set_name("Bar<<Foo")?;
+    card_client.set_name(b"Bar<<Foo")?;
 
     // lang
-    card_client.set_lang("deen")?;
+    card_client.set_lang(b"deen")?;
 
     // sex
     card_client.set_sex(Sex::Female)?;
 
     // url
-    card_client.set_url("https://duckduckgo.com/")?;
+    card_client.set_url(b"https://duckduckgo.com/")?;
 
     // read all the fields back again, expect equal data
     let ch = card_client.cardholder_related_data()?;
 
-    assert_eq!(ch.name(), Some("Bar<<Foo"));
+    assert_eq!(ch.name().as_deref(), Some("Bar<<Foo".as_bytes()));
     assert_eq!(
         ch.lang().expect("Language setting is None"),
-        &[['d', 'e'], ['e', 'n']]
+        &[[b'd', b'e'], [b'e', b'n']]
     );
     assert_eq!(ch.sex(), Some(Sex::Female));
 
     let url = card_client.url()?;
-    assert_eq!(url, "https://duckduckgo.com/".to_string());
+    assert_eq!(&url, b"https://duckduckgo.com/");
 
     Ok(vec![])
 }
@@ -498,7 +498,7 @@ pub fn test_verify(
     let mut out = vec![];
 
     // try to set name without verify, assert result is not ok!
-    let res = card_client.set_name("Notverified<<Hello");
+    let res = card_client.set_name("Notverified<<Hello".as_bytes());
 
     if let Err(Error::CardStatus(s)) = res {
         assert_eq!(s, StatusBytes::SecurityStatusNotSatisfied);
@@ -519,10 +519,13 @@ pub fn test_verify(
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    card_client.set_name("Admin<<Hello")?;
+    card_client.set_name(b"Admin<<Hello")?;
 
     let cardholder = card_client.cardholder_related_data()?;
-    assert_eq!(cardholder.name(), Some("Admin<<Hello"));
+    assert_eq!(
+        cardholder.name().as_deref(),
+        Some("Admin<<Hello".as_bytes())
+    );
 
     card_client.verify_pw1("123456")?;
 
@@ -537,10 +540,10 @@ pub fn test_verify(
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    card_client.set_name("There<<Hello")?;
+    card_client.set_name(b"There<<Hello")?;
 
     let cardholder = card_client.cardholder_related_data()?;
-    assert_eq!(cardholder.name(), Some("There<<Hello"));
+    assert_eq!(cardholder.name(), Some("There<<Hello".as_bytes()));
 
     Ok(out)
 }

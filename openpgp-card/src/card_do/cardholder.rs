@@ -11,11 +11,11 @@ use crate::card_do::{CardholderRelatedData, Sex};
 use crate::tlv::{value::Value, Tlv};
 
 impl CardholderRelatedData {
-    pub fn name(&self) -> Option<&str> {
+    pub fn name(&self) -> Option<&[u8]> {
         self.name.as_deref()
     }
 
-    pub fn lang(&self) -> Option<&[[char; 2]]> {
+    pub fn lang(&self) -> Option<&[[u8; 2]]> {
         self.lang.as_deref()
     }
 
@@ -31,17 +31,12 @@ impl TryFrom<&[u8]> for CardholderRelatedData {
         let value = Value::from(data, true)?;
         let tlv = Tlv::new([0x65], value);
 
-        let name: Option<String> = tlv
-            .find(&[0x5b].into())
-            .map(|v| String::from_utf8_lossy(&v.serialize()).to_string());
+        let name: Option<Vec<u8>> =
+            tlv.find(&[0x5b].into()).map(|v| v.serialize().to_vec());
 
-        let lang: Option<Vec<[char; 2]>> =
-            tlv.find(&[0x5f, 0x2d].into()).map(|v| {
-                v.serialize()
-                    .chunks(2)
-                    .map(|c| [c[0] as char, c[1] as char])
-                    .collect()
-            });
+        let lang: Option<Vec<[u8; 2]>> = tlv
+            .find(&[0x5f, 0x2d].into())
+            .map(|v| v.serialize().chunks(2).map(|c| [c[0], c[1]]).collect());
 
         let sex = tlv
             .find(&[0x5f, 0x35].into())
@@ -70,8 +65,8 @@ mod test {
         assert_eq!(
             ch,
             CardholderRelatedData {
-                name: Some("Bar<<Foo".to_string()),
-                lang: Some(vec![['d', 'e'], ['e', 'n']]),
+                name: Some("Bar<<Foo".as_bytes().to_vec()),
+                lang: Some(vec![[b'd', b'e'], [b'e', b'n']]),
                 sex: Some(Sex::Female)
             }
         );
