@@ -3,14 +3,14 @@
 
 use anyhow::Result;
 
-use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
+use openpgp_card_pcsc::PcscCard;
 use openpgp_card_sequoia::card::Open;
 
 fn main() -> Result<()> {
     println!("The following OpenPGP cards are connected to your system:");
 
     for mut card in PcscCard::cards(None)? {
-        let mut txc: TxClient = transaction!(card)?;
+        let mut txc = card.transaction()?;
 
         let open = Open::new(&mut txc)?;
         println!(" {}", open.application_identifier()?.ident());

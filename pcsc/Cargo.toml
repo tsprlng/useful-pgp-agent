@@ -14,6 +14,6 @@ documentation = "https://docs.rs/crate/openpgp-card-pcsc"
 [dependencies]
 openpgp-card = { path = "../openpgp-card", version = "0.1" }
 iso7816-tlv = "0.4"
-pcsc = "2"
+pcsc = { git = "https://github.com/bluetech/pcsc-rust/", rev = "ac1feee16d54bd6ba1681a201fc8f25808aa346d" }
 anyhow = "1"
 log = "0.4"

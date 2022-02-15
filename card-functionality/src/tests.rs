@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
@@ -16,7 +16,6 @@ use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{CardClient, Error, KeyType, StatusBytes};
-use openpgp_card_pcsc::{transaction, TxClient};
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
@@ -671,19 +670,15 @@ pub fn test_reset_retry_counter(
 }
 
 pub fn run_test(
-    card: &mut TestCardData,
+    tc: &mut TestCardData,
     t: fn(
         &mut (dyn CardClient + Send + Sync),
         &[&str],
     ) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut card_client = card.get_card()?;
-
-    use anyhow::anyhow;
-
-    let mut txc = transaction!(card_client).map_err(|e| anyhow!(e))?;
-    // let mut txc = TxClient::new(&mut tx, card_caps, reader_caps);
+    let mut card = tc.get_card()?;
+    let mut txc = card.transaction().map_err(|e| anyhow!(e))?;
 
     t(&mut txc, param)
 }

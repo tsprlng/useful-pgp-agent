@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Wiktor Kwapisiewicz <wiktor@metacode.biz>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use openpgp_card_pcsc::{transaction, PcscCard, TxClient};
+use openpgp_card_pcsc::PcscCard;
 
 use openpgp_card_sequoia::card::Open;
 
@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cert_file = &args[2];
 
     let mut card = PcscCard::open_by_ident(card_ident, None)?;
-    let mut txc = transaction!(card)?;
+    let mut txc = card.transaction()?;
 
     let mut open = Open::new(&mut txc)?;
 

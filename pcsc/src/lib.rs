@@ -16,101 +16,6 @@ use openpgp_card::{CardCaps, CardClient, Error, SmartcardError};
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
-/// Get a TxClient from a PcscCard (this starts a transaction on the card
-/// in PcscCard)
-#[macro_export]
-macro_rules! transaction {
-    ( $card:expr, $reselect:expr ) => {{
-        use openpgp_card::{Error, SmartcardError};
-        use pcsc::{Disposition, Protocols};
-
-        let mut was_reset = false;
-
-        let card_caps = $card.card_caps();
-        let reader_caps = $card.reader_caps().clone();
-        let mode = $card.mode();
-
-        let c = $card.card();
-
-        loop {
-            let res = c.transaction();
-
-            match res {
-                Ok(mut tx) => {
-                    // A transaction has been successfully started
-
-                    if was_reset {
-                        log::debug!(
-                            "start_tx: card was reset, select() openpgp"
-                        );
-
-                        let mut txc =
-                            TxClient::new(tx, card_caps, reader_caps.clone());
-
-                        // In contexts where the caller of this macro
-                        // expects that the card has already been opened,
-                        // re-open the card here.
-                        // For initial card-opening, we don't do this, then
-                        // the caller always expects a card that has not
-                        // been "select"ed yet.
-                        if $reselect {
-                            match TxClient::select(&mut txc) {
-                                Ok(_) => {}
-                                Err(err) => break Err(err),
-                            }
-                        }
-
-                        tx = txc.tx();
-                    }
-
-                    let txc = TxClient::new(tx, card_caps, reader_caps);
-
-                    break Ok(txc);
-                }
-                Err(pcsc::Error::ResetCard) => {
-                    // Card was reset, need to reconnect
-                    was_reset = true;
-
-                    drop(res);
-
-                    log::debug!("start_tx: do reconnect");
-
-                    {
-                        match c.reconnect(
-                            mode,
-                            Protocols::ANY,
-                            Disposition::ResetCard,
-                        ) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                break Err(Error::Smartcard(
-                                    SmartcardError::Error(format!(
-                                        "Reconnect failed: {:?}",
-                                        err
-                                    )),
-                                ))
-                            }
-                        }
-                    }
-
-                    log::debug!("start_tx: reconnected.");
-
-                    // -> try opening a transaction again
-                }
-                Err(e) => {
-                    log::debug!("start_tx: error {:?}", e);
-                    break Err(Error::Smartcard(SmartcardError::Error(
-                        format!("Error: {:?}", e),
-                    )));
-                }
-            };
-        }
-    }};
-    ( $card:expr ) => {
-        transaction!($card, true)
-    };
-}
-
 fn default_mode(mode: Option<ShareMode>) -> ShareMode {
     if let Some(mode) = mode {
         mode
@@ -124,7 +29,7 @@ fn default_mode(mode: Option<ShareMode>) -> ShareMode {
 ///
 /// This struct can be used to hold on to a Card, even while no operations
 /// are performed on the Card. To perform operations on the card, a
-/// `TxClient` object needs to be obtained (via the `get_txc!()` macro).
+/// `TxClient` object needs to be obtained (via PcscCard::transaction()).
 pub struct PcscCard {
     card: Card,
     mode: ShareMode,
@@ -136,8 +41,8 @@ pub struct PcscCard {
 /// middleware to access the OpenPGP card application on smart cards, via a
 /// PCSC "transaction".
 ///
-/// This struct is created from a PcscCard by opening a transaction, using the
-/// `start_tx!` macro.
+/// This struct is created from a PcscCard by opening a transaction, using
+/// PcscCard::transaction().
 ///
 /// Transactions on a card cannot be opened and left idle
 /// (e.g. Microsoft documents that on Windows, they will be closed after
@@ -150,15 +55,95 @@ pub struct TxClient<'b> {
 }
 
 impl<'b> TxClient<'b> {
-    pub fn new(
-        tx: Transaction<'b>,
-        card_caps: Option<CardCaps>,
-        reader_caps: HashMap<u8, Tlv>,
-    ) -> Self {
-        TxClient {
-            tx,
-            card_caps,
-            reader_caps,
+    /// Start a transaction on `card`.
+    ///
+    /// `reselect` set to `false` is only used internally in this crate,
+    /// during initial setup of cards. Otherwise it must be `true`, to
+    /// cause a select() call on cards that have been reset.
+    fn new(card: &'b mut PcscCard, reselect: bool) -> Result<Self> {
+        use pcsc::Disposition;
+
+        let mut was_reset = false;
+
+        let card_caps = card.card_caps();
+        let reader_caps = card.reader_caps().clone();
+        let mode = card.mode();
+
+        let mut c = card.card();
+
+        loop {
+            match c.transaction2() {
+                Ok(mut tx) => {
+                    // A transaction has been successfully started
+
+                    if was_reset {
+                        log::debug!(
+                            "start_tx: card was reset, select() openpgp"
+                        );
+
+                        let mut txc = Self {
+                            tx,
+                            card_caps,
+                            reader_caps: reader_caps.clone(),
+                        };
+
+                        // In contexts where the caller of this fn
+                        // expects that the card has already been opened,
+                        // re-open the card here.
+                        // For initial card-opening, we don't do this, then
+                        // the caller always expects a card that has not
+                        // been "select"ed yet.
+                        if reselect {
+                            TxClient::select(&mut txc)?;
+                        }
+
+                        tx = txc.tx();
+                    }
+
+                    let txc = Self {
+                        tx,
+                        card_caps,
+                        reader_caps: reader_caps.clone(),
+                    };
+
+                    break Ok(txc);
+                }
+                Err((c_, pcsc::Error::ResetCard)) => {
+                    // Card was reset, need to reconnect
+                    was_reset = true;
+
+                    // drop(res);
+
+                    c = c_;
+
+                    log::debug!("start_tx: do reconnect");
+
+                    {
+                        c.reconnect(
+                            mode,
+                            Protocols::ANY,
+                            Disposition::ResetCard,
+                        )
+                        .map_err(|e| {
+                            Error::Smartcard(SmartcardError::Error(format!(
+                                "Reconnect failed: {:?}",
+                                e
+                            )))
+                        })?;
+                    }
+
+                    log::debug!("start_tx: reconnected.");
+
+                    // -> try opening a transaction again
+                }
+                Err((_, e)) => {
+                    log::debug!("start_tx: error {:?}", e);
+                    break Err(Error::Smartcard(SmartcardError::Error(
+                        format!("Error: {:?}", e),
+                    ))
+                    .into());
+                }
+            };
         }
     }
 
@@ -472,6 +457,11 @@ impl PcscCard {
         self.mode
     }
 
+    /// Get a TxClient for this PcscCard (this starts a transaction)
+    pub fn transaction(&mut self) -> Result<TxClient> {
+        TxClient::new(self, true)
+    }
+
     /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
     /// application)
     fn raw_pcsc_cards(mode: ShareMode) -> Result<Vec<Card>, SmartcardError> {
@@ -563,7 +553,7 @@ impl PcscCard {
                 // start transaction
                 log::debug!("1");
                 let mut p = PcscCard::new(card, mode);
-                let mut txc: TxClient = transaction!(p, false)?;
+                let mut txc = TxClient::new(&mut p, false)?;
 
                 log::debug!("3");
                 {
@@ -588,7 +578,12 @@ impl PcscCard {
                             )))
                         })?;
                         log::debug!("4b card status: {:x?}", stat);
-                        txc = TxClient::new(tx, None, HashMap::default());
+                        txc = TxClient {
+                            tx,
+                            card_caps: None,
+                            reader_caps: HashMap::default(),
+                        };
+
                         // -- /debug: status --
 
                         if let Some(ident) = ident {
@@ -689,7 +684,7 @@ impl PcscCard {
 
         let mut h: HashMap<u8, Tlv> = HashMap::default();
 
-        let mut txc: TxClient = transaction!(self, true)?;
+        let mut txc = self.transaction()?;
 
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = txc.features() {

@@ -16,7 +16,6 @@ sequoia-openpgp = "1.3"
 nettle = "7"
 openpgp-card = { path = "../openpgp-card", version = "0.1" }
 openpgp-card-pcsc = { path = "../pcsc", version = "0.1" }
-pcsc = "2"
 openpgp-card-sequoia = { path = "../openpgp-card-sequoia", version = "0.0.7" }
 sshkeys = "0.3"
 rpassword = "5"

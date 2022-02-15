@@ -13,7 +13,6 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::{card_do::Sex, CardClient, KeyType};
-use openpgp_card_pcsc::{transaction, TxClient};
 
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
@@ -72,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd,
         } => {
             let mut card = util::open_card(&ident)?;
-            let mut txc = transaction!(card)?;
+            let mut txc = card.transaction()?;
 
             let mut open = Open::new(&mut txc)?;
 
@@ -139,7 +138,7 @@ fn list_cards() -> Result<()> {
         println!("Available OpenPGP cards:");
 
         for mut card in cards {
-            let mut txc = transaction!(card)?;
+            let mut txc = card.transaction()?;
 
             let open = Open::new(&mut txc)?;
             println!(" {}", open.application_identifier()?.ident());
@@ -155,7 +154,7 @@ fn set_identity(
     id: u8,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut card = util::open_card(ident)?;
-    let mut txc = transaction!(card)?;
+    let mut txc = card.transaction()?;
 
     <dyn CardClient>::set_identity(&mut txc, id)?;
 
@@ -174,7 +173,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         }
     };
 
-    let mut txc = transaction!(card)?;
+    let mut txc = card.transaction()?;
 
     let mut open = Open::new(&mut txc)?;
 
@@ -338,7 +337,7 @@ fn decrypt(
     let input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut txc = transaction!(card)?;
+    let mut txc = card.transaction()?;
 
     let mut open = Open::new(&mut txc)?;
 
@@ -364,7 +363,7 @@ fn sign_detached(
     let mut input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut txc = transaction!(card)?;
+    let mut txc = card.transaction()?;
 
     let mut open = Open::new(&mut txc)?;
 
@@ -383,7 +382,7 @@ fn sign_detached(
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
     let mut card = util::open_card(ident)?;
-    let mut txc = transaction!(card)?;
+    let mut txc = card.transaction()?;
 
     Open::new(&mut txc)?.factory_reset()
 }
