@@ -27,7 +27,6 @@
 
 pub mod algorithm;
 pub(crate) mod apdu;
-mod card_app;
 pub mod card_do;
 pub mod crypto_data;
 mod errors;
@@ -35,7 +34,6 @@ pub(crate) mod keys;
 mod tlv;
 
 pub use crate::apdu::response::Response;
-pub use crate::card_app::CardApp;
 pub use crate::errors::{Error, SmartcardError, StatusBytes};
 
 use anyhow::{anyhow, Result};
@@ -60,6 +58,8 @@ use crate::tlv::Tlv;
 /// The CardClient trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate
 /// [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)).
+///
+/// CardClient exposes low-level access to OpenPGP card functionality.
 pub trait CardClient {
     /// Transmit the command data in `cmd` to the card.
     ///
