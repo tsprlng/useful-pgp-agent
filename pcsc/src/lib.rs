@@ -77,9 +77,7 @@ impl<'b> TxClient<'b> {
                     // A transaction has been successfully started
 
                     if was_reset {
-                        log::debug!(
-                            "start_tx: card was reset, select() openpgp"
-                        );
+                        log::debug!("start_tx: card was reset, select!");
 
                         let mut txc = Self {
                             tx,
@@ -483,7 +481,7 @@ impl PcscCard {
             }
         };
 
-        log::debug!("readers: {:?}", readers);
+        log::debug!(" readers: {:?}", readers);
 
         let mut found_reader = false;
 
@@ -540,38 +538,21 @@ impl PcscCard {
             Self::raw_pcsc_cards(mode).map_err(|sce| Error::Smartcard(sce))?
         {
             log::debug!("cards_filter: next card");
-
-            let stat = card.status2_owned();
-            log::debug!("cards_filter, status2: {:x?}", stat);
+            log::debug!(" status: {:x?}", card.status2_owned());
 
             let mut store_card = false;
             {
                 // start transaction
-                log::debug!("1");
                 let mut p = PcscCard::new(card, mode);
                 let mut txc = TxClient::new(&mut p, false)?;
 
-                log::debug!("3");
                 {
                     if let Err(e) = TxClient::select(&mut txc) {
-                        log::debug!("4a");
-                        log::debug!(
-                            "cards_filter: error during select: {:?}",
-                            e
-                        );
+                        log::debug!(" select error: {:?}", e);
                     } else {
-                        log::debug!(
-                            "4b: opened the OpenPGP application, will read ARD"
-                        );
                         // successfully opened the OpenPGP application
-
-                        // -- debug: status --
-                        log::debug!(
-                            "4b card status: {:x?}",
-                            txc.tx.status2_owned()
-                        );
-
-                        // -- /debug: status --
+                        log::debug!(" select ok, will read ARD");
+                        log::debug!(" status: {:x?}", txc.tx.status2_owned());
 
                         if let Some(ident) = ident {
                             if let Ok(ard) =
@@ -581,24 +562,18 @@ impl PcscCard {
 
                                 if aid.ident() == ident.to_ascii_uppercase() {
                                     // FIXME: handle multiple cards with matching ident
-                                    log::debug!(
-                                    "open_by_ident: Opened and selected {:?}",
-                                    ident
-                                );
+                                    log::debug!(" will use: {:?}", ident);
 
                                     // we want to return this one card
                                     store_card = true;
                                 } else {
                                     log::debug!(
-                                    "open_by_ident: Found, but won't use {:?}",
-                                    aid.ident()
-                                );
-
-                                    // FIXME: end transaction
-                                    // txc.end();
+                                        " won't use {:?}",
+                                        aid.ident()
+                                    );
                                 }
                             } else {
-                                // couldn't read ARD for this card ...
+                                // couldn't read ARD for this card.
                                 // ignore and move on
                                 continue;
                             }
@@ -676,12 +651,12 @@ impl PcscCard {
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = txc.features() {
             for tlv in feat {
-                log::debug!("Found reader feature {:?}", tlv);
+                log::debug!(" Found reader feature {:?}", tlv);
                 h.insert(tlv.tag().into(), tlv);
             }
         }
 
-        // Initalize CardClient (set CardCaps from ARD)
+        // Initialize CardClient (set CardCaps from ARD)
         <dyn CardClient>::initialize(&mut txc)?;
 
         let cc = txc.card_caps().cloned();
