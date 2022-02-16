@@ -48,7 +48,7 @@ use crate::apdu::commands;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
     ApplicationRelatedData, CardholderRelatedData, Fingerprint,
-    KeyGenerationTime, PWStatusBytes, SecuritySupportTemplate, Sex,
+    KeyGenerationTime, Lang, PWStatusBytes, SecuritySupportTemplate, Sex,
 };
 use crate::crypto_data::{
     CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial,
@@ -755,8 +755,14 @@ impl<'a> dyn CardClient + 'a {
         apdu::send_command(self, put_name, false)?.try_into()
     }
 
-    pub fn set_lang(&mut self, lang: &[u8]) -> Result<Response, Error> {
-        let put_lang = commands::put_lang(lang.to_vec());
+    pub fn set_lang(&mut self, lang: &[Lang]) -> Result<Response, Error> {
+        let bytes: Vec<u8> = lang
+            .iter()
+            .map(|&l| Into::<Vec<u8>>::into(l))
+            .flatten()
+            .collect();
+
+        let put_lang = commands::put_lang(bytes);
         apdu::send_command(self, put_lang, false)?.try_into()
     }
 

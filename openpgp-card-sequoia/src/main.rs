@@ -111,7 +111,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let res = admin.set_sex(Sex::NotApplicable)?;
         println!("set sex {:x?}", res);
 
-        let res = admin.set_lang("en")?;
+        let res = admin.set_lang(&[['e', 'n'].into()])?;
         println!("set lang {:x?}", res);
 
         let res = admin.set_url("https://keys.openpgp.org")?;

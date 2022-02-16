@@ -334,7 +334,7 @@ pub fn test_set_user_data(
     card_client.set_name(b"Bar<<Foo")?;
 
     // lang
-    card_client.set_lang(b"deen")?;
+    card_client.set_lang(&[['d', 'e'].into(), ['e', 'n'].into()])?;
 
     // sex
     card_client.set_sex(Sex::Female)?;
@@ -348,7 +348,7 @@ pub fn test_set_user_data(
     assert_eq!(ch.name().as_deref(), Some("Bar<<Foo".as_bytes()));
     assert_eq!(
         ch.lang().expect("Language setting is None"),
-        &[[b'd', b'e'], [b'e', b'n']]
+        &[['d', 'e'].into(), ['e', 'n'].into()]
     );
     assert_eq!(ch.sex(), Some(Sex::Female));
 

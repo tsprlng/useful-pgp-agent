@@ -215,14 +215,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     }
 
     if let Some(lang) = crd.lang() {
-        let lang = lang
-            .iter()
-            .map(|lang| {
-                lang.iter().map(|&u| char::from(u)).collect::<String>()
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        println!("Language preferences '{}'", lang);
+        println!("Language preferences '{:?}'", lang);
     }
 
     // information about subkeys

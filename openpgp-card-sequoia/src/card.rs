@@ -14,7 +14,7 @@ use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
     ExtendedCapabilities, ExtendedLengthInfo, Fingerprint, HistoricalBytes,
-    KeyGenerationTime, PWStatusBytes, SecuritySupportTemplate, Sex,
+    KeyGenerationTime, Lang, PWStatusBytes, SecuritySupportTemplate, Sex,
 };
 use openpgp_card::{CardClient, Error, KeySet, KeyType, Response};
 
@@ -411,12 +411,12 @@ impl Admin<'_, '_> {
         self.oc.card_client.set_name(name.as_bytes())
     }
 
-    pub fn set_lang(&mut self, lang: &str) -> Result<Response, Error> {
+    pub fn set_lang(&mut self, lang: &[Lang]) -> Result<Response, Error> {
         if lang.len() > 8 {
             return Err(anyhow!("lang too long").into());
         }
 
-        self.oc.card_client.set_lang(lang.as_bytes())
+        self.oc.card_client.set_lang(lang)
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {

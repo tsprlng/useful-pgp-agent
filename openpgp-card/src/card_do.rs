@@ -285,7 +285,7 @@ pub struct ExtendedLengthInfo {
 #[derive(Debug, PartialEq)]
 pub struct CardholderRelatedData {
     name: Option<Vec<u8>>,
-    lang: Option<Vec<[u8; 2]>>,
+    lang: Option<Vec<Lang>>,
     sex: Option<Sex>,
 }
 
@@ -296,6 +296,45 @@ pub enum Sex {
     Male,
     Female,
     NotApplicable,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Lang {
+    Value([u8; 2]),
+    Invalid(u8),
+}
+
+impl From<(char, char)> for Lang {
+    fn from(c: (char, char)) -> Self {
+        Lang::Value([c.0 as u8, c.1 as u8])
+    }
+}
+
+impl From<[char; 2]> for Lang {
+    fn from(c: [char; 2]) -> Self {
+        Lang::Value([c[0] as u8, c[1] as u8])
+    }
+}
+
+impl From<Lang> for Vec<u8> {
+    fn from(lang: Lang) -> Self {
+        match lang {
+            Lang::Value(v) => vec![v[0], v[1]],
+            Lang::Invalid(v) => vec![v],
+        }
+    }
+}
+
+impl From<&[u8; 1]> for Lang {
+    fn from(data: &[u8; 1]) -> Self {
+        Lang::Invalid(data[0])
+    }
+}
+
+impl From<&[u8; 2]> for Lang {
+    fn from(data: &[u8; 2]) -> Self {
+        Lang::Value([data[0], data[1]])
+    }
 }
 
 impl From<&Sex> for u8 {
