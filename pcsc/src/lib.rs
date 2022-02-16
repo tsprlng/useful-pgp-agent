@@ -97,7 +97,7 @@ impl<'b> TxClient<'b> {
                             TxClient::select(&mut txc)?;
                         }
 
-                        tx = txc.tx();
+                        tx = txc.tx;
                     }
 
                     let txc = Self {
@@ -206,10 +206,6 @@ impl<'b> TxClient<'b> {
         } else {
             Err(anyhow!("card_caps is None"))
         }
-    }
-
-    pub fn tx(self) -> Transaction<'b> {
-        self.tx
     }
 }
 
@@ -570,19 +566,10 @@ impl PcscCard {
                         // successfully opened the OpenPGP application
 
                         // -- debug: status --
-                        let tx = txc.tx();
-                        let stat = tx.status2_owned().map_err(|e| {
-                            Error::Smartcard(SmartcardError::Error(format!(
-                                "{:?}",
-                                e
-                            )))
-                        })?;
-                        log::debug!("4b card status: {:x?}", stat);
-                        txc = TxClient {
-                            tx,
-                            card_caps: None,
-                            reader_caps: HashMap::default(),
-                        };
+                        log::debug!(
+                            "4b card status: {:x?}",
+                            txc.tx.status2_owned()
+                        );
 
                         // -- /debug: status --
 
