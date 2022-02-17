@@ -154,5 +154,6 @@ import:
 keygen:
   extends: .hw-test-template
   stage: hw-keygen
+  timeout: 2h
   variables:
     ARG: keygen
