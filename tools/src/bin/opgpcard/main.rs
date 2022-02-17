@@ -12,7 +12,7 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::{card_do::Sex, CardClient, KeyType};
+use openpgp_card::{card_do::Sex, CardTransaction, KeyType};
 
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
@@ -156,7 +156,7 @@ fn set_identity(
     let mut card = util::open_card(ident)?;
     let mut txc = card.transaction()?;
 
-    <dyn CardClient>::set_identity(&mut txc, id)?;
+    <dyn CardTransaction>::set_identity(&mut txc, id)?;
 
     Ok(())
 }

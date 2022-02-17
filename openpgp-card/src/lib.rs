@@ -13,8 +13,8 @@
 //! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
 //! This library can't directly access cards by itself. Instead, users
-//! need to supply an implementation of the [`CardClient`] trait, to
-//! access cards.
+//! need to supply an implementation of the [`CardBackend`]
+//! / [`CardTransaction`] traits, to access cards.
 //!
 //! The companion crate
 //! [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
@@ -55,12 +55,13 @@ use crate::tlv::tag::Tag;
 use crate::tlv::value::Value;
 use crate::tlv::Tlv;
 
-/// The CardClient trait defines communication with an OpenPGP card via a
+/// The CardTransaction trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate
-/// [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)).
+/// [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)),
+/// after opening a transaction from a CardBackend.
 ///
-/// CardClient exposes low-level access to OpenPGP card functionality.
-pub trait CardClient {
+/// CardTransaction exposes low-level access to OpenPGP card functionality.
+pub trait CardTransaction {
     /// Transmit the command data in `cmd` to the card.
     ///
     /// `buf_size` is a hint to the backend (the backend may ignore it)
@@ -71,12 +72,12 @@ pub trait CardClient {
         buf_size: usize,
     ) -> Result<Vec<u8>, Error>;
 
-    /// Set the card capabilities in the CardClient.
+    /// Set the card capabilities in the CardTransaction.
     ///
     /// Setting these capabilities is typically part of a bootstrapping
     /// process: the information about the card's capabilities is typically
-    /// requested from the card using the same CardClient instance, before
-    /// the card's capabilities have been initialized.
+    /// requested from the card using the same CardTransaction instance,
+    /// before the card's capabilities have been initialized.
     fn init_card_caps(&mut self, caps: CardCaps);
 
     /// Request the card's capabilities
@@ -85,7 +86,7 @@ pub trait CardClient {
     /// determine if extended length can be used)
     fn card_caps(&self) -> Option<&CardCaps>;
 
-    /// If a CardClient implementation introduces an additional,
+    /// If a CardTransaction implementation introduces an additional,
     /// backend-specific limit for maximum number of bytes per command,
     /// this fn can indicate that limit by returning `Some(max_cmd_len)`.
     fn max_cmd_len(&self) -> Option<usize> {
@@ -110,7 +111,7 @@ pub trait CardClient {
         apdu::send_command(self, select_openpgp, false)?.try_into()
     }
 
-    /// Get a CardApp based on a CardClient.
+    /// Get a CardApp based on a CardTransaction.
     ///
     /// It is expected that SELECT has already been performed on the card
     /// beforehand.
@@ -122,7 +123,7 @@ pub trait CardClient {
         let ard = self.application_related_data()?;
 
         // Determine chaining/extended length support from card
-        // metadata and cache this information in the CardClient
+        // metadata and cache this information in the CardTransaction
         // implementation (as a CardCaps)
         let mut ext_support = false;
         let mut chaining_support = false;
@@ -877,14 +878,14 @@ pub trait CardClient {
     }
 }
 
-impl<'a> Deref for dyn CardClient + Send + Sync + 'a {
-    type Target = dyn CardClient + 'a;
+impl<'a> Deref for dyn CardTransaction + Send + Sync + 'a {
+    type Target = dyn CardTransaction + 'a;
 
     fn deref(&self) -> &Self::Target {
         self
     }
 }
-impl<'a> DerefMut for dyn CardClient + Send + Sync + 'a {
+impl<'a> DerefMut for dyn CardTransaction + Send + Sync + 'a {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self
     }

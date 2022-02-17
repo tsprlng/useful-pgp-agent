@@ -17,7 +17,7 @@ use crate::crypto_data::{
 };
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
 use crate::{apdu, KeyType};
-use crate::{CardClient, Error};
+use crate::{CardTransaction, Error};
 
 /// Generate asymmetric key pair on the card.
 ///
@@ -30,7 +30,7 @@ use crate::{CardClient, Error};
 /// `fp_from_pub` calculates the fingerprint for a public key data object and
 /// creation timestamp
 pub(crate) fn gen_key_with_metadata<C: ?Sized>(
-    card_client: &mut C,
+    card_tx: &mut C,
     fp_from_pub: fn(
         &PublicKeyMaterial,
         KeyGenerationTime,
@@ -40,17 +40,17 @@ pub(crate) fn gen_key_with_metadata<C: ?Sized>(
     algo: Option<&Algo>,
 ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error>
 where
-    C: CardClient,
+    C: CardTransaction,
 {
     // Set algo on card if it's Some
     if let Some(target_algo) = algo {
         // FIXME: caching
-        let ard = card_client.application_related_data()?; // no caching, here!
+        let ard = card_tx.application_related_data()?; // no caching, here!
         let ecap = ard.extended_capabilities()?;
 
         // Only set algo if card supports setting of algo attr
         if ecap.algo_attrs_changeable() {
-            card_client.set_algorithm_attributes(key_type, target_algo)?;
+            card_tx.set_algorithm_attributes(key_type, target_algo)?;
         } else {
             // Check if the current algo on the card is the one we want, if
             // not we return an error.
@@ -67,11 +67,11 @@ where
     }
 
     // get current (possibly updated) state of algo
-    let ard = card_client.application_related_data()?; // no caching, here!
+    let ard = card_tx.application_related_data()?; // no caching, here!
     let cur_algo = ard.algorithm_attributes(key_type)?;
 
     // generate key
-    let tlv = generate_asymmetric_key_pair(card_client, key_type)?;
+    let tlv = generate_asymmetric_key_pair(card_tx, key_type)?;
 
     // derive pubkey
     let pubkey = tlv_to_pubkey(&tlv, &cur_algo)?;
@@ -89,11 +89,11 @@ where
 
     let ts = ts.into();
 
-    card_client.set_creation_time(ts, key_type)?;
+    card_tx.set_creation_time(ts, key_type)?;
 
     // calculate/store fingerprint
     let fp = fp_from_pub(&pubkey, ts, key_type)?;
-    card_client.set_fingerprint(fp, key_type)?;
+    card_tx.set_fingerprint(fp, key_type)?;
 
     Ok((pubkey, ts))
 }
@@ -130,17 +130,17 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
 /// This runs the low level key generation primitive on the card.
 /// (This does not set algorithm attributes, creation time or fingerprint)
 pub(crate) fn generate_asymmetric_key_pair<C: ?Sized>(
-    card_client: &mut C,
+    card_tx: &mut C,
     key_type: KeyType,
 ) -> Result<Tlv, Error>
 where
-    C: CardClient,
+    C: CardTransaction,
 {
     // generate key
     let crt = control_reference_template(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
 
-    let resp = apdu::send_command(card_client, gen_key_cmd, true)?;
+    let resp = apdu::send_command(card_tx, gen_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -155,21 +155,21 @@ where
 ///
 /// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
 pub(crate) fn public_key<C: ?Sized>(
-    card_client: &mut C,
+    card_tx: &mut C,
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error>
 where
-    C: CardClient,
+    C: CardTransaction,
 {
     // get current algo
-    let ard = card_client.application_related_data()?; // FIXME: caching
+    let ard = card_tx.application_related_data()?; // FIXME: caching
     let algo = ard.algorithm_attributes(key_type)?;
 
     // get public key
     let crt = control_reference_template(key_type)?;
     let get_pub_key_cmd = commands::get_pub_key(crt.serialize().to_vec());
 
-    let resp = apdu::send_command(card_client, get_pub_key_cmd, true)?;
+    let resp = apdu::send_command(card_tx, get_pub_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -184,16 +184,16 @@ where
 /// caused by checks before attempting to upload the key to the card, or by
 /// an error that the card reports during an attempt to upload the key).
 pub(crate) fn key_import<C: ?Sized>(
-    card_client: &mut C,
+    card_tx: &mut C,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_info: Option<AlgoInfo>,
 ) -> Result<(), Error>
 where
-    C: CardClient,
+    C: CardTransaction,
 {
     // FIXME: caching?
-    let ard = card_client.application_related_data()?;
+    let ard = card_tx.application_related_data()?;
 
     let (algo, key_cmd) = match key.private_key()? {
         PrivateKeyMaterial::R(rsa_key) => {
@@ -229,12 +229,12 @@ where
 
     // Only set algo attrs if "Extended Capabilities" lists the feature
     if ard.extended_capabilities()?.algo_attrs_changeable() {
-        card_client.set_algorithm_attributes(key_type, &algo)?;
+        card_tx.set_algorithm_attributes(key_type, &algo)?;
     }
 
-    apdu::send_command(card_client, key_cmd, false)?.check_ok()?;
-    card_client.set_fingerprint(fp, key_type)?;
-    card_client.set_creation_time(key.timestamp(), key_type)?;
+    apdu::send_command(card_tx, key_cmd, false)?.check_ok()?;
+    card_tx.set_fingerprint(fp, key_type)?;
+    card_tx.set_creation_time(key.timestamp(), key_type)?;
 
     Ok(())
 }

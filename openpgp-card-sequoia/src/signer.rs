@@ -11,14 +11,14 @@ use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Hash;
-use openpgp_card::{CardClient, Error};
+use openpgp_card::{CardTransaction, Error};
 
 use crate::sq_util;
 use crate::PublicKey;
 
 pub struct CardSigner<'a> {
     /// The OpenPGP card (authenticated to allow signing operations)
-    card_client: &'a mut (dyn CardClient + Send + Sync),
+    card_tx: &'a mut (dyn CardTransaction + Send + Sync),
 
     /// The matching public key for the card's signing key
     public: PublicKey,
@@ -30,11 +30,11 @@ impl<'a> CardSigner<'a> {
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        card_client: &'a mut (dyn CardClient + Send + Sync),
+        card_tx: &'a mut (dyn CardTransaction + Send + Sync),
         cert: &openpgp::Cert,
     ) -> Result<CardSigner<'a>, Error> {
         // Get the fingerprint for the signing key from the card.
-        let ard = card_client.application_related_data()?;
+        let ard = card_tx.application_related_data()?;
         let fps = ard.fingerprints()?;
         let fp = fps.signature();
 
@@ -44,7 +44,7 @@ impl<'a> CardSigner<'a> {
 
             if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
                 let key = eka.key().clone();
-                Ok(Self::with_pubkey(card_client, key))
+                Ok(Self::with_pubkey(card_tx, key))
             } else {
                 Err(Error::InternalError(anyhow!(
                     "Failed to find (sub)key {} in cert",
@@ -59,13 +59,10 @@ impl<'a> CardSigner<'a> {
     }
 
     pub(crate) fn with_pubkey(
-        card_client: &'a mut (dyn CardClient + Send + Sync),
+        card_tx: &'a mut (dyn CardTransaction + Send + Sync),
         public: PublicKey,
     ) -> CardSigner<'a> {
-        CardSigner {
-            card_client,
-            public,
-        }
+        CardSigner { card_tx, public }
     }
 }
 
@@ -117,7 +114,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
                     }
                 };
 
-                let sig = self.card_client.signature_for_hash(hash)?;
+                let sig = self.card_tx.signature_for_hash(hash)?;
 
                 let mpi = mpi::MPI::new(&sig[..]);
                 Ok(mpi::Signature::RSA { s: mpi })
@@ -125,7 +122,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
             (PublicKeyAlgorithm::EdDSA, mpi::PublicKey::EdDSA { .. }) => {
                 let hash = Hash::EdDSA(digest);
 
-                let sig = self.card_client.signature_for_hash(hash)?;
+                let sig = self.card_tx.signature_for_hash(hash)?;
 
                 let r = mpi::MPI::new(&sig[..32]);
                 let s = mpi::MPI::new(&sig[32..]);
@@ -143,7 +140,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
                     _ => Hash::ECDSA(digest),
                 };
 
-                let sig = self.card_client.signature_for_hash(hash)?;
+                let sig = self.card_tx.signature_for_hash(hash)?;
 
                 let len_2 = sig.len() / 2;
                 let r = mpi::MPI::new(&sig[..len_2]);

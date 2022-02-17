@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! This crate implements a `CardClient` backend for `openpgp-card`. It uses
-//! the PCSC middleware to access the OpenPGP application on smart cards.
+//! This crate implements a `CardBackend`/`CardTransaction` backend for
+//! `openpgp-card`. It uses the PCSC middleware to access the OpenPGP
+//! application on smart cards.
 
 use anyhow::{anyhow, Result};
 use iso7816_tlv::simple::Tlv;
@@ -11,7 +12,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 
 use openpgp_card::card_do::ApplicationRelatedData;
-use openpgp_card::{CardCaps, CardClient, Error, SmartcardError};
+use openpgp_card::{CardCaps, CardTransaction, Error, SmartcardError};
 
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
@@ -37,7 +38,7 @@ pub struct PcscCard {
     reader_caps: HashMap<u8, Tlv>,
 }
 
-/// An implementation of the CardClient trait that uses the PCSC lite
+/// An implementation of the CardTransaction trait that uses the PCSC lite
 /// middleware to access the OpenPGP card application on smart cards, via a
 /// PCSC "transaction".
 ///
@@ -146,8 +147,8 @@ impl<'b> TxClient<'b> {
     }
 
     /// Try to select the OpenPGP application on a card
-    pub fn select(card_client: &mut TxClient) -> Result<(), Error> {
-        if <dyn CardClient>::select(card_client).is_ok() {
+    pub fn select(card_tx: &mut TxClient) -> Result<(), Error> {
+        if <dyn CardTransaction>::select(card_tx).is_ok() {
             Ok(())
         } else {
             Err(Error::Smartcard(SmartcardError::SelectOpenPGPCardFailed))
@@ -156,9 +157,9 @@ impl<'b> TxClient<'b> {
 
     /// Get application_related_data from card
     fn application_related_data(
-        card_client: &mut TxClient,
+        card_tx: &mut TxClient,
     ) -> Result<ApplicationRelatedData, Error> {
-        <dyn CardClient>::application_related_data(card_client).map_err(|e| {
+        <dyn CardTransaction>::application_related_data(card_tx).map_err(|e| {
             Error::Smartcard(SmartcardError::Error(format!(
                 "TxClient: failed to get application_related_data {:x?}",
                 e
@@ -207,7 +208,7 @@ impl<'b> TxClient<'b> {
     }
 }
 
-impl CardClient for TxClient<'_> {
+impl CardTransaction for TxClient<'_> {
     fn transmit(
         &mut self,
         cmd: &[u8],
@@ -656,8 +657,8 @@ impl PcscCard {
             }
         }
 
-        // Initialize CardClient (set CardCaps from ARD)
-        <dyn CardClient>::initialize(&mut txc)?;
+        // Initialize CardTransaction (set CardCaps from ARD)
+        <dyn CardTransaction>::initialize(&mut txc)?;
 
         let cc = txc.card_caps().cloned();
 

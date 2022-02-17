@@ -13,7 +13,7 @@ use sequoia_ipc::gnupg::{Agent, Context};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-use openpgp_card::{CardCaps, CardClient, Error};
+use openpgp_card::{CardCaps, CardTransaction, Error};
 
 lazy_static! {
     static ref RT: Mutex<Runtime> =
@@ -48,7 +48,7 @@ const ASSUAN_LINELENGTH: usize = 1000;
 /// In particular, uploading rsa4096 keys fails via scdaemon, with such cards.
 const APDU_CMD_BYTES_MAX: usize = (ASSUAN_LINELENGTH - 25) / 2;
 
-/// An implementation of the CardClient trait that uses GnuPG's scdaemon
+/// An implementation of the CardTransaction trait that uses GnuPG's scdaemon
 /// (via GnuPG Agent) to access OpenPGP card devices.
 pub struct ScdClient {
     agent: Agent,
@@ -65,7 +65,7 @@ impl ScdClient {
         let mut card = ScdClient::new(agent, true)?;
         card.select_card(serial)?;
 
-        <dyn CardClient>::initialize(&mut card)?;
+        <dyn CardTransaction>::initialize(&mut card)?;
 
         Ok(card)
     }
@@ -79,7 +79,7 @@ impl ScdClient {
     pub fn open_yolo(agent: Option<Agent>) -> Result<Self, Error> {
         let mut card = ScdClient::new(agent, true)?;
 
-        <dyn CardClient>::initialize(&mut card)?;
+        <dyn CardTransaction>::initialize(&mut card)?;
 
         Ok(card)
     }
@@ -199,7 +199,7 @@ impl ScdClient {
     }
 }
 
-impl CardClient for ScdClient {
+impl CardTransaction for ScdClient {
     fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>, Error> {
         log::trace!("SCDC cmd len {}", cmd.len());
 

@@ -13,7 +13,7 @@ use std::convert::TryFrom;
 
 use crate::apdu::command::Expect;
 use crate::apdu::{command::Command, response::RawResponse};
-use crate::{CardClient, Error, StatusBytes};
+use crate::{CardTransaction, Error, StatusBytes};
 
 /// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
 const MAX_BUFFER_SIZE: usize = 264;
@@ -23,15 +23,15 @@ const MAX_BUFFER_SIZE: usize = 264;
 /// If the reply is truncated, this fn assembles all the parts and returns
 /// them as one aggregated Response.
 pub(crate) fn send_command<C: ?Sized>(
-    card_client: &mut C,
+    card_tx: &mut C,
     cmd: Command,
     expect_reply: bool,
 ) -> Result<RawResponse, Error>
 where
-    C: CardClient,
+    C: CardTransaction,
 {
     let mut resp = RawResponse::try_from(send_command_low_level(
-        card_client,
+        card_tx,
         cmd.clone(),
         if expect_reply {
             Expect::Some
@@ -42,7 +42,7 @@ where
 
     if let StatusBytes::UnknownStatus(0x6c, size) = resp.status() {
         resp = RawResponse::try_from(send_command_low_level(
-            card_client,
+            card_tx,
             cmd,
             Expect::Short(size),
         )?)?;
@@ -54,7 +54,7 @@ where
 
         // Get next chunk of data
         let next = RawResponse::try_from(send_command_low_level(
-            card_client,
+            card_tx,
             commands::get_response(),
             Expect::Short(bytes),
         )?)?;
@@ -85,15 +85,15 @@ where
 /// If the response is chained, this fn only returns one chunk, the caller
 /// needs to re-assemble the chained response-parts.
 fn send_command_low_level<C: ?Sized>(
-    card_client: &mut C,
+    card_tx: &mut C,
     cmd: Command,
     expect_response: Expect,
 ) -> Result<Vec<u8>, Error>
 where
-    C: CardClient,
+    C: CardTransaction,
 {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
-        if let Some(caps) = card_client.card_caps() {
+        if let Some(caps) = card_tx.card_caps() {
             log::debug!("found card caps data!");
 
             (
@@ -109,13 +109,13 @@ where
             (false, false, 255, 255)
         };
 
-    // If the CardClient implementation has an inherent limit for the cmd
+    // If the CardTransaction implementation has an inherent limit for the cmd
     // size, take that limit into account.
-    // (E.g. when using scdaemon as a CardClient backend, there is a
+    // (E.g. when using scdaemon as a CardTransaction backend, there is a
     // limitation to 1000 bytes length for Assuan commands, which
     // translates to maximum command length of a bit under 500 bytes)
-    if let Some(max_cardclient_cmd_bytes) = card_client.max_cmd_len() {
-        max_cmd_bytes = usize::min(max_cmd_bytes, max_cardclient_cmd_bytes);
+    if let Some(max_card_cmd_bytes) = card_tx.max_cmd_len() {
+        max_cmd_bytes = usize::min(max_cmd_bytes, max_card_cmd_bytes);
     }
 
     log::debug!(
@@ -167,7 +167,7 @@ where
 
             log::debug!(" -> chained APDU command: {:x?}", &serialized);
 
-            let resp = card_client.transmit(&serialized, buf_size)?;
+            let resp = card_tx.transmit(&serialized, buf_size)?;
 
             log::debug!(" <- APDU response: {:x?}", &resp);
 
@@ -210,7 +210,7 @@ where
 
         log::debug!(" -> APDU command: {:x?}", &serialized);
 
-        let resp = card_client.transmit(&serialized, buf_size)?;
+        let resp = card_tx.transmit(&serialized, buf_size)?;
 
         log::debug!(" <- APDU response: {:x?}", resp);
 
