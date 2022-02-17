@@ -15,7 +15,9 @@ use sequoia_openpgp::Cert;
 use openpgp_card;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
-use openpgp_card::{CardTransaction, Error, KeyType, StatusBytes};
+use openpgp_card::{
+    CardBackend, CardTransaction, Error, KeyType, StatusBytes,
+};
 use openpgp_card_sequoia::card::Open;
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_to_key, public_to_fingerprint,
@@ -678,7 +680,8 @@ pub fn run_test(
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut card = tc.get_card()?;
-    let mut txc = card.transaction().map_err(|e| anyhow!(e))?;
+    let mut txc =
+        <dyn CardBackend>::transaction(&mut *card).map_err(|e| anyhow!(e))?;
 
-    t(&mut txc, param)
+    t(&mut *txc, param)
 }

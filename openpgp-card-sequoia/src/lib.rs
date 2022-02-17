@@ -16,9 +16,10 @@
 //! use openpgp_card_pcsc::PcscCard;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use openpgp_card::CardBackend;
 //! for mut card in PcscCard::cards(None)? {
-//!     let mut txc = card.transaction()?;
-//!     let open = Open::new(&mut txc)?;
+//!     let mut txc = <dyn CardBackend>::transaction(&mut card)?;
+//!     let open = Open::new(&mut *txc)?;
 //!     println!("Found OpenPGP card with ident '{}'",
 //!              open.application_identifier()?.ident());
 //! }
@@ -33,9 +34,10 @@
 //! use openpgp_card_pcsc::PcscCard;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use openpgp_card::CardBackend;
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = card.transaction()?;
-//! let mut open = Open::new(&mut txc)?;
+//! let mut txc = <dyn CardBackend>::transaction(&mut card)?;
+//! let mut open = Open::new(&mut *txc)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -56,9 +58,10 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
+//! # use openpgp_card::CardBackend;
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = card.transaction()?;
-//! let mut open = Open::new(&mut txc)?;
+//! let mut txc = <dyn CardBackend>::transaction(&mut card)?;
+//! let mut open = Open::new(&mut *txc)?;
 //!
 //! // Get authorization for user access to the card with password
 //! open.verify_user("123456")?;
@@ -96,11 +99,12 @@
 //! use openpgp_card_pcsc::PcscCard;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use openpgp_card::CardBackend;
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = card.transaction()?;
-//! let mut open = Open::new(&mut txc)?;
+//! let mut txc = <dyn CardBackend>::transaction(&mut card)?;
+//! let mut open = Open::new(&mut *txc)?;
 //!
 //! // Get authorization for signing access to the card with password
 //! open.verify_user_for_signing("123456")?;
@@ -128,10 +132,11 @@
 //! use openpgp_card_pcsc::PcscCard;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # use openpgp_card::CardBackend;
 //! // Open card via PCSC
 //! let mut card = PcscCard::open_by_ident("abcd:12345678", None)?;
-//! let mut txc = card.transaction()?;
-//! let mut open = Open::new(&mut txc)?;
+//! let mut txc = <dyn CardBackend>::transaction(&mut card)?;
+//! let mut open = Open::new(&mut *txc)?;
 //!
 //! // Get authorization for admin access to the card with password
 //! open.verify_admin("12345678")?;

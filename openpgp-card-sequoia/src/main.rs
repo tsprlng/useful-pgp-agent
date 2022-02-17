@@ -10,6 +10,7 @@ use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::Sex;
+use openpgp_card::CardBackend;
 use openpgp_card::KeyType;
 use openpgp_card_pcsc::PcscCard;
 
@@ -38,7 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut card = PcscCard::open_by_ident(&test_card_ident, None)?;
         let mut txc = card.transaction()?;
 
-        let mut open = Open::new(&mut txc)?;
+        let mut open = Open::new(&mut *txc)?;
 
         // card metadata
 
@@ -149,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut card = PcscCard::open_by_ident(&test_card_ident, None)?;
         let mut txc = card.transaction()?;
 
-        let mut open = Open::new(&mut txc)?;
+        let mut open = Open::new(&mut *txc)?;
 
         // Check that we're still using the expected card
         let app_id = open.application_identifier()?;
@@ -190,7 +191,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut card = PcscCard::open_by_ident(&test_card_ident, None)?;
         let mut txc = card.transaction()?;
 
-        let mut open = Open::new(&mut txc)?;
+        let mut open = Open::new(&mut *txc)?;
 
         // Sign
         open.verify_user_for_signing("123456")?;
@@ -222,7 +223,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         for mut card in PcscCard::cards(None)? {
             let mut txc = card.transaction()?;
 
-            let open = Open::new(&mut txc)?;
+            let open = Open::new(&mut *txc)?;
             println!(" {}", open.application_identifier()?.ident());
         }
     }

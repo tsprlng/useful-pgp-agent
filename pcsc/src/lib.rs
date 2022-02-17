@@ -12,7 +12,9 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 
 use openpgp_card::card_do::ApplicationRelatedData;
-use openpgp_card::{CardCaps, CardTransaction, Error, SmartcardError};
+use openpgp_card::{
+    CardBackend, CardCaps, CardTransaction, Error, SmartcardError,
+};
 
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
@@ -61,7 +63,7 @@ impl<'b> TxClient<'b> {
     /// `reselect` set to `false` is only used internally in this crate,
     /// during initial setup of cards. Otherwise it must be `true`, to
     /// cause a select() call on cards that have been reset.
-    fn new(card: &'b mut PcscCard, reselect: bool) -> Result<Self> {
+    fn new(card: &'b mut PcscCard, reselect: bool) -> Result<Self, Error> {
         use pcsc::Disposition;
 
         let mut was_reset = false;
@@ -452,11 +454,6 @@ impl PcscCard {
         self.mode
     }
 
-    /// Get a TxClient for this PcscCard (this starts a transaction)
-    pub fn transaction(&mut self) -> Result<TxClient> {
-        TxClient::new(self, true)
-    }
-
     /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
     /// application)
     fn raw_pcsc_cards(mode: ShareMode) -> Result<Vec<Card>, SmartcardError> {
@@ -647,7 +644,7 @@ impl PcscCard {
 
         let mut h: HashMap<u8, Tlv> = HashMap::default();
 
-        let mut txc = self.transaction()?;
+        let mut txc = TxClient::new(&mut self, true)?;
 
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = txc.features() {
@@ -678,5 +675,14 @@ impl PcscCard {
     }
     pub fn reader_caps(&self) -> HashMap<u8, Tlv> {
         self.reader_caps.clone()
+    }
+}
+
+impl CardBackend for PcscCard {
+    /// Get a TxClient for this PcscCard (this starts a transaction)
+    fn transaction(
+        &mut self,
+    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
+        Ok(Box::new(TxClient::new(self, true)?))
     }
 }

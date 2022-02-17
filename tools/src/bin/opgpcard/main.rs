@@ -12,7 +12,8 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::{card_do::Sex, CardTransaction, KeyType};
+use openpgp_card::CardBackend;
+use openpgp_card::{card_do::Sex, KeyType};
 
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
@@ -73,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut card = util::open_card(&ident)?;
             let mut txc = card.transaction()?;
 
-            let mut open = Open::new(&mut txc)?;
+            let mut open = Open::new(&mut *txc)?;
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
@@ -140,7 +141,7 @@ fn list_cards() -> Result<()> {
         for mut card in cards {
             let mut txc = card.transaction()?;
 
-            let open = Open::new(&mut txc)?;
+            let open = Open::new(&mut *txc)?;
             println!(" {}", open.application_identifier()?.ident());
         }
     } else {
@@ -156,7 +157,7 @@ fn set_identity(
     let mut card = util::open_card(ident)?;
     let mut txc = card.transaction()?;
 
-    <dyn CardTransaction>::set_identity(&mut txc, id)?;
+    txc.set_identity(id)?;
 
     Ok(())
 }
@@ -175,7 +176,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
     let mut txc = card.transaction()?;
 
-    let mut open = Open::new(&mut txc)?;
+    let mut open = Open::new(&mut *txc)?;
 
     let ident = open.application_identifier()?.ident();
 
@@ -336,7 +337,7 @@ fn decrypt(
     let mut card = util::open_card(ident)?;
     let mut txc = card.transaction()?;
 
-    let mut open = Open::new(&mut txc)?;
+    let mut open = Open::new(&mut *txc)?;
 
     let mut user = util::verify_to_user(&mut open, pin_file)?;
     let d = user.decryptor(&cert)?;
@@ -362,7 +363,7 @@ fn sign_detached(
     let mut card = util::open_card(ident)?;
     let mut txc = card.transaction()?;
 
-    let mut open = Open::new(&mut txc)?;
+    let mut open = Open::new(&mut *txc)?;
 
     let mut sign = util::verify_to_sign(&mut open, pin_file)?;
     let s = sign.signer(&cert)?;
@@ -381,7 +382,7 @@ fn factory_reset(ident: &str) -> Result<()> {
     let mut card = util::open_card(ident)?;
     let mut txc = card.transaction()?;
 
-    Open::new(&mut txc)?.factory_reset()
+    Open::new(&mut *txc)?.factory_reset()
 }
 
 fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {

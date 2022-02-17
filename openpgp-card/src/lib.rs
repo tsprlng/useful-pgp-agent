@@ -55,6 +55,12 @@ use crate::tlv::tag::Tag;
 use crate::tlv::value::Value;
 use crate::tlv::Tlv;
 
+pub trait CardBackend {
+    fn transaction(
+        &mut self,
+    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error>;
+}
+
 /// The CardTransaction trait defines communication with an OpenPGP card via a
 /// backend implementation (e.g. the pcsc backend in the crate
 /// [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)),
