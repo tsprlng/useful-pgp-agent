@@ -29,8 +29,8 @@ use crate::{CardClient, Error};
 ///
 /// `fp_from_pub` calculates the fingerprint for a public key data object and
 /// creation timestamp
-pub(crate) fn gen_key_with_metadata(
-    card_client: &mut dyn CardClient,
+pub(crate) fn gen_key_with_metadata<C: ?Sized>(
+    card_client: &mut C,
     fp_from_pub: fn(
         &PublicKeyMaterial,
         KeyGenerationTime,
@@ -38,7 +38,10 @@ pub(crate) fn gen_key_with_metadata(
     ) -> Result<Fingerprint, Error>,
     key_type: KeyType,
     algo: Option<&Algo>,
-) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
+) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error>
+where
+    C: CardClient,
+{
     // Set algo on card if it's Some
     if let Some(target_algo) = algo {
         // FIXME: caching
@@ -126,10 +129,13 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
 ///
 /// This runs the low level key generation primitive on the card.
 /// (This does not set algorithm attributes, creation time or fingerprint)
-pub(crate) fn generate_asymmetric_key_pair(
-    card_client: &mut dyn CardClient,
+pub(crate) fn generate_asymmetric_key_pair<C: ?Sized>(
+    card_client: &mut C,
     key_type: KeyType,
-) -> Result<Tlv, Error> {
+) -> Result<Tlv, Error>
+where
+    C: CardClient,
+{
     // generate key
     let crt = control_reference_template(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
@@ -148,10 +154,13 @@ pub(crate) fn generate_asymmetric_key_pair(
 /// in the card or imported")
 ///
 /// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
-pub(crate) fn public_key(
-    card_client: &mut dyn CardClient,
+pub(crate) fn public_key<C: ?Sized>(
+    card_client: &mut C,
     key_type: KeyType,
-) -> Result<PublicKeyMaterial, Error> {
+) -> Result<PublicKeyMaterial, Error>
+where
+    C: CardClient,
+{
     // get current algo
     let ard = card_client.application_related_data()?; // FIXME: caching
     let algo = ard.algorithm_attributes(key_type)?;
@@ -174,12 +183,15 @@ pub(crate) fn public_key(
 /// If the key is suitable for `key_type`, an Error is returned (either
 /// caused by checks before attempting to upload the key to the card, or by
 /// an error that the card reports during an attempt to upload the key).
-pub(crate) fn key_import(
-    card_client: &mut dyn CardClient,
+pub(crate) fn key_import<C: ?Sized>(
+    card_client: &mut C,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_info: Option<AlgoInfo>,
-) -> Result<(), Error> {
+) -> Result<(), Error>
+where
+    C: CardClient,
+{
     // FIXME: caching?
     let ard = card_client.application_related_data()?;
 

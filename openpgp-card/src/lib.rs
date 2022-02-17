@@ -103,24 +103,9 @@ pub trait CardClient {
 
     /// Modify the PIN `id` via the reader pinpad
     fn pinpad_modify(&mut self, id: u8) -> Result<Vec<u8>>;
-}
 
-impl<'a> Deref for dyn CardClient + Send + Sync + 'a {
-    type Target = dyn CardClient + 'a;
-
-    fn deref(&self) -> &Self::Target {
-        self
-    }
-}
-impl<'a> DerefMut for dyn CardClient + Send + Sync + 'a {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self
-    }
-}
-
-impl<'a> dyn CardClient + 'a {
     /// Select the OpenPGP card application
-    pub fn select(&mut self) -> Result<Response, Error> {
+    fn select(&mut self) -> Result<Response, Error> {
         let select_openpgp = commands::select_openpgp();
         apdu::send_command(self, select_openpgp, false)?.try_into()
     }
@@ -133,21 +118,12 @@ impl<'a> dyn CardClient + 'a {
     /// This fn initializes the CardCaps by requesting
     /// application_related_data from the card, and setting the
     /// capabilities accordingly.
-    pub fn initialize(&mut self) -> Result<()> {
+    fn initialize(&mut self) -> Result<()> {
         let ard = self.application_related_data()?;
-        self.init_caps(&ard)?;
 
-        Ok(())
-    }
-
-    /// Initialize the CardCaps settings from the data in `ard`.
-    ///
-    /// This should be done at an early point, soon after opening the card.
-    fn init_caps(&mut self, ard: &ApplicationRelatedData) -> Result<()> {
         // Determine chaining/extended length support from card
-        // metadata and cache this information in CardApp (as a
-        // CardCaps)
-
+        // metadata and cache this information in the CardClient
+        // implementation (as a CardCaps)
         let mut ext_support = false;
         let mut chaining_support = false;
 
@@ -202,9 +178,7 @@ impl<'a> dyn CardClient + 'a {
     /// (This data should probably be cached in a higher layer. Some parts of
     /// it are needed regularly, and it does not usually change during
     /// normal use of a card.)
-    pub fn application_related_data(
-        &mut self,
-    ) -> Result<ApplicationRelatedData> {
+    fn application_related_data(&mut self) -> Result<ApplicationRelatedData> {
         let ad = commands::application_related_data();
         let resp = apdu::send_command(self, ad, true)?;
         let value = Value::from(resp.data()?, true)?;
@@ -214,49 +188,47 @@ impl<'a> dyn CardClient + 'a {
         Ok(ApplicationRelatedData(Tlv::new(Tag::from([0x6E]), value)))
     }
 
-    #[allow(dead_code)]
-    fn ca_fingerprints() {
-        unimplemented!()
-    }
-
-    #[allow(dead_code)]
-    fn key_information() {
-        unimplemented!()
-    }
-
-    #[allow(dead_code)]
-    fn uif_pso_cds() {
-        unimplemented!()
-    }
-
-    #[allow(dead_code)]
-    fn uif_pso_dec() {
-        unimplemented!()
-    }
-
-    #[allow(dead_code)]
-    fn uif_pso_aut() {
-        unimplemented!()
-    }
-
-    #[allow(dead_code)]
-    fn uif_attestation() {
-        unimplemented!()
-    }
+    // #[allow(dead_code)]
+    // fn ca_fingerprints() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn key_information() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_pso_cds() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_pso_dec() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_pso_aut() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_attestation() {
+    //     unimplemented!()
+    // }
 
     // --- login data (5e) ---
 
     /// Get URL (5f50)
-    pub fn url(&mut self) -> Result<Vec<u8>> {
+    fn url(&mut self) -> Result<Vec<u8>> {
         let resp = apdu::send_command(self, commands::url(), true)?;
 
         Ok(resp.data()?.to_vec())
     }
 
     /// Get cardholder related data (65)
-    pub fn cardholder_related_data(
-        &mut self,
-    ) -> Result<CardholderRelatedData> {
+    fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData> {
         let crd = commands::cardholder_related_data();
         let resp = apdu::send_command(self, crd, true)?;
         resp.check_ok()?;
@@ -265,7 +237,7 @@ impl<'a> dyn CardClient + 'a {
     }
 
     /// Get security support template (7a)
-    pub fn security_support_template(
+    fn security_support_template(
         &mut self,
     ) -> Result<SecuritySupportTemplate> {
         let sst = commands::security_support_template();
@@ -302,7 +274,7 @@ impl<'a> dyn CardClient + 'a {
     }
 
     /// Get "Algorithm Information"
-    pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>> {
+    fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>> {
         let resp = apdu::send_command(self, commands::algo_info(), true)?;
         resp.check_ok()?;
 
@@ -311,7 +283,7 @@ impl<'a> dyn CardClient + 'a {
     }
 
     /// Firmware Version (YubiKey specific (?))
-    pub fn firmware_version(&mut self) -> Result<Vec<u8>> {
+    fn firmware_version(&mut self) -> Result<Vec<u8>> {
         let resp =
             apdu::send_command(self, commands::firmware_version(), true)?;
 
@@ -322,7 +294,7 @@ impl<'a> dyn CardClient + 'a {
     /// [see:
     /// <https://docs.nitrokey.com/start/linux/multiple-identities.html>
     /// <https://github.com/Nitrokey/nitrokey-start-firmware/pull/33/>]
-    pub fn set_identity(&mut self, id: u8) -> Result<Vec<u8>> {
+    fn set_identity(&mut self, id: u8) -> Result<Vec<u8>> {
         let resp = apdu::send_command(self, commands::set_identity(id), false);
 
         // Apparently it's normal to get "NotTransacted" from pcsclite when
@@ -336,11 +308,7 @@ impl<'a> dyn CardClient + 'a {
 
     /// SELECT DATA ("select a DO in the current template",
     /// e.g. for cardholder certificate)
-    pub fn select_data(
-        &mut self,
-        num: u8,
-        tag: &[u8],
-    ) -> Result<Response, Error> {
+    fn select_data(&mut self, num: u8, tag: &[u8]) -> Result<Response, Error> {
         let tlv = Tlv::new(
             [0x60],
             Value::C(vec![Tlv::new([0x5c], Value::S(tag.to_vec()))]),
@@ -357,7 +325,7 @@ impl<'a> dyn CardClient + 'a {
     /// Get data from "private use" DO.
     ///
     /// `num` must be between 1 and 4.
-    pub fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>> {
+    fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>> {
         assert!((1..=4).contains(&num));
 
         let cmd = commands::private_use_do(num);
@@ -373,7 +341,7 @@ impl<'a> dyn CardClient + 'a {
     /// Access condition:
     /// - 1/3 need PW1 (82)
     /// - 2/4 need PW3
-    pub fn set_private_use_do(
+    fn set_private_use_do(
         &mut self,
         num: u8,
         data: Vec<u8>,
@@ -403,7 +371,7 @@ impl<'a> dyn CardClient + 'a {
     /// (However, e.g. vanilla Gnuk doesn't support this functionality.
     /// Gnuk needs to be built with the `--enable-factory-reset`
     /// option to the `configure` script to enable this functionality).
-    pub fn factory_reset(&mut self) -> Result<()> {
+    fn factory_reset(&mut self) -> Result<()> {
         // send 4 bad requests to verify pw1
         // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
@@ -446,22 +414,12 @@ impl<'a> dyn CardClient + 'a {
 
     // --- verify/modify ---
 
-    /// Does the cardreader support direct pinpad verify?
-    pub fn feature_pinpad_verify(card_client: &mut dyn CardClient) -> bool {
-        card_client.feature_pinpad_verify()
-    }
-
-    /// Does the cardreader support direct pinpad modify?
-    pub fn feature_pinpad_modify(card_client: &mut dyn CardClient) -> bool {
-        card_client.feature_pinpad_modify()
-    }
-
     /// Verify pw1 (user) for signing operation (mode 81).
     ///
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    pub fn verify_pw1_for_signing(
+    fn verify_pw1_for_signing(
         &mut self,
         pin: &str,
     ) -> Result<Response, Error> {
@@ -476,9 +434,7 @@ impl<'a> dyn CardClient + 'a {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    pub fn verify_pw1_for_signing_pinpad(
-        &mut self,
-    ) -> Result<Response, Error> {
+    fn verify_pw1_for_signing_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.pinpad_verify(0x81)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -489,14 +445,14 @@ impl<'a> dyn CardClient + 'a {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. YubiKey 5)
-    pub fn check_pw1_for_signing(&mut self) -> Result<Response, Error> {
+    fn check_pw1_for_signing(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
     }
 
     /// Verify PW1 (user).
     /// (For operations except signing, mode 82).
-    pub fn verify_pw1(&mut self, pin: &str) -> Result<Response, Error> {
+    fn verify_pw1(&mut self, pin: &str) -> Result<Response, Error> {
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
         apdu::send_command(self, verify, false)?.try_into()
     }
@@ -505,7 +461,7 @@ impl<'a> dyn CardClient + 'a {
     /// using a pinpad on the card reader. If no usable pinpad is found,
     /// an error is returned.
 
-    pub fn verify_pw1_pinpad(&mut self) -> Result<Response, Error> {
+    fn verify_pw1_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.pinpad_verify(0x82)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -517,20 +473,20 @@ impl<'a> dyn CardClient + 'a {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. YubiKey 5)
-    pub fn check_pw1(&mut self) -> Result<Response, Error> {
+    fn check_pw1(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
     }
 
     /// Verify PW3 (admin).
-    pub fn verify_pw3(&mut self, pin: &str) -> Result<Response, Error> {
+    fn verify_pw3(&mut self, pin: &str) -> Result<Response, Error> {
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
         apdu::send_command(self, verify, false)?.try_into()
     }
 
     /// Verify PW3 (admin) using a pinpad on the card reader. If no usable
     /// pinpad is found, an error is returned.
-    pub fn verify_pw3_pinpad(&mut self) -> Result<Response, Error> {
+    fn verify_pw3_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.pinpad_verify(0x83)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -541,7 +497,7 @@ impl<'a> dyn CardClient + 'a {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. YubiKey 5)
-    pub fn check_pw3(&mut self) -> Result<Response, Error> {
+    fn check_pw3(&mut self) -> Result<Response, Error> {
         let verify = commands::verify_pw3(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
     }
@@ -549,11 +505,7 @@ impl<'a> dyn CardClient + 'a {
     /// Change the value of PW1 (user password).
     ///
     /// The current value of PW1 must be presented in `old` for authorization.
-    pub fn change_pw1(
-        &mut self,
-        old: &str,
-        new: &str,
-    ) -> Result<Response, Error> {
+    fn change_pw1(&mut self, old: &str, new: &str) -> Result<Response, Error> {
         let mut data = vec![];
         data.extend(old.as_bytes());
         data.extend(new.as_bytes());
@@ -564,7 +516,7 @@ impl<'a> dyn CardClient + 'a {
 
     /// Change the value of PW1 (user password)  using a pinpad on the
     /// card reader. If no usable pinpad is found, an error is returned.
-    pub fn change_pw1_pinpad(&mut self) -> Result<Response, Error> {
+    fn change_pw1_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.pinpad_modify(0x81)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -572,11 +524,7 @@ impl<'a> dyn CardClient + 'a {
     /// Change the value of PW3 (admin password).
     ///
     /// The current value of PW3 must be presented in `old` for authorization.
-    pub fn change_pw3(
-        &mut self,
-        old: &str,
-        new: &str,
-    ) -> Result<Response, Error> {
+    fn change_pw3(&mut self, old: &str, new: &str) -> Result<Response, Error> {
         let mut data = vec![];
         data.extend(old.as_bytes());
         data.extend(new.as_bytes());
@@ -587,7 +535,7 @@ impl<'a> dyn CardClient + 'a {
 
     /// Change the value of PW3 (admin password) using a pinpad on the
     /// card reader. If no usable pinpad is found, an error is returned.
-    pub fn change_pw3_pinpad(&mut self) -> Result<Response, Error> {
+    fn change_pw3_pinpad(&mut self) -> Result<Response, Error> {
         let res = self.pinpad_modify(0x83)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -599,7 +547,7 @@ impl<'a> dyn CardClient + 'a {
     /// - PW3 must have been verified previously,
     /// - secure messaging must be currently used,
     /// - the resetting_code must be presented.
-    pub fn reset_retry_counter_pw1(
+    fn reset_retry_counter_pw1(
         &mut self,
         new_pw1: Vec<u8>,
         resetting_code: Option<Vec<u8>>,
@@ -614,7 +562,7 @@ impl<'a> dyn CardClient + 'a {
     ///
     /// (This is a wrapper around the low-level pso_decipher
     /// operation, it builds the required `data` field from `dm`)
-    pub fn decipher(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
+    fn decipher(&mut self, dm: Cryptogram) -> Result<Vec<u8>, Error> {
         match dm {
             Cryptogram::RSA(message) => {
                 // "Padding indicator byte (00) for RSA" (pg. 69)
@@ -647,6 +595,9 @@ impl<'a> dyn CardClient + 'a {
 
     /// Run decryption operation on the smartcard (low level operation)
     /// (7.2.11 PSO: DECIPHER)
+    ///
+    /// (consider using the `decipher()` method if you don't want to create
+    /// the data field manually)
     fn pso_decipher(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
         // The OpenPGP card is already connected and PW1 82 has been verified
         let dec_cmd = commands::decryption(data);
@@ -657,34 +608,6 @@ impl<'a> dyn CardClient + 'a {
     }
 
     // --- sign ---
-
-    fn digestinfo(hash: Hash) -> Vec<u8> {
-        match hash {
-            Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
-                let tlv = Tlv::new(
-                    [0x30],
-                    Value::C(vec![
-                        Tlv::new(
-                            [0x30],
-                            Value::C(vec![
-                                Tlv::new(
-                                    [0x06],
-                                    // unwrapping is ok, for SHA*
-                                    Value::S(hash.oid().unwrap().to_vec()),
-                                ),
-                                Tlv::new([0x05], Value::S(vec![])),
-                            ]),
-                        ),
-                        Tlv::new([0x04], Value::S(hash.digest().to_vec())),
-                    ]),
-                );
-
-                tlv.serialize()
-            }
-            Hash::EdDSA(d) => d.to_vec(),
-            Hash::ECDSA(d) => d.to_vec(),
-        }
-    }
 
     /// Sign `hash`, on the card.
     ///
@@ -697,16 +620,16 @@ impl<'a> dyn CardClient + 'a {
     ///
     /// With ECC the hash data is processed as is, using
     /// pso_compute_digital_signature.
-    pub fn signature_for_hash(
-        &mut self,
-        hash: Hash,
-    ) -> Result<Vec<u8>, Error> {
-        self.pso_compute_digital_signature(Self::digestinfo(hash))
+    fn signature_for_hash(&mut self, hash: Hash) -> Result<Vec<u8>, Error> {
+        self.pso_compute_digital_signature(digestinfo(hash))
     }
 
     /// Run signing operation on the smartcard (low level operation)
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
-    pub fn pso_compute_digital_signature(
+    ///
+    /// (consider using the `signature_for_hash()` method if you don't
+    /// want to create the data field manually)
+    fn pso_compute_digital_signature(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Error> {
@@ -729,16 +652,16 @@ impl<'a> dyn CardClient + 'a {
     /// (see 7.2.10.2 DigestInfo for RSA).
     ///
     /// With ECC the hash data is processed as is.
-    pub fn authenticate_for_hash(
-        &mut self,
-        hash: Hash,
-    ) -> Result<Vec<u8>, Error> {
-        self.internal_authenticate(Self::digestinfo(hash))
+    fn authenticate_for_hash(&mut self, hash: Hash) -> Result<Vec<u8>, Error> {
+        self.internal_authenticate(digestinfo(hash))
     }
 
     /// Run signing operation on the smartcard (low level operation)
     /// (7.2.13 INTERNAL AUTHENTICATE)
-    pub fn internal_authenticate(
+    ///
+    /// (consider using the `authenticate_for_hash()` method if you don't
+    /// want to create the data field manually)
+    fn internal_authenticate(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Error> {
@@ -750,12 +673,12 @@ impl<'a> dyn CardClient + 'a {
 
     // --- admin ---
 
-    pub fn set_name(&mut self, name: &[u8]) -> Result<Response, Error> {
+    fn set_name(&mut self, name: &[u8]) -> Result<Response, Error> {
         let put_name = commands::put_name(name.to_vec());
         apdu::send_command(self, put_name, false)?.try_into()
     }
 
-    pub fn set_lang(&mut self, lang: &[Lang]) -> Result<Response, Error> {
+    fn set_lang(&mut self, lang: &[Lang]) -> Result<Response, Error> {
         let bytes: Vec<u8> = lang
             .iter()
             .map(|&l| Into::<Vec<u8>>::into(l))
@@ -766,17 +689,17 @@ impl<'a> dyn CardClient + 'a {
         apdu::send_command(self, put_lang, false)?.try_into()
     }
 
-    pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
+    fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
         let put_sex = commands::put_sex((&sex).into());
         apdu::send_command(self, put_sex, false)?.try_into()
     }
 
-    pub fn set_url(&mut self, url: &[u8]) -> Result<Response, Error> {
+    fn set_url(&mut self, url: &[u8]) -> Result<Response, Error> {
         let put_url = commands::put_url(url.to_vec());
         apdu::send_command(self, put_url, false)?.try_into()
     }
 
-    pub fn set_creation_time(
+    fn set_creation_time(
         &mut self,
         time: KeyGenerationTime,
         key_type: KeyType,
@@ -796,7 +719,7 @@ impl<'a> dyn CardClient + 'a {
         apdu::send_command(self, time_cmd, false)?.try_into()
     }
 
-    pub fn set_fingerprint(
+    fn set_fingerprint(
         &mut self,
         fp: Fingerprint,
         key_type: KeyType,
@@ -820,7 +743,7 @@ impl<'a> dyn CardClient + 'a {
     /// can also be changed.
     ///
     /// (See OpenPGP card spec, pg. 28)
-    pub fn set_pw_status_bytes(
+    fn set_pw_status_bytes(
         &mut self,
         pw_status: &PWStatusBytes,
         long: bool,
@@ -835,7 +758,7 @@ impl<'a> dyn CardClient + 'a {
     ///
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
-    pub fn set_cardholder_certificate(
+    fn set_cardholder_certificate(
         &mut self,
         data: Vec<u8>,
     ) -> Result<Response, Error> {
@@ -845,7 +768,7 @@ impl<'a> dyn CardClient + 'a {
 
     /// Set algorithm attributes
     /// (4.4.3.9 Algorithm Attributes)
-    pub fn set_algorithm_attributes(
+    fn set_algorithm_attributes(
         &mut self,
         key_type: KeyType,
         algo: &Algo,
@@ -861,7 +784,7 @@ impl<'a> dyn CardClient + 'a {
 
     /// Set resetting code
     /// (4.3.4 Resetting Code)
-    pub fn set_resetting_code(
+    fn set_resetting_code(
         &mut self,
         resetting_code: Vec<u8>,
     ) -> Result<Response, Error> {
@@ -871,7 +794,7 @@ impl<'a> dyn CardClient + 'a {
 
     /// Import an existing private key to the card.
     /// (This implicitly sets the algorithm info, fingerprint and timestamp)
-    pub fn key_import(
+    fn key_import(
         &mut self,
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
@@ -894,7 +817,7 @@ impl<'a> dyn CardClient + 'a {
     /// Note: `algo` needs to precisely specify the RSA bitsize of e (if
     /// applicable), and import format, with values that the current card
     /// supports.
-    pub fn generate_key(
+    fn generate_key(
         &mut self,
         fp_from_pub: fn(
             &PublicKeyMaterial,
@@ -916,7 +839,7 @@ impl<'a> dyn CardClient + 'a {
     /// Note: AlgoSimple doesn't specify card specific details (such as
     /// bitsize of e for RSA, and import format). This function determines
     /// these values based on information from the card.
-    pub fn generate_key_simple(
+    fn generate_key_simple(
         &mut self,
         fp_from_pub: fn(
             &PublicKeyMaterial,
@@ -946,11 +869,52 @@ impl<'a> dyn CardClient + 'a {
     /// Note also that the information from the card is insufficient to
     /// reconstruct a pre-existing OpenPGP public key that corresponds to
     /// the private key on the card.
-    pub fn public_key(
+    fn public_key(
         &mut self,
         key_type: KeyType,
     ) -> Result<PublicKeyMaterial, Error> {
         keys::public_key(self, key_type)
+    }
+}
+
+impl<'a> Deref for dyn CardClient + Send + Sync + 'a {
+    type Target = dyn CardClient + 'a;
+
+    fn deref(&self) -> &Self::Target {
+        self
+    }
+}
+impl<'a> DerefMut for dyn CardClient + Send + Sync + 'a {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self
+    }
+}
+
+fn digestinfo(hash: Hash) -> Vec<u8> {
+    match hash {
+        Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
+            let tlv = Tlv::new(
+                [0x30],
+                Value::C(vec![
+                    Tlv::new(
+                        [0x30],
+                        Value::C(vec![
+                            Tlv::new(
+                                [0x06],
+                                // unwrapping is ok, for SHA*
+                                Value::S(hash.oid().unwrap().to_vec()),
+                            ),
+                            Tlv::new([0x05], Value::S(vec![])),
+                        ]),
+                    ),
+                    Tlv::new([0x04], Value::S(hash.digest().to_vec())),
+                ]),
+            );
+
+            tlv.serialize()
+        }
+        Hash::EdDSA(d) => d.to_vec(),
+        Hash::ECDSA(d) => d.to_vec(),
     }
 }
 
