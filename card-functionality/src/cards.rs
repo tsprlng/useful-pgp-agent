@@ -10,7 +10,7 @@ use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
 use openpgp_card::{CardBackend, Error};
-use openpgp_card_pcsc::PcscCard;
+use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_scdc::ScdClient;
 
 const SHARE_MODE: Option<ShareMode> = Some(ShareMode::Shared);
@@ -104,7 +104,7 @@ impl TestCard {
                 // (this can be useful in ShareMode::Exclusive)
                 let mut i = 1;
                 let card: Result<Box<dyn CardBackend>, Error> = loop {
-                    let res = PcscCard::open_by_ident(ident, SHARE_MODE);
+                    let res = PcscBackend::open_by_ident(ident, SHARE_MODE);
 
                     if i == 3 || res.is_ok() {
                         break res.map(Into::into);

@@ -33,15 +33,15 @@ fn default_mode(mode: Option<ShareMode>) -> ShareMode {
 /// This struct can be used to hold on to a Card, even while no operations
 /// are performed on the Card. To perform operations on the card, a
 /// `TxClient` object needs to be obtained (via PcscCard::transaction()).
-pub struct PcscCard {
+pub struct PcscBackend {
     card: Card,
     mode: ShareMode,
     card_caps: Option<CardCaps>,
     reader_caps: HashMap<u8, Tlv>,
 }
 
-impl From<PcscCard> for Box<dyn CardBackend> {
-    fn from(card: PcscCard) -> Box<dyn CardBackend> {
+impl From<PcscBackend> for Box<dyn CardBackend> {
+    fn from(card: PcscBackend) -> Box<dyn CardBackend> {
         Box::new(card) as Box<dyn CardBackend>
     }
 }
@@ -57,19 +57,19 @@ impl From<PcscCard> for Box<dyn CardBackend> {
 /// (e.g. Microsoft documents that on Windows, they will be closed after
 /// 5s without a command:
 /// <https://docs.microsoft.com/en-us/windows/win32/api/winscard/nf-winscard-scardbegintransaction?redirectedfrom=MSDN#remarks>)
-pub struct TxClient<'b> {
+pub struct PcscTransaction<'b> {
     tx: Transaction<'b>,
     card_caps: Option<CardCaps>, // FIXME: manual copy from PcscCard
     reader_caps: HashMap<u8, Tlv>, // FIXME: manual copy from PcscCard
 }
 
-impl<'b> TxClient<'b> {
+impl<'b> PcscTransaction<'b> {
     /// Start a transaction on `card`.
     ///
     /// `reselect` set to `false` is only used internally in this crate,
     /// during initial setup of cards. Otherwise it must be `true`, to
     /// cause a select() call on cards that have been reset.
-    fn new(card: &'b mut PcscCard, reselect: bool) -> Result<Self, Error> {
+    fn new(card: &'b mut PcscBackend, reselect: bool) -> Result<Self, Error> {
         use pcsc::Disposition;
 
         let mut was_reset = false;
@@ -101,7 +101,7 @@ impl<'b> TxClient<'b> {
                         // the caller always expects a card that has not
                         // been "select"ed yet.
                         if reselect {
-                            TxClient::select(&mut txc)?;
+                            PcscTransaction::select(&mut txc)?;
                         }
 
                         tx = txc.tx;
@@ -155,7 +155,7 @@ impl<'b> TxClient<'b> {
     }
 
     /// Try to select the OpenPGP application on a card
-    fn select(card_tx: &mut TxClient) -> Result<(), Error> {
+    fn select(card_tx: &mut PcscTransaction) -> Result<(), Error> {
         if <dyn CardTransaction>::select(card_tx).is_ok() {
             Ok(())
         } else {
@@ -165,7 +165,7 @@ impl<'b> TxClient<'b> {
 
     /// Get application_related_data from card
     fn application_related_data(
-        card_tx: &mut TxClient,
+        card_tx: &mut PcscTransaction,
     ) -> Result<ApplicationRelatedData, Error> {
         <dyn CardTransaction>::application_related_data(card_tx).map_err(|e| {
             Error::Smartcard(SmartcardError::Error(format!(
@@ -216,7 +216,7 @@ impl<'b> TxClient<'b> {
     }
 }
 
-impl CardTransaction for TxClient<'_> {
+impl CardTransaction for PcscTransaction<'_> {
     fn transmit(
         &mut self,
         cmd: &[u8],
@@ -451,7 +451,7 @@ impl CardTransaction for TxClient<'_> {
     }
 }
 
-impl PcscCard {
+impl PcscBackend {
     fn card(&mut self) -> &mut Card {
         &mut self.card
     }
@@ -547,11 +547,11 @@ impl PcscCard {
             let mut store_card = false;
             {
                 // start transaction
-                let mut p = PcscCard::new(card, mode);
-                let mut txc = TxClient::new(&mut p, false)?;
+                let mut p = PcscBackend::new(card, mode);
+                let mut txc = PcscTransaction::new(&mut p, false)?;
 
                 {
-                    if let Err(e) = TxClient::select(&mut txc) {
+                    if let Err(e) = PcscTransaction::select(&mut txc) {
                         log::debug!(" select error: {:?}", e);
                     } else {
                         // successfully opened the OpenPGP application
@@ -560,7 +560,9 @@ impl PcscCard {
 
                         if let Some(ident) = ident {
                             if let Ok(ard) =
-                                TxClient::application_related_data(&mut txc)
+                                PcscTransaction::application_related_data(
+                                    &mut txc,
+                                )
                             {
                                 let aid = ard.application_id()?;
 
@@ -593,7 +595,7 @@ impl PcscCard {
             }
 
             if store_card {
-                let pcsc = PcscCard::new(card, mode);
+                let pcsc = PcscBackend::new(card, mode);
                 cards.push(pcsc.initialize_card()?);
             }
         }
@@ -650,7 +652,7 @@ impl PcscCard {
 
         let mut h: HashMap<u8, Tlv> = HashMap::default();
 
-        let mut txc = TxClient::new(&mut self, true)?;
+        let mut txc = PcscTransaction::new(&mut self, true)?;
 
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = txc.features() {
@@ -684,11 +686,11 @@ impl PcscCard {
     }
 }
 
-impl CardBackend for PcscCard {
+impl CardBackend for PcscBackend {
     /// Get a TxClient for this PcscCard (this starts a transaction)
     fn transaction(
         &mut self,
     ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
-        Ok(Box::new(TxClient::new(self, true)?))
+        Ok(Box::new(PcscTransaction::new(self, true)?))
     }
 }

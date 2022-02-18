@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use openpgp_card::CardBackend;
-use openpgp_card_pcsc::PcscCard;
+use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::Open;
 
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pin_file = &args[1];
     let cert_file = &args[2];
 
-    let mut card = PcscCard::open_by_ident(card_ident, None)?;
+    let mut card = PcscBackend::open_by_ident(card_ident, None)?;
     let mut txc = card.transaction()?;
 
     let mut open = Open::new(&mut *txc)?;
