@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 use openpgp_card::{CardBackend, Error};
 use openpgp_card_pcsc::PcscBackend;
-use openpgp_card_scdc::ScdClient;
+use openpgp_card_scdc::ScdBackend;
 
 const SHARE_MODE: Option<ShareMode> = Some(ShareMode::Shared);
 
@@ -97,7 +97,7 @@ impl TestCard {
             Self::Pcsc(ident) => {
                 // Attempt to shutdown SCD, if it is running.
                 // Ignore any errors that occur during that shutdown attempt.
-                let res = ScdClient::shutdown_scd(None);
+                let res = ScdBackend::shutdown_scd(None);
                 log::trace!(" Attempt to shutdown scd: {:?}", res);
 
                 // Make three attempts to open the card before failing
@@ -119,9 +119,7 @@ impl TestCard {
                 Ok(card?)
             }
             Self::Scdc(serial) => {
-                unimplemented!();
-                println!("open scdc card {}", serial);
-                // Ok(Box::new(ScdClient::open_by_serial(None, serial)?))
+                Ok(Box::new(ScdBackend::open_by_serial(None, serial)?))
             }
         }
     }

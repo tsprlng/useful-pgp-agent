@@ -13,7 +13,7 @@ use sequoia_ipc::gnupg::{Agent, Context};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-use openpgp_card::{CardCaps, CardTransaction, Error};
+use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error};
 
 lazy_static! {
     static ref RT: Mutex<Runtime> =
@@ -48,24 +48,30 @@ const ASSUAN_LINELENGTH: usize = 1000;
 /// In particular, uploading rsa4096 keys fails via scdaemon, with such cards.
 const APDU_CMD_BYTES_MAX: usize = (ASSUAN_LINELENGTH - 25) / 2;
 
-/// An implementation of the CardTransaction trait that uses GnuPG's scdaemon
+/// An implementation of the CardBackend trait that uses GnuPG's scdaemon
 /// (via GnuPG Agent) to access OpenPGP card devices.
-pub struct ScdClient {
+pub struct ScdBackend {
     agent: Agent,
     card_caps: Option<CardCaps>,
 }
 
-impl ScdClient {
+impl From<ScdBackend> for Box<dyn CardBackend> {
+    fn from(card: ScdBackend) -> Box<dyn CardBackend> {
+        Box::new(card) as Box<dyn CardBackend>
+    }
+}
+
+impl ScdBackend {
     /// Open a CardApp that uses an scdaemon instance as its backend.
     /// The specific card with AID `serial` is requested from scdaemon.
     pub fn open_by_serial(
         agent: Option<Agent>,
         serial: &str,
     ) -> Result<Self, Error> {
-        let mut card = ScdClient::new(agent, true)?;
+        let mut card = ScdBackend::new(agent, true)?;
         card.select_card(serial)?;
 
-        <dyn CardTransaction>::initialize(&mut card)?;
+        card.transaction()?.initialize()?;
 
         Ok(card)
     }
@@ -77,9 +83,9 @@ impl ScdClient {
     /// (NOTE: implicitly picking an unspecified card might be a bad idea.
     /// You might want to avoid using this function.)
     pub fn open_yolo(agent: Option<Agent>) -> Result<Self, Error> {
-        let mut card = ScdClient::new(agent, true)?;
+        let mut card = ScdBackend::new(agent, true)?;
 
-        <dyn CardTransaction>::initialize(&mut card)?;
+        card.transaction()?.initialize()?;
 
         Ok(card)
     }
@@ -199,19 +205,31 @@ impl ScdClient {
     }
 }
 
-impl CardTransaction for ScdClient {
+impl CardBackend for ScdBackend {
+    fn transaction(
+        &mut self,
+    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
+        Ok(Box::new(ScdTransaction { scd: self }))
+    }
+}
+
+pub struct ScdTransaction<'a> {
+    scd: &'a mut ScdBackend,
+}
+
+impl CardTransaction for ScdTransaction<'_> {
     fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>, Error> {
         log::trace!("SCDC cmd len {}", cmd.len());
 
         let hex = hex::encode(cmd);
 
         // (Unwrap is ok here, not having a card_caps is fine)
-        let ext = if self.card_caps.is_some()
-            && self.card_caps.unwrap().ext_support()
+        let ext = if self.card_caps().is_some()
+            && self.card_caps().unwrap().ext_support()
         {
             // If we know about card_caps, and can do extended length we
             // set "exlen" accordingly ...
-            format!("--exlen={} ", self.card_caps.unwrap().max_rsp_bytes())
+            format!("--exlen={} ", self.card_caps().unwrap().max_rsp_bytes())
         } else {
             // ... otherwise don't send "exlen" to scdaemon
             "".to_string()
@@ -227,11 +245,11 @@ impl CardTransaction for ScdClient {
             )));
         }
 
-        self.agent.send(send)?;
+        self.scd.agent.send(send)?;
 
         let mut rt = RT.lock().unwrap();
 
-        while let Some(response) = rt.block_on(self.agent.next()) {
+        while let Some(response) = rt.block_on(self.scd.agent.next()) {
             log::debug!("res: {:x?}", response);
             if response.is_err() {
                 return Err(Error::InternalError(anyhow!(
@@ -244,7 +262,7 @@ impl CardTransaction for ScdClient {
                 let res = partial;
 
                 // drop remaining lines
-                while let Some(drop) = rt.block_on(self.agent.next()) {
+                while let Some(drop) = rt.block_on(self.scd.agent.next()) {
                     log::trace!("drop: {:x?}", drop);
                 }
 
@@ -256,11 +274,11 @@ impl CardTransaction for ScdClient {
     }
 
     fn init_card_caps(&mut self, caps: CardCaps) {
-        self.card_caps = Some(caps);
+        self.scd.card_caps = Some(caps);
     }
 
     fn card_caps(&self) -> Option<&CardCaps> {
-        self.card_caps.as_ref()
+        self.scd.card_caps.as_ref()
     }
 
     /// Return limit for APDU command size via scdaemon (based on Assuan
