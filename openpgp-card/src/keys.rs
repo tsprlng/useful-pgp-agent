@@ -29,7 +29,7 @@ use crate::{CardTransaction, Error};
 ///
 /// `fp_from_pub` calculates the fingerprint for a public key data object and
 /// creation timestamp
-pub(crate) fn gen_key_with_metadata<C: ?Sized>(
+pub(crate) fn gen_key_with_metadata<C>(
     card_tx: &mut C,
     fp_from_pub: fn(
         &PublicKeyMaterial,
@@ -40,7 +40,7 @@ pub(crate) fn gen_key_with_metadata<C: ?Sized>(
     algo: Option<&Algo>,
 ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error>
 where
-    C: CardTransaction,
+    C: CardTransaction + ?Sized,
 {
     // Set algo on card if it's Some
     if let Some(target_algo) = algo {
@@ -129,12 +129,12 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
 ///
 /// This runs the low level key generation primitive on the card.
 /// (This does not set algorithm attributes, creation time or fingerprint)
-pub(crate) fn generate_asymmetric_key_pair<C: ?Sized>(
+pub(crate) fn generate_asymmetric_key_pair<C>(
     card_tx: &mut C,
     key_type: KeyType,
 ) -> Result<Tlv, Error>
 where
-    C: CardTransaction,
+    C: CardTransaction + ?Sized,
 {
     // generate key
     let crt = control_reference_template(key_type)?;
@@ -154,12 +154,12 @@ where
 /// in the card or imported")
 ///
 /// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
-pub(crate) fn public_key<C: ?Sized>(
+pub(crate) fn public_key<C>(
     card_tx: &mut C,
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error>
 where
-    C: CardTransaction,
+    C: CardTransaction + ?Sized,
 {
     // get current algo
     let ard = card_tx.application_related_data()?; // FIXME: caching
@@ -183,14 +183,14 @@ where
 /// If the key is suitable for `key_type`, an Error is returned (either
 /// caused by checks before attempting to upload the key to the card, or by
 /// an error that the card reports during an attempt to upload the key).
-pub(crate) fn key_import<C: ?Sized>(
+pub(crate) fn key_import<C>(
     card_tx: &mut C,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_info: Option<AlgoInfo>,
 ) -> Result<(), Error>
 where
-    C: CardTransaction,
+    C: CardTransaction + ?Sized,
 {
     // FIXME: caching?
     let ard = card_tx.application_related_data()?;

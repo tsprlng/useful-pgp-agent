@@ -22,13 +22,13 @@ const MAX_BUFFER_SIZE: usize = 264;
 ///
 /// If the reply is truncated, this fn assembles all the parts and returns
 /// them as one aggregated Response.
-pub(crate) fn send_command<C: ?Sized>(
+pub(crate) fn send_command<C>(
     card_tx: &mut C,
     cmd: Command,
     expect_reply: bool,
 ) -> Result<RawResponse, Error>
 where
-    C: CardTransaction,
+    C: CardTransaction + ?Sized,
 {
     let mut resp = RawResponse::try_from(send_command_low_level(
         card_tx,
@@ -84,13 +84,13 @@ where
 ///
 /// If the response is chained, this fn only returns one chunk, the caller
 /// needs to re-assemble the chained response-parts.
-fn send_command_low_level<C: ?Sized>(
+fn send_command_low_level<C>(
     card_tx: &mut C,
     cmd: Command,
     expect_response: Expect,
 ) -> Result<Vec<u8>, Error>
 where
-    C: CardTransaction,
+    C: CardTransaction + ?Sized,
 {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
         if let Some(caps) = card_tx.card_caps() {
