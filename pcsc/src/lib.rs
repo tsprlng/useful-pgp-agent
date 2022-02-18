@@ -40,6 +40,12 @@ pub struct PcscCard {
     reader_caps: HashMap<u8, Tlv>,
 }
 
+impl From<PcscCard> for Box<dyn CardBackend> {
+    fn from(card: PcscCard) -> Box<dyn CardBackend> {
+        Box::new(card) as Box<dyn CardBackend>
+    }
+}
+
 /// An implementation of the CardTransaction trait that uses the PCSC lite
 /// middleware to access the OpenPGP card application on smart cards, via a
 /// PCSC "transaction".
@@ -446,11 +452,11 @@ impl CardTransaction for TxClient<'_> {
 }
 
 impl PcscCard {
-    pub fn card(&mut self) -> &mut Card {
+    fn card(&mut self) -> &mut Card {
         &mut self.card
     }
 
-    pub fn mode(&self) -> ShareMode {
+    fn mode(&self) -> ShareMode {
         self.mode
     }
 
@@ -529,8 +535,8 @@ impl PcscCard {
     fn cards_filter(
         ident: Option<&str>,
         mode: ShareMode,
-    ) -> Result<Vec<PcscCard>, Error> {
-        let mut cas: Vec<PcscCard> = vec![];
+    ) -> Result<Vec<Self>, Error> {
+        let mut cards: Vec<Self> = vec![];
 
         for mut card in
             Self::raw_pcsc_cards(mode).map_err(|sce| Error::Smartcard(sce))?
@@ -588,20 +594,20 @@ impl PcscCard {
 
             if store_card {
                 let pcsc = PcscCard::new(card, mode);
-                cas.push(pcsc.initialize_card()?);
+                cards.push(pcsc.initialize_card()?);
             }
         }
 
-        log::debug!("cards_filter: found {} cards", cas.len());
+        log::debug!("cards_filter: found {} cards", cards.len());
 
-        Ok(cas)
+        Ok(cards)
     }
 
     /// Return all cards on which the OpenPGP application could be selected.
     ///
     /// Each card has the OpenPGP application selected, card_caps and reader_caps have been
     /// initialized.
-    pub fn cards(mode: Option<ShareMode>) -> Result<Vec<PcscCard>, Error> {
+    pub fn cards(mode: Option<ShareMode>) -> Result<Vec<Self>, Error> {
         Self::cards_filter(None, default_mode(mode))
     }
 
@@ -611,7 +617,7 @@ impl PcscCard {
     pub fn open_by_ident(
         ident: &str,
         mode: Option<ShareMode>,
-    ) -> Result<PcscCard, Error> {
+    ) -> Result<Self, Error> {
         log::debug!("open_by_ident for {:?}", ident);
 
         let mut cards = Self::cards_filter(Some(ident), default_mode(mode))?;

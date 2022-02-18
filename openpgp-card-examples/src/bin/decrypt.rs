@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cert_file = &args[2];
 
     let mut card = PcscCard::open_by_ident(card_ident, None)?;
-    let mut txc = <dyn CardBackend>::transaction(&mut card)?;
+    let mut txc = card.transaction()?;
 
     let mut open = Open::new(&mut *txc)?;
 

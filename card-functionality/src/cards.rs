@@ -9,7 +9,7 @@ use pcsc::ShareMode;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
-use openpgp_card::Error;
+use openpgp_card::{CardBackend, Error};
 use openpgp_card_pcsc::PcscCard;
 use openpgp_card_scdc::ScdClient;
 
@@ -41,7 +41,7 @@ pub struct TestCardData {
 }
 
 impl TestCardData {
-    pub(crate) fn get_card(&self) -> Result<Box<PcscCard>> {
+    pub(crate) fn get_card(&self) -> Result<Box<dyn CardBackend>> {
         self.tc.open()
     }
 
@@ -92,7 +92,7 @@ pub enum TestCard {
 }
 
 impl TestCard {
-    pub fn open(&self) -> Result<Box<PcscCard>> {
+    pub fn open(&self) -> Result<Box<dyn CardBackend>> {
         match self {
             Self::Pcsc(ident) => {
                 // Attempt to shutdown SCD, if it is running.
@@ -103,11 +103,11 @@ impl TestCard {
                 // Make three attempts to open the card before failing
                 // (this can be useful in ShareMode::Exclusive)
                 let mut i = 1;
-                let card: Result<PcscCard, Error> = loop {
+                let card: Result<Box<dyn CardBackend>, Error> = loop {
                     let res = PcscCard::open_by_ident(ident, SHARE_MODE);
 
                     if i == 3 || res.is_ok() {
-                        break res;
+                        break res.map(Into::into);
                     }
 
                     // sleep for 100ms
@@ -116,7 +116,7 @@ impl TestCard {
                     i += 1;
                 };
 
-                Ok(Box::new(card?))
+                Ok(card?)
             }
             Self::Scdc(serial) => {
                 unimplemented!();

@@ -6,16 +6,18 @@ use std::path::{Path, PathBuf};
 
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::crypto_data::{EccType, PublicKeyMaterial};
-use openpgp_card::Error;
+use openpgp_card::{CardBackend, Error};
 use openpgp_card_pcsc::PcscCard;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
-pub(crate) fn cards() -> Result<Vec<PcscCard>, Error> {
+pub(crate) fn cards() -> Result<Vec<Box<dyn CardBackend>>, Error> {
     PcscCard::cards(None)
+        .map(|cards| cards.into_iter().map(Into::into).collect())
 }
 
-pub(crate) fn open_card(ident: &str) -> Result<PcscCard, Error> {
+pub(crate) fn open_card(ident: &str) -> Result<Box<dyn CardBackend>, Error> {
     PcscCard::open_by_ident(ident, None)
+        .map(|pc| Box::new(pc) as Box<dyn CardBackend>)
 }
 
 pub(crate) fn verify_to_user<'app, 'open>(

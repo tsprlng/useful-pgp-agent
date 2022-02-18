@@ -10,8 +10,7 @@ use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::Sex;
-use openpgp_card::CardBackend;
-use openpgp_card::KeyType;
+use openpgp_card::{CardBackend, KeyType};
 use openpgp_card_pcsc::PcscCard;
 
 use openpgp_card_sequoia::card::Open;

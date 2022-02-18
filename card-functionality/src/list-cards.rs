@@ -11,7 +11,7 @@ fn main() -> Result<()> {
     println!("The following OpenPGP cards are connected to your system:");
 
     for mut card in PcscCard::cards(None)? {
-        let mut txc = <dyn CardBackend>::transaction(&mut card)?;
+        let mut txc = card.transaction()?;
 
         let open = Open::new(&mut *txc)?;
         println!(" {}", open.application_identifier()?.ident());
