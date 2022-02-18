@@ -13,6 +13,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::{card_do::Sex, KeyType};
+use openpgp_card::CardBackend;
 
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
@@ -162,12 +163,12 @@ fn set_identity(
 }
 
 fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
-    let mut card = if let Some(ident) = ident {
-        util::open_card(&ident)?
+    let mut card: Box<dyn CardBackend> = if let Some(ident) = ident {
+        Box::new(util::open_card(&ident)?)
     } else {
         let mut cards = util::cards()?;
         if cards.len() == 1 {
-            cards.pop().unwrap()
+            Box::new(cards.pop().unwrap())
         } else {
             return Err(anyhow::anyhow!("Found {} cards", cards.len()));
         }

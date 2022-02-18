@@ -10,13 +10,13 @@ use openpgp_card::{CardBackend, Error};
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
-pub(crate) fn cards() -> Result<Vec<Box<dyn CardBackend>>, Error> {
+pub(crate) fn cards() -> Result<Vec<impl CardBackend>, Error> {
     PcscBackend::cards(None)
-        .map(|cards| cards.into_iter().map(Into::into).collect())
+        .map(|cards| cards.into_iter().collect())
 }
 
-pub(crate) fn open_card(ident: &str) -> Result<Box<dyn CardBackend>, Error> {
-    PcscBackend::open_by_ident(ident, None).map(Into::into)
+pub(crate) fn open_card(ident: &str) -> Result<impl CardBackend, Error> {
+    PcscBackend::open_by_ident(ident, None)
 }
 
 pub(crate) fn verify_to_user<'app, 'open>(

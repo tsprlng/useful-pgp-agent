@@ -106,8 +106,10 @@ impl TestCard {
                 let card: Result<Box<dyn CardBackend>, Error> = loop {
                     let res = PcscBackend::open_by_ident(ident, SHARE_MODE);
 
-                    if i == 3 || res.is_ok() {
-                        break res.map(Into::into);
+                    if i == 3 {
+                        if let Ok(res) = res {
+                            break Ok(Box::new(res));
+                        }
                     }
 
                     // sleep for 100ms
