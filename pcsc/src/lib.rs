@@ -149,7 +149,7 @@ impl<'b> TxClient<'b> {
     }
 
     /// Try to select the OpenPGP application on a card
-    pub fn select(card_tx: &mut TxClient) -> Result<(), Error> {
+    fn select(card_tx: &mut TxClient) -> Result<(), Error> {
         if <dyn CardTransaction>::select(card_tx).is_ok() {
             Ok(())
         } else {
@@ -670,10 +670,10 @@ impl PcscCard {
         Ok(self)
     }
 
-    pub fn card_caps(&self) -> Option<CardCaps> {
+    fn card_caps(&self) -> Option<CardCaps> {
         self.card_caps
     }
-    pub fn reader_caps(&self) -> HashMap<u8, Tlv> {
+    fn reader_caps(&self) -> HashMap<u8, Tlv> {
         self.reader_caps.clone()
     }
 }
