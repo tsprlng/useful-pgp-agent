@@ -140,6 +140,7 @@ fn get_ssh_pubkey(
                         let kind = sshkeys::PublicKeyKind::Ed25519(
                             sshkeys::Ed25519PublicKey {
                                 key: ecc.data().to_vec(),
+                                sk_application: None,
                             },
                         );
 
@@ -171,6 +172,7 @@ fn get_ssh_pubkey(
                             sshkeys::EcdsaPublicKey {
                                 curve,
                                 key: ecc.data().to_vec(),
+                                sk_application: None,
                             },
                         );
 
