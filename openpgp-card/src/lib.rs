@@ -55,6 +55,7 @@ use crate::tlv::tag::Tag;
 use crate::tlv::value::Value;
 use crate::tlv::Tlv;
 
+#[blanket::blanket(derive(Box))]
 pub trait CardBackend {
     fn transaction(
         &mut self,
@@ -67,6 +68,7 @@ pub trait CardBackend {
 /// after opening a transaction from a CardBackend.
 ///
 /// CardTransaction exposes low-level access to OpenPGP card functionality.
+#[blanket::blanket(derive(Box))]
 pub trait CardTransaction {
     /// Transmit the command data in `cmd` to the card.
     ///
