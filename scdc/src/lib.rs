@@ -55,12 +55,6 @@ pub struct ScdBackend {
     card_caps: Option<CardCaps>,
 }
 
-impl From<ScdBackend> for Box<dyn CardBackend> {
-    fn from(card: ScdBackend) -> Box<dyn CardBackend> {
-        Box::new(card) as Box<dyn CardBackend>
-    }
-}
-
 impl ScdBackend {
     /// Open a CardApp that uses an scdaemon instance as its backend.
     /// The specific card with AID `serial` is requested from scdaemon.

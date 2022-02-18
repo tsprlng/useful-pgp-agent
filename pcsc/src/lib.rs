@@ -40,12 +40,6 @@ pub struct PcscBackend {
     reader_caps: HashMap<u8, Tlv>,
 }
 
-impl From<PcscBackend> for Box<dyn CardBackend> {
-    fn from(card: PcscBackend) -> Box<dyn CardBackend> {
-        Box::new(card) as Box<dyn CardBackend>
-    }
-}
-
 /// An implementation of the CardTransaction trait that uses the PCSC lite
 /// middleware to access the OpenPGP card application on smart cards, via a
 /// PCSC "transaction".
