@@ -16,8 +16,7 @@ pub(crate) fn cards() -> Result<Vec<Box<dyn CardBackend>>, Error> {
 }
 
 pub(crate) fn open_card(ident: &str) -> Result<Box<dyn CardBackend>, Error> {
-    PcscCard::open_by_ident(ident, None)
-        .map(|pc| Box::new(pc) as Box<dyn CardBackend>)
+    PcscCard::open_by_ident(ident, None).map(Into::into)
 }
 
 pub(crate) fn verify_to_user<'app, 'open>(

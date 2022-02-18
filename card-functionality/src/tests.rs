@@ -342,7 +342,7 @@ pub fn test_set_user_data(
     // read all the fields back again, expect equal data
     let ch = card_tx.cardholder_related_data()?;
 
-    assert_eq!(ch.name().as_deref(), Some("Bar<<Foo".as_bytes()));
+    assert_eq!(ch.name(), Some("Bar<<Foo".as_bytes()));
     assert_eq!(
         ch.lang().expect("Language setting is None"),
         &[['d', 'e'].into(), ['e', 'n'].into()]
@@ -519,10 +519,7 @@ pub fn test_verify(
     card_tx.set_name(b"Admin<<Hello")?;
 
     let cardholder = card_tx.cardholder_related_data()?;
-    assert_eq!(
-        cardholder.name().as_deref(),
-        Some("Admin<<Hello".as_bytes())
-    );
+    assert_eq!(cardholder.name(), Some("Admin<<Hello".as_bytes()));
 
     card_tx.verify_pw1("123456")?;
 
