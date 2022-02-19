@@ -98,8 +98,7 @@ pub fn get_subkey_by_fingerprint<'a>(
 ) -> Result<Option<ErasedKeyAmalgamation<'a, PublicParts>>, Error> {
     // Find the (sub)key in `cert` that matches the fingerprint from
     // the Card's signing-key slot.
-    let keys: Vec<_> =
-        cert.keys().filter(|ka| &ka.fingerprint() == fp).collect();
+    let keys: Vec<_> = cert.keys().filter(|ka| &ka.fingerprint() == fp).collect();
 
     if keys.is_empty() {
         Ok(None)
@@ -131,11 +130,7 @@ where
 
 /// Produce decrypted plaintext from a VerificationHelper+DecryptionHelper
 /// `d` and the ciphertext `msg`.
-pub fn decryption_helper<D>(
-    d: D,
-    msg: Vec<u8>,
-    p: &dyn Policy,
-) -> Result<Vec<u8>>
+pub fn decryption_helper<D>(d: D, msg: Vec<u8>, p: &dyn Policy) -> Result<Vec<u8>>
 where
     D: VerificationHelper + DecryptionHelper,
 {

@@ -7,9 +7,7 @@ use openpgp::crypto;
 use openpgp::crypto::mpi;
 use openpgp::crypto::SessionKey;
 use openpgp::packet;
-use openpgp::parse::stream::{
-    DecryptionHelper, MessageStructure, VerificationHelper,
-};
+use openpgp::parse::stream::{DecryptionHelper, MessageStructure, VerificationHelper};
 use openpgp::types::{Curve, SymmetricAlgorithm};
 use openpgp::Cert;
 use sequoia_openpgp as openpgp;
@@ -87,10 +85,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
                 Ok(sk)
             }
-            (
-                mpi::Ciphertext::ECDH { ref e, .. },
-                mpi::PublicKey::ECDH { ref curve, .. },
-            ) => {
+            (mpi::Ciphertext::ECDH { ref e, .. }, mpi::PublicKey::ECDH { ref curve, .. }) => {
                 let dm = if curve == &Curve::Cv25519 {
                     assert_eq!(
                         e.value()[0],
@@ -112,10 +107,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 // (Gnuk returns a leading '0x04' byte and
                 // an additional 32 trailing bytes)
                 if curve == &Curve::NistP256 && dec.len() == 65 {
-                    assert_eq!(
-                        dec[0], 0x04,
-                        "Unexpected shape of decrypted NistP256 data"
-                    );
+                    assert_eq!(dec[0], 0x04, "Unexpected shape of decrypted NistP256 data");
 
                     // see Gnuk src/call-ec.c:82
                     dec = dec[1..33].to_vec();
@@ -168,10 +160,7 @@ impl<'a> DecryptionHelper for CardDecryptor<'a> {
 }
 
 impl<'a> VerificationHelper for CardDecryptor<'a> {
-    fn get_certs(
-        &mut self,
-        _ids: &[openpgp::KeyHandle],
-    ) -> openpgp::Result<Vec<openpgp::Cert>> {
+    fn get_certs(&mut self, _ids: &[openpgp::KeyHandle]) -> openpgp::Result<Vec<openpgp::Cert>> {
         Ok(vec![])
     }
     fn check(&mut self, _structure: MessageStructure) -> openpgp::Result<()> {

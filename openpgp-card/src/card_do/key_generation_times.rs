@@ -35,18 +35,14 @@ fn gen_time(input: &[u8]) -> nom::IResult<&[u8], u32> {
     (number::be_u32)(input)
 }
 
-fn key_generation(
-    input: &[u8],
-) -> nom::IResult<&[u8], Option<KeyGenerationTime>> {
+fn key_generation(input: &[u8]) -> nom::IResult<&[u8], Option<KeyGenerationTime>> {
     combinator::map(gen_time, |kg| match kg {
         0 => None,
         kg => Some(KeyGenerationTime(kg)),
     })(input)
 }
 
-fn key_generation_set(
-    input: &[u8],
-) -> nom::IResult<&[u8], KeySet<KeyGenerationTime>> {
+fn key_generation_set(input: &[u8]) -> nom::IResult<&[u8], KeySet<KeyGenerationTime>> {
     combinator::into(sequence::tuple((
         key_generation,
         key_generation,
@@ -86,8 +82,7 @@ mod test {
     #[test]
     fn test() {
         let data3 = [
-            0x60, 0xf3, 0xff, 0x71, 0x60, 0xf3, 0xff, 0x72, 0x60, 0xf3, 0xff,
-            0x83,
+            0x60, 0xf3, 0xff, 0x71, 0x60, 0xf3, 0xff, 0x72, 0x60, 0xf3, 0xff, 0x83,
         ];
 
         let fp_set: KeySet<KeyGenerationTime> = (&data3[..])

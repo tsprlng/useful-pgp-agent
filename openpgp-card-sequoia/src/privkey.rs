@@ -16,9 +16,7 @@ use openpgp::types::Timestamp;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
-use openpgp_card::crypto_data::{
-    CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey,
-};
+use openpgp_card::crypto_data::{CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey};
 use openpgp_card::Error;
 use sequoia_openpgp::types::Curve;
 
@@ -55,14 +53,14 @@ impl CardUploadableKey for SequoiaKey {
         // Decrypt key with password, if set
         let key = match &self.password {
             None => self.key.clone(),
-            Some(pw) => self.key.clone().decrypt_secret(
-                &openpgp::crypto::Password::from(pw.as_str()),
-            )?,
+            Some(pw) => self
+                .key
+                .clone()
+                .decrypt_secret(&openpgp::crypto::Password::from(pw.as_str()))?,
         };
 
         // Get private cryptographic material
-        let unenc = if let Some(key::SecretKeyMaterial::Unencrypted(ref u)) =
-            key.optional_secret()
+        let unenc = if let Some(key::SecretKeyMaterial::Unencrypted(ref u)) = key.optional_secret()
         {
             u
         } else {
@@ -72,44 +70,28 @@ impl CardUploadableKey for SequoiaKey {
         let secret_key_material = unenc.map(|mpis| mpis.clone());
 
         match (self.public.clone(), secret_key_material) {
-            (
-                mpi::PublicKey::RSA { e, n },
-                mpi::SecretKeyMaterial::RSA { d, p, q, u: _ },
-            ) => {
+            (mpi::PublicKey::RSA { e, n }, mpi::SecretKeyMaterial::RSA { d, p, q, u: _ }) => {
                 let sq_rsa = SqRSA::new(e, d, n, p, q)?;
 
                 Ok(PrivateKeyMaterial::R(Box::new(sq_rsa)))
             }
-            (
-                mpi::PublicKey::ECDH { curve, q, .. },
-                mpi::SecretKeyMaterial::ECDH { scalar },
-            ) => {
+            (mpi::PublicKey::ECDH { curve, q, .. }, mpi::SecretKeyMaterial::ECDH { scalar }) => {
                 let sq_ecc = SqEccKey::new(curve, scalar, q, EccType::ECDH);
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
-            (
-                mpi::PublicKey::ECDSA { curve, q, .. },
-                mpi::SecretKeyMaterial::ECDSA { scalar },
-            ) => {
+            (mpi::PublicKey::ECDSA { curve, q, .. }, mpi::SecretKeyMaterial::ECDSA { scalar }) => {
                 let sq_ecc = SqEccKey::new(curve, scalar, q, EccType::ECDSA);
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
-            (
-                mpi::PublicKey::EdDSA { curve, q, .. },
-                mpi::SecretKeyMaterial::EdDSA { scalar },
-            ) => {
+            (mpi::PublicKey::EdDSA { curve, q, .. }, mpi::SecretKeyMaterial::EdDSA { scalar }) => {
                 let sq_ecc = SqEccKey::new(curve, scalar, q, EccType::EdDSA);
 
                 Ok(PrivateKeyMaterial::E(Box::new(sq_ecc)))
             }
             (p, s) => {
-                unimplemented!(
-                    "Unexpected algorithms: public {:?}, secret {:?}",
-                    p,
-                    s
-                );
+                unimplemented!("Unexpected algorithms: public {:?}, secret {:?}", p, s);
             }
         }
     }
@@ -142,19 +124,8 @@ struct SqRSA {
 
 impl SqRSA {
     #[allow(clippy::many_single_char_names)]
-    fn new(
-        e: MPI,
-        d: ProtectedMPI,
-        n: MPI,
-        p: ProtectedMPI,
-        q: ProtectedMPI,
-    ) -> Result<Self> {
-        let nettle = nettle::rsa::PrivateKey::new(
-            d.value(),
-            p.value(),
-            q.value(),
-            None,
-        )?;
+    fn new(e: MPI, d: ProtectedMPI, n: MPI, p: ProtectedMPI, q: ProtectedMPI) -> Result<Self> {
+        let nettle = nettle::rsa::PrivateKey::new(d.value(), p.value(), q.value(), None)?;
 
         Ok(Self { e, n, p, q, nettle })
     }
@@ -201,12 +172,7 @@ struct SqEccKey {
 }
 
 impl SqEccKey {
-    fn new(
-        curve: Curve,
-        private: ProtectedMPI,
-        public: MPI,
-        ecc_type: EccType,
-    ) -> Self {
+    fn new(curve: Curve, private: ProtectedMPI, public: MPI, ecc_type: EccType) -> Self {
         SqEccKey {
             curve,
             private,

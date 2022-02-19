@@ -55,9 +55,7 @@ impl AlgoSimple {
     /// Get corresponding EccType by KeyType (except for Curve25519)
     fn ecc_type(key_type: KeyType) -> EccType {
         match key_type {
-            KeyType::Signing
-            | KeyType::Authentication
-            | KeyType::Attestation => EccType::ECDSA,
+            KeyType::Signing | KeyType::Authentication | KeyType::Attestation => EccType::ECDSA,
             KeyType::Decryption => EccType::ECDH,
         }
     }
@@ -65,9 +63,7 @@ impl AlgoSimple {
     /// Get corresponding EccType by KeyType for Curve25519
     fn ecc_type_25519(key_type: KeyType) -> EccType {
         match key_type {
-            KeyType::Signing
-            | KeyType::Authentication
-            | KeyType::Attestation => EccType::EdDSA,
+            KeyType::Signing | KeyType::Authentication | KeyType::Attestation => EccType::EdDSA,
             KeyType::Decryption => EccType::ECDH,
         }
     }
@@ -75,9 +71,7 @@ impl AlgoSimple {
     /// Get corresponding Curve by KeyType for 25519 (Ed25519 vs Cv25519)
     fn curve_for_25519(key_type: KeyType) -> Curve {
         match key_type {
-            KeyType::Signing
-            | KeyType::Authentication
-            | KeyType::Attestation => Curve::Ed25519,
+            KeyType::Signing | KeyType::Authentication | KeyType::Attestation => Curve::Ed25519,
             KeyType::Decryption => Curve::Cv25519,
         }
     }
@@ -94,18 +88,10 @@ impl AlgoSimple {
         algo_info: Option<AlgoInfo>,
     ) -> Result<Algo> {
         let algo = match self {
-            Self::RSA1k => Algo::Rsa(keys::determine_rsa_attrs(
-                1024, key_type, ard, algo_info,
-            )?),
-            Self::RSA2k => Algo::Rsa(keys::determine_rsa_attrs(
-                2048, key_type, ard, algo_info,
-            )?),
-            Self::RSA3k => Algo::Rsa(keys::determine_rsa_attrs(
-                3072, key_type, ard, algo_info,
-            )?),
-            Self::RSA4k => Algo::Rsa(keys::determine_rsa_attrs(
-                4096, key_type, ard, algo_info,
-            )?),
+            Self::RSA1k => Algo::Rsa(keys::determine_rsa_attrs(1024, key_type, ard, algo_info)?),
+            Self::RSA2k => Algo::Rsa(keys::determine_rsa_attrs(2048, key_type, ard, algo_info)?),
+            Self::RSA3k => Algo::Rsa(keys::determine_rsa_attrs(3072, key_type, ard, algo_info)?),
+            Self::RSA4k => Algo::Rsa(keys::determine_rsa_attrs(4096, key_type, ard, algo_info)?),
             Self::NIST256 => Algo::Ecc(keys::determine_ecc_attrs(
                 Curve::NistP256r1.oid(),
                 Self::ecc_type(key_type),
@@ -225,10 +211,7 @@ impl Algo {
     }
 
     /// Helper: generate `data` for algorithm attributes with ECC
-    fn ecc_algo_attrs(
-        oid: &[u8],
-        ecc_type: EccType,
-    ) -> Result<Vec<u8>, Error> {
+    fn ecc_algo_attrs(oid: &[u8], ecc_type: EccType) -> Result<Vec<u8>, Error> {
         let algo_id = match ecc_type {
             EccType::EdDSA => 0x16,
             EccType::ECDH => 0x12,
@@ -282,11 +265,7 @@ pub struct EccAttrs {
 }
 
 impl EccAttrs {
-    pub fn new(
-        ecc_type: EccType,
-        curve: Curve,
-        import_format: Option<u8>,
-    ) -> Self {
+    pub fn new(ecc_type: EccType, curve: Curve, import_format: Option<u8>) -> Self {
         Self {
             ecc_type,
             curve,
@@ -335,20 +314,12 @@ impl Curve {
             NistP256r1 => &[0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07],
             NistP384r1 => &[0x2B, 0x81, 0x04, 0x00, 0x22],
             NistP521r1 => &[0x2B, 0x81, 0x04, 0x00, 0x23],
-            BrainpoolP256r1 => {
-                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07]
-            }
-            BrainpoolP384r1 => {
-                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b]
-            }
-            BrainpoolP512r1 => {
-                &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d]
-            }
+            BrainpoolP256r1 => &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07],
+            BrainpoolP384r1 => &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b],
+            BrainpoolP512r1 => &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d],
             Secp256k1 => &[0x2B, 0x81, 0x04, 0x00, 0x0A],
             Ed25519 => &[0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01],
-            Cv25519 => {
-                &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01]
-            }
+            Cv25519 => &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01],
             Ed448 => &[0x2b, 0x65, 0x71],
             X448 => &[0x2b, 0x65, 0x6f],
         }
@@ -366,22 +337,14 @@ impl TryFrom<&[u8]> for Curve {
             [0x2B, 0x81, 0x04, 0x00, 0x22] => NistP384r1,
             [0x2B, 0x81, 0x04, 0x00, 0x23] => NistP521r1,
 
-            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07] => {
-                BrainpoolP256r1
-            }
-            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b] => {
-                BrainpoolP384r1
-            }
-            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d] => {
-                BrainpoolP512r1
-            }
+            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07] => BrainpoolP256r1,
+            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b] => BrainpoolP384r1,
+            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d] => BrainpoolP512r1,
 
             [0x2B, 0x81, 0x04, 0x00, 0x0A] => Secp256k1,
 
             [0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01] => Ed25519,
-            [0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01] => {
-                Cv25519
-            }
+            [0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01] => Cv25519,
 
             [0x2b, 0x65, 0x71] => Ed448,
             [0x2b, 0x65, 0x6f] => X448,

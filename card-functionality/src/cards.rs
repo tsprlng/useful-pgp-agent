@@ -120,9 +120,7 @@ impl TestCard {
 
                 Ok(card?)
             }
-            Self::Scdc(serial) => {
-                Ok(Box::new(ScdBackend::open_by_serial(None, serial)?))
-            }
+            Self::Scdc(serial) => Ok(Box::new(ScdBackend::open_by_serial(None, serial)?)),
         }
     }
 }

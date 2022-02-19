@@ -12,9 +12,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 
 use openpgp_card::card_do::ApplicationRelatedData;
-use openpgp_card::{
-    CardBackend, CardCaps, CardTransaction, Error, SmartcardError,
-};
+use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, SmartcardError};
 
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
@@ -53,7 +51,7 @@ pub struct PcscBackend {
 /// <https://docs.microsoft.com/en-us/windows/win32/api/winscard/nf-winscard-scardbegintransaction?redirectedfrom=MSDN#remarks>)
 pub struct PcscTransaction<'b> {
     tx: Transaction<'b>,
-    card_caps: Option<CardCaps>, // FIXME: manual copy from PcscCard
+    card_caps: Option<CardCaps>,   // FIXME: manual copy from PcscCard
     reader_caps: HashMap<u8, Tlv>, // FIXME: manual copy from PcscCard
 }
 
@@ -120,17 +118,13 @@ impl<'b> PcscTransaction<'b> {
                     log::debug!("start_tx: do reconnect");
 
                     {
-                        c.reconnect(
-                            mode,
-                            Protocols::ANY,
-                            Disposition::ResetCard,
-                        )
-                        .map_err(|e| {
-                            Error::Smartcard(SmartcardError::Error(format!(
-                                "Reconnect failed: {:?}",
-                                e
-                            )))
-                        })?;
+                        c.reconnect(mode, Protocols::ANY, Disposition::ResetCard)
+                            .map_err(|e| {
+                                Error::Smartcard(SmartcardError::Error(format!(
+                                    "Reconnect failed: {:?}",
+                                    e
+                                )))
+                            })?;
                     }
 
                     log::debug!("start_tx: reconnected.");
@@ -139,10 +133,9 @@ impl<'b> PcscTransaction<'b> {
                 }
                 Err((_, e)) => {
                     log::debug!("start_tx: error {:?}", e);
-                    break Err(Error::Smartcard(SmartcardError::Error(
-                        format!("Error: {:?}", e),
-                    ))
-                    .into());
+                    break Err(
+                        Error::Smartcard(SmartcardError::Error(format!("Error: {:?}", e))).into(),
+                    );
                 }
             };
         }
@@ -211,25 +204,16 @@ impl<'b> PcscTransaction<'b> {
 }
 
 impl CardTransaction for PcscTransaction<'_> {
-    fn transmit(
-        &mut self,
-        cmd: &[u8],
-        buf_size: usize,
-    ) -> Result<Vec<u8>, Error> {
+    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>, Error> {
         let mut resp_buffer = vec![0; buf_size];
 
-        let resp =
-            self.tx
-                .transmit(cmd, &mut resp_buffer)
-                .map_err(|e| match e {
-                    pcsc::Error::NotTransacted => {
-                        Error::Smartcard(SmartcardError::NotTransacted)
-                    }
-                    _ => Error::Smartcard(SmartcardError::Error(format!(
-                        "Transmit failed: {:?}",
-                        e
-                    ))),
-                })?;
+        let resp = self
+            .tx
+            .transmit(cmd, &mut resp_buffer)
+            .map_err(|e| match e {
+                pcsc::Error::NotTransacted => Error::Smartcard(SmartcardError::NotTransacted),
+                _ => Error::Smartcard(SmartcardError::Error(format!("Transmit failed: {:?}", e))),
+            })?;
 
         log::debug!(" <- APDU response: {:x?}", resp);
 
@@ -332,11 +316,9 @@ impl CardTransaction for PcscTransaction<'_> {
             .value()
             .try_into()?;
 
-        let res = self.tx.control(
-            u32::from_be_bytes(verify_ioctl).into(),
-            &send,
-            &mut recv,
-        )?;
+        let res = self
+            .tx
+            .control(u32::from_be_bytes(verify_ioctl).into(), &send, &mut recv)?;
 
         log::debug!(" <- pcsc pinpad_verify result: {:x?}", res);
 
@@ -433,11 +415,9 @@ impl CardTransaction for PcscTransaction<'_> {
             .value()
             .try_into()?;
 
-        let res = self.tx.control(
-            u32::from_be_bytes(modify_ioctl).into(),
-            &send,
-            &mut recv,
-        )?;
+        let res = self
+            .tx
+            .control(u32::from_be_bytes(modify_ioctl).into(), &send, &mut recv)?;
 
         log::debug!(" <- pcsc pinpad_modify result: {:x?}", res);
 
@@ -501,10 +481,7 @@ impl PcscBackend {
                     continue; // try next reader
                 }
                 Err(err) => {
-                    log::warn!(
-                        "Error connecting to card in reader: {:x?}",
-                        err
-                    );
+                    log::warn!("Error connecting to card in reader: {:x?}", err);
 
                     continue;
                 }
@@ -526,15 +503,10 @@ impl PcscBackend {
     /// application identity with `ident` (if `ident` is None, all Cards are
     /// returned). Returns fully initialized PcscCard structs for all matching
     /// cards.
-    fn cards_filter(
-        ident: Option<&str>,
-        mode: ShareMode,
-    ) -> Result<Vec<Self>, Error> {
+    fn cards_filter(ident: Option<&str>, mode: ShareMode) -> Result<Vec<Self>, Error> {
         let mut cards: Vec<Self> = vec![];
 
-        for mut card in
-            Self::raw_pcsc_cards(mode).map_err(|sce| Error::Smartcard(sce))?
-        {
+        for mut card in Self::raw_pcsc_cards(mode).map_err(|sce| Error::Smartcard(sce))? {
             log::debug!("cards_filter: next card");
             log::debug!(" status: {:x?}", card.status2_owned());
 
@@ -553,11 +525,7 @@ impl PcscBackend {
                         log::debug!(" status: {:x?}", txc.tx.status2_owned());
 
                         if let Some(ident) = ident {
-                            if let Ok(ard) =
-                                PcscTransaction::application_related_data(
-                                    &mut txc,
-                                )
-                            {
+                            if let Ok(ard) = PcscTransaction::application_related_data(&mut txc) {
                                 let aid = ard.application_id()?;
 
                                 if aid.ident() == ident.to_ascii_uppercase() {
@@ -567,10 +535,7 @@ impl PcscBackend {
                                     // we want to return this one card
                                     store_card = true;
                                 } else {
-                                    log::debug!(
-                                        " won't use {:?}",
-                                        aid.ident()
-                                    );
+                                    log::debug!(" won't use {:?}", aid.ident());
                                 }
                             } else {
                                 // couldn't read ARD for this card.
@@ -610,10 +575,7 @@ impl PcscBackend {
     /// Returns the OpenPGP card that matches `ident`, if it is available.
     /// A fully initialized PcscCard is returned: the OpenPGP application has
     /// been selected, card_caps and reader_caps have been initialized.
-    pub fn open_by_ident(
-        ident: &str,
-        mode: Option<ShareMode>,
-    ) -> Result<Self, Error> {
+    pub fn open_by_ident(ident: &str, mode: Option<ShareMode>) -> Result<Self, Error> {
         log::debug!("open_by_ident for {:?}", ident);
 
         let mut cards = Self::cards_filter(Some(ident), default_mode(mode))?;
@@ -682,9 +644,7 @@ impl PcscBackend {
 
 impl CardBackend for PcscBackend {
     /// Get a TxClient for this PcscCard (this starts a transaction)
-    fn transaction(
-        &mut self,
-    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
+    fn transaction(&mut self) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
         Ok(Box::new(PcscTransaction::new(self, true)?))
     }
 }

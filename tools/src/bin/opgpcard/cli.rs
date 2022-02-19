@@ -55,11 +55,7 @@ pub enum Command {
         #[structopt(name = "User PIN file", short = "p", long = "user-pin")]
         user_pin: Option<PathBuf>,
 
-        #[structopt(
-            name = "recipient-cert-file",
-            short = "r",
-            long = "recipient-cert"
-        )]
+        #[structopt(name = "recipient-cert-file", short = "r", long = "recipient-cert")]
         cert_file: PathBuf,
 
         #[structopt(about = "Input file (stdin if unset)", name = "input")]
@@ -75,11 +71,7 @@ pub enum Command {
         #[structopt(name = "detached", short = "d", long = "detached")]
         detached: bool,
 
-        #[structopt(
-            name = "signer-cert-file",
-            short = "s",
-            long = "signer-cert"
-        )]
+        #[structopt(name = "signer-cert-file", short = "s", long = "signer-cert")]
         cert_file: PathBuf,
 
         #[structopt(about = "Input file (stdin if unset)", name = "input")]
@@ -102,25 +94,13 @@ pub enum AdminCommand {
     Import {
         keyfile: PathBuf,
 
-        #[structopt(
-            name = "Signature key fingerprint",
-            short = "s",
-            long = "sig-fp"
-        )]
+        #[structopt(name = "Signature key fingerprint", short = "s", long = "sig-fp")]
         sig_fp: Option<String>,
 
-        #[structopt(
-            name = "Decryption key fingerprint",
-            short = "d",
-            long = "dec-fp"
-        )]
+        #[structopt(name = "Decryption key fingerprint", short = "d", long = "dec-fp")]
         dec_fp: Option<String>,
 
-        #[structopt(
-            name = "Authentication key fingerprint",
-            short = "a",
-            long = "auth-fp"
-        )]
+        #[structopt(name = "Authentication key fingerprint", short = "a", long = "auth-fp")]
         auth_fp: Option<String>,
     },
     /// Generate a Key.

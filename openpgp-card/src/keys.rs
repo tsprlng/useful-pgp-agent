@@ -12,8 +12,8 @@ use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_do::{ApplicationRelatedData, Fingerprint, KeyGenerationTime};
 use crate::crypto_data::{
-    CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial,
-    PublicKeyMaterial, RSAKey, RSAPub,
+    CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
+    RSAPub,
 };
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
 use crate::{apdu, KeyType};
@@ -31,11 +31,7 @@ use crate::{CardTransaction, Error};
 /// creation timestamp
 pub(crate) fn gen_key_with_metadata<C>(
     card_tx: &mut C,
-    fp_from_pub: fn(
-        &PublicKeyMaterial,
-        KeyGenerationTime,
-        KeyType,
-    ) -> Result<Fingerprint, Error>,
+    fp_from_pub: fn(&PublicKeyMaterial, KeyGenerationTime, KeyType) -> Result<Fingerprint, Error>,
     key_type: KeyType,
     algo: Option<&Algo>,
 ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error>
@@ -154,10 +150,7 @@ where
 /// in the card or imported")
 ///
 /// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
-pub(crate) fn public_key<C>(
-    card_tx: &mut C,
-    key_type: KeyType,
-) -> Result<PublicKeyMaterial, Error>
+pub(crate) fn public_key<C>(card_tx: &mut C, key_type: KeyType) -> Result<PublicKeyMaterial, Error>
 where
     C: CardTransaction + ?Sized,
 {
@@ -201,20 +194,15 @@ where
             // (round up to 4-bytes, in case the key has 8+ leading zero bits)
             let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
 
-            let rsa_attrs =
-                determine_rsa_attrs(rsa_bits, key_type, &ard, algo_info)?;
+            let rsa_attrs = determine_rsa_attrs(rsa_bits, key_type, &ard, algo_info)?;
 
             let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
             (Algo::Rsa(rsa_attrs), key_cmd)
         }
         PrivateKeyMaterial::E(ecc_key) => {
-            let ecc_attrs = determine_ecc_attrs(
-                ecc_key.oid(),
-                ecc_key.ecc_type(),
-                key_type,
-                algo_info,
-            )?;
+            let ecc_attrs =
+                determine_ecc_attrs(ecc_key.oid(), ecc_key.ecc_type(), key_type, algo_info)?;
 
             let key_cmd = ecc_key_import_cmd(key_type, ecc_key, &ecc_attrs)?;
 
@@ -300,10 +288,7 @@ pub(crate) fn determine_ecc_attrs(
         let algos = check_card_algo_ecc(algo_info, key_type, oid);
         if algos.is_empty() {
             // If oid is not in algo_info, return error.
-            return Err(anyhow!(
-                "Oid {:?} unsupported according to algo_info",
-                oid
-            ));
+            return Err(anyhow!("Oid {:?} unsupported according to algo_info", oid));
         }
 
         // Note: Looking up ecc_type in the card's "Algorithm Information"
@@ -330,11 +315,7 @@ pub(crate) fn determine_ecc_attrs(
 }
 
 /// Look up RsaAttrs parameters in algo_info based on key_type and rsa_bits
-fn card_algo_rsa(
-    algo_info: AlgoInfo,
-    key_type: KeyType,
-    rsa_bits: u16,
-) -> Result<RsaAttrs, Error> {
+fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Result<RsaAttrs, Error> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
@@ -360,20 +341,12 @@ fn card_algo_rsa(
         Ok((**algo.last().unwrap()).clone())
     } else {
         // RSA with this bit length is not in algo_info
-        return Err(anyhow!(
-            "RSA {} unsupported according to algo_info",
-            rsa_bits
-        )
-        .into());
+        return Err(anyhow!("RSA {} unsupported according to algo_info", rsa_bits).into());
     }
 }
 
 /// Get all entries from algo_info with matching `oid` and `key_type`.
-fn check_card_algo_ecc(
-    algo_info: AlgoInfo,
-    key_type: KeyType,
-    oid: &[u8],
-) -> Vec<EccAttrs> {
+fn check_card_algo_ecc(algo_info: AlgoInfo, key_type: KeyType, oid: &[u8]) -> Vec<EccAttrs> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype

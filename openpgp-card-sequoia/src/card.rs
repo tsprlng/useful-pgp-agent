@@ -12,9 +12,9 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
-    ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData,
-    ExtendedCapabilities, ExtendedLengthInfo, Fingerprint, HistoricalBytes,
-    KeyGenerationTime, Lang, PWStatusBytes, SecuritySupportTemplate, Sex,
+    ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
+    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
+    SecuritySupportTemplate, Sex,
 };
 use openpgp_card::{CardTransaction, Error, KeySet, KeyType, Response};
 
@@ -46,9 +46,7 @@ pub struct Open<'a> {
 }
 
 impl<'a> Open<'a> {
-    pub fn new(
-        card_tx: &'a mut (dyn CardTransaction + Send + Sync),
-    ) -> Result<Self, Error> {
+    pub fn new(card_tx: &'a mut (dyn CardTransaction + Send + Sync)) -> Result<Self, Error> {
         let ard = card_tx.application_related_data()?;
 
         Ok(Self {
@@ -73,10 +71,7 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_user_pinpad(
-        &mut self,
-        prompt: &dyn Fn(),
-    ) -> Result<(), Error> {
+    pub fn verify_user_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
         let _ = self.card_tx.verify_pw1_pinpad()?;
@@ -93,10 +88,7 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_user_for_signing_pinpad(
-        &mut self,
-        prompt: &dyn Fn(),
-    ) -> Result<(), Error> {
+    pub fn verify_user_for_signing_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
         let _ = self.card_tx.verify_pw1_for_signing_pinpad()?;
@@ -113,10 +105,7 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_admin_pinpad(
-        &mut self,
-        prompt: &dyn Fn(),
-    ) -> Result<(), Error> {
+    pub fn verify_admin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
         let _ = self.card_tx.verify_pw3_pinpad()?;
@@ -138,43 +127,25 @@ impl<'a> Open<'a> {
         self.card_tx.check_pw3()
     }
 
-    pub fn change_user_pin(
-        &mut self,
-        old: &str,
-        new: &str,
-    ) -> Result<Response, Error> {
+    pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<Response, Error> {
         self.card_tx.change_pw1(old, new)
     }
 
-    pub fn change_user_pin_pinpad(
-        &mut self,
-        prompt: &dyn Fn(),
-    ) -> Result<Response, Error> {
+    pub fn change_user_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<Response, Error> {
         prompt();
         self.card_tx.change_pw1_pinpad()
     }
 
-    pub fn reset_user_pin(
-        &mut self,
-        rst: &str,
-        new: &str,
-    ) -> Result<Response, Error> {
+    pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<Response, Error> {
         self.card_tx
             .reset_retry_counter_pw1(new.into(), Some(rst.into()))
     }
 
-    pub fn change_admin_pin(
-        &mut self,
-        old: &str,
-        new: &str,
-    ) -> Result<Response, Error> {
+    pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<Response, Error> {
         self.card_tx.change_pw3(old, new)
     }
 
-    pub fn change_admin_pin_pinpad(
-        &mut self,
-        prompt: &dyn Fn(),
-    ) -> Result<Response, Error> {
+    pub fn change_admin_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<Response, Error> {
         prompt();
         self.card_tx.change_pw3_pinpad()
     }
@@ -208,9 +179,7 @@ impl<'a> Open<'a> {
 
     // --- application data ---
 
-    pub fn application_identifier(
-        &self,
-    ) -> Result<ApplicationIdentifier, Error> {
+    pub fn application_identifier(&self) -> Result<ApplicationIdentifier, Error> {
         self.ard.application_id()
     }
 
@@ -218,9 +187,7 @@ impl<'a> Open<'a> {
         self.ard.historical_bytes()
     }
 
-    pub fn extended_length_information(
-        &self,
-    ) -> Result<Option<ExtendedLengthInfo>> {
+    pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>> {
         self.ard.extended_length_information()
     }
 
@@ -234,9 +201,7 @@ impl<'a> Open<'a> {
         unimplemented!()
     }
 
-    pub fn extended_capabilities(
-        &self,
-    ) -> Result<ExtendedCapabilities, Error> {
+    pub fn extended_capabilities(&self) -> Result<ExtendedCapabilities, Error> {
         self.ard.extended_capabilities()
     }
 
@@ -258,9 +223,7 @@ impl<'a> Open<'a> {
         unimplemented!()
     }
 
-    pub fn key_generation_times(
-        &self,
-    ) -> Result<KeySet<KeyGenerationTime>, Error> {
+    pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
         self.ard.key_generation_times()
     }
 
@@ -300,16 +263,12 @@ impl<'a> Open<'a> {
     }
 
     // --- cardholder related data (65) ---
-    pub fn cardholder_related_data(
-        &mut self,
-    ) -> Result<CardholderRelatedData> {
+    pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData> {
         self.card_tx.cardholder_related_data()
     }
 
     // --- security support template (7a) ---
-    pub fn security_support_template(
-        &mut self,
-    ) -> Result<SecuritySupportTemplate> {
+    pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate> {
         self.card_tx.security_support_template()
     }
 
@@ -334,10 +293,7 @@ impl<'a> Open<'a> {
 
     // ----------
 
-    pub fn public_key(
-        &mut self,
-        key_type: KeyType,
-    ) -> Result<PublicKeyMaterial> {
+    pub fn public_key(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial> {
         self.card_tx.public_key(key_type).map_err(|e| e.into())
     }
 
@@ -368,10 +324,7 @@ pub struct Sign<'app, 'open> {
 }
 
 impl Sign<'_, '_> {
-    pub fn signer(
-        &mut self,
-        cert: &Cert,
-    ) -> std::result::Result<CardSigner, Error> {
+    pub fn signer(&mut self, cert: &Cert) -> std::result::Result<CardSigner, Error> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
@@ -431,8 +384,7 @@ impl Admin<'_, '_> {
         // Check for max len
         let ec = self.oc.extended_capabilities()?;
 
-        if ec.max_len_special_do() == None
-            || url.len() <= ec.max_len_special_do().unwrap() as usize
+        if ec.max_len_special_do() == None || url.len() <= ec.max_len_special_do().unwrap() as usize
         {
             // If we don't know the max length for URL ("special DO"),
             // or if it's within the acceptable length:
@@ -444,10 +396,7 @@ impl Admin<'_, '_> {
         }
     }
 
-    pub fn set_resetting_code(
-        &mut self,
-        pin: &str,
-    ) -> Result<Response, Error> {
+    pub fn set_resetting_code(&mut self, pin: &str) -> Result<Response, Error> {
         self.oc.card_tx.set_resetting_code(pin.into())
     }
 
@@ -474,16 +423,15 @@ impl Admin<'_, '_> {
         algo: Option<AlgoSimple>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         match algo {
-            Some(algo) => self.oc.card_tx.generate_key_simple(
-                public_to_fingerprint,
-                key_type,
-                algo,
-            ),
-            None => self.oc.card_tx.generate_key(
-                public_to_fingerprint,
-                key_type,
-                None,
-            ),
+            Some(algo) => {
+                self.oc
+                    .card_tx
+                    .generate_key_simple(public_to_fingerprint, key_type, algo)
+            }
+            None => self
+                .oc
+                .card_tx
+                .generate_key(public_to_fingerprint, key_type, None),
         }
     }
 }

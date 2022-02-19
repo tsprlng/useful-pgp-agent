@@ -11,8 +11,7 @@ use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
 pub(crate) fn cards() -> Result<Vec<impl CardBackend>, Error> {
-    PcscBackend::cards(None)
-        .map(|cards| cards.into_iter().collect())
+    PcscBackend::cards(None).map(|cards| cards.into_iter().collect())
 }
 
 pub(crate) fn open_card(ident: &str) -> Result<impl CardBackend, Error> {
@@ -27,15 +26,10 @@ pub(crate) fn verify_to_user<'app, 'open>(
         open.verify_user(&load_pin(&path)?)?;
     } else {
         if !open.feature_pinpad_verify() {
-            return Err(anyhow!(
-                "No user PIN file provided, and no pinpad found"
-            )
-            .into());
+            return Err(anyhow!("No user PIN file provided, and no pinpad found").into());
         };
 
-        open.verify_user_pinpad(&|| {
-            println!("Enter user PIN on card reader pinpad.")
-        })?;
+        open.verify_user_pinpad(&|| println!("Enter user PIN on card reader pinpad."))?;
     }
 
     open.user_card()
@@ -50,14 +44,9 @@ pub(crate) fn verify_to_sign<'app, 'open>(
         open.verify_user_for_signing(&load_pin(&path)?)?;
     } else {
         if !open.feature_pinpad_verify() {
-            return Err(anyhow!(
-                "No user PIN file provided, and no pinpad found"
-            )
-            .into());
+            return Err(anyhow!("No user PIN file provided, and no pinpad found").into());
         }
-        open.verify_user_for_signing_pinpad(&|| {
-            println!("Enter user PIN on card reader pinpad.")
-        })?;
+        open.verify_user_for_signing_pinpad(&|| println!("Enter user PIN on card reader pinpad."))?;
     }
     open.signing_card()
         .ok_or_else(|| anyhow!("Couldn't get sign access").into())
@@ -73,15 +62,10 @@ pub(crate) fn verify_to_admin<'app, 'open>(
         open.verify_admin(&load_pin(&path)?)?;
     } else {
         if !open.feature_pinpad_verify() {
-            return Err(anyhow!(
-                "No admin PIN file provided, and no pinpad found"
-            )
-            .into());
+            return Err(anyhow!("No admin PIN file provided, and no pinpad found").into());
         }
 
-        open.verify_admin_pinpad(&|| {
-            println!("Enter admin PIN on card reader pinpad.")
-        })?;
+        open.verify_admin_pinpad(&|| println!("Enter admin PIN on card reader pinpad."))?;
     }
     open.admin_card()
         .ok_or_else(|| anyhow!("Couldn't get admin access").into())
@@ -92,9 +76,7 @@ pub(crate) fn load_pin(pin_file: &Path) -> Result<String> {
     Ok(pin.trim().to_string())
 }
 
-pub(crate) fn open_or_stdin(
-    f: Option<&Path>,
-) -> Result<Box<dyn std::io::Read + Send + Sync>> {
+pub(crate) fn open_or_stdin(f: Option<&Path>) -> Result<Box<dyn std::io::Read + Send + Sync>> {
     match f {
         Some(f) => Ok(Box::new(
             std::fs::File::open(f).context("Failed to open input file")?,
@@ -103,9 +85,7 @@ pub(crate) fn open_or_stdin(
     }
 }
 
-pub(crate) fn open_or_stdout(
-    f: Option<&Path>,
-) -> Result<Box<dyn std::io::Write + Send + Sync>> {
+pub(crate) fn open_or_stdout(f: Option<&Path>) -> Result<Box<dyn std::io::Write + Send + Sync>> {
     match f {
         Some(f) => Ok(Box::new(
             std::fs::File::create(f).context("Failed to open input file")?,
@@ -114,10 +94,7 @@ pub(crate) fn open_or_stdout(
     }
 }
 
-fn get_ssh_pubkey(
-    pkm: &PublicKeyMaterial,
-    ident: String,
-) -> Result<sshkeys::PublicKey> {
+fn get_ssh_pubkey(pkm: &PublicKeyMaterial, ident: String) -> Result<sshkeys::PublicKey> {
     let cardno = format!("cardno:{}", ident);
 
     let (key_type, kind) = match pkm {
@@ -135,15 +112,12 @@ fn get_ssh_pubkey(
             if let Algo::Ecc(ecc_attrs) = ecc.algo() {
                 match ecc_attrs.ecc_type() {
                     EccType::EdDSA => {
-                        let key_type =
-                            sshkeys::KeyType::from_name("ssh-ed25519")?;
+                        let key_type = sshkeys::KeyType::from_name("ssh-ed25519")?;
 
-                        let kind = sshkeys::PublicKeyKind::Ed25519(
-                            sshkeys::Ed25519PublicKey {
-                                key: ecc.data().to_vec(),
-                                sk_application: None,
-                            },
-                        );
+                        let kind = sshkeys::PublicKeyKind::Ed25519(sshkeys::Ed25519PublicKey {
+                            key: ecc.data().to_vec(),
+                            sk_application: None,
+                        });
 
                         Ok((key_type, kind))
                     }
@@ -161,28 +135,20 @@ fn get_ssh_pubkey(
                                 sshkeys::Curve::from_identifier("nistp521")?,
                                 "ecdsa-sha2-nistp521",
                             )),
-                            _ => Err(anyhow!(
-                                "Unexpected ECDSA curve {:?}",
-                                ecc_attrs.curve()
-                            )),
+                            _ => Err(anyhow!("Unexpected ECDSA curve {:?}", ecc_attrs.curve())),
                         }?;
 
                         let key_type = sshkeys::KeyType::from_name(name)?;
 
-                        let kind = sshkeys::PublicKeyKind::Ecdsa(
-                            sshkeys::EcdsaPublicKey {
-                                curve,
-                                key: ecc.data().to_vec(),
-                                sk_application: None,
-                            },
-                        );
+                        let kind = sshkeys::PublicKeyKind::Ecdsa(sshkeys::EcdsaPublicKey {
+                            curve,
+                            key: ecc.data().to_vec(),
+                            sk_application: None,
+                        });
 
                         Ok((key_type, kind))
                     }
-                    _ => Err(anyhow!(
-                        "Unexpected EccType {:?}",
-                        ecc_attrs.ecc_type()
-                    )),
+                    _ => Err(anyhow!("Unexpected EccType {:?}", ecc_attrs.ecc_type())),
                 }
             } else {
                 Err(anyhow!("Unexpected Algo in EccPub {:?}", ecc))
@@ -202,10 +168,7 @@ fn get_ssh_pubkey(
 
 /// Return a String representation of an ssh public key, in a form like:
 /// "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAuTuxILMTvzTIRvaRqqUM3aRDoEBgz/JAoWKsD1ECxy cardno:FFFE:43194240"
-pub(crate) fn get_ssh_pubkey_string(
-    pkm: &PublicKeyMaterial,
-    ident: String,
-) -> Result<String> {
+pub(crate) fn get_ssh_pubkey_string(pkm: &PublicKeyMaterial, ident: String) -> Result<String> {
     let pk = get_ssh_pubkey(pkm, ident)?;
 
     let mut v = vec![];

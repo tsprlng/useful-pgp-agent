@@ -12,8 +12,8 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::{card_do::Sex, KeyType};
-use openpgp_card::CardBackend;
+use openpgp_card::card_do::Sex;
+use openpgp_card::{CardBackend, KeyType};
 
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
@@ -57,10 +57,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if detached {
                 sign_detached(&ident, user_pin, &cert_file, input.as_deref())?;
             } else {
-                return Err(anyhow::anyhow!(
-                    "Only detached signatures are supported for now"
-                )
-                .into());
+                return Err(
+                    anyhow::anyhow!("Only detached signatures are supported for now").into(),
+                );
             }
         }
         cli::Command::FactoryReset { ident } => {
@@ -78,14 +77,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
-                    let mut admin =
-                        util::verify_to_admin(&mut open, admin_pin)?;
+                    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
 
                     let _ = admin.set_name(&name)?;
                 }
                 cli::AdminCommand::Url { url } => {
-                    let mut admin =
-                        util::verify_to_admin(&mut open, admin_pin)?;
+                    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
 
                     let _ = admin.set_url(&url)?;
                 }
@@ -104,9 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // and if so, import these keys to the card.
                         key_import_yolo(admin, &key)?;
                     } else {
-                        key_import_explicit(
-                            admin, &key, sig_fp, dec_fp, auth_fp,
-                        )?;
+                        key_import_explicit(admin, &key, sig_fp, dec_fp, auth_fp)?;
                     }
                 }
                 cli::AdminCommand::Generate {
@@ -150,10 +145,7 @@ fn list_cards() -> Result<()> {
     Ok(())
 }
 
-fn set_identity(
-    ident: &str,
-    id: u8,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
     let mut card = util::open_card(ident)?;
     let mut txc = card.transaction()?;
 
@@ -313,8 +305,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
         // YubiKey specific (?) firmware version
         if let Ok(ver) = open.firmware_version() {
-            let ver =
-                ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
+            let ver = ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
 
             println!("Firmware Version: {}", ver);
         }
@@ -420,9 +411,7 @@ fn key_import_explicit(
     let p = StandardPolicy::new();
 
     if let Some(sig_fp) = sig_fp {
-        if let Some(sig) =
-            sq_util::private_subkey_by_fingerprint(key, &p, &sig_fp)?
-        {
+        if let Some(sig) = sq_util::private_subkey_by_fingerprint(key, &p, &sig_fp)? {
             println!("Uploading {} as signing key", sig.fingerprint());
             admin.upload_key(sig, KeyType::Signing, None)?;
         } else {
@@ -431,9 +420,7 @@ fn key_import_explicit(
     }
 
     if let Some(dec_fp) = dec_fp {
-        if let Some(dec) =
-            sq_util::private_subkey_by_fingerprint(key, &p, &dec_fp)?
-        {
+        if let Some(dec) = sq_util::private_subkey_by_fingerprint(key, &p, &dec_fp)? {
             println!("Uploading {} as decryption key", dec.fingerprint());
             admin.upload_key(dec, KeyType::Decryption, None)?;
         } else {
@@ -442,9 +429,7 @@ fn key_import_explicit(
     }
 
     if let Some(auth_fp) = auth_fp {
-        if let Some(auth) =
-            sq_util::private_subkey_by_fingerprint(key, &p, &auth_fp)?
-        {
+        if let Some(auth) = sq_util::private_subkey_by_fingerprint(key, &p, &auth_fp)? {
             println!("Uploading {} as authentication key", auth.fingerprint());
             admin.upload_key(auth, KeyType::Authentication, None)?;
         } else {
@@ -514,9 +499,7 @@ fn generate_keys(
                 your user PIN multiple times to make binding signatures."
             );
         } else {
-            return Err(anyhow!(
-                "No user PIN file provided, and no pinpad found"
-            ));
+            return Err(anyhow!("No user PIN file provided, and no pinpad found"));
         }
         None
     };
@@ -548,8 +531,7 @@ fn gen_subkeys(
     // the sig key
     let key_dec = if decrypt {
         println!(" Generate subkey for Decryption");
-        let (pkm, ts) =
-            admin.generate_key_simple(KeyType::Decryption, algo)?;
+        let (pkm, ts) = admin.generate_key_simple(KeyType::Decryption, algo)?;
         Some(public_key_material_to_key(&pkm, KeyType::Decryption, ts)?)
     } else {
         None
@@ -559,8 +541,7 @@ fn gen_subkeys(
     // algorithm as the sig key
     let key_aut = if auth {
         println!(" Generate subkey for Authentication");
-        let (pkm, ts) =
-            admin.generate_key_simple(KeyType::Authentication, algo)?;
+        let (pkm, ts) = admin.generate_key_simple(KeyType::Authentication, algo)?;
 
         Some(public_key_material_to_key(
             &pkm,

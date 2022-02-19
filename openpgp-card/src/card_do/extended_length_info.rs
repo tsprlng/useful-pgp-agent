@@ -11,13 +11,12 @@ use crate::card_do::{complete, ExtendedLengthInfo};
 use std::convert::TryFrom;
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
-    let (input, (_, cmd, _, resp)) =
-        nom::combinator::all_consuming(sequence::tuple((
-            tag([0x2, 0x2]),
-            number::be_u16,
-            tag([0x2, 0x2]),
-            number::be_u16,
-        )))(input)?;
+    let (input, (_, cmd, _, resp)) = nom::combinator::all_consuming(sequence::tuple((
+        tag([0x2, 0x2]),
+        number::be_u16,
+        tag([0x2, 0x2]),
+        number::be_u16,
+    )))(input)?;
 
     Ok((input, (cmd, resp)))
 }
@@ -53,8 +52,8 @@ mod test {
     fn test_floss34() {
         let data = [0x2, 0x2, 0x8, 0x0, 0x2, 0x2, 0x8, 0x0];
 
-        let eli = ExtendedLengthInfo::try_from(&data[..])
-            .expect("failed to parse extended length info");
+        let eli =
+            ExtendedLengthInfo::try_from(&data[..]).expect("failed to parse extended length info");
 
         assert_eq!(
             eli,

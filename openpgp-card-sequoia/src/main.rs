@@ -120,23 +120,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         let cert = Cert::from_file(TEST_KEY_PATH)?;
         let p = StandardPolicy::new();
 
-        if let Some(vka) =
-            sq_util::subkey_by_type(&cert, &p, KeyType::Signing)?
-        {
+        if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Signing)? {
             println!("Upload signing key");
             admin.upload_key(vka, KeyType::Signing, None)?;
         }
 
-        if let Some(vka) =
-            sq_util::subkey_by_type(&cert, &p, KeyType::Decryption)?
-        {
+        if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Decryption)? {
             println!("Upload decryption key");
             admin.upload_key(vka, KeyType::Decryption, None)?;
         }
 
-        if let Some(vka) =
-            sq_util::subkey_by_type(&cert, &p, KeyType::Authentication)?
-        {
+        if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Authentication)? {
             println!("Upload auth key");
             admin.upload_key(vka, KeyType::Authentication, None)?;
         }
@@ -170,8 +164,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .expect("We just validated, this should not fail");
 
         let cert = Cert::from_file(TEST_KEY_PATH)?;
-        let msg = std::fs::read_to_string(TEST_ENC_MSG)
-            .expect("Unable to read file");
+        let msg = std::fs::read_to_string(TEST_ENC_MSG).expect("Unable to read file");
 
         println!("Encrypted message:\n{}", msg);
 

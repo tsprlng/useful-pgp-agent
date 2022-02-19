@@ -44,8 +44,7 @@ fn main() -> Result<()> {
         for key_file in &key_files {
             // upload keys
             print!("Upload key '{}'", key_file);
-            let upload_res =
-                run_test(&mut card, test_upload_keys, &[key_file]);
+            let upload_res = run_test(&mut card, test_upload_keys, &[key_file]);
 
             if let Err(TestError::KeyUploadError(_file, err)) = &upload_res {
                 // The card doesn't support this key type, so skip to the
@@ -59,8 +58,7 @@ fn main() -> Result<()> {
             let upload_out = upload_res?;
             println!(" {:x?}", upload_out);
 
-            let key = std::fs::read_to_string(key_file)
-                .expect("Unable to read ciphertext");
+            let key = std::fs::read_to_string(key_file).expect("Unable to read ciphertext");
 
             // decrypt
             print!("  Decrypt");
@@ -68,8 +66,7 @@ fn main() -> Result<()> {
             let c = Cert::from_str(&key)?;
             let ciphertext = util::encrypt_to("Hello world!\n", &c)?;
 
-            let dec_out =
-                run_test(&mut card, test_decrypt, &[&key, &ciphertext])?;
+            let dec_out = run_test(&mut card, test_decrypt, &[&key, &ciphertext])?;
             println!(" {:x?}", dec_out);
 
             // sign

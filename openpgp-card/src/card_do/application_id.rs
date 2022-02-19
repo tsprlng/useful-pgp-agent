@@ -17,8 +17,7 @@ fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationIdentifier> {
     let (input, manufacturer) = number::be_u16(input)?;
     let (input, serial) = number::be_u32(input)?;
 
-    let (input, _) =
-        nom::combinator::all_consuming(bytes::tag([0x0, 0x0]))(input)?;
+    let (input, _) = nom::combinator::all_consuming(bytes::tag([0x0, 0x0]))(input)?;
 
     Ok((
         input,
@@ -76,12 +75,11 @@ mod test {
     #[test]
     fn test_gnuk() {
         let data = [
-            0xd2, 0x76, 0x0, 0x1, 0x24, 0x1, 0x2, 0x0, 0xff, 0xfe, 0x43, 0x19,
-            0x42, 0x40, 0x0, 0x0,
+            0xd2, 0x76, 0x0, 0x1, 0x24, 0x1, 0x2, 0x0, 0xff, 0xfe, 0x43, 0x19, 0x42, 0x40, 0x0, 0x0,
         ];
 
-        let aid = ApplicationIdentifier::try_from(&data[..])
-            .expect("failed to parse application id");
+        let aid =
+            ApplicationIdentifier::try_from(&data[..]).expect("failed to parse application id");
 
         assert_eq!(
             aid,

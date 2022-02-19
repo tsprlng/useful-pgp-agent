@@ -41,11 +41,7 @@ where
     )?)?;
 
     if let StatusBytes::UnknownStatus(0x6c, size) = resp.status() {
-        resp = RawResponse::try_from(send_command_low_level(
-            card_tx,
-            cmd,
-            Expect::Short(size),
-        )?)?;
+        resp = RawResponse::try_from(send_command_low_level(card_tx, cmd, Expect::Short(size))?)?;
     }
 
     while let StatusBytes::OkBytesAvailable(bytes) = resp.status() {
@@ -61,10 +57,7 @@ where
 
         match next.status() {
             StatusBytes::OkBytesAvailable(_) | StatusBytes::Ok => {
-                log::debug!(
-                    " appending {} bytes to response",
-                    next.raw_data().len()
-                );
+                log::debug!(" appending {} bytes to response", next.raw_data().len());
 
                 // Append new data to resp.data and overwrite status.
                 resp.raw_mut_data().extend_from_slice(next.raw_data());
@@ -158,8 +151,7 @@ where
             let last = i == chunks.len() - 1;
 
             let cla = if last { 0x00 } else { 0x10 };
-            let partial =
-                Command::new(cla, cmd.ins(), cmd.p1(), cmd.p2(), d.to_vec());
+            let partial = Command::new(cla, cmd.ins(), cmd.p1(), cmd.p2(), d.to_vec());
 
             let serialized = partial
                 .serialize(ext_len, expect_response)
@@ -184,8 +176,7 @@ where
 
                 // ISO: "If SW1-SW2 is set to '6883', then the last
                 // command of the chain is expected."
-                if !(status == StatusBytes::Ok
-                    || status == StatusBytes::LastCommandOfChainExpected)
+                if !(status == StatusBytes::Ok || status == StatusBytes::LastCommandOfChainExpected)
                 {
                     // Unexpected status for a non-final chunked response
                     return Err(status.into());

@@ -61,8 +61,7 @@ impl Tlv {
 
         // Read the length field and get the corresponding number of bytes,
         // which contain the value of this tlv
-        let (input, value) =
-            combinator::flat_map(length::length, bytes::take)(input)?;
+        let (input, value) = combinator::flat_map(length::length, bytes::take)(input)?;
 
         // Parse the value bytes, as "simple" or "constructed", depending
         // on the tag.
@@ -99,34 +98,24 @@ mod test {
 
         assert_eq!(
             cpkt.serialize(),
-            vec![
-                0x7F, 0x48, 0x0A, 0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93,
-                0x82, 0x01, 0x00,
-            ]
+            vec![0x7F, 0x48, 0x0A, 0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93, 0x82, 0x01, 0x00,]
         );
     }
     #[test]
     fn test_tlv() -> Result<()> {
         // From OpenPGP card spec § 7.2.6
-        let data =
-            hex!("5B0B546573743C3C54657374695F2D0264655F350131").to_vec();
+        let data = hex!("5B0B546573743C3C54657374695F2D0264655F350131").to_vec();
 
         let (input, tlv) = Tlv::parse(&data).unwrap();
 
         assert_eq!(
             tlv,
-            Tlv::new(
-                [0x5b],
-                Value::S(hex!("546573743C3C5465737469").to_vec())
-            )
+            Tlv::new([0x5b], Value::S(hex!("546573743C3C5465737469").to_vec()))
         );
 
         let (input, tlv) = Tlv::parse(input).unwrap();
 
-        assert_eq!(
-            tlv,
-            Tlv::new([0x5f, 0x2d], Value::S(hex!("6465").to_vec()))
-        );
+        assert_eq!(tlv, Tlv::new([0x5f, 0x2d], Value::S(hex!("6465").to_vec())));
 
         let (input, tlv) = Tlv::parse(input).unwrap();
 
@@ -157,10 +146,7 @@ mod test {
         assert_eq!(value.serialize(), hex!("7d000bfe080000ff0000"));
 
         let value = tlv.find(&[0x4f].into()).unwrap();
-        assert_eq!(
-            value.serialize(),
-            hex!("d2760001240103040006160191800000")
-        );
+        assert_eq!(value.serialize(), hex!("d2760001240103040006160191800000"));
 
         let value = tlv.find(&[0x5f, 0x52].into()).unwrap();
         assert_eq!(value.serialize(), hex!("00730000e0059000"));
@@ -196,10 +182,7 @@ mod test {
         assert_eq!(value.serialize(), hex!("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
 
         let value = tlv.find(&[0xcd].into()).unwrap();
-        assert_eq!(
-            value.serialize(),
-            hex!("00000000000000000000000000000000")
-        );
+        assert_eq!(value.serialize(), hex!("00000000000000000000000000000000"));
 
         let value = tlv.find(&[0xde].into()).unwrap();
         assert_eq!(value.serialize(), hex!("0100020003008102"));
@@ -236,10 +219,7 @@ mod test {
 
         assert_eq!(
             tlv.serialize(),
-            &[
-                0x4d, 0xb, 0x7f, 0x48, 0x2, 0x92, 0x3, 0x5f, 0x48, 0x3, 0x1,
-                0x2, 0x3
-            ]
+            &[0x4d, 0xb, 0x7f, 0x48, 0x2, 0x92, 0x3, 0x5f, 0x48, 0x3, 0x1, 0x2, 0x3]
         );
     }
 }

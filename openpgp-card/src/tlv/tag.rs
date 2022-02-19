@@ -3,10 +3,7 @@
 
 //! Tag in a TLV data structure
 
-use nom::{
-    branch, bytes::complete as bytes, combinator, number::complete as number,
-    sequence,
-};
+use nom::{branch, bytes::complete as bytes, combinator, number::complete as number, sequence};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Tag(Vec<u8>);
@@ -44,10 +41,7 @@ impl From<[u8; 2]> for Tag {
 }
 
 fn multi_byte_tag(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
-    combinator::recognize(sequence::pair(
-        multi_byte_tag_first,
-        multi_byte_tag_rest,
-    ))(input)
+    combinator::recognize(sequence::pair(multi_byte_tag_first, multi_byte_tag_rest))(input)
 }
 
 fn multi_byte_tag_first(input: &[u8]) -> nom::IResult<&[u8], u8> {
@@ -91,9 +85,7 @@ fn single_byte_tag(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
 }
 
 pub(super) fn tag(input: &[u8]) -> nom::IResult<&[u8], Tag> {
-    combinator::map(branch::alt((multi_byte_tag, single_byte_tag)), Tag::from)(
-        input,
-    )
+    combinator::map(branch::alt((multi_byte_tag, single_byte_tag)), Tag::from)(input)
 }
 
 #[cfg(test)]

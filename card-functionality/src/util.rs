@@ -6,14 +6,11 @@ use std::io::Write;
 use std::time::SystemTime;
 
 use sequoia_openpgp::parse::stream::{
-    DetachedVerifierBuilder, MessageLayer, MessageStructure,
-    VerificationHelper,
+    DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationHelper,
 };
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::{Policy, StandardPolicy};
-use sequoia_openpgp::serialize::stream::{
-    Armorer, Encryptor, LiteralWriter, Message,
-};
+use sequoia_openpgp::serialize::stream::{Armorer, Encryptor, LiteralWriter, Message};
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::KeyGenerationTime;
@@ -77,14 +74,9 @@ impl<'a> VerificationHelper for VHelper<'a> {
         Ok(vec![self.cert.clone()])
     }
 
-    fn check(
-        &mut self,
-        structure: MessageStructure,
-    ) -> sequoia_openpgp::Result<()> {
+    fn check(&mut self, structure: MessageStructure) -> sequoia_openpgp::Result<()> {
         // We are interested in signatures over the data (level 0 signatures)
-        if let Some(MessageLayer::SignatureGroup { results }) =
-            structure.into_iter().next()
-        {
+        if let Some(MessageLayer::SignatureGroup { results }) = structure.into_iter().next() {
             match results.into_iter().next() {
                 Some(Ok(_)) => Ok(()), // Good signature.
                 Some(Err(e)) => Err(sequoia_openpgp::Error::from(e).into()),
@@ -98,8 +90,7 @@ impl<'a> VerificationHelper for VHelper<'a> {
 
 pub fn verify_sig(cert: &Cert, msg: &[u8], sig: &[u8]) -> Result<bool> {
     let vh = VHelper::new(cert);
-    let mut dv = DetachedVerifierBuilder::from_bytes(&sig)?
-        .with_policy(SP, None, vh)?;
+    let mut dv = DetachedVerifierBuilder::from_bytes(&sig)?.with_policy(SP, None, vh)?;
 
     Ok(dv.verify_bytes(msg).is_ok())
 }

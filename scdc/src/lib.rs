@@ -16,8 +16,7 @@ use tokio::runtime::Runtime;
 use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error};
 
 lazy_static! {
-    static ref RT: Mutex<Runtime> =
-        Mutex::new(tokio::runtime::Runtime::new().unwrap());
+    static ref RT: Mutex<Runtime> = Mutex::new(tokio::runtime::Runtime::new().unwrap());
 }
 
 /// The Assuan protocol (in GnuPG) limits the length of commands.
@@ -58,10 +57,7 @@ pub struct ScdBackend {
 impl ScdBackend {
     /// Open a CardApp that uses an scdaemon instance as its backend.
     /// The specific card with AID `serial` is requested from scdaemon.
-    pub fn open_by_serial(
-        agent: Option<Agent>,
-        serial: &str,
-    ) -> Result<Self, Error> {
+    pub fn open_by_serial(agent: Option<Agent>, serial: &str) -> Result<Self, Error> {
         let mut card = ScdBackend::new(agent, true)?;
         card.select_card(serial)?;
 
@@ -200,9 +196,7 @@ impl ScdBackend {
 }
 
 impl CardBackend for ScdBackend {
-    fn transaction(
-        &mut self,
-    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
+    fn transaction(&mut self) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
         Ok(Box::new(ScdTransaction { scd: self }))
     }
 }
@@ -218,9 +212,7 @@ impl CardTransaction for ScdTransaction<'_> {
         let hex = hex::encode(cmd);
 
         // (Unwrap is ok here, not having a card_caps is fine)
-        let ext = if self.card_caps().is_some()
-            && self.card_caps().unwrap().ext_support()
-        {
+        let ext = if self.card_caps().is_some() && self.card_caps().unwrap().ext_support() {
             // If we know about card_caps, and can do extended length we
             // set "exlen" accordingly ...
             format!("--exlen={} ", self.card_caps().unwrap().max_rsp_bytes())

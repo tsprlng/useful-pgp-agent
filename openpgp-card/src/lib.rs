@@ -45,21 +45,17 @@ use crate::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use crate::apdu::commands;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
-    ApplicationRelatedData, CardholderRelatedData, Fingerprint,
-    KeyGenerationTime, Lang, PWStatusBytes, SecuritySupportTemplate, Sex,
+    ApplicationRelatedData, CardholderRelatedData, Fingerprint, KeyGenerationTime, Lang,
+    PWStatusBytes, SecuritySupportTemplate, Sex,
 };
-use crate::crypto_data::{
-    CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial,
-};
+use crate::crypto_data::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial};
 use crate::tlv::tag::Tag;
 use crate::tlv::value::Value;
 use crate::tlv::Tlv;
 
 #[blanket::blanket(derive(Box))]
 pub trait CardBackend {
-    fn transaction(
-        &mut self,
-    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error>;
+    fn transaction(&mut self) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error>;
 }
 
 /// The CardTransaction trait defines communication with an OpenPGP card via a
@@ -74,11 +70,7 @@ pub trait CardTransaction {
     ///
     /// `buf_size` is a hint to the backend (the backend may ignore it)
     /// indicating the expected maximum response size.
-    fn transmit(
-        &mut self,
-        cmd: &[u8],
-        buf_size: usize,
-    ) -> Result<Vec<u8>, Error>;
+    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>, Error>;
 
     /// Set the card capabilities in the CardTransaction.
     ///
@@ -150,9 +142,7 @@ pub trait CardTransaction {
             if let Ok(Some(eli)) = ard.extended_length_information() {
                 // In card 3.x, max lengths come from ExtendedLengthInfo
                 (eli.max_command_bytes(), eli.max_response_bytes())
-            } else if let (Some(cmd), Some(rsp)) =
-                (ext_cap.max_cmd_len(), ext_cap.max_resp_len())
-            {
+            } else if let (Some(cmd), Some(rsp)) = (ext_cap.max_cmd_len(), ext_cap.max_resp_len()) {
                 // In card 2.x, max lengths come from ExtendedCapabilities
                 (cmd, rsp)
             } else {
@@ -246,17 +236,15 @@ pub trait CardTransaction {
     }
 
     /// Get security support template (7a)
-    fn security_support_template(
-        &mut self,
-    ) -> Result<SecuritySupportTemplate> {
+    fn security_support_template(&mut self) -> Result<SecuritySupportTemplate> {
         let sst = commands::security_support_template();
         let resp = apdu::send_command(self, sst, true)?;
         resp.check_ok()?;
 
         let tlv = Tlv::try_from(resp.data()?)?;
-        let res = tlv.find(&[0x93].into()).ok_or_else(|| {
-            anyhow!("Couldn't get SecuritySupportTemplate DO")
-        })?;
+        let res = tlv
+            .find(&[0x93].into())
+            .ok_or_else(|| anyhow!("Couldn't get SecuritySupportTemplate DO"))?;
 
         if let Value::S(data) = res {
             let mut data = data.to_vec();
@@ -293,8 +281,7 @@ pub trait CardTransaction {
 
     /// Firmware Version (YubiKey specific (?))
     fn firmware_version(&mut self) -> Result<Vec<u8>> {
-        let resp =
-            apdu::send_command(self, commands::firmware_version(), true)?;
+        let resp = apdu::send_command(self, commands::firmware_version(), true)?;
 
         Ok(resp.data()?.into())
     }
@@ -350,11 +337,7 @@ pub trait CardTransaction {
     /// Access condition:
     /// - 1/3 need PW1 (82)
     /// - 2/4 need PW3
-    fn set_private_use_do(
-        &mut self,
-        num: u8,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>> {
+    fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>> {
         assert!((1..=4).contains(&num));
 
         let cmd = commands::put_private_use_do(num, data);
@@ -428,10 +411,7 @@ pub trait CardTransaction {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    fn verify_pw1_for_signing(
-        &mut self,
-        pin: &str,
-    ) -> Result<Response, Error> {
+    fn verify_pw1_for_signing(&mut self, pin: &str) -> Result<Response, Error> {
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
         apdu::send_command(self, verify, false)?.try_into()
     }
@@ -638,10 +618,7 @@ pub trait CardTransaction {
     ///
     /// (consider using the `signature_for_hash()` method if you don't
     /// want to create the data field manually)
-    fn pso_compute_digital_signature(
-        &mut self,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>, Error> {
+    fn pso_compute_digital_signature(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
         let cds_cmd = commands::signature(data);
 
         let resp = apdu::send_command(self, cds_cmd, true)?;
@@ -670,10 +647,7 @@ pub trait CardTransaction {
     ///
     /// (consider using the `authenticate_for_hash()` method if you don't
     /// want to create the data field manually)
-    fn internal_authenticate(
-        &mut self,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>, Error> {
+    fn internal_authenticate(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
         let ia_cmd = commands::internal_authenticate(data);
         let resp = apdu::send_command(self, ia_cmd, true)?;
 
@@ -722,21 +696,13 @@ pub trait CardTransaction {
             .copied()
             .collect();
 
-        let time_cmd =
-            commands::put_data(&[key_type.timestamp_put_tag()], time_value);
+        let time_cmd = commands::put_data(&[key_type.timestamp_put_tag()], time_value);
 
         apdu::send_command(self, time_cmd, false)?.try_into()
     }
 
-    fn set_fingerprint(
-        &mut self,
-        fp: Fingerprint,
-        key_type: KeyType,
-    ) -> Result<Response, Error> {
-        let fp_cmd = commands::put_data(
-            &[key_type.fingerprint_put_tag()],
-            fp.as_bytes().to_vec(),
-        );
+    fn set_fingerprint(&mut self, fp: Fingerprint, key_type: KeyType) -> Result<Response, Error> {
+        let fp_cmd = commands::put_data(&[key_type.fingerprint_put_tag()], fp.as_bytes().to_vec());
 
         apdu::send_command(self, fp_cmd, false)?.try_into()
     }
@@ -767,10 +733,7 @@ pub trait CardTransaction {
     ///
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
-    fn set_cardholder_certificate(
-        &mut self,
-        data: Vec<u8>,
-    ) -> Result<Response, Error> {
+    fn set_cardholder_certificate(&mut self, data: Vec<u8>) -> Result<Response, Error> {
         let cmd = commands::put_cardholder_certificate(data);
         apdu::send_command(self, cmd, false)?.try_into()
     }
@@ -783,20 +746,14 @@ pub trait CardTransaction {
         algo: &Algo,
     ) -> Result<Response, Error> {
         // Command to PUT the algorithm attributes
-        let cmd = commands::put_data(
-            &[key_type.algorithm_tag()],
-            algo.to_data_object()?,
-        );
+        let cmd = commands::put_data(&[key_type.algorithm_tag()], algo.to_data_object()?);
 
         apdu::send_command(self, cmd, false)?.try_into()
     }
 
     /// Set resetting code
     /// (4.3.4 Resetting Code)
-    fn set_resetting_code(
-        &mut self,
-        resetting_code: Vec<u8>,
-    ) -> Result<Response, Error> {
+    fn set_resetting_code(&mut self, resetting_code: Vec<u8>) -> Result<Response, Error> {
         let cmd = commands::put_data(&[0xd3], resetting_code);
         apdu::send_command(self, cmd, false)?.try_into()
     }
@@ -878,10 +835,7 @@ pub trait CardTransaction {
     /// Note also that the information from the card is insufficient to
     /// reconstruct a pre-existing OpenPGP public key that corresponds to
     /// the private key on the card.
-    fn public_key(
-        &mut self,
-        key_type: KeyType,
-    ) -> Result<PublicKeyMaterial, Error> {
+    fn public_key(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial, Error> {
         keys::public_key(self, key_type)
     }
 }

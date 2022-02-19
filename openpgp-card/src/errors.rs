@@ -129,9 +129,7 @@ impl From<(u8, u8)> for StatusBytes {
             (0x61, bytes) => StatusBytes::OkBytesAvailable(bytes),
 
             (0x62, 0x85) => StatusBytes::TerminationState,
-            (0x63, 0xC0..=0xCF) => {
-                StatusBytes::PasswordNotChecked(status.1 & 0xf)
-            }
+            (0x63, 0xC0..=0xCF) => StatusBytes::PasswordNotChecked(status.1 & 0xf),
             (0x64, 0x02..=0x80) => StatusBytes::TriggeringByCard(status.1),
             (0x65, 0x01) => StatusBytes::MemoryFailure,
             (0x66, 0x00) => StatusBytes::SecurityRelatedIssues,

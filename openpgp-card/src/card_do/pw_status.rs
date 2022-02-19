@@ -84,8 +84,7 @@ mod test {
     fn test() {
         let data = [0x0, 0x40, 0x40, 0x40, 0x3, 0x0, 0x3];
 
-        let pws: PWStatusBytes =
-            (&data[..]).try_into().expect("failed to parse PWStatus");
+        let pws: PWStatusBytes = (&data[..]).try_into().expect("failed to parse PWStatus");
 
         assert_eq!(
             pws,

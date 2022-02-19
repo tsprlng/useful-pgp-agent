@@ -17,9 +17,7 @@ use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{CardTransaction, Error, KeyType, StatusBytes};
 use openpgp_card_sequoia::card::Open;
-use openpgp_card_sequoia::util::{
-    make_cert, public_key_material_to_key, public_to_fingerprint,
-};
+use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key, public_to_fingerprint};
 
 use crate::cards::TestCardData;
 use crate::util;
@@ -69,12 +67,7 @@ pub fn test_decrypt(
 
     let p = StandardPolicy::new();
 
-    let res = openpgp_card_sequoia::util::decrypt(
-        card_tx,
-        &cert,
-        msg.into_bytes(),
-        &p,
-    )?;
+    let res = openpgp_card_sequoia::util::decrypt(card_tx, &cert, msg.into_bytes(), &p)?;
     let plain = String::from_utf8_lossy(&res);
 
     assert_eq!(plain, "Hello world!\n");
@@ -94,8 +87,7 @@ pub fn test_sign(
     let cert = Cert::from_str(param[0])?;
 
     let msg = "Hello world, I am signed.";
-    let sig =
-        openpgp_card_sequoia::util::sign(card_tx, &cert, &mut msg.as_bytes())?;
+    let sig = openpgp_card_sequoia::util::sign(card_tx, &cert, &mut msg.as_bytes())?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);
@@ -227,29 +219,17 @@ pub fn test_keygen(
     let alg = AlgoSimple::try_from(algo)?;
 
     println!(" Generate subkey for Signing");
-    let (pkm, ts) = card_tx.generate_key_simple(
-        public_to_fingerprint,
-        KeyType::Signing,
-        alg,
-    )?;
+    let (pkm, ts) = card_tx.generate_key_simple(public_to_fingerprint, KeyType::Signing, alg)?;
     let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
 
     println!(" Generate subkey for Decryption");
-    let (pkm, ts) = card_tx.generate_key_simple(
-        public_to_fingerprint,
-        KeyType::Decryption,
-        alg,
-    )?;
+    let (pkm, ts) = card_tx.generate_key_simple(public_to_fingerprint, KeyType::Decryption, alg)?;
     let key_dec = public_key_material_to_key(&pkm, KeyType::Decryption, ts)?;
 
     println!(" Generate subkey for Authentication");
-    let (pkm, ts) = card_tx.generate_key_simple(
-        public_to_fingerprint,
-        KeyType::Authentication,
-        alg,
-    )?;
-    let key_aut =
-        public_key_material_to_key(&pkm, KeyType::Authentication, ts)?;
+    let (pkm, ts) =
+        card_tx.generate_key_simple(public_to_fingerprint, KeyType::Authentication, alg)?;
+    let key_aut = public_key_material_to_key(&pkm, KeyType::Authentication, ts)?;
 
     // Generate a Cert for this set of generated keys
     let mut open = Open::new(card_tx)?;
@@ -622,9 +602,7 @@ pub fn test_reset_retry_counter(
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
             // this is expected
         }
-        Err(Error::CardStatus(
-            StatusBytes::IncorrectParametersCommandDataField,
-        )) => {
+        Err(Error::CardStatus(StatusBytes::IncorrectParametersCommandDataField)) => {
             println!(
                 "yk says IncorrectParametersCommandDataField when PW \
             error count is exceeded"
@@ -668,10 +646,7 @@ pub fn test_reset_retry_counter(
 
 pub fn run_test(
     tc: &mut TestCardData,
-    t: fn(
-        &mut (dyn CardTransaction + Send + Sync),
-        &[&str],
-    ) -> Result<TestOutput, TestError>,
+    t: fn(&mut (dyn CardTransaction + Send + Sync), &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut card = tc.get_card()?;

@@ -44,8 +44,7 @@ impl From<u8> for CardServiceData {
         let select_by_partial_df_name = data & 0x40 != 0;
         let dos_available_in_ef_dir = data & 0x20 != 0;
         let dos_available_in_ef_atr_info = data & 0x10 != 0;
-        let access_services =
-            [data & 0x8 != 0, data & 0x4 != 0, data & 0x2 != 0];
+        let access_services = [data & 0x8 != 0, data & 0x4 != 0, data & 0x2 != 0];
         let mf = data & 0x1 != 0;
 
         Self {
@@ -107,10 +106,7 @@ impl TryFrom<&[u8]> for HistoricalBytes {
             // The OpenPGP application assumes a category indicator byte
             // set to '00' (o-card 3.4.1, pg 44)
 
-            return Err(anyhow!(
-                "Unexpected category indicator in historical bytes"
-            )
-            .into());
+            return Err(anyhow!("Unexpected category indicator in historical bytes").into());
         }
 
         // category indicator byte
@@ -155,11 +151,7 @@ impl TryFrom<&[u8]> for HistoricalBytes {
 
                     // (e.g. yubikey neo returns historical bytes as:
                     // "[0, 73, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]")
-                    log::trace!(
-                        "historical bytes: ignored (tag {}, len {})",
-                        t,
-                        l
-                    );
+                    log::trace!("historical bytes: ignored (tag {}, len {})", t, l);
                     ctlv.drain(0..(l as usize + 1));
                 }
             }
@@ -185,10 +177,7 @@ impl TryFrom<&[u8]> for HistoricalBytes {
                 5
             }
             _ => {
-                return Err(anyhow!(
-                    "unexpected status indicator in historical bytes"
-                )
-                .into());
+                return Err(anyhow!("unexpected status indicator in historical bytes").into());
             }
         };
 
@@ -221,8 +210,7 @@ mod test {
     #[test]
     fn test_gnuk() -> Result<()> {
         // gnuk 1.2 stable
-        let data: &[u8] =
-            &[0x0, 0x31, 0x84, 0x73, 0x80, 0x1, 0x80, 0x5, 0x90, 0x0];
+        let data: &[u8] = &[0x0, 0x31, 0x84, 0x73, 0x80, 0x1, 0x80, 0x5, 0x90, 0x0];
         let hist: HistoricalBytes = data.try_into()?;
 
         assert_eq!(
@@ -252,8 +240,7 @@ mod test {
     #[test]
     fn test_floss34() -> Result<()> {
         // floss shop openpgp smartcard 3.4
-        let data: &[u8] =
-            &[0x0, 0x31, 0xf5, 0x73, 0xc0, 0x1, 0x60, 0x5, 0x90, 0x0];
+        let data: &[u8] = &[0x0, 0x31, 0xf5, 0x73, 0xc0, 0x1, 0x60, 0x5, 0x90, 0x0];
         let hist: HistoricalBytes = data.try_into()?;
 
         assert_eq!(
@@ -330,8 +317,7 @@ mod test {
     fn test_yk_neo() -> Result<()> {
         // yubikey neo
         let data: &[u8] = &[
-            0x0, 0x73, 0x0, 0x0, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-            0x0, 0x0,
+            0x0, 0x73, 0x0, 0x0, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
         ];
         let hist: HistoricalBytes = data.try_into()?;
 
@@ -355,8 +341,7 @@ mod test {
     #[test]
     fn test_ledger_nano_s() -> Result<()> {
         let data: &[u8] = &[
-            0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x7, 0x90, 0x0, 0x0, 0x0,
-            0x0, 0x0, 0x0,
+            0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x7, 0x90, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
         ];
         let hist: HistoricalBytes = data.try_into()?;
 

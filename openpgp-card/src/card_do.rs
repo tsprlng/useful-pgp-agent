@@ -60,9 +60,7 @@ impl ApplicationRelatedData {
 
     /// Get extended length information (ISO 7816-4), which
     /// contains maximum number of bytes for command and response.
-    pub fn extended_length_information(
-        &self,
-    ) -> Result<Option<ExtendedLengthInfo>> {
+    pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>> {
         // get from cached "application related data"
         let eli = self.0.find(&[0x7f, 0x66].into());
 
@@ -88,9 +86,7 @@ impl ApplicationRelatedData {
     }
 
     /// Get extended Capabilities
-    pub fn extended_capabilities(
-        &self,
-    ) -> Result<ExtendedCapabilities, Error> {
+    pub fn extended_capabilities(&self) -> Result<ExtendedCapabilities, Error> {
         // FIXME: caching?
         let app_id = self.application_id()?;
         let version = app_id.version();
@@ -157,14 +153,11 @@ impl ApplicationRelatedData {
     }
 
     /// Generation dates/times of key pairs
-    pub fn key_generation_times(
-        &self,
-    ) -> Result<KeySet<KeyGenerationTime>, Error> {
+    pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
         let kg = self.0.find(&[0xcd].into());
 
         if let Some(kg) = kg {
-            let kg: KeySet<KeyGenerationTime> =
-                (&kg.serialize()[..]).try_into()?;
+            let kg: KeySet<KeyGenerationTime> = (&kg.serialize()[..]).try_into()?;
 
             log::debug!("Key generation: {:x?}", kg);
 
@@ -269,9 +262,9 @@ pub struct ExtendedCapabilities {
     max_cmd_len: Option<u16>,  // v2
     max_resp_len: Option<u16>, // v2
 
-    max_len_special_do: Option<u16>, // v3
+    max_len_special_do: Option<u16>,          // v3
     pin_block_2_format_support: Option<bool>, // v3
-    mse_command_support: Option<bool>, // v3
+    mse_command_support: Option<bool>,        // v3
 }
 
 /// 4.1.3.1 Extended length information
@@ -453,11 +446,8 @@ impl Fingerprint {
 }
 
 /// Helper fn for nom parsing
-pub(crate) fn complete<O>(
-    result: nom::IResult<&[u8], O>,
-) -> Result<O, anyhow::Error> {
-    let (rem, output) =
-        result.map_err(|err| anyhow!("Parsing failed: {:?}", err))?;
+pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, anyhow::Error> {
+    let (rem, output) = result.map_err(|err| anyhow!("Parsing failed: {:?}", err))?;
     if rem.is_empty() {
         Ok(output)
     } else {

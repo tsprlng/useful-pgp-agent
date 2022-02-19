@@ -66,15 +66,14 @@ pub fn make_cert<'a, 'app>(
 
         // 3) make binding, sign with card -> add
         {
-            let signing_builder =
-                SignatureBuilder::new(SignatureType::SubkeyBinding)
-                    .set_signature_creation_time(SystemTime::now())?
-                    .set_key_validity_period(std::time::Duration::new(0, 0))?
-                    .set_key_flags(
-                        KeyFlags::empty()
-                            .set_storage_encryption()
-                            .set_transport_encryption(),
-                    )?;
+            let signing_builder = SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(
+                    KeyFlags::empty()
+                        .set_storage_encryption()
+                        .set_transport_encryption(),
+                )?;
 
             // Allow signing on the card
             if let Some(pw1) = pw1.clone() {
@@ -102,11 +101,10 @@ pub fn make_cert<'a, 'app>(
 
         // 5) make, sign binding -> add
         {
-            let signing_builder =
-                SignatureBuilder::new(SignatureType::SubkeyBinding)
-                    .set_signature_creation_time(SystemTime::now())?
-                    .set_key_validity_period(std::time::Duration::new(0, 0))?
-                    .set_key_flags(KeyFlags::empty().set_authentication())?;
+            let signing_builder = SignatureBuilder::new(SignatureType::SubkeyBinding)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(KeyFlags::empty().set_authentication())?;
 
             // Allow signing on the card
             if let Some(pw1) = pw1.clone() {
@@ -137,21 +135,19 @@ pub fn make_cert<'a, 'app>(
 
     // FIXME: accept email as argument?!
 
-    let uid: UserID =
-        cardholder.name().expect("expecting name on card").into();
+    let uid: UserID = cardholder.name().expect("expecting name on card").into();
 
     pp.push(uid.clone().into());
 
     // 7) make, sign binding -> add
     {
-        let signing_builder =
-            SignatureBuilder::new(SignatureType::PositiveCertification)
-                .set_signature_creation_time(SystemTime::now())?
-                .set_key_validity_period(std::time::Duration::new(0, 0))?
-                .set_key_flags(
-                    // Flags for primary key
-                    KeyFlags::empty().set_signing().set_certification(),
-                )?;
+        let signing_builder = SignatureBuilder::new(SignatureType::PositiveCertification)
+            .set_signature_creation_time(SystemTime::now())?
+            .set_key_validity_period(std::time::Duration::new(0, 0))?
+            .set_key_flags(
+                // Flags for primary key
+                KeyFlags::empty().set_signing().set_certification(),
+            )?;
 
         // Allow signing on the card
         if let Some(pw1) = pw1 {
@@ -167,8 +163,7 @@ pub fn make_cert<'a, 'app>(
             // Temporary version of the cert
             let cert = Cert::try_from(pp.clone())?;
 
-            let signing_bsig: Packet =
-                uid.bind(&mut card_signer, &cert, signing_builder)?.into();
+            let signing_bsig: Packet = uid.bind(&mut card_signer, &cert, signing_builder)?.into();
 
             pp.push(signing_bsig);
         }
@@ -207,8 +202,7 @@ pub fn public_key_material_to_key(
                     KeyType::Authentication | KeyType::Signing => {
                         if algo_ecc.curve() == Curve::Ed25519 {
                             // EdDSA
-                            let k4 =
-                                Key4::import_public_ed25519(ecc.data(), time)?;
+                            let k4 = Key4::import_public_ed25519(ecc.data(), time)?;
 
                             Ok(Key::from(k4))
                         } else {
@@ -231,12 +225,7 @@ pub fn public_key_material_to_key(
                             // ok when a cert already exists
 
                             // EdDSA
-                            let k4 = Key4::import_public_cv25519(
-                                ecc.data(),
-                                None,
-                                None,
-                                time,
-                            )?;
+                            let k4 = Key4::import_public_cv25519(ecc.data(), None, None, time)?;
 
                             Ok(k4.into())
                         } else {

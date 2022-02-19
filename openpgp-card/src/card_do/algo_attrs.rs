@@ -104,8 +104,7 @@ fn parse_ecdh(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, _) = bytes::tag([0x12])(input)?;
     let (input, curve) = parse_oid(input)?;
 
-    let (input, import_format) =
-        alt((parse_import_format, default_import_format))(input)?;
+    let (input, import_format) = alt((parse_import_format, default_import_format))(input)?;
 
     Ok((
         input,
@@ -117,8 +116,7 @@ fn parse_ecdsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, _) = bytes::tag([0x13])(input)?;
     let (input, curve) = parse_oid(input)?;
 
-    let (input, import_format) =
-        alt((parse_import_format, default_import_format))(input)?;
+    let (input, import_format) = alt((parse_import_format, default_import_format))(input)?;
 
     Ok((
         input,
@@ -130,8 +128,7 @@ fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     let (input, _) = bytes::tag([0x16])(input)?;
     let (input, curve) = parse_oid(input)?;
 
-    let (input, import_format) =
-        alt((parse_import_format, default_import_format))(input)?;
+    let (input, import_format) = alt((parse_import_format, default_import_format))(input)?;
 
     Ok((
         input,

@@ -86,10 +86,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
         match (self.public.pk_algo(), self.public.mpis()) {
             #[allow(deprecated)]
             (PublicKeyAlgorithm::RSASign, mpi::PublicKey::RSA { .. })
-            | (
-                PublicKeyAlgorithm::RSAEncryptSign,
-                mpi::PublicKey::RSA { .. },
-            ) => {
+            | (PublicKeyAlgorithm::RSAEncryptSign, mpi::PublicKey::RSA { .. }) => {
                 let hash = match hash_algo {
                     openpgp::types::HashAlgorithm::SHA256 => Hash::SHA256(
                         digest
@@ -129,10 +126,7 @@ impl<'a> crypto::Signer for CardSigner<'a> {
 
                 Ok(mpi::Signature::EdDSA { r, s })
             }
-            (
-                PublicKeyAlgorithm::ECDSA,
-                mpi::PublicKey::ECDSA { curve, .. },
-            ) => {
+            (PublicKeyAlgorithm::ECDSA, mpi::PublicKey::ECDSA { curve, .. }) => {
                 let hash = match curve {
                     Curve::NistP256 => Hash::ECDSA(&digest[..32]),
                     Curve::NistP384 => Hash::ECDSA(&digest[..48]),

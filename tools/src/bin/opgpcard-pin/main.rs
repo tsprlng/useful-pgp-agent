@@ -27,21 +27,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::SetUserPin {} => {
             let res = if !pinpad_modify {
                 // get current user pin
-                let pin = rpassword::read_password_from_tty(Some(
-                    "Enter user PIN: ",
-                ))?;
+                let pin = rpassword::read_password_from_tty(Some("Enter user PIN: "))?;
 
                 // verify pin
                 open.verify_user(&pin)?;
                 println!("PIN was accepted by the card.\n");
 
                 // get new user pin
-                let newpin1 = rpassword::read_password_from_tty(Some(
-                    "Enter new user PIN: ",
-                ))?;
-                let newpin2 = rpassword::read_password_from_tty(Some(
-                    "Repeat the new user PIN: ",
-                ))?;
+                let newpin1 = rpassword::read_password_from_tty(Some("Enter new user PIN: "))?;
+                let newpin2 = rpassword::read_password_from_tty(Some("Repeat the new user PIN: "))?;
 
                 if newpin1 != newpin2 {
                     return Err(anyhow::anyhow!("PINs do not match.").into());
@@ -71,20 +65,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::SetAdminPin {} => {
             if !pinpad_modify {
                 // get current admin pin
-                let pin = rpassword::read_password_from_tty(Some(
-                    "Enter admin PIN: ",
-                ))?;
+                let pin = rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
                 // verify pin
                 open.verify_admin(&pin)?;
 
                 // get new admin pin
-                let newpin1 = rpassword::read_password_from_tty(Some(
-                    "Enter new admin PIN: ",
-                ))?;
-                let newpin2 = rpassword::read_password_from_tty(Some(
-                    "Repeat the new admin PIN: ",
-                ))?;
+                let newpin1 = rpassword::read_password_from_tty(Some("Enter new admin PIN: "))?;
+                let newpin2 =
+                    rpassword::read_password_from_tty(Some("Repeat the new admin PIN: "))?;
 
                 if newpin1 != newpin2 {
                     return Err(anyhow::anyhow!("PINs do not match.").into());
@@ -108,26 +97,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // verify admin pin
             if !pinpad_verify {
                 // get current admin pin
-                let pin = rpassword::read_password_from_tty(Some(
-                    "Enter admin PIN: ",
-                ))?;
+                let pin = rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
                 open.verify_admin(&pin)?;
             } else {
-                open.verify_admin_pinpad(&|| {
-                    println!("Enter admin PIN on card reader pinpad.")
-                })?;
+                open.verify_admin_pinpad(&|| println!("Enter admin PIN on card reader pinpad."))?;
             }
             println!("PIN was accepted by the card.\n");
 
             if let Some(mut admin) = open.admin_card() {
                 // ask user for new resetting code
-                let newpin1 = rpassword::read_password_from_tty(Some(
-                    "Enter new resetting code: ",
-                ))?;
-                let newpin2 = rpassword::read_password_from_tty(Some(
-                    "Repeat the new resetting code: ",
-                ))?;
+                let newpin1 =
+                    rpassword::read_password_from_tty(Some("Enter new resetting code: "))?;
+                let newpin2 =
+                    rpassword::read_password_from_tty(Some("Repeat the new resetting code: "))?;
 
                 if newpin1 == newpin2 {
                     admin.set_resetting_code(&newpin1)?;
@@ -135,10 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     return Err(anyhow::anyhow!("PINs do not match.").into());
                 }
             } else {
-                return Err(anyhow::anyhow!(
-                    "Failed to use card in admin-mode."
-                )
-                .into());
+                return Err(anyhow::anyhow!("Failed to use card in admin-mode.").into());
             }
             println!("\nResetting code has been set.");
         }
@@ -148,9 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let rst = if admin {
                 if !pinpad_verify {
                     // get current admin pin
-                    let pin = rpassword::read_password_from_tty(Some(
-                        "Enter admin PIN: ",
-                    ))?;
+                    let pin = rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
                     // verify pin
                     open.verify_admin(&pin)?;
@@ -164,9 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None
             } else {
                 // get resetting code
-                let rst = rpassword::read_password_from_tty(Some(
-                    "Enter resetting code: ",
-                ))?;
+                let rst = rpassword::read_password_from_tty(Some("Enter resetting code: "))?;
 
                 // NOTE: this code cannot be verified with the card!
 
@@ -174,12 +150,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             // get new user pin
-            let newpin1 = rpassword::read_password_from_tty(Some(
-                "Enter new user PIN: ",
-            ))?;
-            let newpin2 = rpassword::read_password_from_tty(Some(
-                "Repeat the new user PIN: ",
-            ))?;
+            let newpin1 = rpassword::read_password_from_tty(Some("Enter new user PIN: "))?;
+            let newpin2 = rpassword::read_password_from_tty(Some("Repeat the new user PIN: "))?;
 
             if newpin1 != newpin2 {
                 return Err(anyhow::anyhow!("PINs do not match.").into());
@@ -191,10 +163,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else if let Some(mut admin) = open.admin_card() {
                 admin.reset_user_pin(&newpin1)
             } else {
-                return Err(anyhow::anyhow!(
-                    "Failed to use card in admin-mode."
-                )
-                .into());
+                return Err(anyhow::anyhow!("Failed to use card in admin-mode.").into());
             };
 
             if res.is_err() {
@@ -224,10 +193,7 @@ fn print_gnuk_note(err: Error, card: &Open) -> Result<()> {
     ) {
         // check if no keys exist on the card
         let fps = card.fingerprints()?;
-        if fps.signature() == None
-            && fps.decryption() == None
-            && fps.authentication() == None
-        {
+        if fps.signature() == None && fps.decryption() == None && fps.authentication() == None {
             println!(
                 "\nNOTE: Some cards (e.g. Gnuk) don't allow \
                         User PIN change while no keys exist on the card."

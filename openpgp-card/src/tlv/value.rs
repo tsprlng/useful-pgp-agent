@@ -19,10 +19,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub(crate) fn parse(
-        data: &[u8],
-        constructed: bool,
-    ) -> nom::IResult<&[u8], Self> {
+    pub(crate) fn parse(data: &[u8], constructed: bool) -> nom::IResult<&[u8], Self> {
         match constructed {
             false => Ok((&[], Value::S(data.to_vec()))),
             true => {

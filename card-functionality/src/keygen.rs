@@ -68,8 +68,7 @@ fn main() -> Result<()> {
                 let ciphertext = util::encrypt_to("Hello world!\n", &c)?;
 
                 print!("  Decrypt");
-                let dec_out =
-                    run_test(&mut card, test_decrypt, &[cert, &ciphertext])?;
+                let dec_out = run_test(&mut card, test_decrypt, &[cert, &ciphertext])?;
                 println!(" {:x?}", dec_out);
             } else {
                 panic!("Didn't get back a Cert from test_keygen");
