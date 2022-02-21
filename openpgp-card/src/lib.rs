@@ -33,7 +33,6 @@ mod errors;
 pub(crate) mod keys;
 mod tlv;
 
-pub use crate::apdu::response::Response;
 pub use crate::errors::{Error, SmartcardError, StatusBytes};
 
 use anyhow::{anyhow, Result};
@@ -106,7 +105,7 @@ pub trait CardTransaction {
     fn pinpad_modify(&mut self, id: u8) -> Result<Vec<u8>>;
 
     /// Select the OpenPGP card application
-    fn select(&mut self) -> Result<Response, Error> {
+    fn select(&mut self) -> Result<Vec<u8>, Error> {
         let select_openpgp = commands::select_openpgp();
         apdu::send_command(self, select_openpgp, false)?.try_into()
     }
@@ -265,7 +264,7 @@ pub trait CardTransaction {
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
     #[allow(dead_code)]
-    fn cardholder_certificate(&mut self) -> Result<Response, Error> {
+    fn cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
         let cmd = commands::cardholder_certificate();
         apdu::send_command(self, cmd, true)?.try_into()
     }
@@ -304,7 +303,7 @@ pub trait CardTransaction {
 
     /// SELECT DATA ("select a DO in the current template",
     /// e.g. for cardholder certificate)
-    fn select_data(&mut self, num: u8, tag: &[u8]) -> Result<Response, Error> {
+    fn select_data(&mut self, num: u8, tag: &[u8]) -> Result<Vec<u8>, Error> {
         let tlv = Tlv::new(
             [0x60],
             Value::C(vec![Tlv::new([0x5c], Value::S(tag.to_vec()))]),
@@ -411,7 +410,7 @@ pub trait CardTransaction {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    fn verify_pw1_for_signing(&mut self, pin: &str) -> Result<Response, Error> {
+    fn verify_pw1_for_signing(&mut self, pin: &str) -> Result<(), Error> {
         let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
         apdu::send_command(self, verify, false)?.try_into()
     }
@@ -423,7 +422,7 @@ pub trait CardTransaction {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    fn verify_pw1_for_signing_pinpad(&mut self) -> Result<Response, Error> {
+    fn verify_pw1_for_signing_pinpad(&mut self) -> Result<(), Error> {
         let res = self.pinpad_verify(0x81)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -434,14 +433,14 @@ pub trait CardTransaction {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. YubiKey 5)
-    fn check_pw1_for_signing(&mut self) -> Result<Response, Error> {
+    fn check_pw1_for_signing(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
     }
 
     /// Verify PW1 (user).
     /// (For operations except signing, mode 82).
-    fn verify_pw1(&mut self, pin: &str) -> Result<Response, Error> {
+    fn verify_pw1(&mut self, pin: &str) -> Result<(), Error> {
         let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
         apdu::send_command(self, verify, false)?.try_into()
     }
@@ -450,7 +449,7 @@ pub trait CardTransaction {
     /// using a pinpad on the card reader. If no usable pinpad is found,
     /// an error is returned.
 
-    fn verify_pw1_pinpad(&mut self) -> Result<Response, Error> {
+    fn verify_pw1_pinpad(&mut self) -> Result<(), Error> {
         let res = self.pinpad_verify(0x82)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -462,20 +461,20 @@ pub trait CardTransaction {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. YubiKey 5)
-    fn check_pw1(&mut self) -> Result<Response, Error> {
+    fn check_pw1(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
     }
 
     /// Verify PW3 (admin).
-    fn verify_pw3(&mut self, pin: &str) -> Result<Response, Error> {
+    fn verify_pw3(&mut self, pin: &str) -> Result<(), Error> {
         let verify = commands::verify_pw3(pin.as_bytes().to_vec());
         apdu::send_command(self, verify, false)?.try_into()
     }
 
     /// Verify PW3 (admin) using a pinpad on the card reader. If no usable
     /// pinpad is found, an error is returned.
-    fn verify_pw3_pinpad(&mut self) -> Result<Response, Error> {
+    fn verify_pw3_pinpad(&mut self) -> Result<(), Error> {
         let res = self.pinpad_verify(0x83)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -486,7 +485,7 @@ pub trait CardTransaction {
     ///
     /// (Note: some cards don't correctly implement this feature,
     /// e.g. YubiKey 5)
-    fn check_pw3(&mut self) -> Result<Response, Error> {
+    fn check_pw3(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw3(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
     }
@@ -494,7 +493,7 @@ pub trait CardTransaction {
     /// Change the value of PW1 (user password).
     ///
     /// The current value of PW1 must be presented in `old` for authorization.
-    fn change_pw1(&mut self, old: &str, new: &str) -> Result<Response, Error> {
+    fn change_pw1(&mut self, old: &str, new: &str) -> Result<(), Error> {
         let mut data = vec![];
         data.extend(old.as_bytes());
         data.extend(new.as_bytes());
@@ -505,7 +504,7 @@ pub trait CardTransaction {
 
     /// Change the value of PW1 (user password)  using a pinpad on the
     /// card reader. If no usable pinpad is found, an error is returned.
-    fn change_pw1_pinpad(&mut self) -> Result<Response, Error> {
+    fn change_pw1_pinpad(&mut self) -> Result<(), Error> {
         let res = self.pinpad_modify(0x81)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -513,7 +512,7 @@ pub trait CardTransaction {
     /// Change the value of PW3 (admin password).
     ///
     /// The current value of PW3 must be presented in `old` for authorization.
-    fn change_pw3(&mut self, old: &str, new: &str) -> Result<Response, Error> {
+    fn change_pw3(&mut self, old: &str, new: &str) -> Result<(), Error> {
         let mut data = vec![];
         data.extend(old.as_bytes());
         data.extend(new.as_bytes());
@@ -524,7 +523,7 @@ pub trait CardTransaction {
 
     /// Change the value of PW3 (admin password) using a pinpad on the
     /// card reader. If no usable pinpad is found, an error is returned.
-    fn change_pw3_pinpad(&mut self) -> Result<Response, Error> {
+    fn change_pw3_pinpad(&mut self) -> Result<(), Error> {
         let res = self.pinpad_modify(0x83)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -540,7 +539,7 @@ pub trait CardTransaction {
         &mut self,
         new_pw1: Vec<u8>,
         resetting_code: Option<Vec<u8>>,
-    ) -> Result<Response, Error> {
+    ) -> Result<(), Error> {
         let reset = commands::reset_retry_counter_pw1(resetting_code, new_pw1);
         apdu::send_command(self, reset, false)?.try_into()
     }
@@ -656,12 +655,12 @@ pub trait CardTransaction {
 
     // --- admin ---
 
-    fn set_name(&mut self, name: &[u8]) -> Result<Response, Error> {
+    fn set_name(&mut self, name: &[u8]) -> Result<(), Error> {
         let put_name = commands::put_name(name.to_vec());
         apdu::send_command(self, put_name, false)?.try_into()
     }
 
-    fn set_lang(&mut self, lang: &[Lang]) -> Result<Response, Error> {
+    fn set_lang(&mut self, lang: &[Lang]) -> Result<(), Error> {
         let bytes: Vec<u8> = lang
             .iter()
             .map(|&l| Into::<Vec<u8>>::into(l))
@@ -672,12 +671,12 @@ pub trait CardTransaction {
         apdu::send_command(self, put_lang, false)?.try_into()
     }
 
-    fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
+    fn set_sex(&mut self, sex: Sex) -> Result<(), Error> {
         let put_sex = commands::put_sex((&sex).into());
         apdu::send_command(self, put_sex, false)?.try_into()
     }
 
-    fn set_url(&mut self, url: &[u8]) -> Result<Response, Error> {
+    fn set_url(&mut self, url: &[u8]) -> Result<(), Error> {
         let put_url = commands::put_url(url.to_vec());
         apdu::send_command(self, put_url, false)?.try_into()
     }
@@ -686,7 +685,7 @@ pub trait CardTransaction {
         &mut self,
         time: KeyGenerationTime,
         key_type: KeyType,
-    ) -> Result<Response, Error> {
+    ) -> Result<(), Error> {
         // Timestamp update
         let time_value: Vec<u8> = time
             .get()
@@ -701,7 +700,7 @@ pub trait CardTransaction {
         apdu::send_command(self, time_cmd, false)?.try_into()
     }
 
-    fn set_fingerprint(&mut self, fp: Fingerprint, key_type: KeyType) -> Result<Response, Error> {
+    fn set_fingerprint(&mut self, fp: Fingerprint, key_type: KeyType) -> Result<(), Error> {
         let fp_cmd = commands::put_data(&[key_type.fingerprint_put_tag()], fp.as_bytes().to_vec());
 
         apdu::send_command(self, fp_cmd, false)?.try_into()
@@ -718,11 +717,7 @@ pub trait CardTransaction {
     /// can also be changed.
     ///
     /// (See OpenPGP card spec, pg. 28)
-    fn set_pw_status_bytes(
-        &mut self,
-        pw_status: &PWStatusBytes,
-        long: bool,
-    ) -> Result<Response, Error> {
+    fn set_pw_status_bytes(&mut self, pw_status: &PWStatusBytes, long: bool) -> Result<(), Error> {
         let data = pw_status.serialize_for_put(long);
 
         let cmd = commands::put_pw_status(data);
@@ -733,18 +728,14 @@ pub trait CardTransaction {
     ///
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
-    fn set_cardholder_certificate(&mut self, data: Vec<u8>) -> Result<Response, Error> {
+    fn set_cardholder_certificate(&mut self, data: Vec<u8>) -> Result<(), Error> {
         let cmd = commands::put_cardholder_certificate(data);
         apdu::send_command(self, cmd, false)?.try_into()
     }
 
     /// Set algorithm attributes
     /// (4.4.3.9 Algorithm Attributes)
-    fn set_algorithm_attributes(
-        &mut self,
-        key_type: KeyType,
-        algo: &Algo,
-    ) -> Result<Response, Error> {
+    fn set_algorithm_attributes(&mut self, key_type: KeyType, algo: &Algo) -> Result<(), Error> {
         // Command to PUT the algorithm attributes
         let cmd = commands::put_data(&[key_type.algorithm_tag()], algo.to_data_object()?);
 
@@ -753,7 +744,7 @@ pub trait CardTransaction {
 
     /// Set resetting code
     /// (4.3.4 Resetting Code)
-    fn set_resetting_code(&mut self, resetting_code: Vec<u8>) -> Result<Response, Error> {
+    fn set_resetting_code(&mut self, resetting_code: Vec<u8>) -> Result<(), Error> {
         let cmd = commands::put_data(&[0xd3], resetting_code);
         apdu::send_command(self, cmd, false)?.try_into()
     }

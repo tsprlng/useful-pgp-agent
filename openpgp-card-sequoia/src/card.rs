@@ -16,7 +16,7 @@ use openpgp_card::card_do::{
     ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
     SecuritySupportTemplate, Sex,
 };
-use openpgp_card::{CardTransaction, Error, KeySet, KeyType, Response};
+use openpgp_card::{CardTransaction, Error, KeySet, KeyType};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
@@ -116,36 +116,36 @@ impl<'a> Open<'a> {
     /// Ask the card if the user password has been successfully verified.
     ///
     /// NOTE: on some cards this functionality seems broken.
-    pub fn check_user_verified(&mut self) -> Result<Response, Error> {
+    pub fn check_user_verified(&mut self) -> Result<(), Error> {
         self.card_tx.check_pw1()
     }
 
     /// Ask the card if the admin password has been successfully verified.
     ///
     /// NOTE: on some cards this functionality seems broken.
-    pub fn check_admin_verified(&mut self) -> Result<Response, Error> {
+    pub fn check_admin_verified(&mut self) -> Result<(), Error> {
         self.card_tx.check_pw3()
     }
 
-    pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<Response, Error> {
+    pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
         self.card_tx.change_pw1(old, new)
     }
 
-    pub fn change_user_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<Response, Error> {
+    pub fn change_user_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
         self.card_tx.change_pw1_pinpad()
     }
 
-    pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<Response, Error> {
+    pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<(), Error> {
         self.card_tx
             .reset_retry_counter_pw1(new.into(), Some(rst.into()))
     }
 
-    pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<Response, Error> {
+    pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
         self.card_tx.change_pw3(old, new)
     }
 
-    pub fn change_admin_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<Response, Error> {
+    pub fn change_admin_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
         self.card_tx.change_pw3_pinpad()
     }
@@ -351,7 +351,7 @@ impl<'app, 'open> Admin<'app, 'open> {
 }
 
 impl Admin<'_, '_> {
-    pub fn set_name(&mut self, name: &str) -> Result<Response, Error> {
+    pub fn set_name(&mut self, name: &str) -> Result<(), Error> {
         if name.len() >= 40 {
             return Err(anyhow!("name too long").into());
         }
@@ -364,7 +364,7 @@ impl Admin<'_, '_> {
         self.oc.card_tx.set_name(name.as_bytes())
     }
 
-    pub fn set_lang(&mut self, lang: &[Lang]) -> Result<Response, Error> {
+    pub fn set_lang(&mut self, lang: &[Lang]) -> Result<(), Error> {
         if lang.len() > 8 {
             return Err(anyhow!("lang too long").into());
         }
@@ -372,11 +372,11 @@ impl Admin<'_, '_> {
         self.oc.card_tx.set_lang(lang)
     }
 
-    pub fn set_sex(&mut self, sex: Sex) -> Result<Response, Error> {
+    pub fn set_sex(&mut self, sex: Sex) -> Result<(), Error> {
         self.oc.card_tx.set_sex(sex)
     }
 
-    pub fn set_url(&mut self, url: &str) -> Result<Response, Error> {
+    pub fn set_url(&mut self, url: &str) -> Result<(), Error> {
         if url.chars().any(|c| !c.is_ascii()) {
             return Err(anyhow!("Invalid char in url").into());
         }
@@ -396,11 +396,11 @@ impl Admin<'_, '_> {
         }
     }
 
-    pub fn set_resetting_code(&mut self, pin: &str) -> Result<Response, Error> {
+    pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
         self.oc.card_tx.set_resetting_code(pin.into())
     }
 
-    pub fn reset_user_pin(&mut self, new: &str) -> Result<Response, Error> {
+    pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
         self.oc.card_tx.reset_retry_counter_pw1(new.into(), None)
     }
 

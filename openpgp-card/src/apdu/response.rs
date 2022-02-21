@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::{Error, StatusBytes};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 /// Response from the card to a command.
 ///
@@ -11,14 +11,8 @@ use std::convert::TryFrom;
 /// the card showed an "ok" status code (if the status bytes were no ok,
 /// you will receive an Error, never a Response).
 #[derive(Debug)]
-pub struct Response {
+struct Response {
     data: Vec<u8>,
-}
-
-impl Response {
-    pub fn data(&self) -> &[u8] {
-        &self.data
-    }
 }
 
 /// "Raw" APDU Response, including the status bytes.
@@ -31,6 +25,29 @@ impl Response {
 pub(crate) struct RawResponse {
     data: Vec<u8>,
     status: StatusBytes,
+}
+
+impl TryFrom<RawResponse> for () {
+    type Error = Error;
+
+    fn try_from(value: RawResponse) -> Result<Self, Self::Error> {
+        let value: Response = value.try_into()?;
+
+        if !value.data.is_empty() {
+            unimplemented!()
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl TryFrom<RawResponse> for Vec<u8> {
+    type Error = Error;
+
+    fn try_from(value: RawResponse) -> Result<Self, Self::Error> {
+        let value: Response = value.try_into()?;
+        Ok(value.data)
+    }
 }
 
 impl TryFrom<RawResponse> for Response {
