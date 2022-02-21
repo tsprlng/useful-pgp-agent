@@ -431,8 +431,10 @@ pub trait CardTransaction {
     ///
     /// If verification is not required, an empty Ok Response is returned.
     ///
-    /// (Note: some cards don't correctly implement this feature,
-    /// e.g. YubiKey 5)
+    /// (Note:
+    /// - some cards don't correctly implement this feature, e.g. YubiKey 5
+    /// - some cards that don't support this instruction may decrease the pin's error count,
+    ///   eventually requiring the user to reset the pin)
     fn check_pw1_for_signing(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
@@ -459,8 +461,10 @@ pub trait CardTransaction {
     ///
     /// If verification is not required, an empty Ok Response is returned.
     ///
-    /// (Note: some cards don't correctly implement this feature,
-    /// e.g. YubiKey 5)
+    /// (Note:
+    /// - some cards don't correctly implement this feature, e.g. YubiKey 5
+    /// - some cards that don't support this instruction may decrease the pin's error count,
+    ///   eventually requiring the user to reset the pin)
     fn check_pw1(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
@@ -483,8 +487,10 @@ pub trait CardTransaction {
     ///
     /// If verification is not required, an empty Ok Response is returned.
     ///
-    /// (Note: some cards don't correctly implement this feature,
-    /// e.g. YubiKey 5)
+    /// (Note:
+    /// - some cards don't correctly implement this feature, e.g. YubiKey 5
+    /// - some cards that don't support this instruction may decrease the pin's error count,
+    ///   eventually requiring the user to reset the pin)
     fn check_pw3(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw3(vec![]);
         apdu::send_command(self, verify, false)?.try_into()
