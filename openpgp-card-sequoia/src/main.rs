@@ -10,7 +10,7 @@ use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::card_do::Sex;
-use openpgp_card::{CardBackend, KeyType};
+use openpgp_card::{KeyType, OpenPgp};
 use openpgp_card_pcsc::PcscBackend;
 
 use openpgp_card_sequoia::card::Open;
@@ -36,9 +36,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if let Ok(test_card_ident) = test_card_ident {
         let mut card = PcscBackend::open_by_ident(&test_card_ident, None)?;
-        let mut txc = card.transaction()?;
+        let mut pgp = OpenPgp::new(&mut card);
 
-        let mut open = Open::new(&mut *txc)?;
+        let mut open = Open::new(pgp.transaction()?)?;
 
         // card metadata
 
@@ -141,9 +141,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for decrypt
         // -----------------------------
         let mut card = PcscBackend::open_by_ident(&test_card_ident, None)?;
-        let mut txc = card.transaction()?;
+        let mut pgp = OpenPgp::new(&mut card);
 
-        let mut open = Open::new(&mut *txc)?;
+        let mut open = Open::new(pgp.transaction()?)?;
 
         // Check that we're still using the expected card
         let app_id = open.application_identifier()?;
@@ -181,9 +181,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         //  Open fresh Card for signing
         // -----------------------------
         let mut card = PcscBackend::open_by_ident(&test_card_ident, None)?;
-        let mut txc = card.transaction()?;
+        let mut pgp = OpenPgp::new(&mut card);
 
-        let mut open = Open::new(&mut *txc)?;
+        let mut open = Open::new(pgp.transaction()?)?;
 
         // Sign
         open.verify_user_for_signing("123456")?;
@@ -213,9 +213,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("The following OpenPGP cards are connected to your system:");
 
         for mut card in PcscBackend::cards(None)? {
-            let mut txc = card.transaction()?;
+            let mut pgp = OpenPgp::new(&mut card);
 
-            let open = Open::new(&mut *txc)?;
+            let open = Open::new(pgp.transaction()?)?;
+
             println!(" {}", open.application_identifier()?.ident());
         }
     }

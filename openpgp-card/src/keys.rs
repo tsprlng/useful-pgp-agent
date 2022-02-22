@@ -15,9 +15,9 @@ use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
     RSAPub,
 };
+use crate::openpgp::OpenPgpTransaction;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
-use crate::{apdu, KeyType};
-use crate::{CardTransaction, Error};
+use crate::{apdu, Error, KeyType};
 
 /// Generate asymmetric key pair on the card.
 ///
@@ -29,15 +29,12 @@ use crate::{CardTransaction, Error};
 ///
 /// `fp_from_pub` calculates the fingerprint for a public key data object and
 /// creation timestamp
-pub(crate) fn gen_key_with_metadata<C>(
-    card_tx: &mut C,
+pub(crate) fn gen_key_with_metadata(
+    card_tx: &mut OpenPgpTransaction,
     fp_from_pub: fn(&PublicKeyMaterial, KeyGenerationTime, KeyType) -> Result<Fingerprint, Error>,
     key_type: KeyType,
     algo: Option<&Algo>,
-) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error>
-where
-    C: CardTransaction + ?Sized,
-{
+) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
     // Set algo on card if it's Some
     if let Some(target_algo) = algo {
         // FIXME: caching
@@ -125,18 +122,15 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
 ///
 /// This runs the low level key generation primitive on the card.
 /// (This does not set algorithm attributes, creation time or fingerprint)
-pub(crate) fn generate_asymmetric_key_pair<C>(
-    card_tx: &mut C,
+pub(crate) fn generate_asymmetric_key_pair(
+    card_tx: &mut OpenPgpTransaction,
     key_type: KeyType,
-) -> Result<Tlv, Error>
-where
-    C: CardTransaction + ?Sized,
-{
+) -> Result<Tlv, Error> {
     // generate key
     let crt = control_reference_template(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
 
-    let resp = apdu::send_command(card_tx, gen_key_cmd, true)?;
+    let resp = apdu::send_command(card_tx.tx(), gen_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -150,10 +144,10 @@ where
 /// in the card or imported")
 ///
 /// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
-pub(crate) fn public_key<C>(card_tx: &mut C, key_type: KeyType) -> Result<PublicKeyMaterial, Error>
-where
-    C: CardTransaction + ?Sized,
-{
+pub(crate) fn public_key(
+    card_tx: &mut OpenPgpTransaction,
+    key_type: KeyType,
+) -> Result<PublicKeyMaterial, Error> {
     // get current algo
     let ard = card_tx.application_related_data()?; // FIXME: caching
     let algo = ard.algorithm_attributes(key_type)?;
@@ -162,7 +156,7 @@ where
     let crt = control_reference_template(key_type)?;
     let get_pub_key_cmd = commands::get_pub_key(crt.serialize().to_vec());
 
-    let resp = apdu::send_command(card_tx, get_pub_key_cmd, true)?;
+    let resp = apdu::send_command(card_tx.tx(), get_pub_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -176,15 +170,12 @@ where
 /// If the key is suitable for `key_type`, an Error is returned (either
 /// caused by checks before attempting to upload the key to the card, or by
 /// an error that the card reports during an attempt to upload the key).
-pub(crate) fn key_import<C>(
-    card_tx: &mut C,
+pub(crate) fn key_import(
+    card_tx: &mut OpenPgpTransaction,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_info: Option<AlgoInfo>,
-) -> Result<(), Error>
-where
-    C: CardTransaction + ?Sized,
-{
+) -> Result<(), Error> {
     // FIXME: caching?
     let ard = card_tx.application_related_data()?;
 
@@ -220,7 +211,7 @@ where
         card_tx.set_algorithm_attributes(key_type, &algo)?;
     }
 
-    apdu::send_command(card_tx, key_cmd, false)?.check_ok()?;
+    apdu::send_command(card_tx.tx(), key_cmd, false)?.check_ok()?;
     card_tx.set_fingerprint(fp, key_type)?;
     card_tx.set_creation_time(key.timestamp(), key_type)?;
 

@@ -16,7 +16,7 @@ use openpgp_card::card_do::{
     ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
     SecuritySupportTemplate, Sex,
 };
-use openpgp_card::{CardTransaction, Error, KeySet, KeyType};
+use openpgp_card::{Error, KeySet, KeyType, OpenPgpTransaction};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
@@ -27,7 +27,7 @@ use openpgp_card::crypto_data::PublicKeyMaterial;
 /// Representation of an opened OpenPGP card in its base state (i.e. no
 /// passwords have been verified, default authorization applies).
 pub struct Open<'a> {
-    card_tx: &'a mut (dyn CardTransaction + Send + Sync),
+    opt: OpenPgpTransaction<'a>,
 
     // Cache of "application related data".
     //
@@ -46,27 +46,28 @@ pub struct Open<'a> {
 }
 
 impl<'a> Open<'a> {
-    pub fn new(card_tx: &'a mut (dyn CardTransaction + Send + Sync)) -> Result<Self, Error> {
-        let ard = card_tx.application_related_data()?;
+    pub fn new(mut ca: OpenPgpTransaction<'a>) -> Result<Self, Error> {
+        let ard = ca.application_related_data()?;
 
         Ok(Self {
-            card_tx,
+            opt: ca,
             ard,
             pw1: false,
             pw1_sign: false,
             pw3: false,
         })
     }
+
     pub fn feature_pinpad_verify(&mut self) -> bool {
-        self.card_tx.feature_pinpad_verify()
+        self.opt.feature_pinpad_verify()
     }
 
     pub fn feature_pinpad_modify(&mut self) -> bool {
-        self.card_tx.feature_pinpad_modify()
+        self.opt.feature_pinpad_modify()
     }
 
     pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.card_tx.verify_pw1(pin)?;
+        let _ = self.opt.verify_pw1(pin)?;
         self.pw1 = true;
         Ok(())
     }
@@ -74,13 +75,13 @@ impl<'a> Open<'a> {
     pub fn verify_user_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
-        let _ = self.card_tx.verify_pw1_pinpad()?;
+        let _ = self.opt.verify_pw1_pinpad()?;
         self.pw1 = true;
         Ok(())
     }
 
     pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.card_tx.verify_pw1_for_signing(pin)?;
+        let _ = self.opt.verify_pw1_for_signing(pin)?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -91,7 +92,7 @@ impl<'a> Open<'a> {
     pub fn verify_user_for_signing_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
-        let _ = self.card_tx.verify_pw1_for_signing_pinpad()?;
+        let _ = self.opt.verify_pw1_for_signing_pinpad()?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -100,7 +101,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.card_tx.verify_pw3(pin)?;
+        let _ = self.opt.verify_pw3(pin)?;
         self.pw3 = true;
         Ok(())
     }
@@ -108,7 +109,7 @@ impl<'a> Open<'a> {
     pub fn verify_admin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
-        let _ = self.card_tx.verify_pw3_pinpad()?;
+        let _ = self.opt.verify_pw3_pinpad()?;
         self.pw3 = true;
         Ok(())
     }
@@ -117,41 +118,41 @@ impl<'a> Open<'a> {
     ///
     /// NOTE: on some cards this functionality seems broken.
     pub fn check_user_verified(&mut self) -> Result<(), Error> {
-        self.card_tx.check_pw1()
+        self.opt.check_pw1()
     }
 
     /// Ask the card if the admin password has been successfully verified.
     ///
     /// NOTE: on some cards this functionality seems broken.
     pub fn check_admin_verified(&mut self) -> Result<(), Error> {
-        self.card_tx.check_pw3()
+        self.opt.check_pw3()
     }
 
     pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.card_tx.change_pw1(old, new)
+        self.opt.change_pw1(old, new)
     }
 
     pub fn change_user_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
-        self.card_tx.change_pw1_pinpad()
+        self.opt.change_pw1_pinpad()
     }
 
     pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<(), Error> {
-        self.card_tx
+        self.opt
             .reset_retry_counter_pw1(new.into(), Some(rst.into()))
     }
 
     pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.card_tx.change_pw3(old, new)
+        self.opt.change_pw3(old, new)
     }
 
     pub fn change_admin_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
-        self.card_tx.change_pw3_pinpad()
+        self.opt.change_pw3_pinpad()
     }
 
     /// Get a view of the card authenticated for "User" commands.
-    pub fn user_card<'b>(&'a mut self) -> Option<User<'a, 'b>> {
+    pub fn user_card<'b>(&'b mut self) -> Option<User<'a, 'b>> {
         if self.pw1 {
             Some(User { oc: self })
         } else {
@@ -259,17 +260,17 @@ impl<'a> Open<'a> {
     // --- URL (5f50) ---
 
     pub fn url(&mut self) -> Result<String> {
-        Ok(String::from_utf8_lossy(&self.card_tx.url()?).to_string())
+        Ok(String::from_utf8_lossy(&self.opt.url()?).to_string())
     }
 
     // --- cardholder related data (65) ---
     pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData> {
-        self.card_tx.cardholder_related_data()
+        self.opt.cardholder_related_data()
     }
 
     // --- security support template (7a) ---
     pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate> {
-        self.card_tx.security_support_template()
+        self.opt.security_support_template()
     }
 
     // DO "Algorithm Information" (0xFA)
@@ -283,25 +284,25 @@ impl<'a> Open<'a> {
             return Ok(None);
         }
 
-        self.card_tx.algorithm_information()
+        self.opt.algorithm_information()
     }
 
     /// Firmware Version, YubiKey specific (?)
     pub fn firmware_version(&mut self) -> Result<Vec<u8>> {
-        self.card_tx.firmware_version()
+        self.opt.firmware_version()
     }
 
     // ----------
 
     pub fn public_key(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial> {
-        self.card_tx.public_key(key_type).map_err(|e| e.into())
+        self.opt.public_key(key_type).map_err(|e| e.into())
     }
 
     // ----------
 
     /// Delete all state on this OpenPGP card
     pub fn factory_reset(&mut self) -> Result<()> {
-        self.card_tx.factory_reset()
+        self.opt.factory_reset()
     }
 }
 
@@ -311,9 +312,9 @@ pub struct User<'app, 'open> {
     oc: &'open mut Open<'app>,
 }
 
-impl User<'_, '_> {
-    pub fn decryptor(&mut self, cert: &Cert) -> Result<CardDecryptor, Error> {
-        CardDecryptor::new(self.oc.card_tx, cert)
+impl<'app, 'open> User<'app, 'open> {
+    pub fn decryptor(&mut self, cert: &Cert) -> Result<CardDecryptor<'_, 'app>, Error> {
+        CardDecryptor::new(&mut self.oc.opt, cert)
     }
 }
 
@@ -323,19 +324,19 @@ pub struct Sign<'app, 'open> {
     oc: &'open mut Open<'app>,
 }
 
-impl Sign<'_, '_> {
-    pub fn signer(&mut self, cert: &Cert) -> std::result::Result<CardSigner, Error> {
+impl<'app, 'open> Sign<'app, 'open> {
+    pub fn signer(&mut self, cert: &Cert) -> std::result::Result<CardSigner<'_, 'app>, Error> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::new(self.oc.card_tx, cert)
+        CardSigner::new(&mut self.oc.opt, cert)
     }
 
-    pub fn signer_from_pubkey(&mut self, pubkey: PublicKey) -> CardSigner {
+    pub fn signer_from_pubkey(&mut self, pubkey: PublicKey) -> CardSigner<'_, 'app> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::with_pubkey(self.oc.card_tx, pubkey)
+        CardSigner::with_pubkey(&mut self.oc.opt, pubkey)
     }
 }
 
@@ -361,7 +362,7 @@ impl Admin<'_, '_> {
             return Err(anyhow!("Invalid char in name").into());
         };
 
-        self.oc.card_tx.set_name(name.as_bytes())
+        self.oc.opt.set_name(name.as_bytes())
     }
 
     pub fn set_lang(&mut self, lang: &[Lang]) -> Result<(), Error> {
@@ -369,11 +370,11 @@ impl Admin<'_, '_> {
             return Err(anyhow!("lang too long").into());
         }
 
-        self.oc.card_tx.set_lang(lang)
+        self.oc.opt.set_lang(lang)
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<(), Error> {
-        self.oc.card_tx.set_sex(sex)
+        self.oc.opt.set_sex(sex)
     }
 
     pub fn set_url(&mut self, url: &str) -> Result<(), Error> {
@@ -390,18 +391,18 @@ impl Admin<'_, '_> {
             // or if it's within the acceptable length:
             // send the url update to the card.
 
-            self.oc.card_tx.set_url(url.as_bytes())
+            self.oc.opt.set_url(url.as_bytes())
         } else {
             Err(anyhow!("URL too long").into())
         }
     }
 
     pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
-        self.oc.card_tx.set_resetting_code(pin.into())
+        self.oc.opt.set_resetting_code(pin.into())
     }
 
     pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
-        self.oc.card_tx.reset_retry_counter_pw1(new.into(), None)
+        self.oc.opt.reset_retry_counter_pw1(new.into(), None)
     }
 
     /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.
@@ -414,7 +415,7 @@ impl Admin<'_, '_> {
         password: Option<String>,
     ) -> Result<(), Error> {
         let key = vka_as_uploadable_key(vka, password);
-        self.oc.card_tx.key_import(key, key_type)
+        self.oc.opt.key_import(key, key_type)
     }
 
     pub fn generate_key_simple(
@@ -423,14 +424,13 @@ impl Admin<'_, '_> {
         algo: Option<AlgoSimple>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         match algo {
-            Some(algo) => {
-                self.oc
-                    .card_tx
-                    .generate_key_simple(public_to_fingerprint, key_type, algo)
-            }
+            Some(algo) => self
+                .oc
+                .opt
+                .generate_key_simple(public_to_fingerprint, key_type, algo),
             None => self
                 .oc
-                .card_tx
+                .opt
                 .generate_key(public_to_fingerprint, key_type, None),
         }
     }

@@ -19,7 +19,7 @@ pub(crate) fn open_card(ident: &str) -> Result<impl CardBackend, Error> {
 }
 
 pub(crate) fn verify_to_user<'app, 'open>(
-    open: &'app mut Open<'app>,
+    open: &'open mut Open<'app>,
     pin_file: Option<PathBuf>,
 ) -> Result<User<'app, 'open>, Box<dyn std::error::Error>> {
     if let Some(path) = pin_file {
@@ -37,7 +37,7 @@ pub(crate) fn verify_to_user<'app, 'open>(
 }
 
 pub(crate) fn verify_to_sign<'app, 'open>(
-    open: &'app mut Open<'app>,
+    open: &'open mut Open<'app>,
     pin_file: Option<PathBuf>,
 ) -> Result<Sign<'app, 'open>, Box<dyn std::error::Error>> {
     if let Some(path) = pin_file {

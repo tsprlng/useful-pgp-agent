@@ -13,8 +13,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::Sex;
-use openpgp_card::{CardBackend, KeyType};
-
+use openpgp_card::{CardBackend, KeyType, OpenPgp};
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
 use openpgp_card_sequoia::{sq_util, PublicKey};
@@ -71,9 +70,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd,
         } => {
             let mut card = util::open_card(&ident)?;
-            let mut txc = card.transaction()?;
+            let mut pgp = OpenPgp::new(&mut card);
 
-            let mut open = Open::new(&mut *txc)?;
+            let mut open = Open::new(pgp.transaction()?)?;
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
@@ -134,9 +133,8 @@ fn list_cards() -> Result<()> {
         println!("Available OpenPGP cards:");
 
         for mut card in cards {
-            let mut txc = card.transaction()?;
-
-            let open = Open::new(&mut *txc)?;
+            let mut pgp = OpenPgp::new(&mut card);
+            let open = Open::new(pgp.transaction()?)?;
             println!(" {}", open.application_identifier()?.ident());
         }
     } else {
@@ -147,9 +145,10 @@ fn list_cards() -> Result<()> {
 
 fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
     let mut card = util::open_card(ident)?;
-    let mut txc = card.transaction()?;
+    let mut pgp = OpenPgp::new(&mut card);
 
-    txc.set_identity(id)?;
+    let mut pgpt = pgp.transaction()?;
+    pgpt.set_identity(id)?;
 
     Ok(())
 }
@@ -166,9 +165,8 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         }
     };
 
-    let mut txc = card.transaction()?;
-
-    let mut open = Open::new(&mut *txc)?;
+    let mut pgp = OpenPgp::new(&mut *card);
+    let mut open = Open::new(pgp.transaction()?)?;
 
     let ident = open.application_identifier()?.ident();
 
@@ -326,9 +324,9 @@ fn decrypt(
     let input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut txc = card.transaction()?;
+    let mut pgp = OpenPgp::new(&mut card);
 
-    let mut open = Open::new(&mut *txc)?;
+    let mut open = Open::new(pgp.transaction()?)?;
 
     let mut user = util::verify_to_user(&mut open, pin_file)?;
     let d = user.decryptor(&cert)?;
@@ -352,9 +350,9 @@ fn sign_detached(
     let mut input = util::open_or_stdin(input.as_deref())?;
 
     let mut card = util::open_card(ident)?;
-    let mut txc = card.transaction()?;
+    let mut pgp = OpenPgp::new(&mut card);
 
-    let mut open = Open::new(&mut *txc)?;
+    let mut open = Open::new(pgp.transaction()?)?;
 
     let mut sign = util::verify_to_sign(&mut open, pin_file)?;
     let s = sign.signer(&cert)?;
@@ -371,9 +369,10 @@ fn sign_detached(
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
     let mut card = util::open_card(ident)?;
-    let mut txc = card.transaction()?;
+    let mut pgp = OpenPgp::new(&mut card);
 
-    Open::new(&mut *txc)?.factory_reset()
+    let mut open = Open::new(pgp.transaction()?)?;
+    open.factory_reset()
 }
 
 fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {

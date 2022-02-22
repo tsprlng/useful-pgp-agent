@@ -27,7 +27,7 @@ use sequoia_openpgp as openpgp;
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
-use openpgp_card::{CardTransaction, Error, KeyType};
+use openpgp_card::{Error, KeyType, OpenPgpTransaction};
 
 use crate::card::Open;
 use crate::privkey::SequoiaKey;
@@ -283,7 +283,7 @@ pub fn vka_as_uploadable_key(
 
 /// FIXME: this fn is used in card_functionality, but should be removed
 pub fn sign(
-    card_tx: &mut (dyn CardTransaction + Send + Sync),
+    card_tx: &'_ mut OpenPgpTransaction<'_>,
     cert: &Cert,
     input: &mut dyn io::Read,
 ) -> Result<String> {
@@ -307,7 +307,7 @@ pub fn sign(
 
 /// FIXME: this fn is used in card_functionality, but should be removed
 pub fn decrypt(
-    card_tx: &mut dyn CardTransaction,
+    card_tx: &'_ mut OpenPgpTransaction<'_>,
     cert: &Cert,
     msg: Vec<u8>,
     p: &dyn Policy,

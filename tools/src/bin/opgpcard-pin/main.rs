@@ -4,7 +4,7 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
-use openpgp_card::{CardBackend, Error, StatusBytes};
+use openpgp_card::{Error, OpenPgp, StatusBytes};
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::Open;
 
@@ -16,12 +16,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = cli::Cli::from_args();
 
     let mut card = PcscBackend::open_by_ident(&cli.ident, None)?;
-    let mut txc = card.transaction()?;
+    let mut pgp = OpenPgp::new(&mut card);
 
-    let pinpad_verify = txc.feature_pinpad_verify();
-    let pinpad_modify = txc.feature_pinpad_modify();
+    let pgpt = pgp.transaction()?;
+    let pinpad_verify = pgpt.feature_pinpad_verify();
+    let pinpad_modify = pgpt.feature_pinpad_modify();
 
-    let mut open = Open::new(&mut *txc)?;
+    let mut open = Open::new(pgpt)?;
 
     match cli.cmd {
         cli::Command::SetUserPin {} => {

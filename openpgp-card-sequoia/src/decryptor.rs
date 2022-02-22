@@ -13,30 +13,30 @@ use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Cryptogram;
-use openpgp_card::{CardTransaction, Error};
+use openpgp_card::{Error, OpenPgpTransaction};
 
 use crate::sq_util;
 use crate::PublicKey;
 
-pub struct CardDecryptor<'a> {
+pub struct CardDecryptor<'a, 'app> {
     /// The OpenPGP card (authenticated to allow decryption operations)
-    card_tx: &'a mut dyn CardTransaction,
+    ca: &'a mut OpenPgpTransaction<'app>,
 
     /// The matching public key for the card's decryption key
     public: PublicKey,
 }
 
-impl<'a> CardDecryptor<'a> {
+impl<'a, 'app> CardDecryptor<'a, 'app> {
     /// Try to create a CardDecryptor.
     ///
     /// An Error is returned if no match between the card's decryption
     /// key and a (sub)key of `cert` can be made.
     pub fn new(
-        card_tx: &'a mut dyn CardTransaction,
+        ca: &'a mut OpenPgpTransaction<'app>,
         cert: &Cert,
-    ) -> Result<CardDecryptor<'a>, Error> {
+    ) -> Result<CardDecryptor<'a, 'app>, Error> {
         // Get the fingerprint for the decryption key from the card.
-        let ard = card_tx.application_related_data()?;
+        let ard = ca.application_related_data()?;
         let fps = ard.fingerprints()?;
         let fp = fps.decryption();
 
@@ -46,7 +46,7 @@ impl<'a> CardDecryptor<'a> {
 
             if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
                 let public = eka.key().clone();
-                Ok(Self { card_tx, public })
+                Ok(Self { ca, public })
             } else {
                 Err(Error::InternalError(anyhow!(
                     "Failed to find (sub)key {} in cert",
@@ -61,7 +61,7 @@ impl<'a> CardDecryptor<'a> {
     }
 }
 
-impl<'a> crypto::Decryptor for CardDecryptor<'a> {
+impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
     fn public(&self) -> &PublicKey {
         &self.public
     }
@@ -80,7 +80,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = Cryptogram::RSA(ct.value());
-                let dec = self.card_tx.decipher(dm)?;
+                let dec = self.ca.decipher(dm)?;
 
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
                 Ok(sk)
@@ -101,7 +101,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
                 };
 
                 // Decryption operation on the card
-                let mut dec = self.card_tx.decipher(dm)?;
+                let mut dec = self.ca.decipher(dm)?;
 
                 // Specifically handle return value format like Gnuk's
                 // (Gnuk returns a leading '0x04' byte and
@@ -129,7 +129,7 @@ impl<'a> crypto::Decryptor for CardDecryptor<'a> {
     }
 }
 
-impl<'a> DecryptionHelper for CardDecryptor<'a> {
+impl<'a, 'app> DecryptionHelper for CardDecryptor<'a, 'app> {
     fn decrypt<D>(
         &mut self,
         pkesks: &[packet::PKESK],
@@ -159,7 +159,7 @@ impl<'a> DecryptionHelper for CardDecryptor<'a> {
     }
 }
 
-impl<'a> VerificationHelper for CardDecryptor<'a> {
+impl VerificationHelper for CardDecryptor<'_, '_> {
     fn get_certs(&mut self, _ids: &[openpgp::KeyHandle]) -> openpgp::Result<Vec<openpgp::Cert>> {
         Ok(vec![])
     }
