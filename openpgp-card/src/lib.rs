@@ -94,10 +94,10 @@ pub trait CardTransaction {
     fn feature_pinpad_modify(&self) -> bool;
 
     /// Verify the PIN `id` via the reader pinpad
-    fn pinpad_verify(&mut self, id: u8) -> Result<Vec<u8>>;
+    fn pinpad_verify(&mut self, pin: PinType) -> Result<Vec<u8>, Error>;
 
     /// Modify the PIN `id` via the reader pinpad
-    fn pinpad_modify(&mut self, id: u8) -> Result<Vec<u8>>;
+    fn pinpad_modify(&mut self, pin: PinType) -> Result<Vec<u8>, Error>;
 
     /// Select the OpenPGP card application
     fn select(&mut self) -> Result<Vec<u8>, Error> {
@@ -110,7 +110,7 @@ pub trait CardTransaction {
     /// (This data should probably be cached in a higher layer. Some parts of
     /// it are needed regularly, and it does not usually change during
     /// normal use of a card.)
-    fn application_related_data(&mut self) -> Result<ApplicationRelatedData> {
+    fn application_related_data(&mut self) -> Result<ApplicationRelatedData, Error> {
         let ad = commands::application_related_data();
         let resp = apdu::send_command(self, ad, true)?;
         let value = Value::from(resp.data()?, true)?;
@@ -128,7 +128,7 @@ pub trait CardTransaction {
     /// This fn initializes the CardCaps by requesting
     /// application_related_data from the card, and setting the
     /// capabilities accordingly.
-    fn initialize(&mut self) -> Result<()> {
+    fn initialize(&mut self) -> Result<(), Error> {
         let ard = self.application_related_data()?;
 
         // Determine chaining/extended length support from card
@@ -239,6 +239,23 @@ impl CardCaps {
 
     pub fn pw3_max_len(&self) -> u8 {
         self.pw3_max_len
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum PinType {
+    Sign,
+    User,
+    Admin,
+}
+
+impl PinType {
+    pub fn id(&self) -> u8 {
+        match self {
+            PinType::Sign => 0x81,
+            PinType::User => 0x82,
+            PinType::Admin => 0x83,
+        }
     }
 }
 

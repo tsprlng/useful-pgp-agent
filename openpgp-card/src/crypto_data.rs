@@ -61,7 +61,7 @@ pub enum Cryptogram<'a> {
 /// to an OpenPGP card
 pub trait CardUploadableKey {
     /// private key data
-    fn private_key(&self) -> Result<PrivateKeyMaterial>;
+    fn private_key(&self) -> Result<PrivateKeyMaterial, crate::Error>;
 
     /// timestamp of (sub)key creation
     fn timestamp(&self) -> KeyGenerationTime;

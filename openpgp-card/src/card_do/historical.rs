@@ -5,7 +5,6 @@
 
 use crate::card_do::{CardCapabilities, CardServiceData, HistoricalBytes};
 use crate::Error;
-use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 
 impl CardCapabilities {
@@ -77,7 +76,7 @@ impl HistoricalBytes {
 }
 
 impl TryFrom<&[u8]> for HistoricalBytes {
-    type Error = Error;
+    type Error = crate::Error;
 
     fn try_from(mut data: &[u8]) -> Result<Self, Self::Error> {
         // workaround-hack for "ledger" with zero-padded historical bytes
@@ -95,18 +94,18 @@ impl TryFrom<&[u8]> for HistoricalBytes {
         if len < 4 {
             // historical bytes cannot be this short
 
-            return Err(anyhow!(format!(
-                "Historical bytes too short ({} bytes), must be >= 4",
-                len
-            ))
-            .into());
+            return Err(Error::ParseError(
+                format!("Historical bytes too short ({} bytes), must be >= 4", len).into(),
+            ));
         }
 
         if data[0] != 0 {
             // The OpenPGP application assumes a category indicator byte
             // set to '00' (o-card 3.4.1, pg 44)
 
-            return Err(anyhow!("Unexpected category indicator in historical bytes").into());
+            return Err(Error::ParseError(
+                "Unexpected category indicator in historical bytes".into(),
+            ));
         }
 
         // category indicator byte
@@ -127,14 +126,15 @@ impl TryFrom<&[u8]> for HistoricalBytes {
             // (1 byte for the tl, plus `l` bytes of data for this ctlv)
             // (e.g. len = 4 -> tl + 3byte data)
             if ctlv.len() < (1 + l as usize) {
-                return Err(anyhow!(
-                    "Illegal length value in Historical Bytes TL {} len {} \
-                    l {}",
-                    ctlv[0],
-                    ctlv.len(),
-                    l
-                )
-                .into());
+                return Err(Error::ParseError(
+                    format!(
+                        "Illegal length value in Historical Bytes TL {} len {} l {}",
+                        ctlv[0],
+                        ctlv.len(),
+                        l
+                    )
+                    .into(),
+                ));
             }
 
             match (t, l) {
@@ -177,7 +177,9 @@ impl TryFrom<&[u8]> for HistoricalBytes {
                 5
             }
             _ => {
-                return Err(anyhow!("unexpected status indicator in historical bytes").into());
+                return Err(Error::ParseError(
+                    "unexpected status indicator in historical bytes".into(),
+                ));
             }
         };
 

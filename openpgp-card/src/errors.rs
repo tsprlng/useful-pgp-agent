@@ -26,19 +26,23 @@ pub enum Error {
     #[error("Unexpected response length: {0}")]
     ResponseLength(usize),
 
+    #[error("Data not found: {0}")]
+    NotFound(String),
+
+    #[error("Couldn't parse data: {0}")]
+    ParseError(String),
+
+    #[error("Unsupported algorithm: {0}")]
+    UnsupportedAlgo(String),
+
+    // FIXME: placeholder, remove again later?
     #[error("Internal error: {0}")]
-    InternalError(anyhow::Error),
+    InternalError(String),
 }
 
 impl From<StatusBytes> for Error {
     fn from(oce: StatusBytes) -> Self {
         Error::CardStatus(oce)
-    }
-}
-
-impl From<anyhow::Error> for Error {
-    fn from(ae: anyhow::Error) -> Self {
-        Error::InternalError(ae)
     }
 }
 

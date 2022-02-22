@@ -31,9 +31,9 @@ fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationIdentifier> {
 }
 
 impl TryFrom<&[u8]> for ApplicationIdentifier {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
-    fn try_from(data: &[u8]) -> Result<Self> {
+    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
         complete(parse(data))
     }
 }

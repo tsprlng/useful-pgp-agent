@@ -4,8 +4,6 @@
 //! Perform operations on a card. Different states of a card are modeled by
 //! different types, such as `Open`, `User`, `Sign`, `Admin`.
 
-use anyhow::{anyhow, Result};
-
 use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::Cert;
@@ -188,7 +186,7 @@ impl<'a> Open<'a> {
         self.ard.historical_bytes()
     }
 
-    pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>> {
+    pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>, Error> {
         self.ard.extended_length_information()
     }
 
@@ -206,12 +204,12 @@ impl<'a> Open<'a> {
         self.ard.extended_capabilities()
     }
 
-    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
+    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo, Error> {
         self.ard.algorithm_attributes(key_type)
     }
 
     /// PW status Bytes
-    pub fn pw_status_bytes(&self) -> Result<PWStatusBytes> {
+    pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
         self.ard.pw_status_bytes()
     }
 
@@ -259,22 +257,22 @@ impl<'a> Open<'a> {
 
     // --- URL (5f50) ---
 
-    pub fn url(&mut self) -> Result<String> {
+    pub fn url(&mut self) -> Result<String, Error> {
         Ok(String::from_utf8_lossy(&self.opt.url()?).to_string())
     }
 
     // --- cardholder related data (65) ---
-    pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData> {
+    pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData, Error> {
         self.opt.cardholder_related_data()
     }
 
     // --- security support template (7a) ---
-    pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate> {
+    pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate, Error> {
         self.opt.security_support_template()
     }
 
     // DO "Algorithm Information" (0xFA)
-    pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>> {
+    pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>, Error> {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
         let ec = self.extended_capabilities()?;
@@ -288,20 +286,20 @@ impl<'a> Open<'a> {
     }
 
     /// Firmware Version, YubiKey specific (?)
-    pub fn firmware_version(&mut self) -> Result<Vec<u8>> {
+    pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
         self.opt.firmware_version()
     }
 
     // ----------
 
-    pub fn public_key(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial> {
+    pub fn public_key(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial, Error> {
         self.opt.public_key(key_type).map_err(|e| e.into())
     }
 
     // ----------
 
     /// Delete all state on this OpenPGP card
-    pub fn factory_reset(&mut self) -> Result<()> {
+    pub fn factory_reset(&mut self) -> Result<(), Error> {
         self.opt.factory_reset()
     }
 }
@@ -354,12 +352,12 @@ impl<'app, 'open> Admin<'app, 'open> {
 impl Admin<'_, '_> {
     pub fn set_name(&mut self, name: &str) -> Result<(), Error> {
         if name.len() >= 40 {
-            return Err(anyhow!("name too long").into());
+            return Err(Error::InternalError("name too long".into()));
         }
 
         // All chars must be in ASCII7
         if name.chars().any(|c| !c.is_ascii()) {
-            return Err(anyhow!("Invalid char in name").into());
+            return Err(Error::InternalError("Invalid char in name".into()));
         };
 
         self.oc.opt.set_name(name.as_bytes())
@@ -367,7 +365,7 @@ impl Admin<'_, '_> {
 
     pub fn set_lang(&mut self, lang: &[Lang]) -> Result<(), Error> {
         if lang.len() > 8 {
-            return Err(anyhow!("lang too long").into());
+            return Err(Error::InternalError("lang too long".into()));
         }
 
         self.oc.opt.set_lang(lang)
@@ -379,7 +377,7 @@ impl Admin<'_, '_> {
 
     pub fn set_url(&mut self, url: &str) -> Result<(), Error> {
         if url.chars().any(|c| !c.is_ascii()) {
-            return Err(anyhow!("Invalid char in url").into());
+            return Err(Error::InternalError("Invalid char in url".into()));
         }
 
         // Check for max len
@@ -393,7 +391,7 @@ impl Admin<'_, '_> {
 
             self.oc.opt.set_url(url.as_bytes())
         } else {
-            Err(anyhow!("URL too long").into())
+            Err(Error::InternalError("URL too long".into()))
         }
     }
 

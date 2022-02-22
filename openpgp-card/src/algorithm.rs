@@ -86,7 +86,7 @@ impl AlgoSimple {
         key_type: KeyType,
         ard: &ApplicationRelatedData,
         algo_info: Option<AlgoInfo>,
-    ) -> Result<Algo> {
+    ) -> Result<Algo, crate::Error> {
         let algo = match self {
             Self::RSA1k => Algo::Rsa(keys::determine_rsa_attrs(1024, key_type, ard, algo_info)?),
             Self::RSA2k => Algo::Rsa(keys::determine_rsa_attrs(2048, key_type, ard, algo_info)?),
@@ -189,7 +189,9 @@ impl Algo {
         match self {
             Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa),
             Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
-            _ => Err(anyhow!("Unexpected Algo {:?}", self).into()),
+            _ => Err(Error::UnsupportedAlgo(
+                format!("Unexpected Algo {:?}", self).into(),
+            )),
         }
     }
 
@@ -327,7 +329,7 @@ impl Curve {
 }
 
 impl TryFrom<&[u8]> for Curve {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
     fn try_from(oid: &[u8]) -> Result<Self, Self::Error> {
         use Curve::*;
@@ -349,7 +351,7 @@ impl TryFrom<&[u8]> for Curve {
             [0x2b, 0x65, 0x71] => Ed448,
             [0x2b, 0x65, 0x6f] => X448,
 
-            _ => return Err(anyhow!("Unknown curve OID {:?}", oid)),
+            _ => return Err(Error::ParseError(format!("Unknown curve OID {:?}", oid))),
         };
 
         Ok(curve)

@@ -3,7 +3,6 @@
 
 //! Fingerprint for a single key slot
 
-use anyhow::anyhow;
 use nom::{bytes::complete as bytes, combinator, sequence};
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -28,7 +27,9 @@ impl TryFrom<&[u8]> for Fingerprint {
             let array: [u8; 20] = input.try_into().unwrap();
             Ok(array.into())
         } else {
-            Err(anyhow!("Unexpected fingerprint length {}", input.len()).into())
+            Err(Error::ParseError(
+                format!("Unexpected fingerprint length {}", input.len()).into(),
+            ))
         }
     }
 }
@@ -88,8 +89,7 @@ impl TryFrom<&[u8]> for KeySet<Fingerprint> {
         // been completely consumed.
         self::fingerprints(input)
             .map(|res| res.1)
-            .map_err(|err| anyhow!("Parsing failed: {:?}", err))
-            .map_err(Error::InternalError)
+            .map_err(|_err| Error::ParseError("Parsing failed".into()))
     }
 }
 

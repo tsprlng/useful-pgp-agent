@@ -3,7 +3,6 @@
 
 //! Generate and import keys
 
-use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -77,7 +76,7 @@ pub(crate) fn gen_key_with_metadata(
     // Store creation timestamp (unix time format, limited to u32)
     let ts = time
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| Error::InternalError(anyhow!(e)))?
+        .map_err(|e| Error::InternalError(format!("This should never happen {}", e)))?
         .as_secs() as u32;
 
     let ts = ts.into();
@@ -92,7 +91,7 @@ pub(crate) fn gen_key_with_metadata(
 }
 
 /// Transform a public key Tlv from the card into PublicKeyMaterial
-fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
+fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial, crate::Error> {
     let n = tlv.find(&[0x81].into());
     let v = tlv.find(&[0x82].into());
 
@@ -111,10 +110,10 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial> {
             Ok(PublicKeyMaterial::E(ecc))
         }
 
-        (_, _, _) => Err(anyhow!(
+        (_, _, _) => Err(Error::UnsupportedAlgo(format!(
             "Unexpected public key material from card {:?}",
             tlv
-        )),
+        ))),
     }
 }
 
@@ -229,7 +228,7 @@ pub(crate) fn determine_rsa_attrs(
     key_type: KeyType,
     ard: &ApplicationRelatedData,
     algo_info: Option<AlgoInfo>,
-) -> Result<RsaAttrs> {
+) -> Result<RsaAttrs, crate::Error> {
     // Figure out suitable RSA algorithm parameters:
 
     // Does the card offer a list of algorithms?
@@ -273,13 +272,16 @@ pub(crate) fn determine_ecc_attrs(
     ecc_type: EccType,
     key_type: KeyType,
     algo_info: Option<AlgoInfo>,
-) -> Result<EccAttrs> {
+) -> Result<EccAttrs, crate::Error> {
     // If we have an algo_info, refuse upload if oid is not listed
     if let Some(algo_info) = algo_info {
         let algos = check_card_algo_ecc(algo_info, key_type, oid);
         if algos.is_empty() {
             // If oid is not in algo_info, return error.
-            return Err(anyhow!("Oid {:?} unsupported according to algo_info", oid));
+            return Err(Error::UnsupportedAlgo(format!(
+                "Oid {:?} unsupported according to algo_info",
+                oid
+            )));
         }
 
         // Note: Looking up ecc_type in the card's "Algorithm Information"
@@ -332,7 +334,9 @@ fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Resul
         Ok((**algo.last().unwrap()).clone())
     } else {
         // RSA with this bit length is not in algo_info
-        return Err(anyhow!("RSA {} unsupported according to algo_info", rsa_bits).into());
+        return Err(Error::UnsupportedAlgo(
+            format!("RSA {} unsupported according to algo_info", rsa_bits).into(),
+        ));
     }
 }
 
@@ -518,7 +522,7 @@ fn control_reference_template(key_type: KeyType) -> Result<Tlv, Error> {
         KeyType::Decryption => 0xB8,
         KeyType::Signing => 0xB6,
         KeyType::Authentication => 0xA4,
-        _ => return Err(Error::InternalError(anyhow!("Unexpected KeyType"))),
+        _ => return Err(Error::InternalError("Unexpected KeyType".to_string())),
     };
     Ok(Tlv::new([tag], Value::S(vec![])))
 }

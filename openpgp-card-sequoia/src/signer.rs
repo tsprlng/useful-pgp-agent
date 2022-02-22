@@ -46,13 +46,13 @@ impl<'a, 'app> CardSigner<'a, 'app> {
                 let key = eka.key().clone();
                 Ok(Self::with_pubkey(ca, key))
             } else {
-                Err(Error::InternalError(anyhow!(
+                Err(Error::InternalError(format!(
                     "Failed to find (sub)key {} in cert",
                     fp
                 )))
             }
         } else {
-            Err(Error::InternalError(anyhow!(
+            Err(Error::InternalError(format!(
                 "Failed to get the signing key's Fingerprint from the card"
             )))
         }

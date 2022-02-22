@@ -3,8 +3,6 @@
 
 //! PW status Bytes (see spec page 23)
 
-use anyhow::anyhow;
-
 use crate::card_do::PWStatusBytes;
 use crate::Error;
 use std::convert::TryFrom;
@@ -41,7 +39,7 @@ impl PWStatusBytes {
 }
 
 impl TryFrom<&[u8]> for PWStatusBytes {
-    type Error = Error;
+    type Error = crate::Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         if input.len() == 7 {
@@ -67,7 +65,7 @@ impl TryFrom<&[u8]> for PWStatusBytes {
                 err_count_pw3,
             })
         } else {
-            Err(Error::InternalError(anyhow!(
+            Err(Error::ParseError(format!(
                 "Unexpected length of PW Status Bytes: {}",
                 input.len()
             )))

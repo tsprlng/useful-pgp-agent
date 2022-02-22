@@ -3,7 +3,6 @@
 
 //! OpenPGP card data objects (DO)
 
-use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -41,7 +40,7 @@ impl ApplicationRelatedData {
         if let Some(aid) = aid {
             Ok(ApplicationIdentifier::try_from(&aid.serialize()[..])?)
         } else {
-            Err(anyhow!("Couldn't get Application ID.").into())
+            Err(Error::NotFound("Couldn't get Application ID.".to_string()))
         }
     }
 
@@ -54,13 +53,15 @@ impl ApplicationRelatedData {
             log::debug!("Historical bytes: {:x?}", hist);
             (hist.serialize().as_slice()).try_into()
         } else {
-            Err(anyhow!("Failed to get historical bytes.").into())
+            Err(Error::NotFound(
+                "Failed to get historical bytes.".to_string(),
+            ))
         }
     }
 
     /// Get extended length information (ISO 7816-4), which
     /// contains maximum number of bytes for command and response.
-    pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>> {
+    pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>, Error> {
         // get from cached "application related data"
         let eli = self.0.find(&[0x7f, 0x66].into());
 
@@ -100,27 +101,29 @@ impl ApplicationRelatedData {
                 version,
             ))?)
         } else {
-            Err(anyhow!("Failed to get extended capabilities.").into())
+            Err(Error::NotFound(
+                "Failed to get extended capabilities.".to_string(),
+            ))
         }
     }
 
     /// Get algorithm attributes (for each key type)
-    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo> {
+    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo, Error> {
         // get from cached "application related data"
         let aa = self.0.find(&[key_type.algorithm_tag()].into());
 
         if let Some(aa) = aa {
             Algo::try_from(&aa.serialize()[..])
         } else {
-            Err(anyhow!(
+            Err(Error::NotFound(format!(
                 "Failed to get algorithm attributes for {:?}.",
                 key_type
-            ))
+            )))
         }
     }
 
     /// Get PW status Bytes
-    pub fn pw_status_bytes(&self) -> Result<PWStatusBytes> {
+    pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
         // get from cached "application related data"
         let psb = self.0.find(&[0xc4].into());
 
@@ -131,7 +134,9 @@ impl ApplicationRelatedData {
 
             Ok(pws)
         } else {
-            Err(anyhow!("Failed to get PW status Bytes."))
+            Err(Error::NotFound(
+                "Failed to get PW status Bytes.".to_string(),
+            ))
         }
     }
 
@@ -148,12 +153,12 @@ impl ApplicationRelatedData {
 
             Ok(fp)
         } else {
-            Err(anyhow!("Failed to get fingerprints.").into())
+            Err(Error::NotFound("Failed to get fingerprints.".into()))
         }
     }
 
     /// Generation dates/times of key pairs
-    pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
+    pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, crate::Error> {
         let kg = self.0.find(&[0xcd].into());
 
         if let Some(kg) = kg {
@@ -163,7 +168,9 @@ impl ApplicationRelatedData {
 
             Ok(kg)
         } else {
-            Err(anyhow!("Failed to get key generation times.").into())
+            Err(Error::NotFound(format!(
+                "Failed to get key generation times."
+            )))
         }
     }
 }
@@ -446,11 +453,14 @@ impl Fingerprint {
 }
 
 /// Helper fn for nom parsing
-pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, anyhow::Error> {
-    let (rem, output) = result.map_err(|err| anyhow!("Parsing failed: {:?}", err))?;
+pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, Error> {
+    let (rem, output) = result.map_err(|_err| Error::ParseError(format!("Parsing failed")))?;
     if rem.is_empty() {
         Ok(output)
     } else {
-        Err(anyhow!("Parsing incomplete -- trailing data: {:x?}", rem))
+        Err(Error::ParseError(format!(
+            "Parsing incomplete, trailing data: {:x?}",
+            rem
+        )))
     }
 }

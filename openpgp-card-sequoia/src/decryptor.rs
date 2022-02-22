@@ -48,13 +48,13 @@ impl<'a, 'app> CardDecryptor<'a, 'app> {
                 let public = eka.key().clone();
                 Ok(Self { ca, public })
             } else {
-                Err(Error::InternalError(anyhow!(
+                Err(Error::InternalError(format!(
                     "Failed to find (sub)key {} in cert",
                     fp
                 )))
             }
         } else {
-            Err(Error::InternalError(anyhow!(
+            Err(Error::InternalError(format!(
                 "Failed to get the decryption key's Fingerprint from the card"
             )))
         }

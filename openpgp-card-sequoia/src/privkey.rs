@@ -4,7 +4,6 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use anyhow::Result;
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use openpgp::crypto::{mpi, mpi::ProtectedMPI, mpi::MPI};
 use openpgp::packet::{
@@ -49,14 +48,15 @@ impl SequoiaKey {
 /// Implement the `CardUploadableKey` trait that openpgp-card uses to
 /// upload (sub)keys to a card.
 impl CardUploadableKey for SequoiaKey {
-    fn private_key(&self) -> Result<PrivateKeyMaterial> {
+    fn private_key(&self) -> Result<PrivateKeyMaterial, Error> {
         // Decrypt key with password, if set
         let key = match &self.password {
             None => self.key.clone(),
             Some(pw) => self
                 .key
                 .clone()
-                .decrypt_secret(&openpgp::crypto::Password::from(pw.as_str()))?,
+                .decrypt_secret(&openpgp::crypto::Password::from(pw.as_str()))
+                .map_err(|e| Error::InternalError(format!("sequoia decrypt failed {:?}", e)))?,
         };
 
         // Get private cryptographic material
@@ -124,8 +124,15 @@ struct SqRSA {
 
 impl SqRSA {
     #[allow(clippy::many_single_char_names)]
-    fn new(e: MPI, d: ProtectedMPI, n: MPI, p: ProtectedMPI, q: ProtectedMPI) -> Result<Self> {
-        let nettle = nettle::rsa::PrivateKey::new(d.value(), p.value(), q.value(), None)?;
+    fn new(
+        e: MPI,
+        d: ProtectedMPI,
+        n: MPI,
+        p: ProtectedMPI,
+        q: ProtectedMPI,
+    ) -> Result<Self, Error> {
+        let nettle = nettle::rsa::PrivateKey::new(d.value(), p.value(), q.value(), None)
+            .map_err(|e| Error::InternalError(format!("nettle error {:?}", e)))?;
 
         Ok(Self { e, n, p, q, nettle })
     }

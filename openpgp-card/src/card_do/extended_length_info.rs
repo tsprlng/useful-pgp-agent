@@ -32,7 +32,7 @@ impl ExtendedLengthInfo {
 }
 
 impl TryFrom<&[u8]> for ExtendedLengthInfo {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         let eli = complete(parse(input))?;

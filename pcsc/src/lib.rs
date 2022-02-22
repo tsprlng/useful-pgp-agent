@@ -5,13 +5,12 @@
 //! `openpgp-card`. It uses the PCSC middleware to access the OpenPGP
 //! application on smart cards.
 
-use anyhow::{anyhow, Result};
 use iso7816_tlv::simple::Tlv;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
 use openpgp_card::card_do::ApplicationRelatedData;
-use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, SmartcardError};
+use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, PinType, SmartcardError};
 
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
@@ -181,23 +180,21 @@ impl<'b> PcscTransaction<'b> {
     }
 
     /// Get the minimum pin length for pin_id.
-    fn min_pin_len(&self, pin_id: u8) -> Result<u8> {
-        match pin_id {
-            0x81 | 0x82 => Ok(6),
-            0x83 => Ok(8),
-            _ => Err(anyhow!("Unexpected pin_id {}", pin_id)),
+    fn min_pin_len(&self, pin: PinType) -> u8 {
+        match pin {
+            PinType::User | PinType::Sign => 6,
+            PinType::Admin => 8,
         }
     }
     /// Get the maximum pin length for pin_id.
-    fn max_pin_len(&self, pin_id: u8) -> Result<u8> {
+    fn max_pin_len(&self, pin: PinType) -> Result<u8, Error> {
         if let Some(card_caps) = self.card_caps {
-            match pin_id {
-                0x81 | 0x82 => Ok(card_caps.pw1_max_len()),
-                0x83 => Ok(card_caps.pw3_max_len()),
-                _ => Err(anyhow!("Unexpected pin_id {}", pin_id)),
+            match pin {
+                PinType::User | PinType::Sign => Ok(card_caps.pw1_max_len()),
+                PinType::Admin => Ok(card_caps.pw3_max_len()),
             }
         } else {
-            Err(anyhow!("card_caps is None"))
+            Err(Error::InternalError("card_caps is None".into()))
         }
     }
 }
@@ -235,9 +232,9 @@ impl CardTransaction for PcscTransaction<'_> {
         self.reader_caps.contains_key(&FEATURE_MODIFY_PIN_DIRECT)
     }
 
-    fn pinpad_verify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
-        let pin_min_size = self.min_pin_len(pin_id)?;
-        let pin_max_size = self.max_pin_len(pin_id)?;
+    fn pinpad_verify(&mut self, pin: PinType) -> Result<Vec<u8>, Error> {
+        let pin_min_size = self.min_pin_len(pin);
+        let pin_max_size = self.max_pin_len(pin)?;
 
         // Default to varlen, for now.
         // (NOTE: Some readers don't support varlen, and need explicit length
@@ -249,7 +246,7 @@ impl CardTransaction for PcscTransaction<'_> {
             0x00,     /* CLA */
             0x20,     /* INS: VERIFY */
             0x00,     /* P1 */
-            pin_id,   /* P2 */
+            pin.id(), /* P2 */
             fixedlen, /* Lc: 'fixedlen' data bytes */
         ];
         ab_data.extend([0xff].repeat(fixedlen as usize));
@@ -311,22 +308,26 @@ impl CardTransaction for PcscTransaction<'_> {
         let verify_ioctl: [u8; 4] = self
             .reader_caps
             .get(&FEATURE_VERIFY_PIN_DIRECT)
-            .ok_or_else(|| anyhow!("no reader_capability"))?
+            .ok_or_else(|| Error::Smartcard(SmartcardError::Error("no reader_capability".into())))?
             .value()
-            .try_into()?;
+            .try_into()
+            .map_err(|e| Error::ParseError(format!("unexpected feature data: {:?}", e)))?;
 
         let res = self
             .tx
-            .control(u32::from_be_bytes(verify_ioctl).into(), &send, &mut recv)?;
+            .control(u32::from_be_bytes(verify_ioctl).into(), &send, &mut recv)
+            .map_err(|e: pcsc::Error| {
+                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {:?}", e)))
+            })?;
 
         log::debug!(" <- pcsc pinpad_verify result: {:x?}", res);
 
         Ok(res.to_vec())
     }
 
-    fn pinpad_modify(&mut self, pin_id: u8) -> Result<Vec<u8>> {
-        let pin_min_size = self.min_pin_len(pin_id)?;
-        let pin_max_size = self.max_pin_len(pin_id)?;
+    fn pinpad_modify(&mut self, pin: PinType) -> Result<Vec<u8>, Error> {
+        let pin_min_size = self.min_pin_len(pin);
+        let pin_max_size = self.max_pin_len(pin)?;
 
         // Default to varlen, for now.
         // (NOTE: Some readers don't support varlen, and need explicit length
@@ -338,7 +339,7 @@ impl CardTransaction for PcscTransaction<'_> {
             0x00,         /* CLA */
             0x24,         /* INS: CHANGE_REFERENCE_DATA */
             0x00,         /* P1 */
-            pin_id,       /* P2 */
+            pin.id(),     /* P2 */
             fixedlen * 2, /* Lc: 'fixedlen' data bytes */
         ];
         ab_data.extend([0xff].repeat(fixedlen as usize * 2));
@@ -410,13 +411,17 @@ impl CardTransaction for PcscTransaction<'_> {
         let modify_ioctl: [u8; 4] = self
             .reader_caps
             .get(&FEATURE_MODIFY_PIN_DIRECT)
-            .ok_or_else(|| anyhow!("no reader_capability"))?
+            .ok_or_else(|| Error::Smartcard(SmartcardError::Error("no reader_capability".into())))?
             .value()
-            .try_into()?;
+            .try_into()
+            .map_err(|e| Error::ParseError(format!("unexpected feature data: {:?}", e)))?;
 
         let res = self
             .tx
-            .control(u32::from_be_bytes(modify_ioctl).into(), &send, &mut recv)?;
+            .control(u32::from_be_bytes(modify_ioctl).into(), &send, &mut recv)
+            .map_err(|e: pcsc::Error| {
+                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {:?}", e)))
+            })?;
 
         log::debug!(" <- pcsc pinpad_modify result: {:x?}", res);
 
@@ -602,7 +607,7 @@ impl PcscBackend {
     /// Initialized a PcscCard:
     /// - Obtain and store feature lists from reader (pinpad functionality).
     /// - Get ARD from card, set CardCaps based on ARD.
-    fn initialize_card(mut self) -> Result<Self> {
+    fn initialize_card(mut self) -> Result<Self, Error> {
         log::debug!("pcsc initialize_card");
 
         let mut h: HashMap<u8, Tlv> = HashMap::default();

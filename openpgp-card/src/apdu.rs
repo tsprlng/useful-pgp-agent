@@ -153,9 +153,7 @@ where
             let cla = if last { 0x00 } else { 0x10 };
             let partial = Command::new(cla, cmd.ins(), cmd.p1(), cmd.p2(), d.to_vec());
 
-            let serialized = partial
-                .serialize(ext_len, expect_response)
-                .map_err(Error::InternalError)?;
+            let serialized = partial.serialize(ext_len, expect_response)?;
 
             log::debug!(" -> chained APDU command: {:x?}", &serialized);
 

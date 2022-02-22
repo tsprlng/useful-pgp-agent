@@ -177,12 +177,14 @@ pub fn public_key_material_to_key(
     pkm: &PublicKeyMaterial,
     key_type: KeyType,
     time: KeyGenerationTime,
-) -> Result<PublicKey> {
+) -> Result<PublicKey, Error> {
     let time = Timestamp::from(time.get()).into();
 
     match pkm {
         PublicKeyMaterial::R(rsa) => {
-            let k4 = Key4::import_public_rsa(rsa.v(), rsa.n(), Some(time))?;
+            let k4 = Key4::import_public_rsa(rsa.v(), rsa.n(), Some(time)).map_err(|e| {
+                Error::InternalError(format!("sequoia Key4::import_public_rsa failed: {:?}", e))
+            })?;
 
             Ok(k4.into())
         }
@@ -202,7 +204,13 @@ pub fn public_key_material_to_key(
                     KeyType::Authentication | KeyType::Signing => {
                         if algo_ecc.curve() == Curve::Ed25519 {
                             // EdDSA
-                            let k4 = Key4::import_public_ed25519(ecc.data(), time)?;
+                            let k4 =
+                                Key4::import_public_ed25519(ecc.data(), time).map_err(|e| {
+                                    Error::InternalError(format!(
+                                        "sequoia Key4::import_public_ed25519 failed: {:?}",
+                                        e
+                                    ))
+                                })?;
 
                             Ok(Key::from(k4))
                         } else {
@@ -214,7 +222,13 @@ pub fn public_key_material_to_key(
                                     curve,
                                     q: mpi::MPI::new(ecc.data()),
                                 },
-                            )?;
+                            )
+                            .map_err(|e| {
+                                Error::InternalError(format!(
+                                    "sequoia Key4::new for ECDSA failed: {:?}",
+                                    e
+                                ))
+                            })?;
 
                             Ok(k4.into())
                         }
@@ -225,7 +239,13 @@ pub fn public_key_material_to_key(
                             // ok when a cert already exists
 
                             // EdDSA
-                            let k4 = Key4::import_public_cv25519(ecc.data(), None, None, time)?;
+                            let k4 = Key4::import_public_cv25519(ecc.data(), None, None, time)
+                                .map_err(|e| {
+                                    Error::InternalError(format!(
+                                        "sequoia Key4::import_public_cv25519 failed: {:?}",
+                                        e
+                                    ))
+                                })?;
 
                             Ok(k4.into())
                         } else {
@@ -242,7 +262,13 @@ pub fn public_key_material_to_key(
                                     hash: Default::default(),
                                     sym: Default::default(),
                                 },
-                            )?;
+                            )
+                            .map_err(|e| {
+                                Error::InternalError(format!(
+                                    "sequoia Key4::new for ECDH failed: {:?}",
+                                    e
+                                ))
+                            })?;
 
                             Ok(k4.into())
                         }

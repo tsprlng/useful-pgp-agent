@@ -3,12 +3,10 @@
 
 //! Generation date/time of key pair (see spec pg. 24)
 
-use anyhow::anyhow;
-use chrono::{DateTime, NaiveDateTime, Utc};
-use nom::{combinator, number::complete as number, sequence};
-
 use crate::card_do::{KeyGenerationTime, KeySet};
 use crate::Error;
+use chrono::{DateTime, NaiveDateTime, Utc};
+use nom::{combinator, number::complete as number, sequence};
 use std::convert::TryFrom;
 
 impl From<KeyGenerationTime> for DateTime<Utc> {
@@ -69,8 +67,7 @@ impl TryFrom<&[u8]> for KeySet<KeyGenerationTime> {
         // hasn't been completely consumed.
         self::key_generation_set(input)
             .map(|res| res.1)
-            .map_err(|err| anyhow!("Parsing failed: {:?}", err))
-            .map_err(Error::InternalError)
+            .map_err(|_err| Error::ParseError(format!("Parsing failed")))
     }
 }
 

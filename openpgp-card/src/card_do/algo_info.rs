@@ -87,9 +87,9 @@ pub(self) fn parse(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
 }
 
 impl TryFrom<&[u8]> for AlgoInfo {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
-    fn try_from(input: &[u8]) -> Result<Self> {
+    fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         Ok(AlgoInfo(complete(parse(input))?))
     }
 }

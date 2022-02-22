@@ -72,7 +72,7 @@ impl Tlv {
 }
 
 impl TryFrom<&[u8]> for Tlv {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
         complete(Tlv::parse(input))

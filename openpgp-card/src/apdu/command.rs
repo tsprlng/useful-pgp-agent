@@ -69,7 +69,11 @@ impl Command {
     /// Serialize a Command (for sending to a card).
     ///
     /// See OpenPGP card spec, chapter 7 (pg 47)
-    pub(crate) fn serialize(&self, ext_len: bool, expect_response: Expect) -> Result<Vec<u8>> {
+    pub(crate) fn serialize(
+        &self,
+        ext_len: bool,
+        expect_response: Expect,
+    ) -> Result<Vec<u8>, crate::Error> {
         // FIXME? (from scd/apdu.c):
         //  T=0 does not allow the use of Lc together with Le;
         //  thus disable Le in this case.

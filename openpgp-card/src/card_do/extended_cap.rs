@@ -3,7 +3,6 @@
 
 //! 4.4.3.7 Extended Capabilities
 
-use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 
 use crate::card_do::ExtendedCapabilities;
@@ -80,15 +79,17 @@ impl TryFrom<(&[u8], u16)> for ExtendedCapabilities {
             let i9 = input[9];
 
             if i8 > 1 {
-                return Err(
-                    anyhow!("Illegal value '{}' for pin_block_2_format_support", i8).into(),
-                );
+                return Err(Error::ParseError(
+                    format!("Illegal value '{}' for pin_block_2_format_support", i8).into(),
+                ));
             }
 
             pin_block_2_format_support = Some(i8 != 0);
 
             if i9 > 1 {
-                return Err(anyhow!("Illegal value '{}' for mse_command_support", i9).into());
+                return Err(Error::ParseError(
+                    format!("Illegal value '{}' for mse_command_support", i9).into(),
+                ));
             }
             mse_command_support = Some(i9 != 0);
         }

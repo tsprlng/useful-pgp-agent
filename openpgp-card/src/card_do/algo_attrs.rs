@@ -141,9 +141,9 @@ pub(crate) fn parse(input: &[u8]) -> nom::IResult<&[u8], Algo> {
 }
 
 impl TryFrom<&[u8]> for Algo {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
-    fn try_from(data: &[u8]) -> Result<Self> {
+    fn try_from(data: &[u8]) -> Result<Self, crate::Error> {
         complete(parse(data))
     }
 }

@@ -372,7 +372,7 @@ fn factory_reset(ident: &str) -> Result<()> {
     let mut pgp = OpenPgp::new(&mut card);
 
     let mut open = Open::new(pgp.transaction()?)?;
-    open.factory_reset()
+    open.factory_reset().map_err(|e| anyhow!(e))
 }
 
 fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {

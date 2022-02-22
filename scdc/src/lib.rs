@@ -5,7 +5,6 @@
 //! `openpgp-card` crate.
 //! It uses GnuPG's scdaemon (via GnuPG Agent) to access OpenPGP cards.
 
-use anyhow::{anyhow, Result};
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use sequoia_ipc::assuan::Response;
@@ -13,7 +12,7 @@ use sequoia_ipc::gnupg::{Agent, Context};
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
 
-use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error};
+use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, PinType, SmartcardError};
 
 lazy_static! {
     static ref RT: Mutex<Runtime> = Mutex::new(tokio::runtime::Runtime::new().unwrap());
@@ -82,7 +81,7 @@ impl ScdBackend {
 
     /// Helper fn that shuts down scdaemon via GnuPG Agent.
     /// This may be useful to obtain access to a Smard card via PCSC.
-    pub fn shutdown_scd(agent: Option<Agent>) -> Result<()> {
+    pub fn shutdown_scd(agent: Option<Agent>) -> Result<(), Error> {
         let mut scdc = Self::new(agent, false)?;
 
         scdc.send("SCD RESTART")?;
@@ -96,13 +95,23 @@ impl ScdBackend {
     ///
     /// If `agent` is None, a Context with the default GnuPG home directory
     /// is used.
-    fn new(agent: Option<Agent>, init: bool) -> Result<Self> {
+    fn new(agent: Option<Agent>, init: bool) -> Result<Self, Error> {
         let agent = if let Some(agent) = agent {
             agent
         } else {
             // Create and use a new Agent based on a default Context
-            let ctx = Context::new()?;
-            RT.lock().unwrap().block_on(Agent::connect(&ctx))?
+            let ctx = Context::new().map_err(|e| {
+                Error::Smartcard(SmartcardError::Error(format!("Context::new failed {}", e)))
+            })?;
+            RT.lock()
+                .unwrap()
+                .block_on(Agent::connect(&ctx))
+                .map_err(|e| {
+                    Error::Smartcard(SmartcardError::Error(format!(
+                        "Agent::connect failed {}",
+                        e
+                    )))
+                })?
         };
 
         let mut scdc = Self {
@@ -117,13 +126,22 @@ impl ScdBackend {
         Ok(scdc)
     }
 
+    fn send2(&mut self, cmd: &str) -> Result<(), Error> {
+        self.agent.send(cmd).map_err(|e| {
+            Error::Smartcard(SmartcardError::Error(format!(
+                "scdc agent send failed: {}",
+                e
+            )))
+        })
+    }
+
     /// Call "SCD SERIALNO", which causes scdaemon to be started by gpg
     /// agent (if it's not running yet).
-    fn serialno(&mut self) -> Result<()> {
+    fn serialno(&mut self) -> Result<(), Error> {
         let mut rt = RT.lock().unwrap();
 
         let send = "SCD SERIALNO";
-        self.agent.send(send)?;
+        self.send2(send)?;
 
         while let Some(response) = rt.block_on(self.agent.next()) {
             log::debug!("init res: {:x?}", response);
@@ -138,14 +156,16 @@ impl ScdBackend {
             }
         }
 
-        Err(anyhow!("SCDC init() failed"))
+        Err(Error::Smartcard(SmartcardError::Error(
+            "SCDC init() failed".into(),
+        )))
     }
 
     /// Ask scdameon to switch to using a specific OpenPGP card, based on
     /// its `serial`.
-    fn select_card(&mut self, serial: &str) -> Result<()> {
+    fn select_card(&mut self, serial: &str) -> Result<(), Error> {
         let send = format!("SCD SERIALNO --demand={}", serial);
-        self.agent.send(send)?;
+        self.send2(&send)?;
 
         let mut rt = RT.lock().unwrap();
 
@@ -153,7 +173,9 @@ impl ScdBackend {
             log::debug!("select res: {:x?}", response);
 
             if response.is_err() {
-                return Err(anyhow!("Card not found"));
+                return Err(Error::Smartcard(SmartcardError::CardNotFound(
+                    serial.into(),
+                )));
             }
 
             if let Ok(Response::Status { .. }) = response {
@@ -166,11 +188,13 @@ impl ScdBackend {
             }
         }
 
-        Err(anyhow!("Card not found"))
+        Err(Error::Smartcard(SmartcardError::CardNotFound(
+            serial.into(),
+        )))
     }
 
-    fn send(&mut self, cmd: &str) -> Result<()> {
-        self.agent.send(cmd)?;
+    fn send(&mut self, cmd: &str) -> Result<(), Error> {
+        self.send2(cmd)?;
 
         let mut rt = RT.lock().unwrap();
 
@@ -178,7 +202,7 @@ impl ScdBackend {
             log::debug!("select res: {:x?}", response);
 
             if let Err(e) = response {
-                return Err(anyhow!("Err {:?}", e));
+                return Err(Error::Smartcard(SmartcardError::Error(format!("{:?}", e))));
             }
 
             if let Ok(..) = response {
@@ -191,7 +215,10 @@ impl ScdBackend {
             }
         }
 
-        Err(anyhow!("Error sending command {}", cmd))
+        Err(Error::Smartcard(SmartcardError::Error(format!(
+            "Error sending command {}",
+            cmd
+        ))))
     }
 }
 
@@ -225,23 +252,23 @@ impl CardTransaction for ScdTransaction<'_> {
         log::debug!("SCDC command: '{}'", send);
 
         if send.len() > ASSUAN_LINELENGTH {
-            return Err(Error::InternalError(anyhow!(
+            return Err(Error::Smartcard(SmartcardError::Error(format!(
                 "APDU command is too long ({}) to send via Assuan",
                 send.len()
-            )));
+            ))));
         }
 
-        self.scd.agent.send(send)?;
+        self.scd.send2(&send)?;
 
         let mut rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.scd.agent.next()) {
             log::debug!("res: {:x?}", response);
             if response.is_err() {
-                return Err(Error::InternalError(anyhow!(
+                return Err(Error::Smartcard(SmartcardError::Error(format!(
                     "Unexpected error response from SCD {:?}",
                     response
-                )));
+                ))));
             }
 
             if let Ok(Response::Data { partial }) = response {
@@ -256,7 +283,9 @@ impl CardTransaction for ScdTransaction<'_> {
             }
         }
 
-        Err(Error::InternalError(anyhow!("no response found")))
+        Err(Error::Smartcard(SmartcardError::Error(
+            "no response found".into(),
+        )))
     }
 
     fn init_card_caps(&mut self, caps: CardCaps) {
@@ -284,12 +313,12 @@ impl CardTransaction for ScdTransaction<'_> {
     }
 
     /// FIXME: not implemented yet
-    fn pinpad_verify(&mut self, _id: u8) -> Result<Vec<u8>> {
+    fn pinpad_verify(&mut self, _id: PinType) -> Result<Vec<u8>, Error> {
         unimplemented!()
     }
 
     /// FIXME: not implemented yet
-    fn pinpad_modify(&mut self, _id: u8) -> Result<Vec<u8>> {
+    fn pinpad_modify(&mut self, _id: PinType) -> Result<Vec<u8>, Error> {
         unimplemented!()
     }
 }

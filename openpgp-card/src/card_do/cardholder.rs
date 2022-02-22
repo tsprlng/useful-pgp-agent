@@ -25,9 +25,9 @@ impl CardholderRelatedData {
 }
 
 impl TryFrom<&[u8]> for CardholderRelatedData {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
-    fn try_from(data: &[u8]) -> Result<Self> {
+    fn try_from(data: &[u8]) -> Result<Self, crate::Error> {
         let value = Value::from(data, true)?;
         let tlv = Tlv::new([0x65], value);
 

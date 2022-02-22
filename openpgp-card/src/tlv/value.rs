@@ -37,7 +37,7 @@ impl Value {
         }
     }
 
-    pub fn from(data: &[u8], constructed: bool) -> Result<Self> {
+    pub fn from(data: &[u8], constructed: bool) -> Result<Self, crate::Error> {
         complete(Self::parse(data, constructed))
     }
 
