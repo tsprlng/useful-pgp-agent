@@ -7,7 +7,6 @@
 
 use anyhow::{anyhow, Result};
 use iso7816_tlv::simple::Tlv;
-use pcsc::{Card, Context, Protocols, Scope, ShareMode, Transaction};
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -17,11 +16,11 @@ use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, SmartcardError
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
-fn default_mode(mode: Option<ShareMode>) -> ShareMode {
+fn default_mode(mode: Option<pcsc::ShareMode>) -> pcsc::ShareMode {
     if let Some(mode) = mode {
         mode
     } else {
-        ShareMode::Shared
+        pcsc::ShareMode::Shared
     }
 }
 
@@ -32,8 +31,8 @@ fn default_mode(mode: Option<ShareMode>) -> ShareMode {
 /// are performed on the Card. To perform operations on the card, a
 /// `TxClient` object needs to be obtained (via PcscCard::transaction()).
 pub struct PcscBackend {
-    card: Card,
-    mode: ShareMode,
+    card: pcsc::Card,
+    mode: pcsc::ShareMode,
     card_caps: Option<CardCaps>,
     reader_caps: HashMap<u8, Tlv>,
 }
@@ -50,7 +49,7 @@ pub struct PcscBackend {
 /// 5s without a command:
 /// <https://docs.microsoft.com/en-us/windows/win32/api/winscard/nf-winscard-scardbegintransaction?redirectedfrom=MSDN#remarks>)
 pub struct PcscTransaction<'b> {
-    tx: Transaction<'b>,
+    tx: pcsc::Transaction<'b>,
     card_caps: Option<CardCaps>,   // FIXME: manual copy from PcscCard
     reader_caps: HashMap<u8, Tlv>, // FIXME: manual copy from PcscCard
 }
@@ -118,7 +117,7 @@ impl<'b> PcscTransaction<'b> {
                     log::debug!("start_tx: do reconnect");
 
                     {
-                        c.reconnect(mode, Protocols::ANY, Disposition::ResetCard)
+                        c.reconnect(mode, pcsc::Protocols::ANY, Disposition::ResetCard)
                             .map_err(|e| {
                                 Error::Smartcard(SmartcardError::Error(format!(
                                     "Reconnect failed: {:?}",
@@ -426,20 +425,20 @@ impl CardTransaction for PcscTransaction<'_> {
 }
 
 impl PcscBackend {
-    fn card(&mut self) -> &mut Card {
+    fn card(&mut self) -> &mut pcsc::Card {
         &mut self.card
     }
 
-    fn mode(&self) -> ShareMode {
+    fn mode(&self) -> pcsc::ShareMode {
         self.mode
     }
 
     /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
     /// application)
-    fn raw_pcsc_cards(mode: ShareMode) -> Result<Vec<Card>, SmartcardError> {
+    fn raw_pcsc_cards(mode: pcsc::ShareMode) -> Result<Vec<pcsc::Card>, SmartcardError> {
         log::debug!("raw_pcsc_cards start");
 
-        let ctx = match Context::establish(Scope::User) {
+        let ctx = match pcsc::Context::establish(pcsc::Scope::User) {
             Ok(ctx) => ctx,
             Err(err) => {
                 log::debug!("Context::establish failed: {:?}", err);
@@ -473,7 +472,7 @@ impl PcscBackend {
             log::debug!("Checking reader: {:?}", reader);
 
             // Try connecting to card in this reader
-            let card = match ctx.connect(reader, mode, Protocols::ANY) {
+            let card = match ctx.connect(reader, mode, pcsc::Protocols::ANY) {
                 Ok(card) => card,
                 Err(pcsc::Error::NoSmartcard) => {
                     log::debug!("No Smartcard");
@@ -503,7 +502,7 @@ impl PcscBackend {
     /// application identity with `ident` (if `ident` is None, all Cards are
     /// returned). Returns fully initialized PcscCard structs for all matching
     /// cards.
-    fn cards_filter(ident: Option<&str>, mode: ShareMode) -> Result<Vec<Self>, Error> {
+    fn cards_filter(ident: Option<&str>, mode: pcsc::ShareMode) -> Result<Vec<Self>, Error> {
         let mut cards: Vec<Self> = vec![];
 
         for mut card in Self::raw_pcsc_cards(mode).map_err(|sce| Error::Smartcard(sce))? {
@@ -568,14 +567,14 @@ impl PcscBackend {
     ///
     /// Each card has the OpenPGP application selected, card_caps and reader_caps have been
     /// initialized.
-    pub fn cards(mode: Option<ShareMode>) -> Result<Vec<Self>, Error> {
+    pub fn cards(mode: Option<pcsc::ShareMode>) -> Result<Vec<Self>, Error> {
         Self::cards_filter(None, default_mode(mode))
     }
 
     /// Returns the OpenPGP card that matches `ident`, if it is available.
     /// A fully initialized PcscCard is returned: the OpenPGP application has
     /// been selected, card_caps and reader_caps have been initialized.
-    pub fn open_by_ident(ident: &str, mode: Option<ShareMode>) -> Result<Self, Error> {
+    pub fn open_by_ident(ident: &str, mode: Option<pcsc::ShareMode>) -> Result<Self, Error> {
         log::debug!("open_by_ident for {:?}", ident);
 
         let mut cards = Self::cards_filter(Some(ident), default_mode(mode))?;
@@ -591,7 +590,7 @@ impl PcscBackend {
         }
     }
 
-    fn new(card: Card, mode: ShareMode) -> Self {
+    fn new(card: pcsc::Card, mode: pcsc::ShareMode) -> Self {
         Self {
             card,
             mode,
