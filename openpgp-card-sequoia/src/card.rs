@@ -65,7 +65,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1(pin.as_bytes())?;
+        let _ = self.opt.verify_pw1_user(pin.as_bytes())?;
         self.pw1 = true;
         Ok(())
     }
@@ -73,13 +73,13 @@ impl<'a> Open<'a> {
     pub fn verify_user_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
-        let _ = self.opt.verify_pw1_pinpad()?;
+        let _ = self.opt.verify_pw1_user_pinpad()?;
         self.pw1 = true;
         Ok(())
     }
 
     pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1_for_signing(pin.as_bytes())?;
+        let _ = self.opt.verify_pw1_sign(pin.as_bytes())?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -90,7 +90,7 @@ impl<'a> Open<'a> {
     pub fn verify_user_for_signing_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
         prompt();
 
-        let _ = self.opt.verify_pw1_for_signing_pinpad()?;
+        let _ = self.opt.verify_pw1_sign_pinpad()?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -116,7 +116,7 @@ impl<'a> Open<'a> {
     ///
     /// NOTE: on some cards this functionality seems broken.
     pub fn check_user_verified(&mut self) -> Result<(), Error> {
-        self.opt.check_pw1()
+        self.opt.check_pw1_user()
     }
 
     /// Ask the card if the admin password has been successfully verified.

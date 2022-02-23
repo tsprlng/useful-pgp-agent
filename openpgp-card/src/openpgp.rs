@@ -313,7 +313,7 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    pub fn verify_pw1_for_signing(&mut self, pin: &[u8]) -> Result<(), Error> {
+    pub fn verify_pw1_sign(&mut self, pin: &[u8]) -> Result<(), Error> {
         let verify = commands::verify_pw1_81(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
@@ -325,7 +325,7 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    pub fn verify_pw1_for_signing_pinpad(&mut self) -> Result<(), Error> {
+    pub fn verify_pw1_sign_pinpad(&mut self) -> Result<(), Error> {
         let res = self.tx().pinpad_verify(PinType::Sign)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -338,14 +338,14 @@ impl<'a> OpenPgpTransaction<'a> {
     /// - some cards don't correctly implement this feature, e.g. YubiKey 5
     /// - some cards that don't support this instruction may decrease the pin's error count,
     ///   eventually requiring the user to reset the pin)
-    pub fn check_pw1_for_signing(&mut self) -> Result<(), Error> {
+    pub fn check_pw1_sign(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
 
     /// Verify PW1 (user).
     /// (For operations except signing, mode 82).
-    pub fn verify_pw1(&mut self, pin: &[u8]) -> Result<(), Error> {
+    pub fn verify_pw1_user(&mut self, pin: &[u8]) -> Result<(), Error> {
         let verify = commands::verify_pw1_82(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
@@ -354,7 +354,7 @@ impl<'a> OpenPgpTransaction<'a> {
     /// using a pinpad on the card reader. If no usable pinpad is found,
     /// an error is returned.
 
-    pub fn verify_pw1_pinpad(&mut self) -> Result<(), Error> {
+    pub fn verify_pw1_user_pinpad(&mut self) -> Result<(), Error> {
         let res = self.tx().pinpad_verify(PinType::User)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -368,7 +368,7 @@ impl<'a> OpenPgpTransaction<'a> {
     /// - some cards don't correctly implement this feature, e.g. YubiKey 5
     /// - some cards that don't support this instruction may decrease the pin's error count,
     ///   eventually requiring the user to reset the pin)
-    pub fn check_pw1(&mut self) -> Result<(), Error> {
+    pub fn check_pw1_user(&mut self) -> Result<(), Error> {
         let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
