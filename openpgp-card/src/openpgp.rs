@@ -308,8 +308,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    pub fn verify_pw1_for_signing(&mut self, pin: &str) -> Result<(), Error> {
-        let verify = commands::verify_pw1_81(pin.as_bytes().to_vec());
+    pub fn verify_pw1_for_signing(&mut self, pin: &[u8]) -> Result<(), Error> {
+        let verify = commands::verify_pw1_81(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
 
@@ -340,8 +340,8 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Verify PW1 (user).
     /// (For operations except signing, mode 82).
-    pub fn verify_pw1(&mut self, pin: &str) -> Result<(), Error> {
-        let verify = commands::verify_pw1_82(pin.as_bytes().to_vec());
+    pub fn verify_pw1(&mut self, pin: &[u8]) -> Result<(), Error> {
+        let verify = commands::verify_pw1_82(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
 
@@ -369,8 +369,8 @@ impl<'a> OpenPgpTransaction<'a> {
     }
 
     /// Verify PW3 (admin).
-    pub fn verify_pw3(&mut self, pin: &str) -> Result<(), Error> {
-        let verify = commands::verify_pw3(pin.as_bytes().to_vec());
+    pub fn verify_pw3(&mut self, pin: &[u8]) -> Result<(), Error> {
+        let verify = commands::verify_pw3(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
 
@@ -397,10 +397,10 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Change the value of PW1 (user password).
     ///
     /// The current value of PW1 must be presented in `old` for authorization.
-    pub fn change_pw1(&mut self, old: &str, new: &str) -> Result<(), Error> {
+    pub fn change_pw1(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
         let mut data = vec![];
-        data.extend(old.as_bytes());
-        data.extend(new.as_bytes());
+        data.extend(old);
+        data.extend(new);
 
         let change = commands::change_pw1(data);
         apdu::send_command(self.tx(), change, false)?.try_into()
@@ -416,10 +416,10 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Change the value of PW3 (admin password).
     ///
     /// The current value of PW3 must be presented in `old` for authorization.
-    pub fn change_pw3(&mut self, old: &str, new: &str) -> Result<(), Error> {
+    pub fn change_pw3(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
         let mut data = vec![];
-        data.extend(old.as_bytes());
-        data.extend(new.as_bytes());
+        data.extend(old);
+        data.extend(new);
 
         let change = commands::change_pw3(data);
         apdu::send_command(self.tx(), change, false)?.try_into()
@@ -441,8 +441,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// - the resetting_code must be presented.
     pub fn reset_retry_counter_pw1(
         &mut self,
-        new_pw1: Vec<u8>,
-        resetting_code: Option<Vec<u8>>,
+        new_pw1: &[u8],
+        resetting_code: Option<&[u8]>,
     ) -> Result<(), Error> {
         let reset = commands::reset_retry_counter_pw1(resetting_code, new_pw1);
         apdu::send_command(self.tx(), reset, false)?.try_into()
@@ -656,8 +656,8 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Set resetting code
     /// (4.3.4 Resetting Code)
-    pub fn set_resetting_code(&mut self, resetting_code: Vec<u8>) -> Result<(), Error> {
-        let cmd = commands::put_data(&[0xd3], resetting_code);
+    pub fn set_resetting_code(&mut self, resetting_code: &[u8]) -> Result<(), Error> {
+        let cmd = commands::put_data(&[0xd3], resetting_code.to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 

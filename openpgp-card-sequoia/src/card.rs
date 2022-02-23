@@ -67,7 +67,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1(pin)?;
+        let _ = self.opt.verify_pw1(pin.as_bytes())?;
         self.pw1 = true;
         Ok(())
     }
@@ -81,7 +81,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1_for_signing(pin)?;
+        let _ = self.opt.verify_pw1_for_signing(pin.as_bytes())?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -101,7 +101,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw3(pin)?;
+        let _ = self.opt.verify_pw3(pin.as_bytes())?;
         self.pw3 = true;
         Ok(())
     }
@@ -129,7 +129,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.opt.change_pw1(old, new)
+        self.opt.change_pw1(old.as_bytes(), new.as_bytes())
     }
 
     pub fn change_user_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
@@ -139,11 +139,11 @@ impl<'a> Open<'a> {
 
     pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<(), Error> {
         self.opt
-            .reset_retry_counter_pw1(new.into(), Some(rst.into()))
+            .reset_retry_counter_pw1(new.as_bytes(), Some(rst.as_bytes()))
     }
 
     pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.opt.change_pw3(old, new)
+        self.opt.change_pw3(old.as_bytes(), new.as_bytes())
     }
 
     pub fn change_admin_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
@@ -398,11 +398,11 @@ impl Admin<'_, '_> {
     }
 
     pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
-        self.oc.opt.set_resetting_code(pin.into())
+        self.oc.opt.set_resetting_code(pin.as_bytes())
     }
 
     pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
-        self.oc.opt.reset_retry_counter_pw1(new.into(), None)
+        self.oc.opt.reset_retry_counter_pw1(new.as_bytes(), None)
     }
 
     /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.

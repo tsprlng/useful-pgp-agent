@@ -62,7 +62,7 @@ pub fn test_decrypt(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOu
     let cert = Cert::from_str(param[0])?;
     let msg = param[1].to_string();
 
-    pgpt.verify_pw1("123456")?;
+    pgpt.verify_pw1(b"123456")?;
 
     let p = StandardPolicy::new();
 
@@ -81,7 +81,7 @@ pub fn test_sign(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOutpu
 
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
 
-    pgpt.verify_pw1_for_signing("123456")?;
+    pgpt.verify_pw1_for_signing(b"123456")?;
 
     let cert = Cert::from_str(param[0])?;
 
@@ -197,7 +197,7 @@ pub fn test_upload_keys(
         "test_upload_keys needs a filename for 'cert'"
     );
 
-    pgpt.verify_pw3("12345678")?;
+    pgpt.verify_pw3(b"12345678")?;
 
     let cert = Cert::from_file(param[0])?;
 
@@ -219,7 +219,7 @@ pub fn test_keygen(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOut
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
-    pgpt.verify_pw3("12345678")?;
+    pgpt.verify_pw3(b"12345678")?;
 
     // Generate all three subkeys on card
     let algo = param[0];
@@ -316,7 +316,7 @@ pub fn test_set_user_data(
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
-    pgpt.verify_pw3("12345678")?;
+    pgpt.verify_pw3(b"12345678")?;
 
     // name
     pgpt.set_name(b"Bar<<Foo")?;
@@ -360,12 +360,12 @@ pub fn test_private_data(
     let d = pgpt.private_use_do(1)?;
     println!("data 1 {:?}", d);
 
-    pgpt.verify_pw1("123456")?;
+    pgpt.verify_pw1(b"123456")?;
 
     pgpt.set_private_use_do(1, "Foo bar1!".as_bytes().to_vec())?;
     pgpt.set_private_use_do(3, "Foo bar3!".as_bytes().to_vec())?;
 
-    pgpt.verify_pw3("12345678")?;
+    pgpt.verify_pw3(b"12345678")?;
 
     pgpt.set_private_use_do(2, "Foo bar2!".as_bytes().to_vec())?;
     pgpt.set_private_use_do(4, "Foo bar4!".as_bytes().to_vec())?;
@@ -456,7 +456,7 @@ pub fn test_pw_status(
 
     println!("pws {:?}", pws);
 
-    pgpt.verify_pw3("12345678")?;
+    pgpt.verify_pw3(b"12345678")?;
 
     pws.set_pw1_cds_valid_once(false);
     pws.set_pw1_pin_block(true);
@@ -500,7 +500,7 @@ pub fn test_verify(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestOu
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
 
-    pgpt.verify_pw3("12345678")?;
+    pgpt.verify_pw3(b"12345678")?;
 
     match pgpt.check_pw3() {
         Err(Error::CardStatus(s)) => {
@@ -518,7 +518,7 @@ pub fn test_verify(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestOu
     let cardholder = pgpt.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("Admin<<Hello".as_bytes()));
 
-    pgpt.verify_pw1("123456")?;
+    pgpt.verify_pw1(b"123456")?;
 
     match pgpt.check_pw3() {
         Err(Error::CardStatus(s)) => {
@@ -551,20 +551,20 @@ pub fn test_change_pw(
     // first do admin-less pw1 on gnuk
     // (NOTE: Gnuk requires a key to be loaded before allowing pw changes!)
     println!("change pw1");
-    pgpt.change_pw1("123456", "abcdef00")?;
+    pgpt.change_pw1(b"123456", b"abcdef00")?;
 
     // also set admin pw, which means pw1 is now only user-pw again, on gnuk
     println!("change pw3");
     // ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
-    pgpt.change_pw3("12345678", "abcdefgh")?;
+    pgpt.change_pw3(b"12345678", b"abcdefgh")?;
 
     println!("change pw1");
-    pgpt.change_pw1("abcdef00", "abcdef")?; // gnuk
+    pgpt.change_pw1(b"abcdef00", b"abcdef")?; // gnuk
 
     // ca.change_pw1("123456", "abcdef")?;
 
     println!("verify bad pw1");
-    match pgpt.verify_pw1("123456ab") {
+    match pgpt.verify_pw1(b"123456ab") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -575,10 +575,10 @@ pub fn test_change_pw(
     }
 
     println!("verify good pw1");
-    pgpt.verify_pw1("abcdef")?;
+    pgpt.verify_pw1(b"abcdef")?;
 
     println!("verify bad pw3");
-    match pgpt.verify_pw3("00000000") {
+    match pgpt.verify_pw3(b"00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -589,13 +589,13 @@ pub fn test_change_pw(
     }
 
     println!("verify good pw3");
-    pgpt.verify_pw3("abcdefgh")?;
+    pgpt.verify_pw3(b"abcdefgh")?;
 
     println!("change pw3 back to default");
-    pgpt.change_pw3("abcdefgh", "12345678")?;
+    pgpt.change_pw3(b"abcdefgh", b"12345678")?;
 
     println!("change pw1 back to default");
-    pgpt.change_pw1("abcdef", "123456")?;
+    pgpt.change_pw1(b"abcdef", b"123456")?;
 
     Ok(out)
 }
@@ -611,15 +611,15 @@ pub fn test_reset_retry_counter(
 
     // set pw3, then pw1 (to bring gnuk into non-admin mode)
     println!("set pw3");
-    pgpt.change_pw3("12345678", "12345678")?;
+    pgpt.change_pw3(b"12345678", b"12345678")?;
     println!("set pw1");
-    pgpt.change_pw1("123456", "123456")?;
+    pgpt.change_pw1(b"123456", b"123456")?;
 
     println!("break pw1");
-    let _ = pgpt.verify_pw1("wrong0");
-    let _ = pgpt.verify_pw1("wrong0");
-    let _ = pgpt.verify_pw1("wrong0");
-    let res = pgpt.verify_pw1("wrong0");
+    let _ = pgpt.verify_pw1(b"wrong0");
+    let _ = pgpt.verify_pw1(b"wrong0");
+    let _ = pgpt.verify_pw1(b"wrong0");
+    let res = pgpt.verify_pw1(b"wrong0");
 
     match res {
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
@@ -638,23 +638,20 @@ pub fn test_reset_retry_counter(
     }
 
     println!("verify pw3");
-    pgpt.verify_pw3("12345678")?;
+    pgpt.verify_pw3(b"12345678")?;
 
     println!("set resetting code");
-    pgpt.set_resetting_code("abcdefgh".as_bytes().to_vec())?;
+    pgpt.set_resetting_code(b"abcdefgh")?;
 
     println!("reset retry counter");
     // ca.reset_retry_counter_pw1("abcdef".as_bytes().to_vec(), None)?;
-    let _res = pgpt.reset_retry_counter_pw1(
-        "abcdef".as_bytes().to_vec(),
-        Some("abcdefgh".as_bytes().to_vec()),
-    );
+    let _res = pgpt.reset_retry_counter_pw1(b"abcdef", Some(b"abcdefgh"));
 
     println!("verify good pw1");
-    pgpt.verify_pw1("abcdef")?;
+    pgpt.verify_pw1(b"abcdef")?;
 
     println!("verify bad pw1");
-    match pgpt.verify_pw1("00000000") {
+    match pgpt.verify_pw1(b"00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
