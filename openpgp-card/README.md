@@ -16,18 +16,14 @@ specification.
 
 **Card access backends**
 
-This crate doesn't contain code to talk to cards, The trait `CardClient` 
-needs to be implemented for access to cards.
+This crate doesn't contain code to talk to cards. Implementations of the traits
+`CardBackend`/`CardTransaction` need to be provided for access to cards.
 
-The crates
-[openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
-and the experimental crate
-[openpgp-card-scdc](https://crates.io/crates/openpgp-card-scdc)
-provide implementations of `CardClient` for use with this crate.
+The crates [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
+and the experimental crate [openpgp-card-scdc](https://crates.io/crates/openpgp-card-scdc)
+provide implementations of these traits for use with this crate.
 
 **Sequoia PGP wrapper**
 
-See the companion crate
-[openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
-for a high level wrapper to use this library with
-[Sequoia PGP](https://sequoia-pgp.org/).
+See the companion crate [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
+for a high level wrapper to use this library with [Sequoia PGP](https://sequoia-pgp.org/).

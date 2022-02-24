@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Access library for
+//! Client library for
 //! [OpenPGP card](https://en.wikipedia.org/wiki/OpenPGP_card)
 //! devices (such as Gnuk, Yubikey, or Java smartcards running an OpenPGP
 //! card application).

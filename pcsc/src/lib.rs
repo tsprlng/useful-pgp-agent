@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! This crate implements a `CardBackend`/`CardTransaction` backend for
+//! This crate implements the `CardBackend`/`CardTransaction` backend for
 //! `openpgp-card`. It uses the PCSC middleware to access the OpenPGP
 //! application on smart cards.
 

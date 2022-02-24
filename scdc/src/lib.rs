@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! This crate implements the experimental `ScdClient` backend for the
+//! This crate implements the experimental `ScdBackend`/`ScdTransaction` backend for the
 //! `openpgp-card` crate.
 //! It uses GnuPG's scdaemon (via GnuPG Agent) to access OpenPGP cards.
 
