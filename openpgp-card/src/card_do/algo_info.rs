@@ -5,7 +5,6 @@
 
 use std::convert::TryFrom;
 
-use anyhow::Result;
 use nom::branch::alt;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};

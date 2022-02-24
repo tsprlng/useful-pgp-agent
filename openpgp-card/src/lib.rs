@@ -37,7 +37,6 @@ mod tlv;
 pub use crate::errors::{Error, SmartcardError, StatusBytes};
 pub use crate::openpgp::{OpenPgp, OpenPgpTransaction};
 
-use anyhow::Result;
 use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 

@@ -5,8 +5,6 @@
 //! Private key data, public key data, cryptograms for decryption, hash
 //! data for signing.
 
-use anyhow::Result;
-
 use crate::algorithm::Algo;
 use crate::card_do::{Fingerprint, KeyGenerationTime};
 use crate::Error;

@@ -5,8 +5,6 @@
 
 use std::convert::TryFrom;
 
-use anyhow::Result;
-
 use crate::card_do::{CardholderRelatedData, Lang, Sex};
 use crate::tlv::{value::Value, Tlv};
 

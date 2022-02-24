@@ -4,8 +4,6 @@
 //! Data structure for APDU Commands
 //! (Commands get sent to the card, which will usually send back a `Response`)
 
-use anyhow::Result;
-
 #[derive(Clone, Copy)]
 pub enum Expect {
     Empty,

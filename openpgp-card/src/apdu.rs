@@ -8,7 +8,6 @@ pub(crate) mod command;
 pub(crate) mod commands;
 pub mod response;
 
-use anyhow::Result;
 use std::convert::TryFrom;
 
 use crate::apdu::command::Expect;

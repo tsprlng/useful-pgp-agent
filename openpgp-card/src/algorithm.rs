@@ -13,7 +13,6 @@ use crate::card_do::ApplicationRelatedData;
 use crate::crypto_data::EccType;
 use crate::{keys, Error, KeyType};
 
-use anyhow::{anyhow, Result};
 use std::convert::TryFrom;
 use std::fmt;
 
@@ -32,9 +31,9 @@ pub enum AlgoSimple {
 }
 
 impl TryFrom<&str> for AlgoSimple {
-    type Error = anyhow::Error;
+    type Error = crate::Error;
 
-    fn try_from(algo: &str) -> Result<Self, anyhow::Error> {
+    fn try_from(algo: &str) -> Result<Self, Self::Error> {
         use AlgoSimple::*;
 
         Ok(match algo {
@@ -46,7 +45,7 @@ impl TryFrom<&str> for AlgoSimple {
             "NIST384" => NIST384,
             "NIST521" => NIST521,
             "Curve25519" => Curve25519,
-            _ => return Err(anyhow!("unexpected algo {}", algo)),
+            _ => return Err(Error::UnsupportedAlgo(format!("unexpected algo {}", algo))),
         })
     }
 }

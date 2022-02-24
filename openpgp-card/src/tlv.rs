@@ -5,7 +5,6 @@ pub(crate) mod length;
 pub(crate) mod tag;
 pub(crate) mod value;
 
-use anyhow::Result;
 use nom::{bytes::complete as bytes, combinator};
 use std::convert::TryFrom;
 
@@ -81,11 +80,11 @@ impl TryFrom<&[u8]> for Tlv {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
     use hex_literal::hex;
     use std::convert::TryFrom;
 
     use super::{Tlv, Value};
+    use crate::Error;
 
     #[test]
     fn test_tlv0() {
@@ -102,7 +101,7 @@ mod test {
         );
     }
     #[test]
-    fn test_tlv() -> Result<()> {
+    fn test_tlv() -> Result<(), Error> {
         // From OpenPGP card spec § 7.2.6
         let data = hex!("5B0B546573743C3C54657374695F2D0264655F350131").to_vec();
 
@@ -127,7 +126,7 @@ mod test {
     }
 
     #[test]
-    fn test_tlv_yubi5() -> Result<()> {
+    fn test_tlv_yubi5() -> Result<(), Error> {
         // 'Yubikey 5 NFC' output for GET DATA on "Application Related Data"
         let data = hex!("6e8201374f10d27600012401030400061601918000005f520800730000e00590007f740381012073820110c00a7d000bfe080000ff0000c106010800001100c206010800001100c306010800001100da06010800001100c407ff7f7f7f030003c5500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c6500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cd1000000000000000000000000000000000de0801000200030081027f660802020bfe02020bfed6020020d7020020d8020020d9020020");
         let tlv = Tlv::try_from(&data[..])?;

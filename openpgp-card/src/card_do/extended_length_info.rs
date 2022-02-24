@@ -4,7 +4,6 @@
 //! 4.1.3.1 Extended length information
 //! (Introduced in V3.0)
 
-use anyhow::Result;
 use nom::{bytes::complete::tag, number::complete as number, sequence};
 
 use crate::card_do::{complete, ExtendedLengthInfo};

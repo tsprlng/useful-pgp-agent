@@ -3,7 +3,6 @@
 
 //! 4.2.1 Application Identifier (AID)
 
-use anyhow::Result;
 use nom::{bytes::complete as bytes, number::complete as number};
 use std::convert::TryFrom;
 

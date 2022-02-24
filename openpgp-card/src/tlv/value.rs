@@ -3,8 +3,6 @@
 
 //! Value in a TLV data structure
 
-use anyhow::Result;
-
 use crate::card_do::complete;
 use crate::tlv::Tlv;
 

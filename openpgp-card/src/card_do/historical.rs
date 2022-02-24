@@ -198,7 +198,6 @@ impl TryFrom<&[u8]> for HistoricalBytes {
 #[cfg(test)]
 mod test {
     use super::*;
-    use anyhow::Result;
     use std::convert::TryInto;
 
     #[test]
@@ -210,7 +209,7 @@ mod test {
     }
 
     #[test]
-    fn test_gnuk() -> Result<()> {
+    fn test_gnuk() -> Result<(), Error> {
         // gnuk 1.2 stable
         let data: &[u8] = &[0x0, 0x31, 0x84, 0x73, 0x80, 0x1, 0x80, 0x5, 0x90, 0x0];
         let hist: HistoricalBytes = data.try_into()?;
@@ -240,7 +239,7 @@ mod test {
     }
 
     #[test]
-    fn test_floss34() -> Result<()> {
+    fn test_floss34() -> Result<(), Error> {
         // floss shop openpgp smartcard 3.4
         let data: &[u8] = &[0x0, 0x31, 0xf5, 0x73, 0xc0, 0x1, 0x60, 0x5, 0x90, 0x0];
         let hist: HistoricalBytes = data.try_into()?;
@@ -270,7 +269,7 @@ mod test {
     }
 
     #[test]
-    fn test_yk5() -> Result<()> {
+    fn test_yk5() -> Result<(), Error> {
         // yubikey 5
         let data: &[u8] = &[0x0, 0x73, 0x0, 0x0, 0xe0, 0x5, 0x90, 0x0];
         let hist: HistoricalBytes = data.try_into()?;
@@ -293,7 +292,7 @@ mod test {
     }
 
     #[test]
-    fn test_yk4() -> Result<()> {
+    fn test_yk4() -> Result<(), Error> {
         // yubikey 4
         let data: &[u8] = &[0x0, 0x73, 0x0, 0x0, 0x80, 0x5, 0x90, 0x0];
         let hist: HistoricalBytes = data.try_into()?;
@@ -316,7 +315,7 @@ mod test {
     }
 
     #[test]
-    fn test_yk_neo() -> Result<()> {
+    fn test_yk_neo() -> Result<(), Error> {
         // yubikey neo
         let data: &[u8] = &[
             0x0, 0x73, 0x0, 0x0, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -341,7 +340,7 @@ mod test {
     }
 
     #[test]
-    fn test_ledger_nano_s() -> Result<()> {
+    fn test_ledger_nano_s() -> Result<(), Error> {
         let data: &[u8] = &[
             0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x7, 0x90, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
         ];
