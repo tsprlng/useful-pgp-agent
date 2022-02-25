@@ -4,8 +4,8 @@
 //! OpenPGP card data objects (DO)
 
 use chrono::{DateTime, Utc};
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
+use std::fmt::{Display, Formatter};
 use std::time::{Duration, UNIX_EPOCH};
 
 use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType};
@@ -302,6 +302,19 @@ pub enum Sex {
 pub enum Lang {
     Value([u8; 2]),
     Invalid(u8),
+}
+
+impl Display for Lang {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Value(v) => {
+                write!(f, "{}{}", v[0] as char, v[1] as char)
+            }
+            Self::Invalid(v) => {
+                write!(f, "{:x?}", v)
+            }
+        }
+    }
 }
 
 impl From<(char, char)> for Lang {
