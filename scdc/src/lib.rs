@@ -4,6 +4,8 @@
 //! This crate implements the experimental `ScdBackend`/`ScdTransaction` backend for the
 //! `openpgp-card` crate.
 //! It uses GnuPG's scdaemon (via GnuPG Agent) to access OpenPGP cards.
+//!
+//! Note that (unlike `openpgp-card-pcsc`), this backend doesn't implement transaction guarantees.
 
 use futures::StreamExt;
 use lazy_static::lazy_static;

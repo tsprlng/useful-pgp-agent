@@ -10,6 +10,8 @@ This crate provides `ScdBackend`/`ScdTransaction`, which is an implementation of
 [scdaemon](https://www.gnupg.org/documentation/manuals/gnupg/Invoking-SCDAEMON.html)
 to access OpenPGP cards.
 
+Note that (unlike `openpgp-card-pcsc`), this backend doesn't implement transaction guarantees.
+
 **Known limitations**
 
 - Uploading RSA 4096 keys via `scdaemon` doesn't work with cards that don't 
