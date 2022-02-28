@@ -41,7 +41,7 @@ pub struct TestCardData {
 }
 
 impl TestCardData {
-    pub(crate) fn get_card(&self) -> Result<Box<dyn CardBackend>> {
+    pub(crate) fn get_card(&self) -> Result<Box<dyn CardBackend + Send + Sync>> {
         self.tc.open()
     }
 
@@ -92,7 +92,7 @@ pub enum TestCard {
 }
 
 impl TestCard {
-    pub fn open(&self) -> Result<Box<dyn CardBackend>> {
+    pub fn open(&self) -> Result<Box<dyn CardBackend + Send + Sync>> {
         match self {
             Self::Pcsc(ident) => {
                 // Attempt to shutdown SCD, if it is running.
@@ -103,7 +103,7 @@ impl TestCard {
                 // Make three attempts to open the card before failing
                 // (this can be useful in ShareMode::Exclusive)
                 let mut i = 1;
-                let card: Result<Box<dyn CardBackend>, Error> = loop {
+                let card: Result<Box<dyn CardBackend + Send + Sync>, Error> = loop {
                     let res = PcscBackend::open_by_ident(ident, SHARE_MODE);
 
                     if i == 3 {

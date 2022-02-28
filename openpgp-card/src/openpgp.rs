@@ -23,11 +23,11 @@ use crate::{
 /// Users of this crate can keep a long lived OpenPgp object. All operations must be performed on
 /// a short lived `OpenPgpTransaction`.
 pub struct OpenPgp<'a> {
-    card: &'a mut dyn CardBackend,
+    card: &'a mut (dyn CardBackend + Send + Sync),
 }
 
 impl<'a> OpenPgp<'a> {
-    pub fn new(card: &'a mut dyn CardBackend) -> Self {
+    pub fn new(card: &'a mut (dyn CardBackend + Send + Sync)) -> Self {
         Self { card }
     }
 

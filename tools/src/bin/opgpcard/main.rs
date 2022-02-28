@@ -154,7 +154,7 @@ fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
-    let mut card: Box<dyn CardBackend> = if let Some(ident) = ident {
+    let mut card: Box<dyn CardBackend + Send + Sync> = if let Some(ident) = ident {
         Box::new(util::open_card(&ident)?)
     } else {
         let mut cards = util::cards()?;

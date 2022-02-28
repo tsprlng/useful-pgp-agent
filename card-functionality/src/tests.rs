@@ -49,7 +49,10 @@ pub enum TestError {
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-pub fn test_decrypt(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_decrypt(
+    card: &mut (dyn CardBackend + Send + Sync),
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
@@ -75,7 +78,10 @@ pub fn test_decrypt(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOu
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-pub fn test_sign(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_sign(
+    card: &mut (dyn CardBackend + Send + Sync),
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
@@ -139,7 +145,7 @@ fn check_key_upload_algo_attrs() -> Result<()> {
 }
 
 pub fn test_print_caps(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -163,7 +169,7 @@ pub fn test_print_caps(
 }
 
 pub fn test_print_algo_info(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -185,7 +191,7 @@ pub fn test_print_algo_info(
 }
 
 pub fn test_upload_keys(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -215,7 +221,10 @@ pub fn test_upload_keys(
 }
 
 /// Generate keys for each of the three KeyTypes
-pub fn test_keygen(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_keygen(
+    card: &mut (dyn CardBackend + Send + Sync),
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
@@ -257,7 +266,10 @@ pub fn test_keygen(card: &mut dyn CardBackend, param: &[&str]) -> Result<TestOut
 }
 
 /// Construct public key based on data from the card
-pub fn test_get_pub(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_get_pub(
+    card: &mut (dyn CardBackend + Send + Sync),
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
@@ -296,7 +308,10 @@ pub fn test_get_pub(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestO
     Ok(vec![])
 }
 
-pub fn test_reset(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_reset(
+    card: &mut (dyn CardBackend + Send + Sync),
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
@@ -310,7 +325,7 @@ pub fn test_reset(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestOut
 /// Returns an empty TestOutput, throws errors for unexpected Status codes
 /// and for unequal field values.
 pub fn test_set_user_data(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -347,7 +362,7 @@ pub fn test_set_user_data(
 }
 
 pub fn test_private_data(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -443,7 +458,7 @@ pub fn test_private_data(
 // }
 
 pub fn test_pw_status(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -473,7 +488,10 @@ pub fn test_pw_status(
 /// Outputs:
 /// - verify pw3 (check) -> Status
 /// - verify pw1 (check) -> Status
-pub fn test_verify(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_verify(
+    card: &mut (dyn CardBackend + Send + Sync),
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
@@ -540,7 +558,7 @@ pub fn test_verify(card: &mut dyn CardBackend, _param: &[&str]) -> Result<TestOu
 }
 
 pub fn test_change_pw(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -601,7 +619,7 @@ pub fn test_change_pw(
 }
 
 pub fn test_reset_retry_counter(
-    card: &mut dyn CardBackend,
+    card: &mut (dyn CardBackend + Send + Sync),
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
@@ -666,7 +684,7 @@ pub fn test_reset_retry_counter(
 
 pub fn run_test(
     tc: &mut TestCardData,
-    t: fn(&mut (dyn CardBackend), &[&str]) -> Result<TestOutput, TestError>,
+    t: fn(&mut (dyn CardBackend + Send + Sync), &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut card = tc.get_card()?;
