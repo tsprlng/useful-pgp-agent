@@ -1,85 +1,88 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use clap::AppSettings;
+use clap::{AppSettings, Parser};
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "opgpcard",
-author = "Heiko Schäfer <heiko@schaefer.name>",
-global_settings(& [AppSettings::VersionlessSubcommands,
-AppSettings::DisableHelpSubcommand, AppSettings::DeriveDisplayOrder]),
-about = "A tool for managing OpenPGP cards."
+#[derive(Parser, Debug)]
+#[clap(
+    name = "opgpcard",
+    author = "Heiko Schäfer <heiko@schaefer.name>",
+    disable_help_subcommand(true),
+    global_setting(AppSettings::DeriveDisplayOrder),
+    about = "A tool for managing OpenPGP cards."
 )]
 pub struct Cli {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub cmd: Command,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum Command {
     List {},
     Status {
-        #[structopt(name = "card ident", short = "c", long = "card")]
+        #[clap(name = "card ident", short = 'c', long = "card")]
         ident: Option<String>,
 
-        #[structopt(name = "verbose", short = "v", long = "verbose")]
+        #[clap(name = "verbose", short = 'v', long = "verbose")]
         verbose: bool,
     },
     FactoryReset {
-        #[structopt(name = "card ident", short = "c", long = "card")]
+        #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
     },
     SetIdentity {
-        #[structopt(name = "card ident", short = "c", long = "card")]
+        #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
 
-        #[structopt(name = "identity")]
+        #[clap(name = "identity")]
         id: u8,
     },
     Admin {
-        #[structopt(name = "card ident", short = "c", long = "card")]
+        #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
 
-        #[structopt(name = "Admin PIN file", short = "P", long = "admin-pin")]
+        #[clap(name = "Admin PIN file", short = 'P', long = "admin-pin")]
         admin_pin: Option<PathBuf>,
 
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         cmd: AdminCommand,
     },
     Decrypt {
-        #[structopt(name = "card ident", short = "c", long = "card")]
+        #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
 
-        #[structopt(name = "User PIN file", short = "p", long = "user-pin")]
+        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
         user_pin: Option<PathBuf>,
 
-        #[structopt(name = "recipient-cert-file", short = "r", long = "recipient-cert")]
+        #[clap(name = "recipient-cert-file", short = 'r', long = "recipient-cert")]
         cert_file: PathBuf,
 
-        #[structopt(about = "Input file (stdin if unset)", name = "input")]
+        /// Input file (stdin if unset)
+        #[clap(name = "input")]
         input: Option<PathBuf>,
     },
     Sign {
-        #[structopt(name = "card ident", short = "c", long = "card")]
+        #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
 
-        #[structopt(name = "User PIN file", short = "p", long = "user-pin")]
+        /// User PIN file
+        #[clap(short = 'p', long = "user-pin")]
         user_pin: Option<PathBuf>,
 
-        #[structopt(name = "detached", short = "d", long = "detached")]
+        #[clap(name = "detached", short = 'd', long = "detached")]
         detached: bool,
 
-        #[structopt(name = "signer-cert-file", short = "s", long = "signer-cert")]
+        #[clap(name = "signer-cert-file", short = 's', long = "signer-cert")]
         cert_file: PathBuf,
 
-        #[structopt(about = "Input file (stdin if unset)", name = "input")]
+        /// Input file (stdin if unset)
+        #[clap(name = "input")]
         input: Option<PathBuf>,
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum AdminCommand {
     /// Set name
     Name { name: String },
@@ -94,13 +97,13 @@ pub enum AdminCommand {
     Import {
         keyfile: PathBuf,
 
-        #[structopt(name = "Signature key fingerprint", short = "s", long = "sig-fp")]
+        #[clap(name = "Signature key fingerprint", short = 's', long = "sig-fp")]
         sig_fp: Option<String>,
 
-        #[structopt(name = "Decryption key fingerprint", short = "d", long = "dec-fp")]
+        #[clap(name = "Decryption key fingerprint", short = 'd', long = "dec-fp")]
         dec_fp: Option<String>,
 
-        #[structopt(name = "Authentication key fingerprint", short = "a", long = "auth-fp")]
+        #[clap(name = "Authentication key fingerprint", short = 'a', long = "auth-fp")]
         auth_fp: Option<String>,
     },
     /// Generate a Key.
@@ -108,25 +111,21 @@ pub enum AdminCommand {
     /// A signing key is always created, decryption and authentication keys
     /// are optional.
     Generate {
-        #[structopt(name = "User PIN file", short = "p", long = "user-pin")]
+        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
         user_pin: Option<PathBuf>,
 
-        #[structopt(
-            about = "Output file (stdout if unset)",
-            name = "output",
-            long = "output",
-            short = "o"
-        )]
+        /// Output file (stdout if unset)
+        #[clap(name = "output", long = "output", short = 'o')]
         output: Option<PathBuf>,
 
-        #[structopt(long = "no-decrypt")]
+        #[clap(long = "no-decrypt")]
         no_decrypt: bool,
 
-        #[structopt(long = "no-auth")]
+        #[clap(long = "no-auth")]
         no_auth: bool,
 
-        #[structopt(about = "Algorithm \
-            (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519)")]
+        /// Algorithm (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519)
+        #[clap()]
         algo: Option<String>,
     },
 }

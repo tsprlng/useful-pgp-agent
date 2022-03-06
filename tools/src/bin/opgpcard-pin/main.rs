@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
 use openpgp_card::{Error, OpenPgp, StatusBytes};
 use openpgp_card_pcsc::PcscBackend;
@@ -13,7 +13,7 @@ mod cli;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let cli = cli::Cli::from_args();
+    let cli = cli::Cli::parse();
 
     let mut card = PcscBackend::open_by_ident(&cli.ident, None)?;
     let mut pgp = OpenPgp::new(&mut card);

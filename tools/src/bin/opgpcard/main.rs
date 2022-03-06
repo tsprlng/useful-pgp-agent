@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Result};
+use clap::Parser;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
 
 use sequoia_openpgp::parse::{stream::DecryptorBuilder, Parse};
 use sequoia_openpgp::policy::StandardPolicy;
@@ -26,7 +26,7 @@ mod util;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let cli = cli::Cli::from_args();
+    let cli = cli::Cli::parse();
 
     match cli.cmd {
         cli::Command::List {} => {
