@@ -67,7 +67,7 @@ impl TryFrom<&[u8]> for KeySet<KeyGenerationTime> {
         // hasn't been completely consumed.
         self::key_generation_set(input)
             .map(|res| res.1)
-            .map_err(|_err| Error::ParseError(format!("Parsing failed")))
+            .map_err(|_err| Error::ParseError("Parsing failed".to_string()))
     }
 }
 

@@ -168,9 +168,9 @@ impl ApplicationRelatedData {
 
             Ok(kg)
         } else {
-            Err(Error::NotFound(format!(
-                "Failed to get key generation times."
-            )))
+            Err(Error::NotFound(
+                "Failed to get key generation times.".to_string(),
+            ))
         }
     }
 }
@@ -467,7 +467,7 @@ impl Fingerprint {
 
 /// Helper fn for nom parsing
 pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, Error> {
-    let (rem, output) = result.map_err(|_err| Error::ParseError(format!("Parsing failed")))?;
+    let (rem, output) = result.map_err(|_err| Error::ParseError("Parsing failed".to_string()))?;
     if rem.is_empty() {
         Ok(output)
     } else {

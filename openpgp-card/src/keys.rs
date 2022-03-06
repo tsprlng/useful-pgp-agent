@@ -316,8 +316,7 @@ fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Resul
     // Get RSA algo attributes
     let rsa_algos: Vec<_> = keytype_algos
         .iter()
-        .map(|a| if let Algo::Rsa(r) = a { Some(r) } else { None })
-        .flatten()
+        .filter_map(|a| if let Algo::Rsa(r) = a { Some(r) } else { None })
         .collect();
 
     // Filter card algorithms by rsa bitlength of the key we want to upload
@@ -334,9 +333,10 @@ fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Resul
         Ok((**algo.last().unwrap()).clone())
     } else {
         // RSA with this bit length is not in algo_info
-        return Err(Error::UnsupportedAlgo(
-            format!("RSA {} unsupported according to algo_info", rsa_bits).into(),
-        ));
+        return Err(Error::UnsupportedAlgo(format!(
+            "RSA {} unsupported according to algo_info",
+            rsa_bits
+        )));
     }
 }
 
@@ -350,8 +350,7 @@ fn check_card_algo_ecc(algo_info: AlgoInfo, key_type: KeyType, oid: &[u8]) -> Ve
     // Get attributes
     let ecc_algos: Vec<_> = keytype_algos
         .iter()
-        .map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
-        .flatten()
+        .filter_map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
         .collect();
 
     // Find entries with this OID in the algorithm information for key_type

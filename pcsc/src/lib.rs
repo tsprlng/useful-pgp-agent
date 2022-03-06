@@ -65,7 +65,7 @@ impl<'b> PcscTransaction<'b> {
         let mut was_reset = false;
 
         let card_caps = card.card_caps();
-        let reader_caps = card.reader_caps().clone();
+        let reader_caps = card.reader_caps();
         let mode = card.mode();
 
         let mut c = card.card();
@@ -100,7 +100,7 @@ impl<'b> PcscTransaction<'b> {
                     let txc = Self {
                         tx,
                         card_caps,
-                        reader_caps: reader_caps.clone(),
+                        reader_caps,
                     };
 
                     break Ok(txc);
@@ -131,9 +131,10 @@ impl<'b> PcscTransaction<'b> {
                 }
                 Err((_, e)) => {
                     log::debug!("start_tx: error {:?}", e);
-                    break Err(
-                        Error::Smartcard(SmartcardError::Error(format!("Error: {:?}", e))).into(),
-                    );
+                    break Err(Error::Smartcard(SmartcardError::Error(format!(
+                        "Error: {:?}",
+                        e
+                    ))));
                 }
             };
         }
@@ -510,7 +511,7 @@ impl PcscBackend {
     fn cards_filter(ident: Option<&str>, mode: pcsc::ShareMode) -> Result<Vec<Self>, Error> {
         let mut cards: Vec<Self> = vec![];
 
-        for mut card in Self::raw_pcsc_cards(mode).map_err(|sce| Error::Smartcard(sce))? {
+        for mut card in Self::raw_pcsc_cards(mode).map_err(Error::Smartcard)? {
             log::debug!("cards_filter: next card");
             log::debug!(" status: {:x?}", card.status2_owned());
 

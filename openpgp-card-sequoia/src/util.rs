@@ -42,8 +42,8 @@ use sequoia_openpgp::policy::Policy;
 /// `prompt` notifies the user when a pinpad needs the user pin as input.
 ///
 /// FIXME: accept optional metadata for user_id(s)?
-pub fn make_cert<'a, 'app>(
-    open: &'a mut Open<'app>,
+pub fn make_cert<'app>(
+    open: &mut Open<'app>,
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,

@@ -27,9 +27,10 @@ impl TryFrom<&[u8]> for Fingerprint {
             let array: [u8; 20] = input.try_into().unwrap();
             Ok(array.into())
         } else {
-            Err(Error::ParseError(
-                format!("Unexpected fingerprint length {}", input.len()).into(),
-            ))
+            Err(Error::ParseError(format!(
+                "Unexpected fingerprint length {}",
+                input.len()
+            )))
         }
     }
 }

@@ -71,7 +71,7 @@ fn multi_byte_tag_rest(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
         combinator::recognize(sequence::tuple((
             combinator::verify(number::u8, |c| is_first(c) && !is_last(c)),
             bytes::take_while(|c| !is_last(&c)),
-            combinator::verify(number::u8, |c| is_last(c)),
+            combinator::verify(number::u8, is_last),
         )))(input)
     }
 

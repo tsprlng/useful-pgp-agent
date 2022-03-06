@@ -103,12 +103,8 @@ impl TryFrom<Vec<u8>> for RawResponse {
     type Error = Error;
 
     fn try_from(mut data: Vec<u8>) -> Result<Self, Self::Error> {
-        let sw2 = data
-            .pop()
-            .ok_or_else(|| Error::ResponseLength(data.len()))?;
-        let sw1 = data
-            .pop()
-            .ok_or_else(|| Error::ResponseLength(data.len()))?;
+        let sw2 = data.pop().ok_or(Error::ResponseLength(data.len()))?;
+        let sw1 = data.pop().ok_or(Error::ResponseLength(data.len()))?;
 
         let status = (sw1, sw2).into();
 
@@ -124,21 +120,21 @@ mod tests {
     #[test]
     fn test_two_bytes_data_response() {
         let res = RawResponse::try_from(vec![0x01, 0x02, 0x90, 0x00]).unwrap();
-        assert_eq!(res.is_ok(), true);
+        assert!(res.is_ok());
         assert_eq!(res.data, vec![0x01, 0x02]);
     }
 
     #[test]
     fn test_no_data_response() {
         let res = RawResponse::try_from(vec![0x90, 0x00]).unwrap();
-        assert_eq!(res.is_ok(), true);
+        assert!(res.is_ok());
         assert_eq!(res.data, vec![]);
     }
 
     #[test]
     fn test_more_data_response() {
         let res = RawResponse::try_from(vec![0xAB, 0x61, 0x02]).unwrap();
-        assert_eq!(res.is_ok(), false);
+        assert!(!res.is_ok());
         assert_eq!(res.data, vec![0xAB]);
     }
 }

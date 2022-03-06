@@ -293,7 +293,7 @@ impl<'a> Open<'a> {
     // ----------
 
     pub fn public_key(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial, Error> {
-        self.opt.public_key(key_type).map_err(|e| e.into())
+        self.opt.public_key(key_type)
     }
 
     // ----------

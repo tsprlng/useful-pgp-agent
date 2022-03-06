@@ -52,9 +52,9 @@ impl<'a, 'app> CardSigner<'a, 'app> {
                 )))
             }
         } else {
-            Err(Error::InternalError(format!(
-                "Failed to get the signing key's Fingerprint from the card"
-            )))
+            Err(Error::InternalError(
+                "Failed to get the signing key's Fingerprint from the card".to_string(),
+            ))
         }
     }
 

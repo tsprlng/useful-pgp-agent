@@ -85,7 +85,7 @@ impl TryFrom<&[u8]> for HistoricalBytes {
         }
 
         // workaround-hack for "ledger": fix status indicator byte 7
-        if data == &[0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x7, 0x90, 0x0] {
+        if data == [0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x7, 0x90, 0x0] {
             data = &[0x0, 0x31, 0xc5, 0x73, 0xc0, 0x1, 0x80, 0x5, 0x90, 0x0];
         }
 
@@ -94,9 +94,10 @@ impl TryFrom<&[u8]> for HistoricalBytes {
         if len < 4 {
             // historical bytes cannot be this short
 
-            return Err(Error::ParseError(
-                format!("Historical bytes too short ({} bytes), must be >= 4", len).into(),
-            ));
+            return Err(Error::ParseError(format!(
+                "Historical bytes too short ({} bytes), must be >= 4",
+                len
+            )));
         }
 
         if data[0] != 0 {
@@ -126,15 +127,12 @@ impl TryFrom<&[u8]> for HistoricalBytes {
             // (1 byte for the tl, plus `l` bytes of data for this ctlv)
             // (e.g. len = 4 -> tl + 3byte data)
             if ctlv.len() < (1 + l as usize) {
-                return Err(Error::ParseError(
-                    format!(
-                        "Illegal length value in Historical Bytes TL {} len {} l {}",
-                        ctlv[0],
-                        ctlv.len(),
-                        l
-                    )
-                    .into(),
-                ));
+                return Err(Error::ParseError(format!(
+                    "Illegal length value in Historical Bytes TL {} len {} l {}",
+                    ctlv[0],
+                    ctlv.len(),
+                    l
+                )));
             }
 
             match (t, l) {

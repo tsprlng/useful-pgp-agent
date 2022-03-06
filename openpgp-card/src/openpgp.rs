@@ -574,8 +574,7 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_lang(&mut self, lang: &[Lang]) -> Result<(), Error> {
         let bytes: Vec<u8> = lang
             .iter()
-            .map(|&l| Into::<Vec<u8>>::into(l))
-            .flatten()
+            .flat_map(|&l| Into::<Vec<u8>>::into(l))
             .collect();
 
         let put_lang = commands::put_lang(bytes);

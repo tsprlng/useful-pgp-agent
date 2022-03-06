@@ -326,7 +326,7 @@ fn decrypt(
     let p = StandardPolicy::new();
     let cert = Cert::from_file(cert_file)?;
 
-    let input = util::open_or_stdin(input.as_deref())?;
+    let input = util::open_or_stdin(input)?;
 
     let mut card = util::open_card(ident)?;
     let mut pgp = OpenPgp::new(&mut card);
@@ -352,7 +352,7 @@ fn sign_detached(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let cert = Cert::from_file(cert_file)?;
 
-    let mut input = util::open_or_stdin(input.as_deref())?;
+    let mut input = util::open_or_stdin(input)?;
 
     let mut card = util::open_card(ident)?;
     let mut pgp = OpenPgp::new(&mut card);
