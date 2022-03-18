@@ -27,6 +27,10 @@ pub enum Command {
         #[clap(name = "verbose", short = 'v', long = "verbose")]
         verbose: bool,
     },
+    Ssh {
+        #[clap(name = "card ident", short = 'c', long = "card")]
+        ident: Option<String>,
+    },
     FactoryReset {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,

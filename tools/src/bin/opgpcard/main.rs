@@ -35,6 +35,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Status { ident, verbose } => {
             print_status(ident, verbose)?;
         }
+        cli::Command::Ssh { ident } => {
+            print_ssh(ident)?;
+        }
         cli::Command::SetIdentity { ident, id } => {
             set_identity(&ident, id)?;
         }
@@ -168,8 +171,6 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     let mut pgp = OpenPgp::new(&mut *card);
     let mut open = Open::new(pgp.transaction()?)?;
 
-    let ident = open.application_identifier()?.ident();
-
     print!("OpenPGP card {}", open.application_identifier()?.ident());
 
     let ai = open.application_identifier()?;
@@ -228,7 +229,6 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         println! {"  created: {}", kgt.formatted()};
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Signing)?};
-
     if verbose {
         if let Ok(pkm) = open.public_key(KeyType::Signing) {
             println! {"  public key material: {}", pkm};
@@ -244,7 +244,6 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         println! {"  created: {}", kgt.formatted()};
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Decryption)?};
-
     if verbose {
         if let Ok(pkm) = open.public_key(KeyType::Decryption) {
             println! {"  public key material: {}", pkm};
@@ -256,20 +255,12 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     if let Some(fp) = fps.authentication() {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
-    let pubkey = open.public_key(KeyType::Authentication);
-    if let Ok(pkm) = &pubkey {
-        if let Ok(ssh) = util::get_ssh_pubkey_string(pkm, ident) {
-            // print auth key as openssh public key string
-            println!("  {}", ssh);
-        }
-    }
-
     if let Some(kgt) = kgt.authentication() {
         println! {"  created: {}", kgt.formatted()};
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
     if verbose {
-        if let Ok(pkm) = pubkey {
+        if let Ok(pkm) = open.public_key(KeyType::Authentication) {
             println! {"  public key material: {}", pkm};
         }
     }
@@ -311,6 +302,44 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
             let ver = ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
 
             println!("Firmware Version: {}", ver);
+        }
+    }
+
+    Ok(())
+}
+
+fn print_ssh(ident: Option<String>) -> Result<()> {
+    let mut card: Box<dyn CardBackend + Send + Sync> = if let Some(ident) = ident {
+        Box::new(util::open_card(&ident)?)
+    } else {
+        let mut cards = util::cards()?;
+        if cards.len() == 1 {
+            Box::new(cards.pop().unwrap())
+        } else {
+            return Err(anyhow::anyhow!("Found {} cards", cards.len()));
+        }
+    };
+
+    let mut pgp = OpenPgp::new(&mut *card);
+    let mut open = Open::new(pgp.transaction()?)?;
+
+    let ident = open.application_identifier()?.ident();
+
+    println!("OpenPGP card {}", open.application_identifier()?.ident());
+
+    // Print fingerprint of authentication subkey
+    let fps = open.fingerprints()?;
+
+    println!();
+    if let Some(fp) = fps.authentication() {
+        println!("Authentication subkey fingerprint:\n{}", fp);
+    }
+
+    // Show authentication subkey as openssh public key string
+    if let Ok(pkm) = open.public_key(KeyType::Authentication) {
+        if let Ok(ssh) = util::get_ssh_pubkey_string(&pkm, ident) {
+            println!();
+            println!("Authentication subkey as ssh public key:\n{}", ssh);
         }
     }
 
