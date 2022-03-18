@@ -95,7 +95,7 @@ pub(crate) fn open_or_stdout(f: Option<&Path>) -> Result<Box<dyn std::io::Write 
 }
 
 fn get_ssh_pubkey(pkm: &PublicKeyMaterial, ident: String) -> Result<sshkeys::PublicKey> {
-    let cardno = format!("cardno:{}", ident);
+    let cardname = format!("opgpcard:{}", ident);
 
     let (key_type, kind) = match pkm {
         PublicKeyMaterial::R(rsa) => {
@@ -159,7 +159,7 @@ fn get_ssh_pubkey(pkm: &PublicKeyMaterial, ident: String) -> Result<sshkeys::Pub
 
     let pk = sshkeys::PublicKey {
         key_type,
-        comment: Some(cardno),
+        comment: Some(cardname),
         kind,
     };
 
@@ -167,7 +167,7 @@ fn get_ssh_pubkey(pkm: &PublicKeyMaterial, ident: String) -> Result<sshkeys::Pub
 }
 
 /// Return a String representation of an ssh public key, in a form like:
-/// "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAuTuxILMTvzTIRvaRqqUM3aRDoEBgz/JAoWKsD1ECxy cardno:FFFE:43194240"
+/// "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAuTuxILMTvzTIRvaRqqUM3aRDoEBgz/JAoWKsD1ECxy opgpcard:FFFE:43194240"
 pub(crate) fn get_ssh_pubkey_string(pkm: &PublicKeyMaterial, ident: String) -> Result<String> {
     let pk = get_ssh_pubkey(pkm, ident)?;
 

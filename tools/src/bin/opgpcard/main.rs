@@ -332,14 +332,14 @@ fn print_ssh(ident: Option<String>) -> Result<()> {
 
     println!();
     if let Some(fp) = fps.authentication() {
-        println!("Authentication subkey fingerprint:\n{}", fp);
+        println!("Authentication key fingerprint:\n{}", fp);
     }
 
     // Show authentication subkey as openssh public key string
     if let Ok(pkm) = open.public_key(KeyType::Authentication) {
         if let Ok(ssh) = util::get_ssh_pubkey_string(&pkm, ident) {
             println!();
-            println!("Authentication subkey as ssh public key:\n{}", ssh);
+            println!("Authentication key as ssh public key:\n{}", ssh);
         }
     }
 

@@ -67,6 +67,14 @@ algorithms of the card, if the card returns that list):
 $ opgpcard status -c ABCD:01234567 -v
 ```
 
+### Using a card for ssh auth
+
+To use an OpenPGP card for ssh login, an authentication key needs to exist on the card.
+
+To allow login, the ssh public key representation of the authentications key needs to be added to
+`.ssh/authorized_keys` on the remote machine. `opgpcard ssh` shows the ssh public key string for the authentication
+key on the card.
+
 ### Import keys
 
 Import private key onto a card. This works if at most one (sub)key per role (
