@@ -23,6 +23,7 @@ cache: &general_cache_config
 
 reuse:
   stage: lint
+  cache: []
   image:
     name: fsfe/reuse:latest
     entrypoint: [""]
