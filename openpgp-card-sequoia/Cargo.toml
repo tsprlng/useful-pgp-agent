@@ -20,5 +20,5 @@ openpgp-card-scdc = { path = "../scdc", version = "0.2" }
 chrono = "0.4"
 anyhow = "1"
 thiserror = "1"
-env_logger = "0.8"
+env_logger = "0.9"
 log = "0.4"
