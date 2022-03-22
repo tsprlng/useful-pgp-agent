@@ -37,6 +37,14 @@ cargo-fmt:
     - rustup component add rustfmt
     - cargo fmt -- --check
 
+cargo-deny:
+  stage: lint
+  image: rust:latest
+  before_script:
+    - cargo install --locked cargo-deny
+  script:
+    - cargo deny check
+
 cargo-clippy:
   stage: lint
   image: rust:latest

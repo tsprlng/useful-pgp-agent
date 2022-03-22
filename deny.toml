@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2022 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "warn"
+notice = "warn"
+ignore = [
+    # Ignore time issue for now as there is no solution
+    "RUSTSEC-2020-0159",
+    "RUSTSEC-2020-0071",
+]
+[licenses]
+unlicensed = "deny"
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "ISC",
+    "BSL-1.0",
+    "CC0-1.0",
+]
+deny = [
+    "Nokia",
+]
+copyleft = "allow"
