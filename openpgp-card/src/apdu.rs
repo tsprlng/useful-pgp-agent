@@ -29,6 +29,8 @@ pub(crate) fn send_command<C>(
 where
     C: CardTransaction + ?Sized,
 {
+    log::debug!(" -> full APDU command: {:x?}", cmd);
+
     let mut resp = RawResponse::try_from(send_command_low_level(
         card_tx,
         cmd.clone(),
@@ -45,7 +47,7 @@ where
 
     while let StatusBytes::OkBytesAvailable(bytes) = resp.status() {
         // More data is available for this command from the card
-        log::debug!(" chained response, getting more data");
+        log::trace!(" chained response, getting more data");
 
         // Get next chunk of data
         let next = RawResponse::try_from(send_command_low_level(
@@ -56,7 +58,7 @@ where
 
         match next.status() {
             StatusBytes::OkBytesAvailable(_) | StatusBytes::Ok => {
-                log::debug!(" appending {} bytes to response", next.raw_data().len());
+                log::trace!(" appending {} bytes to response", next.raw_data().len());
 
                 // Append new data to resp.data and overwrite status.
                 resp.raw_mut_data().extend_from_slice(next.raw_data());
@@ -66,7 +68,11 @@ where
         }
     }
 
-    log::debug!(" final response len: {}", resp.raw_data().len());
+    log::debug!(
+        " <- APDU response [len {}]: {:x?}",
+        resp.raw_data().len(),
+        resp
+    );
 
     Ok(resp)
 }
@@ -86,7 +92,7 @@ where
 {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
         if let Some(caps) = card_tx.card_caps() {
-            log::debug!("found card caps data!");
+            log::trace!("found card caps data!");
 
             (
                 caps.ext_support,
@@ -95,7 +101,7 @@ where
                 caps.max_rsp_bytes as usize,
             )
         } else {
-            log::debug!("found NO card caps data!");
+            log::trace!("found NO card caps data!");
 
             // default settings
             (false, false, 255, 255)
@@ -110,7 +116,7 @@ where
         max_cmd_bytes = usize::min(max_cmd_bytes, max_card_cmd_bytes);
     }
 
-    log::debug!(
+    log::trace!(
         "ext le/lc {}, chaining {}, max cmd {}, max rsp {}",
         ext_support,
         chaining_support,
@@ -128,8 +134,6 @@ where
     // key data from cards?)
     let ext_len = ext_support && (max_cmd_bytes > 0xFF);
 
-    log::debug!(" -> full APDU command: {:x?}", cmd);
-
     let buf_size = if !ext_len {
         MAX_BUFFER_SIZE
     } else {
@@ -141,7 +145,7 @@ where
     if chaining_support && !cmd.data().is_empty() {
         // Send command in chained mode
 
-        log::debug!("chained command mode");
+        log::trace!("chained command mode");
 
         // Break up payload into chunks that fit into one command, each
         let chunks: Vec<_> = cmd.data().chunks(max_cmd_bytes).collect();
@@ -154,11 +158,11 @@ where
 
             let serialized = partial.serialize(ext_len, expect_response)?;
 
-            log::debug!(" -> chained APDU command: {:x?}", &serialized);
+            log::trace!(" -> chained APDU command: {:x?}", &serialized);
 
             let resp = card_tx.transmit(&serialized, buf_size)?;
 
-            log::debug!(" <- APDU response: {:x?}", &resp);
+            log::trace!(" <- APDU response: {:x?}", &resp);
 
             if resp.len() < 2 {
                 return Err(Error::ResponseLength(resp.len()));
@@ -196,11 +200,11 @@ where
             return Err(Error::CommandTooLong(serialized.len()));
         }
 
-        log::debug!(" -> APDU command: {:x?}", &serialized);
+        log::trace!(" -> APDU command: {:x?}", &serialized);
 
         let resp = card_tx.transmit(&serialized, buf_size)?;
 
-        log::debug!(" <- APDU response: {:x?}", resp);
+        log::trace!(" <- APDU response: {:x?}", resp);
 
         Ok(resp)
     }

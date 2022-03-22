@@ -125,6 +125,8 @@ pub(crate) fn generate_asymmetric_key_pair(
     card_tx: &mut OpenPgpTransaction,
     key_type: KeyType,
 ) -> Result<Tlv, Error> {
+    log::info!("OpenPgpTransaction: generate_asymmetric_key_pair");
+
     // generate key
     let crt = control_reference_template(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
@@ -147,6 +149,8 @@ pub(crate) fn public_key(
     card_tx: &mut OpenPgpTransaction,
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error> {
+    log::info!("OpenPgpTransaction: public_key");
+
     // get current algo
     let ard = card_tx.application_related_data()?; // FIXME: caching
     let algo = ard.algorithm_attributes(key_type)?;
@@ -175,6 +179,8 @@ pub(crate) fn key_import(
     key_type: KeyType,
     algo_info: Option<AlgoInfo>,
 ) -> Result<(), Error> {
+    log::info!("OpenPgpTransaction: key_import");
+
     // FIXME: caching?
     let ard = card_tx.application_related_data()?;
 

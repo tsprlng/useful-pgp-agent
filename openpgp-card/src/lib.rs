@@ -100,6 +100,7 @@ pub trait CardTransaction {
 
     /// Select the OpenPGP card application
     fn select(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("CardTransaction: select");
         let select_openpgp = commands::select_openpgp();
         apdu::send_command(self, select_openpgp, false)?.try_into()
     }
@@ -114,7 +115,7 @@ pub trait CardTransaction {
         let resp = apdu::send_command(self, ad, true)?;
         let value = Value::from(resp.data()?, true)?;
 
-        log::debug!(" ARD value: {:x?}", value);
+        log::trace!(" ARD value: {:x?}", value);
 
         Ok(ApplicationRelatedData(Tlv::new(Tag::from([0x6E]), value)))
     }
@@ -171,7 +172,7 @@ pub trait CardTransaction {
             pw3_max_len: pw3_max,
         };
 
-        log::debug!("init_card_caps to: {:x?}", caps);
+        log::trace!("init_card_caps to: {:x?}", caps);
 
         self.init_card_caps(caps);
 

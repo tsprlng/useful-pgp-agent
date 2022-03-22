@@ -146,7 +146,7 @@ impl ScdBackend {
         self.send2(send)?;
 
         while let Some(response) = rt.block_on(self.agent.next()) {
-            log::debug!("init res: {:x?}", response);
+            log::trace!("init res: {:x?}", response);
 
             if let Ok(Response::Status { .. }) = response {
                 // drop remaining lines
@@ -172,7 +172,7 @@ impl ScdBackend {
         let mut rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.agent.next()) {
-            log::debug!("select res: {:x?}", response);
+            log::trace!("select res: {:x?}", response);
 
             if response.is_err() {
                 return Err(Error::Smartcard(SmartcardError::CardNotFound(
@@ -183,7 +183,7 @@ impl ScdBackend {
             if let Ok(Response::Status { .. }) = response {
                 // drop remaining lines
                 while let Some(_drop) = rt.block_on(self.agent.next()) {
-                    log::debug!("select drop: {:x?}", _drop);
+                    log::trace!("select drop: {:x?}", _drop);
                 }
 
                 return Ok(());
@@ -201,7 +201,7 @@ impl ScdBackend {
         let mut rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.agent.next()) {
-            log::debug!("select res: {:x?}", response);
+            log::trace!("select res: {:x?}", response);
 
             if let Err(e) = response {
                 return Err(Error::Smartcard(SmartcardError::Error(format!("{:?}", e))));
@@ -210,7 +210,7 @@ impl ScdBackend {
             if let Ok(..) = response {
                 // drop remaining lines
                 while let Some(_drop) = rt.block_on(self.agent.next()) {
-                    log::debug!(" drop: {:x?}", _drop);
+                    log::trace!(" drop: {:x?}", _drop);
                 }
 
                 return Ok(());
@@ -251,7 +251,7 @@ impl CardTransaction for ScdTransaction<'_> {
         };
 
         let send = format!("SCD APDU {}{}\n", ext, hex);
-        log::debug!("SCDC command: '{}'", send);
+        log::trace!("SCDC command: '{}'", send);
 
         if send.len() > ASSUAN_LINELENGTH {
             return Err(Error::Smartcard(SmartcardError::Error(format!(
@@ -265,7 +265,7 @@ impl CardTransaction for ScdTransaction<'_> {
         let mut rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.scd.agent.next()) {
-            log::debug!("res: {:x?}", response);
+            log::trace!("res: {:x?}", response);
             if response.is_err() {
                 return Err(Error::Smartcard(SmartcardError::Error(format!(
                     "Unexpected error response from SCD {:?}",

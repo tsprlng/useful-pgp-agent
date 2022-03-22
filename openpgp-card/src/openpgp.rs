@@ -80,6 +80,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// it are needed regularly, and it does not usually change during
     /// normal use of a card.)
     pub fn application_related_data(&mut self) -> Result<ApplicationRelatedData, Error> {
+        log::info!("OpenPgpTransaction: application_related_data");
+
         self.tx.application_related_data()
     }
 
@@ -117,6 +119,8 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Get URL (5f50)
     pub fn url(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: url");
+
         let resp = apdu::send_command(self.tx(), commands::url(), true)?;
 
         Ok(resp.data()?.to_vec())
@@ -124,6 +128,8 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Get cardholder related data (65)
     pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData, Error> {
+        log::info!("OpenPgpTransaction: cardholder_related_data");
+
         let crd = commands::cardholder_related_data();
         let resp = apdu::send_command(self.tx(), crd, true)?;
         resp.check_ok()?;
@@ -133,6 +139,8 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Get security support template (7a)
     pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate, Error> {
+        log::info!("OpenPgpTransaction: security_support_template");
+
         let sst = commands::security_support_template();
         let resp = apdu::send_command(self.tx(), sst, true)?;
         resp.check_ok()?;
@@ -164,12 +172,16 @@ impl<'a> OpenPgpTransaction<'a> {
     /// certificate (if the card supports multiple certificates).
     #[allow(dead_code)]
     pub fn cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: cardholder_certificate");
+
         let cmd = commands::cardholder_certificate();
         apdu::send_command(self.tx(), cmd, true)?.try_into()
     }
 
     /// Get "Algorithm Information"
     pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>, Error> {
+        log::info!("OpenPgpTransaction: algorithm_information");
+
         let resp = apdu::send_command(self.tx(), commands::algo_info(), true)?;
         resp.check_ok()?;
 
@@ -179,6 +191,8 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Firmware Version (YubiKey specific (?))
     pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: firmware_version");
+
         let resp = apdu::send_command(self.tx(), commands::firmware_version(), true)?;
 
         Ok(resp.data()?.into())
@@ -189,6 +203,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// <https://docs.nitrokey.com/start/linux/multiple-identities.html>
     /// <https://github.com/Nitrokey/nitrokey-start-firmware/pull/33/>]
     pub fn set_identity(&mut self, id: u8) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: set_identity");
+
         let resp = apdu::send_command(self.tx(), commands::set_identity(id), false);
 
         // Apparently it's normal to get "NotTransacted" from pcsclite when
@@ -203,6 +219,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// SELECT DATA ("select a DO in the current template",
     /// e.g. for cardholder certificate)
     pub fn select_data(&mut self, num: u8, tag: &[u8]) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: select_data");
+
         let tlv = Tlv::new(
             [0x60],
             Value::C(vec![Tlv::new([0x5c], Value::S(tag.to_vec()))]),
@@ -220,6 +238,8 @@ impl<'a> OpenPgpTransaction<'a> {
     ///
     /// `num` must be between 1 and 4.
     pub fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: private_use_do");
+
         assert!((1..=4).contains(&num));
 
         let cmd = commands::private_use_do(num);
@@ -236,6 +256,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// - 1/3 need PW1 (82)
     /// - 2/4 need PW3
     pub fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: set_private_use_do");
+
         assert!((1..=4).contains(&num));
 
         let cmd = commands::put_private_use_do(num, data);
@@ -262,9 +284,12 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Gnuk needs to be built with the `--enable-factory-reset`
     /// option to the `configure` script to enable this functionality).
     pub fn factory_reset(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: factory_reset");
+
         // send 4 bad requests to verify pw1
         // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
+            log::info!("  verify_pw1_81");
             let verify = commands::verify_pw1_81([0x40; 8].to_vec());
             let resp = apdu::send_command(self.tx(), verify, false)?;
             if !(resp.status() == StatusBytes::SecurityStatusNotSatisfied
@@ -280,6 +305,7 @@ impl<'a> OpenPgpTransaction<'a> {
         // send 4 bad requests to verify pw3
         // [apdu 00 20 00 83 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
+            log::info!("  verify_pw3");
             let verify = commands::verify_pw3([0x40; 8].to_vec());
             let resp = apdu::send_command(self.tx(), verify, false)?;
 
@@ -294,11 +320,13 @@ impl<'a> OpenPgpTransaction<'a> {
         }
 
         // terminate_df [apdu 00 e6 00 00]
+        log::info!("  terminate_df");
         let term = commands::terminate_df();
         let resp = apdu::send_command(self.tx(), term, false)?;
         resp.check_ok()?;
 
         // activate_file [apdu 00 44 00 00]
+        log::info!("  activate_file");
         let act = commands::activate_file();
         let resp = apdu::send_command(self.tx(), act, false)?;
         resp.check_ok()?;
@@ -314,6 +342,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
     pub fn verify_pw1_sign(&mut self, pin: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: verify_pw1_sign");
+
         let verify = commands::verify_pw1_81(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
@@ -326,6 +356,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
     pub fn verify_pw1_sign_pinpad(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: verify_pw1_sign_pinpad");
+
         let res = self.tx().pinpad_verify(PinType::Sign)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -339,6 +371,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// - some cards that don't support this instruction may decrease the pin's error count,
     ///   eventually requiring the user to reset the pin)
     pub fn check_pw1_sign(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: check_pw1_sign");
+
         let verify = commands::verify_pw1_81(vec![]);
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
@@ -346,6 +380,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Verify PW1 (user).
     /// (For operations except signing, mode 82).
     pub fn verify_pw1_user(&mut self, pin: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: verify_pw1_user");
+
         let verify = commands::verify_pw1_82(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
@@ -355,6 +391,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// an error is returned.
 
     pub fn verify_pw1_user_pinpad(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: verify_pw1_user_pinpad");
+
         let res = self.tx().pinpad_verify(PinType::User)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -369,12 +407,16 @@ impl<'a> OpenPgpTransaction<'a> {
     /// - some cards that don't support this instruction may decrease the pin's error count,
     ///   eventually requiring the user to reset the pin)
     pub fn check_pw1_user(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: check_pw1_user");
+
         let verify = commands::verify_pw1_82(vec![]);
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
 
     /// Verify PW3 (admin).
     pub fn verify_pw3(&mut self, pin: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: verify_pw3");
+
         let verify = commands::verify_pw3(pin.to_vec());
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
@@ -382,6 +424,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Verify PW3 (admin) using a pinpad on the card reader. If no usable
     /// pinpad is found, an error is returned.
     pub fn verify_pw3_pinpad(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: verify_pw3_pinpad");
+
         let res = self.tx().pinpad_verify(PinType::Admin)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -395,6 +439,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// - some cards that don't support this instruction may decrease the pin's error count,
     ///   eventually requiring the user to reset the pin)
     pub fn check_pw3(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: check_pw3");
+
         let verify = commands::verify_pw3(vec![]);
         apdu::send_command(self.tx(), verify, false)?.try_into()
     }
@@ -403,6 +449,8 @@ impl<'a> OpenPgpTransaction<'a> {
     ///
     /// The current value of PW1 must be presented in `old` for authorization.
     pub fn change_pw1(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: change_pw1");
+
         let mut data = vec![];
         data.extend(old);
         data.extend(new);
@@ -414,6 +462,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Change the value of PW1 (0x81) using a pinpad on the
     /// card reader. If no usable pinpad is found, an error is returned.
     pub fn change_pw1_pinpad(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: change_pw1_pinpad");
+
         // Note: for change PW, only 0x81 and 0x83 are used!
         // 0x82 is implicitly the same as 0x81.
         let res = self.tx().pinpad_modify(PinType::Sign)?;
@@ -424,6 +474,8 @@ impl<'a> OpenPgpTransaction<'a> {
     ///
     /// The current value of PW3 must be presented in `old` for authorization.
     pub fn change_pw3(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: change_pw3");
+
         let mut data = vec![];
         data.extend(old);
         data.extend(new);
@@ -435,6 +487,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Change the value of PW3 (admin password) using a pinpad on the
     /// card reader. If no usable pinpad is found, an error is returned.
     pub fn change_pw3_pinpad(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: change_pw3_pinpad");
+
         let res = self.tx().pinpad_modify(PinType::Admin)?;
         RawResponse::try_from(res)?.try_into()
     }
@@ -451,6 +505,8 @@ impl<'a> OpenPgpTransaction<'a> {
         new_pw1: &[u8],
         resetting_code: Option<&[u8]>,
     ) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: reset_retry_counter_pw1");
+
         let reset = commands::reset_retry_counter_pw1(resetting_code, new_pw1);
         apdu::send_command(self.tx(), reset, false)?.try_into()
     }
@@ -498,6 +554,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// (consider using the `decipher()` method if you don't want to create
     /// the data field manually)
     pub fn pso_decipher(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: pso_decipher");
+
         // The OpenPGP card is already connected and PW1 82 has been verified
         let dec_cmd = commands::decryption(data);
         let resp = apdu::send_command(self.tx(), dec_cmd, true)?;
@@ -529,6 +587,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// (consider using the `signature_for_hash()` method if you don't
     /// want to create the data field manually)
     pub fn pso_compute_digital_signature(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: pso_compute_digital_signature");
+
         let cds_cmd = commands::signature(data);
 
         let resp = apdu::send_command(self.tx(), cds_cmd, true)?;
@@ -558,6 +618,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// (consider using the `authenticate_for_hash()` method if you don't
     /// want to create the data field manually)
     pub fn internal_authenticate(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: internal_authenticate");
+
         let ia_cmd = commands::internal_authenticate(data);
         let resp = apdu::send_command(self.tx(), ia_cmd, true)?;
 
@@ -567,11 +629,15 @@ impl<'a> OpenPgpTransaction<'a> {
     // --- admin ---
 
     pub fn set_name(&mut self, name: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_name");
+
         let put_name = commands::put_name(name.to_vec());
         apdu::send_command(self.tx(), put_name, false)?.try_into()
     }
 
     pub fn set_lang(&mut self, lang: &[Lang]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_lang");
+
         let bytes: Vec<u8> = lang
             .iter()
             .flat_map(|&l| Into::<Vec<u8>>::into(l))
@@ -582,11 +648,15 @@ impl<'a> OpenPgpTransaction<'a> {
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_sex");
+
         let put_sex = commands::put_sex((&sex).into());
         apdu::send_command(self.tx(), put_sex, false)?.try_into()
     }
 
     pub fn set_url(&mut self, url: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_url");
+
         let put_url = commands::put_url(url.to_vec());
         apdu::send_command(self.tx(), put_url, false)?.try_into()
     }
@@ -596,6 +666,8 @@ impl<'a> OpenPgpTransaction<'a> {
         time: KeyGenerationTime,
         key_type: KeyType,
     ) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_creation_time");
+
         // Timestamp update
         let time_value: Vec<u8> = time
             .get()
@@ -611,6 +683,8 @@ impl<'a> OpenPgpTransaction<'a> {
     }
 
     pub fn set_fingerprint(&mut self, fp: Fingerprint, key_type: KeyType) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_fingerprint");
+
         let fp_cmd = commands::put_data(&[key_type.fingerprint_put_tag()], fp.as_bytes().to_vec());
 
         apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
@@ -632,6 +706,8 @@ impl<'a> OpenPgpTransaction<'a> {
         pw_status: &PWStatusBytes,
         long: bool,
     ) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_pw_status_bytes");
+
         let data = pw_status.serialize_for_put(long);
 
         let cmd = commands::put_pw_status(data);
@@ -643,6 +719,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Call select_data() before calling this fn, to select a particular
     /// certificate (if the card supports multiple certificates).
     pub fn set_cardholder_certificate(&mut self, data: Vec<u8>) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_cardholder_certificate");
+
         let cmd = commands::put_cardholder_certificate(data);
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
@@ -654,6 +732,8 @@ impl<'a> OpenPgpTransaction<'a> {
         key_type: KeyType,
         algo: &Algo,
     ) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_algorithm_attributes");
+
         // Command to PUT the algorithm attributes
         let cmd = commands::put_data(&[key_type.algorithm_tag()], algo.to_data_object()?);
 
@@ -663,6 +743,8 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Set resetting code
     /// (4.3.4 Resetting Code)
     pub fn set_resetting_code(&mut self, resetting_code: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_resetting_code");
+
         let cmd = commands::put_data(&[0xd3], resetting_code.to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }

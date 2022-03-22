@@ -50,7 +50,7 @@ impl ApplicationRelatedData {
         let hist = self.0.find(&[0x5f, 0x52].into());
 
         if let Some(hist) = hist {
-            log::debug!("Historical bytes: {:x?}", hist);
+            log::trace!("Historical bytes: {:x?}", hist);
             (hist.serialize().as_slice()).try_into()
         } else {
             Err(Error::NotFound(
@@ -65,7 +65,7 @@ impl ApplicationRelatedData {
         // get from cached "application related data"
         let eli = self.0.find(&[0x7f, 0x66].into());
 
-        log::debug!("Extended length information: {:x?}", eli);
+        log::trace!("Extended length information: {:x?}", eli);
 
         if let Some(eli) = eli {
             // The card has returned extended length information
@@ -130,7 +130,7 @@ impl ApplicationRelatedData {
         if let Some(psb) = psb {
             let pws = (&psb.serialize()[..]).try_into()?;
 
-            log::debug!("PW Status: {:x?}", pws);
+            log::trace!("PW Status: {:x?}", pws);
 
             Ok(pws)
         } else {
@@ -149,7 +149,7 @@ impl ApplicationRelatedData {
         if let Some(fp) = fp {
             let fp: KeySet<Fingerprint> = (&fp.serialize()[..]).try_into()?;
 
-            log::debug!("Fp: {:x?}", fp);
+            log::trace!("Fp: {:x?}", fp);
 
             Ok(fp)
         } else {
@@ -164,7 +164,7 @@ impl ApplicationRelatedData {
         if let Some(kg) = kg {
             let kg: KeySet<KeyGenerationTime> = (&kg.serialize()[..]).try_into()?;
 
-            log::debug!("Key generation: {:x?}", kg);
+            log::trace!("Key generation: {:x?}", kg);
 
             Ok(kg)
         } else {
