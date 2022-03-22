@@ -140,7 +140,7 @@ impl ScdBackend {
     /// Call "SCD SERIALNO", which causes scdaemon to be started by gpg
     /// agent (if it's not running yet).
     fn serialno(&mut self) -> Result<(), Error> {
-        let mut rt = RT.lock().unwrap();
+        let rt = RT.lock().unwrap();
 
         let send = "SCD SERIALNO";
         self.send2(send)?;
@@ -169,7 +169,7 @@ impl ScdBackend {
         let send = format!("SCD SERIALNO --demand={}", serial);
         self.send2(&send)?;
 
-        let mut rt = RT.lock().unwrap();
+        let rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.agent.next()) {
             log::trace!("select res: {:x?}", response);
@@ -198,7 +198,7 @@ impl ScdBackend {
     fn send(&mut self, cmd: &str) -> Result<(), Error> {
         self.send2(cmd)?;
 
-        let mut rt = RT.lock().unwrap();
+        let rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.agent.next()) {
             log::trace!("select res: {:x?}", response);
@@ -262,7 +262,7 @@ impl CardTransaction for ScdTransaction<'_> {
 
         self.scd.send2(&send)?;
 
-        let mut rt = RT.lock().unwrap();
+        let rt = RT.lock().unwrap();
 
         while let Some(response) = rt.block_on(self.scd.agent.next()) {
             log::trace!("res: {:x?}", response);
