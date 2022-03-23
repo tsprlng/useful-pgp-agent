@@ -65,6 +65,7 @@ implementation.
 
 Typically, `openpgp-card` will be used with the `openpgp-card-pcsc` backend,
 which uses the standard pcsclite library to communicate with cards.
+
 However, alternative backends can be used and may be useful.  
 The experimental, alternative `openpgp-card-scdc` backend uses scdaemon from 
 the GnuPG project as a low-level transport layer to interact with OpenPGP 
@@ -73,9 +74,11 @@ cards.
 Backends implement:
 
 1) functionality to find and connect to a card (these operations may vary 
-   significantly between different backends), and
+   significantly between different backends),
 
-2) a very simple communication primitive, by implementing the `CardClient` 
+2) transaction management (where applicable), by implementing the `CardBackend` trait, and
+
+3) simple communication primitives, by implementing the `CardTransaction` 
    trait, to send individual APDU commands and receive responses.
 
 All higher level and/or OpenPGP card-specific logic (including command 
