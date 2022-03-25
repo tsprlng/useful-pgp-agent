@@ -30,6 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.cmd {
         cli::Command::List {} => {
+            println!("Available OpenPGP cards:");
             list_cards()?;
         }
         cli::Command::Status { ident, verbose } => {
@@ -133,8 +134,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn list_cards() -> Result<()> {
     let cards = util::cards()?;
     if !cards.is_empty() {
-        println!("Available OpenPGP cards:");
-
         for mut card in cards {
             let mut pgp = OpenPgp::new(&mut card);
             let open = Open::new(pgp.transaction()?)?;
@@ -163,8 +162,17 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         let mut cards = util::cards()?;
         if cards.len() == 1 {
             Box::new(cards.pop().unwrap())
+        } else if cards.is_empty() {
+            return Err(anyhow::anyhow!("No cards found"));
         } else {
-            return Err(anyhow::anyhow!("Found {} cards", cards.len()));
+            println!("Found {} cards:", cards.len());
+            list_cards()?;
+
+            println!();
+            println!("Specify which card to use with '--card <card ident>'");
+            println!();
+
+            return Err(anyhow::anyhow!("Specify card"));
         }
     };
 
@@ -315,8 +323,17 @@ fn print_ssh(ident: Option<String>) -> Result<()> {
         let mut cards = util::cards()?;
         if cards.len() == 1 {
             Box::new(cards.pop().unwrap())
+        } else if cards.is_empty() {
+            return Err(anyhow::anyhow!("No cards found"));
         } else {
-            return Err(anyhow::anyhow!("Found {} cards", cards.len()));
+            println!("Found {} cards:", cards.len());
+            list_cards()?;
+
+            println!();
+            println!("Specify which card to use with '--card <card ident>'");
+            println!();
+
+            return Err(anyhow::anyhow!("Specify card"));
         }
     };
 
