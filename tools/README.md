@@ -45,6 +45,9 @@ List idents of all currently connected cards:
 
 ```
 $ opgpcard list
+Available OpenPGP cards:
+ ABCD:01234567
+ ABCD:87654321
 ```
 
 Print status information about a card. The card is implicitly selected.
@@ -52,33 +55,132 @@ However, this only works if exactly one card is connected:
 
 ```
 $ opgpcard status
+OpenPGP card ABCD:01234567 (card version 2.0)
+
+Cardholder: Foo Bar
+
+Signature key
+  fingerprint: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
+  created: 2022-03-25 20:15:49
+  algorithm: Ed25519 (EdDSA)
+
+Decryption key
+  fingerprint: 68CB 4EDD 4D49 90B8 2CEC  2D22 EF7E 5B6A 2012 694C
+  created: 2022-03-25 20:15:49
+  algorithm: Cv25519 (ECDH)
+
+Authentication key
+  fingerprint: 59A5 CD3E A88F 8707 D887  EAAE 1354 5F40 4E11 BE1C
+  created: 2022-03-25 20:15:49
+  algorithm: Ed25519 (EdDSA)
+
+Signature counter: 3
+Signature pin only valid once: true
+Password validation retry count:
+  user pw: 3, reset: 3, admin pw: 3
+
 ```
 
-Explicitly print the status information for a specific card:
+Explicitly print the status information for a specific card (this command syntax is needed, when more than one card
+is plugged in):
 
 ```
-$ opgpcard status -c ABCD:01234567
+$ opgpcard status --card ABCD:01234567
 ```
 
 Add `-v` for more verbose card status (including the list of supported
-algorithms of the card, if the card returns that list):
+algorithms, if the card returns an algorithm list):
 
 ```
 $ opgpcard status -c ABCD:01234567 -v
+OpenPGP card ABCD:01234567 (card version 2.0)
+
+Cardholder: Foo Bar
+
+Signature key
+  fingerprint: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
+  created: 2022-03-25 20:15:49
+  algorithm: Ed25519 (EdDSA)
+  public key material: ECC, data: 4C6364692AA4212AA95CF25FF31FD5F94CCAC173BFD77C918E443F09FAAFE3F5
+
+Decryption key
+  fingerprint: 68CB 4EDD 4D49 90B8 2CEC  2D22 EF7E 5B6A 2012 694C
+  created: 2022-03-25 20:15:49
+  algorithm: Cv25519 (ECDH)
+  public key material: ECC, data: B99202743227D87D5F24639937DF75C936AC7933CE3328F5BF6AFA174A4A8745
+
+Authentication key
+  fingerprint: 59A5 CD3E A88F 8707 D887  EAAE 1354 5F40 4E11 BE1C
+  created: 2022-03-25 20:15:49
+  algorithm: Ed25519 (EdDSA)
+  public key material: ECC, data: BFE1E5EB31032E0F4320E163082BEDBAD2A6318EC368375F7A65D22AC7AB7444
+
+Signature counter: 3
+Signature pin only valid once: true
+Password validation retry count:
+  user pw: 3, reset: 3, admin pw: 3
+
+Supported algorithms:
+SIG: RSA 2048 [e 32]
+SIG: RSA 4096 [e 32]
+SIG: Secp256k1 (ECDSA)
+SIG: Ed25519 (EdDSA)
+SIG: Ed448 (EdDSA)
+DEC: RSA 2048 [e 32]
+DEC: RSA 4096 [e 32]
+DEC: Secp256k1 (ECDSA)
+DEC: Cv25519 (ECDH)
+DEC: X448 (ECDH)
+AUT: RSA 2048 [e 32]
+AUT: RSA 4096 [e 32]
+AUT: Secp256k1 (ECDSA)
+AUT: Ed25519 (EdDSA)
+AUT: Ed448 (EdDSA)
 ```
 
 ### Using a card for ssh auth
 
-To use an OpenPGP card for ssh login, an authentication key needs to exist on the card.
+To use an OpenPGP card for ssh login authentication, a PGP authentication key needs to exist on the card.
 
-To allow login, the ssh public key representation of the authentications key needs to be added to
-`.ssh/authorized_keys` on the remote machine. `opgpcard ssh` shows the ssh public key string for the authentication
-key on the card.
+`opgpcard ssh` then shows the ssh public key string representation of the PGP authentication
+key on the card, like this:
+
+```
+$ opgpcard ssh
+OpenPGP card ABCD:01234567
+
+Authentication key fingerprint:
+BEC2E8D8AD9C54A6AEDE71CCA1CE6FAC5ABF0BE4
+
+Authentication key as ssh public key:
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII2dcYBqMCamidT5MpE3Cl3MIKcYMBekGXbK2aaN6JaH opgpcard:ABCD:01234567
+```
+
+To allow login to a remote machine, that ssh public key can be added to
+`.ssh/authorized_keys` on that remote machine.
+
+In the example output above, this string is the ssh public key:
+
+`ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII2dcYBqMCamidT5MpE3Cl3MIKcYMBekGXbK2aaN6JaH opgpcard:ABCD:01234567`
+
+### Set card metadata
+
+Set cardholder name:
+
+```
+$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Foo Bar"
+```
+
+Set cardholder URL:
+
+```
+$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> url "https://key.url.example"
+```
 
 ### Import keys
 
-Import private key onto a card. This works if at most one (sub)key per role (
-sign, decrypt, auth) exists in `key.priv`:
+Import private key onto a card. This works if at most one (sub)key per role
+(sign, decrypt, auth) exists in `key.priv`:
 
 ```
 $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv
@@ -102,20 +204,32 @@ be imported for the other roles.
 
 ```
 $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> -o <output-cert-file> 25519
-```
+ Generate subkey for Signing
+ Generate subkey for Decryption
+ Generate subkey for Authentication
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
+Comment: Foo Bar
 
-### Set card metadata
-
-Set cardholder name:
-
-```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Bar<<Foo"
-```
-
-Set cardholder URL:
-
-```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> url "https://keyurl.example"
+xjMEYj4i9RYJKwYBBAHaRw8BAQdATGNkaSqkISqpXPJf8x/V+UzKwXO/13yRjkQ/
+Cfqv4/XNB0ZvbyBCYXLCwAYEExYKAHgFgmI+IvUFiQAAAAAJEIy3WLpQLyRYRxQA
+AAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVvaWEtcGdwLm9yZ3soPdGvhvnI629W
+zuGvgJCQEuuFoH/+3FheWD4xNy16ApsDFiEEH+Lo8Z/ofQ2Kr1V5jLdYulAvJFgA
+AJlVAQDHvutZW5ExN5Tcx92mNhU9w1Gkzn2yQf0xrZENLQqhjQD/cKa27RlOVHt1
+psAhx/v0UcaYO5NABZorTsKrJWYzOAfOMwRiPiL1FgkrBgEEAdpHDwEBB0C/4eXr
+MQMuD0Mg4WMIK+260qYxjsNoN196ZdIqx6t0RMLABgQYFgoAeAWCYj4i9QWJAAAA
+AAkQjLdYulAvJFhHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMuc2VxdW9pYS1wZ3Au
+b3JnVNZH1uV5zflAPMPspQLrTaWf8uwaePLWl6nbuclDck8CmyAWIQQf4ujxn+h9
+DYqvVXmMt1i6UC8kWAAAIfEBAO0yXwlbrNymuwCsU22Yy95JA2QpUnMBsY7dizvP
+8Or+AP92UH8dwDElhynFgw9KkyR2ZU69k1Eeb1snnO5K8eA1Bc44BGI+IvUSCisG
+AQQBl1UBBQEBB0C5kgJ0MifYfV8kY5k333XJNqx5M84zKPW/avoXSkqHRQMBCgnC
+wAYEGBYKAHgFgmI+IvUFiQAAAAAJEIy3WLpQLyRYRxQAAAAAAB4AIHNhbHRAbm90
+YXRpb25zLnNlcXVvaWEtcGdwLm9yZ2fdVPQT78DqbSOmY8Rv6Bn/nDRsNW55yyt/
+RNxxCInzApsMFiEEH+Lo8Z/ofQ2Kr1V5jLdYulAvJFgAAOz6AQDijdln/VMFqG1t
+T+/zIUpoJ3YbpT0PTrC5wv/PRaTBGwD+KRiYeJS05fX5BPjMn3sVL8/EYF628BMZ
+x3z8hDoRKAU=
+=v95a
+-----END PGP PUBLIC KEY BLOCK-----
 ```
 
 ### Signing
