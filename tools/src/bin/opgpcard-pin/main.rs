@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let pin = rpassword::read_password_from_tty(Some("Enter user PIN: "))?;
 
                 // verify pin
-                open.verify_user(&pin)?;
+                open.verify_user(pin.as_bytes())?;
                 println!("PIN was accepted by the card.\n");
 
                 // get new user pin
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // set new user pin
-                open.change_user_pin(&pin, &newpin1)
+                open.change_user_pin(pin.as_bytes(), newpin1.as_bytes())
             } else {
                 // set new user pin via pinpad
                 open.change_user_pin_pinpad(&|| {
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let pin = rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
                 // verify pin
-                open.verify_admin(&pin)?;
+                open.verify_admin(pin.as_bytes())?;
 
                 // get new admin pin
                 let newpin1 = rpassword::read_password_from_tty(Some("Enter new admin PIN: "))?;
@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // set new admin pin from input
-                open.change_admin_pin(&pin, &newpin1)?;
+                open.change_admin_pin(pin.as_bytes(), newpin1.as_bytes())?;
             } else {
                 // set new admin pin with pinpad
                 open.change_admin_pin_pinpad(&|| {
@@ -100,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // get current admin pin
                 let pin = rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
-                open.verify_admin(&pin)?;
+                open.verify_admin(pin.as_bytes())?;
             } else {
                 open.verify_admin_pinpad(&|| println!("Enter admin PIN on card reader pinpad."))?;
             }
@@ -132,7 +132,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let pin = rpassword::read_password_from_tty(Some("Enter admin PIN: "))?;
 
                     // verify pin
-                    open.verify_admin(&pin)?;
+                    open.verify_admin(pin.as_bytes())?;
                 } else {
                     open.verify_admin_pinpad(&|| {
                         println!("Enter admin PIN on card reader pinpad.")
@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let res = if let Some(rst) = rst {
                 // reset to new user pin
-                open.reset_user_pin(&rst, &newpin1)
+                open.reset_user_pin(rst.as_bytes(), newpin1.as_bytes())
             } else if let Some(mut admin) = open.admin_card() {
                 admin.reset_user_pin(&newpin1)
             } else {

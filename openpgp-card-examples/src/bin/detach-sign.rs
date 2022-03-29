@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut open = Open::new(pgp.transaction()?)?;
 
-    let pin = std::fs::read_to_string(pin_file)?;
+    let pin = std::fs::read(pin_file)?;
 
     open.verify_user_for_signing(&pin)?;
 

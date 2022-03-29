@@ -64,7 +64,7 @@
 //! let mut open = Open::new(pgp.transaction()?)?;
 //!
 //! // Get authorization for user access to the card with password
-//! open.verify_user("123456")?;
+//! open.verify_user(b"123456")?;
 //! let mut user = open.user_card().expect("This should not fail");
 //!
 //! // Get decryptor (`cert` must contain a public key that corresponds
@@ -107,7 +107,7 @@
 //! let mut open = Open::new(pgp.transaction()?)?;
 //!
 //! // Get authorization for signing access to the card with password
-//! open.verify_user_for_signing("123456")?;
+//! open.verify_user_for_signing(b"123456")?;
 //! let mut user = open.signing_card().expect("This should not fail");
 //!
 //! // Get signer (`cert` must contain a public key that corresponds
@@ -139,7 +139,7 @@
 //! let mut open = Open::new(pgp.transaction()?)?;
 //!
 //! // Get authorization for admin access to the card with password
-//! open.verify_admin("12345678")?;
+//! open.verify_admin(b"12345678")?;
 //! let mut admin = open.admin_card().expect("This should not fail");
 //!
 //! // Set the Name and URL fields on the card

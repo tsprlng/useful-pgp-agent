@@ -94,7 +94,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("factory reset\n");
         open.factory_reset()?;
 
-        open.verify_admin("12345678")?;
+        open.verify_admin(b"12345678")?;
         println!("verify for admin ok");
 
         let check = open.check_user_verified();
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let check = open.check_user_verified();
         println!("has user (pw1/82) been verified yet?\n{:x?}\n", check);
 
-        open.verify_user("123456")?;
+        open.verify_user(b"123456")?;
         println!("verify for user (pw1/82) ok");
 
         let check = open.check_user_verified();
@@ -186,7 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut open = Open::new(pgp.transaction()?)?;
 
         // Sign
-        open.verify_user_for_signing("123456")?;
+        open.verify_user_for_signing(b"123456")?;
         println!("verify for sign (pw1/81) ok\n");
 
         // Use Sign access to card

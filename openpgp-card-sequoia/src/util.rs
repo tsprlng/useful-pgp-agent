@@ -47,7 +47,7 @@ pub fn make_cert<'app>(
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
-    pw1: Option<String>,
+    pw1: Option<&[u8]>,
     prompt: &dyn Fn(),
 ) -> Result<Cert> {
     let mut pp = vec![];
@@ -76,8 +76,8 @@ pub fn make_cert<'app>(
                 )?;
 
             // Allow signing on the card
-            if let Some(pw1) = pw1.clone() {
-                open.verify_user_for_signing(&pw1)?;
+            if let Some(pw1) = pw1 {
+                open.verify_user_for_signing(pw1)?;
             } else {
                 open.verify_user_for_signing_pinpad(prompt)?;
             }
@@ -107,8 +107,8 @@ pub fn make_cert<'app>(
                 .set_key_flags(KeyFlags::empty().set_authentication())?;
 
             // Allow signing on the card
-            if let Some(pw1) = pw1.clone() {
-                open.verify_user_for_signing(&pw1)?;
+            if let Some(pw1) = pw1 {
+                open.verify_user_for_signing(pw1)?;
             } else {
                 open.verify_user_for_signing_pinpad(prompt)?;
             }
@@ -151,7 +151,7 @@ pub fn make_cert<'app>(
 
         // Allow signing on the card
         if let Some(pw1) = pw1 {
-            open.verify_user_for_signing(&pw1)?;
+            open.verify_user_for_signing(pw1)?;
         } else {
             open.verify_user_for_signing_pinpad(prompt)?;
         }

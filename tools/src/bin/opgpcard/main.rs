@@ -554,9 +554,14 @@ fn generate_keys(
         None
     };
 
-    let cert = make_cert(&mut open, key_sig, key_dec, key_aut, pin, &|| {
-        println!("Enter user PIN on card reader pinpad.")
-    })?;
+    let cert = make_cert(
+        &mut open,
+        key_sig,
+        key_dec,
+        key_aut,
+        pin.as_deref(),
+        &|| println!("Enter user PIN on card reader pinpad."),
+    )?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
     // Write armored certificate to the output file (or stdout)

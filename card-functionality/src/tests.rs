@@ -255,7 +255,7 @@ pub fn test_keygen(
         key_sig,
         Some(key_dec),
         Some(key_aut),
-        Some("123456".to_string()),
+        Some(b"123456"),
         &|| {},
     )?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;

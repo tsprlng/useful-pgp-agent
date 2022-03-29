@@ -64,8 +64,8 @@ impl<'a> Open<'a> {
         self.opt.feature_pinpad_modify()
     }
 
-    pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1_user(pin.as_bytes())?;
+    pub fn verify_user(&mut self, pin: &[u8]) -> Result<(), Error> {
+        let _ = self.opt.verify_pw1_user(pin)?;
         self.pw1 = true;
         Ok(())
     }
@@ -78,8 +78,8 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1_sign(pin.as_bytes())?;
+    pub fn verify_user_for_signing(&mut self, pin: &[u8]) -> Result<(), Error> {
+        let _ = self.opt.verify_pw1_sign(pin)?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -98,8 +98,8 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
-        let _ = self.opt.verify_pw3(pin.as_bytes())?;
+    pub fn verify_admin(&mut self, pin: &[u8]) -> Result<(), Error> {
+        let _ = self.opt.verify_pw3(pin)?;
         self.pw3 = true;
         Ok(())
     }
@@ -126,8 +126,8 @@ impl<'a> Open<'a> {
         self.opt.check_pw3()
     }
 
-    pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.opt.change_pw1(old.as_bytes(), new.as_bytes())
+    pub fn change_user_pin(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
+        self.opt.change_pw1(old, new)
     }
 
     pub fn change_user_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
@@ -135,13 +135,12 @@ impl<'a> Open<'a> {
         self.opt.change_pw1_pinpad()
     }
 
-    pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<(), Error> {
-        self.opt
-            .reset_retry_counter_pw1(new.as_bytes(), Some(rst.as_bytes()))
+    pub fn reset_user_pin(&mut self, rst: &[u8], new: &[u8]) -> Result<(), Error> {
+        self.opt.reset_retry_counter_pw1(new, Some(rst))
     }
 
-    pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.opt.change_pw3(old.as_bytes(), new.as_bytes())
+    pub fn change_admin_pin(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
+        self.opt.change_pw3(old, new)
     }
 
     pub fn change_admin_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {

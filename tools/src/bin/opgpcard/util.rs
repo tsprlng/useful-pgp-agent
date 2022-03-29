@@ -71,9 +71,9 @@ pub(crate) fn verify_to_admin<'app, 'open>(
         .ok_or_else(|| anyhow!("Couldn't get admin access").into())
 }
 
-pub(crate) fn load_pin(pin_file: &Path) -> Result<String> {
+pub(crate) fn load_pin(pin_file: &Path) -> Result<Vec<u8>> {
     let pin = std::fs::read_to_string(pin_file)?;
-    Ok(pin.trim().to_string())
+    Ok(pin.trim().as_bytes().to_vec())
 }
 
 pub(crate) fn open_or_stdin(f: Option<&Path>) -> Result<Box<dyn std::io::Read + Send + Sync>> {
