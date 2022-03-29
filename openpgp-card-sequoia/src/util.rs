@@ -128,44 +128,45 @@ pub fn make_cert<'app>(
         }
     }
 
-    // 6) add user id from name / email
+    // 6) add user id from cardholder name (if a name is set)
     let cardholder = open.cardholder_related_data()?;
 
-    // FIXME: process name field?
+    // FIXME: accept user id/email as argument?!
 
-    // FIXME: accept email as argument?!
+    if let Some(name) = cardholder.name() {
+        let uid: UserID = name.into();
 
-    let uid: UserID = cardholder.name().expect("expecting name on card").into();
+        pp.push(uid.clone().into());
 
-    pp.push(uid.clone().into());
+        // 7) make, sign binding -> add
+        {
+            let signing_builder = SignatureBuilder::new(SignatureType::PositiveCertification)
+                .set_signature_creation_time(SystemTime::now())?
+                .set_key_validity_period(std::time::Duration::new(0, 0))?
+                .set_key_flags(
+                    // Flags for primary key
+                    KeyFlags::empty().set_signing().set_certification(),
+                )?;
 
-    // 7) make, sign binding -> add
-    {
-        let signing_builder = SignatureBuilder::new(SignatureType::PositiveCertification)
-            .set_signature_creation_time(SystemTime::now())?
-            .set_key_validity_period(std::time::Duration::new(0, 0))?
-            .set_key_flags(
-                // Flags for primary key
-                KeyFlags::empty().set_signing().set_certification(),
-            )?;
+            // Allow signing on the card
+            if let Some(pw1) = pw1 {
+                open.verify_user_for_signing(pw1)?;
+            } else {
+                open.verify_user_for_signing_pinpad(prompt)?;
+            }
 
-        // Allow signing on the card
-        if let Some(pw1) = pw1 {
-            open.verify_user_for_signing(pw1)?;
-        } else {
-            open.verify_user_for_signing_pinpad(prompt)?;
-        }
+            if let Some(mut sign) = open.signing_card() {
+                // Card-backed signer for bindings
+                let mut card_signer = sign.signer_from_pubkey(key_sig);
 
-        if let Some(mut sign) = open.signing_card() {
-            // Card-backed signer for bindings
-            let mut card_signer = sign.signer_from_pubkey(key_sig);
+                // Temporary version of the cert
+                let cert = Cert::try_from(pp.clone())?;
 
-            // Temporary version of the cert
-            let cert = Cert::try_from(pp.clone())?;
+                let signing_bsig: Packet =
+                    uid.bind(&mut card_signer, &cert, signing_builder)?.into();
 
-            let signing_bsig: Packet = uid.bind(&mut card_signer, &cert, signing_builder)?.into();
-
-            pp.push(signing_bsig);
+                pp.push(signing_bsig);
+            }
         }
     }
 
