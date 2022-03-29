@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Context, Result};
@@ -18,12 +18,31 @@ pub(crate) fn open_card(ident: &str) -> Result<impl CardBackend, Error> {
     PcscBackend::open_by_ident(ident, None)
 }
 
+/// Get pin from file. Or via user input, if no file and no pinpad is available.
+///
+/// If a pinpad is available, return Null (the pinpad will be used to get access to the card).
+///
+/// `msg` is the message to show when asking the user to enter a PIN.
+pub(crate) fn get_pin(open: &mut Open, pin_file: Option<PathBuf>, msg: &str) -> Option<Vec<u8>> {
+    if let Some(path) = pin_file {
+        // we have a pin file
+        Some(load_pin(&path).ok()?)
+    } else if !open.feature_pinpad_verify() {
+        // we have no pin file and no pinpad
+        let pin = rpassword::read_password_from_tty(Some(msg)).ok()?;
+        Some(pin.into_bytes())
+    } else {
+        // we have a pinpad
+        None
+    }
+}
+
 pub(crate) fn verify_to_user<'app, 'open>(
     open: &'open mut Open<'app>,
-    pin_file: Option<PathBuf>,
+    pin: Option<&[u8]>,
 ) -> Result<User<'app, 'open>, Box<dyn std::error::Error>> {
-    if let Some(path) = pin_file {
-        open.verify_user(&load_pin(&path)?)?;
+    if let Some(pin) = pin {
+        open.verify_user(pin)?;
     } else {
         if !open.feature_pinpad_verify() {
             return Err(anyhow!("No user PIN file provided, and no pinpad found").into());
@@ -38,10 +57,10 @@ pub(crate) fn verify_to_user<'app, 'open>(
 
 pub(crate) fn verify_to_sign<'app, 'open>(
     open: &'open mut Open<'app>,
-    pin_file: Option<PathBuf>,
+    pin: Option<&[u8]>,
 ) -> Result<Sign<'app, 'open>, Box<dyn std::error::Error>> {
-    if let Some(path) = pin_file {
-        open.verify_user_for_signing(&load_pin(&path)?)?;
+    if let Some(pin) = pin {
+        open.verify_user_for_signing(pin)?;
     } else {
         if !open.feature_pinpad_verify() {
             return Err(anyhow!("No user PIN file provided, and no pinpad found").into());
@@ -52,14 +71,12 @@ pub(crate) fn verify_to_sign<'app, 'open>(
         .ok_or_else(|| anyhow!("Couldn't get sign access").into())
 }
 
-// pub fn admin_card<'b>(&'b mut self) -> Option<Admin<'a, 'b>> {
-
 pub(crate) fn verify_to_admin<'app, 'open>(
     open: &'open mut Open<'app>,
-    pin_file: Option<PathBuf>,
+    pin: Option<&[u8]>,
 ) -> Result<Admin<'app, 'open>, Box<dyn std::error::Error>> {
-    if let Some(path) = pin_file {
-        open.verify_admin(&load_pin(&path)?)?;
+    if let Some(pin) = pin {
+        open.verify_admin(pin)?;
     } else {
         if !open.feature_pinpad_verify() {
             return Err(anyhow!("No admin PIN file provided, and no pinpad found").into());

@@ -23,6 +23,9 @@ use std::io::Write;
 mod cli;
 mod util;
 
+const ENTER_USER_PIN: &str = "Enter user PIN:";
+const ENTER_ADMIN_PIN: &str = "Enter admin PIN:";
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
@@ -77,15 +80,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut pgp = OpenPgp::new(&mut card);
 
             let mut open = Open::new(pgp.transaction()?)?;
+            let admin_pin = util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN);
 
             match cmd {
                 cli::AdminCommand::Name { name } => {
-                    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
+                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
                     let _ = admin.set_name(&name)?;
                 }
                 cli::AdminCommand::Url { url } => {
-                    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
+                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
                     let _ = admin.set_url(&url)?;
                 }
@@ -96,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     auth_fp,
                 } => {
                     let key = Cert::from_file(keyfile)?;
-                    let admin = util::verify_to_admin(&mut open, admin_pin)?;
+                    let admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
                     if (&sig_fp, &dec_fp, &auth_fp) == (&None, &None, &None) {
                         // If no fingerprint has been provided, we check if
@@ -114,10 +118,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     no_auth,
                     algo,
                 } => {
+                    let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
+
                     generate_keys(
                         open,
-                        admin_pin,
-                        user_pin,
+                        admin_pin.as_deref(),
+                        user_pin.as_deref(),
                         output,
                         !no_decrypt,
                         !no_auth,
@@ -379,7 +385,9 @@ fn decrypt(
 
     let mut open = Open::new(pgp.transaction()?)?;
 
-    let mut user = util::verify_to_user(&mut open, pin_file)?;
+    let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
+
+    let mut user = util::verify_to_user(&mut open, user_pin.as_deref())?;
     let d = user.decryptor(&cert)?;
 
     let db = DecryptorBuilder::from_reader(input)?;
@@ -405,7 +413,9 @@ fn sign_detached(
 
     let mut open = Open::new(pgp.transaction()?)?;
 
-    let mut sign = util::verify_to_sign(&mut open, pin_file)?;
+    let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
+
+    let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
     let s = sign.signer(&cert)?;
 
     let message = Armorer::new(Message::new(std::io::stdout())).build()?;
@@ -492,8 +502,8 @@ fn key_import_explicit(
 
 fn generate_keys(
     mut open: Open,
-    pw3_path: Option<PathBuf>,
-    pw1_path: Option<PathBuf>,
+    admin_pin: Option<&[u8]>,
+    user_pin: Option<&[u8]>,
     output: Option<PathBuf>,
     decrypt: bool,
     auth: bool,
@@ -529,7 +539,7 @@ fn generate_keys(
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
     let (key_sig, key_dec, key_aut) = {
-        if let Ok(mut admin) = util::verify_to_admin(&mut open, pw3_path) {
+        if let Ok(mut admin) = util::verify_to_admin(&mut open, admin_pin) {
             gen_subkeys(&mut admin, decrypt, auth, a)?
         } else {
             return Err(anyhow!("Failed to open card in admin mode."));
@@ -539,29 +549,16 @@ fn generate_keys(
     // 3) Generate a Cert from the generated keys. For this, we
     // need "signing" access to the card (to make binding signatures within
     // the Cert).
-    let pin = if let Some(pw1) = pw1_path {
-        Some(util::load_pin(&pw1)?)
-    } else {
-        if open.feature_pinpad_verify() {
-            println!();
-            println!(
-                "Next: generating your public cert. You will need to enter \
-                your user PIN multiple times to make binding signatures."
-            );
-        } else {
-            return Err(anyhow!("No user PIN file provided, and no pinpad found"));
-        }
-        None
-    };
+    if user_pin.is_none() && open.feature_pinpad_verify() {
+        println!(
+            "The public cert will now be generated.\n\n\
+             You will need to enter your user PIN multiple times during this process.\n\n"
+        );
+    }
 
-    let cert = make_cert(
-        &mut open,
-        key_sig,
-        key_dec,
-        key_aut,
-        pin.as_deref(),
-        &|| println!("Enter user PIN on card reader pinpad."),
-    )?;
+    let cert = make_cert(&mut open, key_sig, key_dec, key_aut, user_pin, &|| {
+        println!("Enter user PIN on card reader pinpad.")
+    })?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
     // Write armored certificate to the output file (or stdout)

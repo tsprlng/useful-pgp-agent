@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
@@ -36,8 +36,11 @@ binaries.
 ## opgpcard
 
 A tool to inspect, configure and use OpenPGP cards. All calls of this tool are
-non-interactive (this tool is designed to be easily usable from
+usable in a non-interactive way (this tool is designed to be easily usable from
 shell-scripts).
+
+Alternatively, PINs can be entered interactively on the host computer, or via a pinpad on the smartcard reader,
+if available.
 
 ### List and inspect cards
 
@@ -163,27 +166,54 @@ In the example output above, this string is the ssh public key:
 
 `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII2dcYBqMCamidT5MpE3Cl3MIKcYMBekGXbK2aaN6JaH opgpcard:ABCD:01234567`
 
-### Set card metadata
+### Admin commands
 
-Set cardholder name:
+All `admin` commands need the admin PIN. It can be provided as a file, with `-P <admin-pin-file>`,
+for non-interactive use.
+
+Alternatively, the PIN can be entered interactively on the host computer, or via a pinpad if the OpenPGP card is
+used in a smartcard reader that has a pinpad.
+
+#### Set cardholder name
+
+Set cardholder name, with pin file:
 
 ```
 $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Foo Bar"
 ```
 
-Set cardholder URL:
+Set cardholder name, with interactive PIN input
+(either on the host computer, or via a smartcard reader pinpad):
+
+```
+$ opgpcard admin -c ABCD:01234567 name "Foo Bar"
+```
+
+#### Set cardholder URL
 
 ```
 $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> url "https://key.url.example"
 ```
 
-### Import keys
+or interactively
+
+```
+$ opgpcard admin -c ABCD:01234567 url "https://key.url.example"
+```
+
+#### Import keys
 
 Import private key onto a card. This works if at most one (sub)key per role
 (sign, decrypt, auth) exists in `key.priv`:
 
 ```
 $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv
+```
+
+or interactively
+
+```
+$ opgpcard admin -c ABCD:01234567 import key.priv
 ```
 
 Import private key onto a card while explicitly selecting subkeys. Explicitly
@@ -200,10 +230,26 @@ $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv \
 When fingerprints are only specified for a subset of the roles, no keys will
 be imported for the other roles.
 
-### Generate Keys on the card
+#### Generate Keys on the card
+
+Key generation needs both the admin PIN and the user PIN (the user PIN is needed to export the new key as a public key).
+
+The user PIN can be provided with the `-p <user-pin-file>`, or interactively on the host computer or via the smartcard
+reader pinpad.
 
 ```
 $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> -o <output-cert-file> 25519
+```
+
+or interactively
+
+```
+$ opgpcard admin -c ABCD:01234567 generate -o <output-cert-file> 25519
+```
+
+Output will look like:
+
+```
  Generate subkey for Signing
  Generate subkey for Decryption
  Generate subkey for Authentication
@@ -241,12 +287,24 @@ For now, this tool only supports creating detached signatures, like this
 $ opgpcard sign --detached -c ABCD:01234567 -p <user-pin-file> -s <cert-file> <input-file>
 ```
 
+or interactively
+
+```
+$ opgpcard sign --detached -c ABCD:01234567 -s <cert-file> <input-file>
+```
+
 ### Decrypting
 
 Decryption using a card (if no input file is set, stdin is read):
 
 ```
 $ opgpcard decrypt -c ABCD:01234567 -p <user-pin-file> -r <cert-file> <input-file>
+```
+
+or interactively
+
+```
+$ opgpcard decrypt -c ABCD:01234567 -r <cert-file> <input-file>
 ```
 
 ### Factory reset
