@@ -19,6 +19,7 @@ use openpgp::packet::{
     Key, UserID,
 };
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
+use openpgp::policy::Policy;
 use openpgp::serialize::stream::{Message, Signer};
 use openpgp::types::{KeyFlags, PublicKeyAlgorithm, SignatureType, Timestamp};
 use openpgp::{Cert, Packet};
@@ -32,7 +33,6 @@ use openpgp_card::{Error, KeyType, OpenPgpTransaction};
 use crate::card::Open;
 use crate::privkey::SequoiaKey;
 use crate::{decryptor, signer, PublicKey};
-use sequoia_openpgp::policy::Policy;
 
 /// Create a Cert from the three subkeys on a card.
 /// (Calling this multiple times will result in different Certs!)
