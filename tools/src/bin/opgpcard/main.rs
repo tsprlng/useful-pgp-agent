@@ -42,6 +42,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Ssh { ident } => {
             print_ssh(ident)?;
         }
+        cli::Command::Pubkey { ident, user_pin } => {
+            print_pubkey(ident, user_pin)?;
+        }
         cli::Command::SetIdentity { ident, id } => {
             set_identity(&ident, id)?;
         }
@@ -161,13 +164,15 @@ fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
-    let mut card: Box<dyn CardBackend + Send + Sync> = if let Some(ident) = ident {
-        Box::new(util::open_card(&ident)?)
+/// Return a card for a read operation. If `ident` is None, and exactly one card
+/// is plugged in, that card is returned. (We don't This
+fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + Send + Sync>> {
+    if let Some(ident) = ident {
+        Ok(Box::new(util::open_card(&ident)?))
     } else {
         let mut cards = util::cards()?;
         if cards.len() == 1 {
-            Box::new(cards.pop().unwrap())
+            Ok(Box::new(cards.pop().unwrap()))
         } else if cards.is_empty() {
             return Err(anyhow::anyhow!("No cards found"));
         } else {
@@ -180,7 +185,11 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
             return Err(anyhow::anyhow!("Specify card"));
         }
-    };
+    }
+}
+
+fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
+    let mut card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(&mut *card);
     let mut open = Open::new(pgp.transaction()?)?;
@@ -323,32 +332,14 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 }
 
 fn print_ssh(ident: Option<String>) -> Result<()> {
-    let mut card: Box<dyn CardBackend + Send + Sync> = if let Some(ident) = ident {
-        Box::new(util::open_card(&ident)?)
-    } else {
-        let mut cards = util::cards()?;
-        if cards.len() == 1 {
-            Box::new(cards.pop().unwrap())
-        } else if cards.is_empty() {
-            return Err(anyhow::anyhow!("No cards found"));
-        } else {
-            println!("Found {} cards:", cards.len());
-            list_cards()?;
-
-            println!();
-            println!("Specify which card to use with '--card <card ident>'");
-            println!();
-
-            return Err(anyhow::anyhow!("Specify card"));
-        }
-    };
+    let mut card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(&mut *card);
     let mut open = Open::new(pgp.transaction()?)?;
 
     let ident = open.application_identifier()?.ident();
 
-    println!("OpenPGP card {}", open.application_identifier()?.ident());
+    println!("OpenPGP card {}", ident);
 
     // Print fingerprint of authentication subkey
     let fps = open.fingerprints()?;
@@ -365,6 +356,60 @@ fn print_ssh(ident: Option<String>) -> Result<()> {
             println!("Authentication key as ssh public key:\n{}", ssh);
         }
     }
+
+    Ok(())
+}
+
+fn print_pubkey(ident: Option<String>, user_pin: Option<PathBuf>) -> Result<()> {
+    let mut card = pick_card_for_reading(ident)?;
+
+    let mut pgp = OpenPgp::new(&mut *card);
+    let mut open = Open::new(pgp.transaction()?)?;
+
+    let ident = open.application_identifier()?.ident();
+
+    println!("OpenPGP card {}", ident);
+
+    let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
+
+    let pkm = open.public_key(KeyType::Signing)?;
+    let times = open.key_generation_times()?;
+
+    let key_sig = public_key_material_to_key(
+        &pkm,
+        KeyType::Signing,
+        *times.signature().expect("Signature time is unset"),
+    )?;
+
+    let mut key_dec = None;
+    if let Ok(pkm) = open.public_key(KeyType::Decryption) {
+        if let Some(ts) = times.decryption() {
+            key_dec = Some(public_key_material_to_key(&pkm, KeyType::Decryption, *ts)?);
+        }
+    }
+
+    let mut key_aut = None;
+    if let Ok(pkm) = open.public_key(KeyType::Authentication) {
+        if let Some(ts) = times.authentication() {
+            key_aut = Some(public_key_material_to_key(
+                &pkm,
+                KeyType::Authentication,
+                *ts,
+            )?);
+        }
+    }
+
+    let cert = get_cert(
+        &mut open,
+        key_sig,
+        key_dec,
+        key_aut,
+        user_pin.as_deref(),
+        &|| println!("Enter user PIN on card reader pinpad."),
+    )?;
+
+    let armored = String::from_utf8(cert.armored().to_vec()?)?;
+    println!("{}", armored);
 
     Ok(())
 }
@@ -500,6 +545,24 @@ fn key_import_explicit(
     Ok(())
 }
 
+fn get_cert(
+    open: &mut Open,
+    key_sig: PublicKey,
+    key_dec: Option<PublicKey>,
+    key_aut: Option<PublicKey>,
+    user_pin: Option<&[u8]>,
+    prompt: &dyn Fn(),
+) -> Result<Cert> {
+    if user_pin.is_none() && open.feature_pinpad_verify() {
+        println!(
+            "The public cert will now be generated.\n\n\
+             You will need to enter your user PIN multiple times during this process.\n\n"
+        );
+    }
+
+    make_cert(open, key_sig, key_dec, key_aut, user_pin, prompt)
+}
+
 fn generate_keys(
     mut open: Open,
     admin_pin: Option<&[u8]>,
@@ -549,16 +612,10 @@ fn generate_keys(
     // 3) Generate a Cert from the generated keys. For this, we
     // need "signing" access to the card (to make binding signatures within
     // the Cert).
-    if user_pin.is_none() && open.feature_pinpad_verify() {
-        println!(
-            "The public cert will now be generated.\n\n\
-             You will need to enter your user PIN multiple times during this process.\n\n"
-        );
-    }
-
-    let cert = make_cert(&mut open, key_sig, key_dec, key_aut, user_pin, &|| {
+    let cert = get_cert(&mut open, key_sig, key_dec, key_aut, user_pin, &|| {
         println!("Enter user PIN on card reader pinpad.")
     })?;
+
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 
     // Write armored certificate to the output file (or stdout)

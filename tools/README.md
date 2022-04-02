@@ -141,6 +141,54 @@ AUT: Ed25519 (EdDSA)
 AUT: Ed448 (EdDSA)
 ```
 
+### Get OpenPGP public key
+
+It is possible to get an OpenPGP public key representation of the keys on a card in many (but not all) circumstances.
+
+This command will always return an OpenPGP public key representation, however, eliptic curve-based decryption
+(sub-)keys may be wrong (see https://gitlab.com/hkos/openpgp-card/-/issues/2).  
+
+```
+$ opgpcard pubkey
+OpenPGP card ABCD:01234567
+Enter user PIN:
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: F9C7 97CB 1AF2 1C68 AEEC  8D4D 1002 89F5 5EF6 B2D4
+Comment: baz
+
+xjMEYkOmahYJKwYBBAHaRw8BAQdADwHIuuSgboyzgcLci8Hc0Q15YHKfDP8/CZG4
+uumYosXNA2JhesLABgQTFgoAeAWCYkjTagWJAAAAAAkQEAKJ9V72stRHFAAAAAAA
+HgAgc2FsdEBub3RhdGlvbnMuc2VxdW9pYS1wZ3Aub3JnifpLw5yhNlKffk7V+P9g
+idnIM3j6l3k34+p7tMQmCPoCmwMWIQT5x5fLGvIcaK7sjU0QAon1Xvay1AAAhJkB
+AIEhZTDuc9xARVK8ta51SOpX3mZs/UYA5a+UrB6vpmZ3AP4k14gFQ6q/cl/SOhPR
+FpCAvYlqL8rb3gc2sFIZDfYUDM4zBGJDpmoWCSsGAQQB2kcPAQEHQDRodITykZoi
+hIIPZcFZ2bMXvo20YEv+I1eg2kFQ2qSqwsAGBBgWCgB4BYJiSNNqBYkAAAAACRAQ
+Aon1Xvay1EcUAAAAAAAeACBzYWx0QG5vdGF0aW9ucy5zZXF1b2lhLXBncC5vcmcI
+5rVHhWA5cGdYlyQJYRXv4osAyFlyznFiUOATnoT6LgKbIBYhBPnHl8sa8hxoruyN
+TRACifVe9rLUAADpTwD/a+AlBGryfLsqFzIhdJRpGkoOl0H+xcgk3vcaPUQq0pcA
+/3TtUmaJ5w60qb/Px7/Q+MTymHH54elRY4lvwIfbvkUIzjgEYkOmahIKKwYBBAGX
+VQEFAQEHQO5KBZ7cMwwjsXGOWWMqgAkCyNdw7smcx/+jBEk0m38dAwEKCcLABgQY
+FgoAeAWCYkjTagWJAAAAAAkQEAKJ9V72stRHFAAAAAAAHgAgc2FsdEBub3RhdGlv
+bnMuc2VxdW9pYS1wZ3Aub3Jn9IwQkbcw9W0jfrduv1q4qNhsOgJWkGTMbVyvQCug
+YpcCmwwWIQT5x5fLGvIcaK7sjU0QAon1Xvay1AAAfTwBAPSQq/hGcGjAWNePHoLH
+5zA/ePu1vaY1nh2dPhqtUg8+AP0TDG96MJxlM8SJUQXtQsJCAEo4qT9GnGi7MyTU
+nvraDw==
+=es4l
+-----END PGP PUBLIC KEY BLOCK-----
+```
+
+You can query a specific card
+
+```
+$ opgpcard pubkey -c ABCD:01234567
+```
+
+And/or pass the user PIN as a file, for non-interactive use":
+
+```
+$ opgpcard pubkey -p <user-pin-file>
+```
+
 ### Using a card for ssh auth
 
 To use an OpenPGP card for ssh login authentication, a PGP authentication key needs to exist on the card.

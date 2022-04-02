@@ -31,6 +31,13 @@ pub enum Command {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: Option<String>,
     },
+    Pubkey {
+        #[clap(name = "card ident", short = 'c', long = "card")]
+        ident: Option<String>,
+
+        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
+        user_pin: Option<PathBuf>,
+    },
     FactoryReset {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
