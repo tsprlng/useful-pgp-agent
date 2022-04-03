@@ -39,6 +39,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Status { ident, verbose } => {
             print_status(ident, verbose)?;
         }
+        cli::Command::Info { ident } => {
+            print_info(ident)?;
+        }
         cli::Command::Ssh { ident } => {
             print_ssh(ident)?;
         }
@@ -310,22 +313,48 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         pws.err_count_pw3(),
     );
 
-    // FIXME: add General key info; login data; KDF setting
+    // FIXME: print "Login Data", "Key Information"
 
-    if verbose {
-        // Algorithm information (list of supported algorithms)
-        if let Ok(Some(ai)) = open.algorithm_information() {
-            println!();
-            println!("Supported algorithms:");
-            println!("{}", ai);
-        }
+    Ok(())
+}
 
-        // YubiKey specific (?) firmware version
-        if let Ok(ver) = open.firmware_version() {
-            let ver = ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
+/// print metadata information about a card
+fn print_info(ident: Option<String>) -> Result<()> {
+    let mut card = pick_card_for_reading(ident)?;
 
-            println!("Firmware Version: {}", ver);
-        }
+    let mut pgp = OpenPgp::new(&mut *card);
+    let mut open = Open::new(pgp.transaction()?)?;
+
+    print!("OpenPGP card {}", open.application_identifier()?.ident());
+
+    let ai = open.application_identifier()?;
+    let version = ai.version().to_be_bytes();
+    println!(" (card version {}.{})\n", version[0], version[1]);
+
+    if let Some(cc) = open.historical_bytes()?.card_capabilities() {
+        println!("{:#?}\n", cc);
+    }
+
+    if let Some(eli) = open.extended_length_information()? {
+        println!("{:#?}\n", eli);
+    }
+
+    let ec = open.extended_capabilities()?;
+    println!("{:#?}\n", ec);
+
+    // Algorithm information (list of supported algorithms)
+    if let Ok(Some(ai)) = open.algorithm_information() {
+        println!("Supported algorithms:");
+        println!("{}", ai);
+    }
+
+    // FIXME: print KDF info
+
+    // YubiKey specific (?) firmware version
+    if let Ok(ver) = open.firmware_version() {
+        let ver = ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
+
+        println!("Firmware Version: {}\n", ver);
     }
 
     Ok(())

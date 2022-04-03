@@ -91,8 +91,7 @@ is plugged in):
 $ opgpcard status --card ABCD:01234567
 ```
 
-Add `-v` for more verbose card status (including the list of supported
-algorithms, if the card returns an algorithm list):
+Add `-v` for more verbose card status (this prints public key data for each key slot):
 
 ```
 $ opgpcard status -c ABCD:01234567 -v
@@ -122,23 +121,6 @@ Signature counter: 3
 Signature pin only valid once: true
 Password validation retry count:
   user pw: 3, reset: 3, admin pw: 3
-
-Supported algorithms:
-SIG: RSA 2048 [e 32]
-SIG: RSA 4096 [e 32]
-SIG: Secp256k1 (ECDSA)
-SIG: Ed25519 (EdDSA)
-SIG: Ed448 (EdDSA)
-DEC: RSA 2048 [e 32]
-DEC: RSA 4096 [e 32]
-DEC: Secp256k1 (ECDSA)
-DEC: Cv25519 (ECDH)
-DEC: X448 (ECDH)
-AUT: RSA 2048 [e 32]
-AUT: RSA 4096 [e 32]
-AUT: Secp256k1 (ECDSA)
-AUT: Ed25519 (EdDSA)
-AUT: Ed448 (EdDSA)
 ```
 
 ### Get OpenPGP public key
@@ -213,6 +195,55 @@ To allow login to a remote machine, that ssh public key can be added to
 In the example output above, this string is the ssh public key:
 
 `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII2dcYBqMCamidT5MpE3Cl3MIKcYMBekGXbK2aaN6JaH opgpcard:ABCD:01234567`
+
+### Show OpenPGP card metadata
+
+Print information about the capabilities of a card, including the list of supported algorithms (if the card returns
+that list).
+
+Most of the output is probably not of interest to regular users.
+
+```
+$ opgpcard info
+OpenPGP card FF06:00002001 (card version 2.0)
+
+CardCapabilities {
+    command_chaining: true,
+    extended_lc_le: false,
+    extended_length_information: false,
+}
+
+ExtendedCapabilities {
+    secure_messaging: true,
+    get_challenge: true,
+    key_import: true,
+    pw_status_change: true,
+    private_use_dos: true,
+    algo_attrs_changeable: false,
+    aes: false,
+    kdf_do: false,
+    sm_algo: 0,
+    max_len_challenge: 255,
+    max_len_cardholder_cert: 1216,
+    max_cmd_len: Some(
+        255,
+    ),
+    max_resp_len: Some(
+        255,
+    ),
+    max_len_special_do: None,
+    pin_block_2_format_support: None,
+    mse_command_support: None,
+}
+
+Firmware Version: 1.0.18
+```
+
+Or to query a specific card:
+
+```
+$ opgpcard info --card ABCD:01234567
+```
 
 ### Admin commands
 
