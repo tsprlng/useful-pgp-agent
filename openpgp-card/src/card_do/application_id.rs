@@ -54,6 +54,40 @@ impl ApplicationIdentifier {
         self.serial
     }
 
+    /// Mapping of manufacturer id to a name, data from:
+    /// https://en.wikipedia.org/wiki/OpenPGP_card [2022-04-07]
+    pub fn manufacturer_name(&self) -> &'static str {
+        match self.manufacturer {
+            0x0000 => "Testcard",
+            0x0001 => "PPC Card Systems",
+            0x0002 => "Prism Payment Technologies",
+            0x0003 => "OpenFortress Digital signatures",
+            0x0004 => "Wewid AB",
+            0x0005 => "ZeitControl cardsystems GmbH",
+            0x0006 => "Yubico AB",
+            0x0007 => "OpenKMS",
+            0x0008 => "LogoEmail",
+            0x0009 => "Fidesmo AB",
+            0x000A => "Dangerous Things",
+            0x000B => "Feitian Technologies",
+            0x002A => "Magrathea",
+            0x0042 => "GnuPG e.V.",
+            0x1337 => "Warsaw Hackerspace",
+            0x2342 => "warpzone e.V.",
+            0x4354 => "Confidential Technologies",
+            0x5443 => "TIF-IT e.V.",
+            0x63AF => "Trustica s.r.o",
+            0xBA53 => "c-base e.V.",
+            0xBD0E => "Paranoidlabs",
+            0xF1D0 => "CanoKeys",
+            0xF517 => "Free Software Initiative of Japan",
+            0xF5EC => "F-Secure",
+            0xFF00..=0xFFFE => "Range reserved for randomly assigned serial numbers.",
+            0xFFFF => "Testcard",
+            _ => "Unknown",
+        }
+    }
+
     /// This ident is constructed as the concatenation of manufacturer
     /// id, a colon, and the card serial (in hexadecimal representation,
     /// with uppercase hex digits).
