@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 [package]
@@ -14,8 +14,10 @@ documentation = "https://docs.rs/crate/openpgp-card"
 [dependencies]
 blanket = "0.2.0"
 nom = "6"
-hex-literal = "0.3"
 hex-slice = "0.1"
 thiserror = "1"
 log = "0.4"
 chrono = "0.4"
+
+[dev-dependencies]
+hex-literal = "0.3"
