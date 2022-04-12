@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 # SPDX-FileCopyrightText: 2021 Nora Widdecke <mail@nora.pink>
 # SPDX-License-Identifier: CC0-1.0
 
@@ -23,10 +23,10 @@ cache: &general_cache_config
 
 reuse:
   stage: lint
-  cache: []
+  cache: [ ]
   image:
     name: fsfe/reuse:latest
-    entrypoint: [""]
+    entrypoint: [ "" ]
   script:
     - reuse lint
 
@@ -56,6 +56,20 @@ cargo-clippy:
   script:
     - rustup component add clippy
     - cargo clippy --verbose --tests -- -D warnings
+
+udeps:
+  stage: lint
+  image: rustlang/rust:nightly-slim
+  cache: [ ]
+  before_script:
+    - mkdir -p /run/user/$UID
+    - apt update -y -qq
+    - apt install -y -qq --no-install-recommends curl git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
+    - apt clean
+    - curl --location --output /tmp/cargo-udeps.tar.gz https://github.com/est31/cargo-udeps/releases/download/v0.1.26/cargo-udeps-v0.1.26-x86_64-unknown-linux-gnu.tar.gz
+    - tar --extract --verbose --gzip --file /tmp/cargo-udeps.tar.gz --directory /usr/local/bin/ --strip-components=2 ./cargo-udeps-v0.1.26-x86_64-unknown-linux-gnu/cargo-udeps
+  script:
+    - cargo udeps --workspace --all-features --all-targets
 
 cargo-test:
   stage: test
@@ -123,7 +137,7 @@ run_cardtest_ykneo:
 
 hardware-builddeps:
   stage: hw-builddeps
-  needs: []
+  needs: [ ]
   image: docker:stable
   services:
     - docker:dind
