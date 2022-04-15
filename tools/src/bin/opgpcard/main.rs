@@ -328,22 +328,33 @@ fn print_info(ident: Option<String>) -> Result<()> {
     let mut pgp = OpenPgp::new(&mut *card);
     let mut open = Open::new(pgp.transaction()?)?;
 
-    print!("OpenPGP card {}", open.application_identifier()?.ident());
-
     let ai = open.application_identifier()?;
+
+    print!("OpenPGP card {}", ai.ident());
+
     let version = ai.version().to_be_bytes();
     println!(" (card version {}.{})\n", version[0], version[1]);
 
+    println!("Application Identifier: {}", ai);
+    println!(
+        "Manufacturer [{:04X}]: {}\n",
+        ai.manufacturer(),
+        ai.manufacturer_name()
+    );
+
     if let Some(cc) = open.historical_bytes()?.card_capabilities() {
-        println!("{:#?}\n", cc);
+        println!("Card Capabilities:\n{}", cc);
+    }
+    if let Some(csd) = open.historical_bytes()?.card_service_data() {
+        println!("Card service data:\n{}", csd);
     }
 
     if let Some(eli) = open.extended_length_information()? {
-        println!("{:#?}\n", eli);
+        println!("Extended Length Info:\n{}", eli);
     }
 
     let ec = open.extended_capabilities()?;
-    println!("{:#?}\n", ec);
+    println!("Extended Capabilities:\n{}", ec);
 
     // Algorithm information (list of supported algorithms)
     if let Ok(Some(ai)) = open.algorithm_information() {
