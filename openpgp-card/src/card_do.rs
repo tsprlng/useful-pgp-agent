@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! OpenPGP card data objects (DO)
@@ -215,6 +215,16 @@ pub struct ApplicationIdentifier {
     serial: u32,
 }
 
+impl Display for ApplicationIdentifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "D276000124 01 {:02X} {:04X} {:04X} {:08X} 0000",
+            self.application, self.version, self.manufacturer, self.serial
+        )
+    }
+}
+
 /// 6 Historical Bytes
 #[derive(Debug, PartialEq)]
 pub struct HistoricalBytes {
@@ -239,15 +249,67 @@ pub struct CardCapabilities {
     extended_length_information: bool,
 }
 
-/// Card service data (see 6 Historical Bytes
+impl Display for CardCapabilities {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.command_chaining {
+            writeln!(f, "- command chaining")?;
+        }
+        if self.extended_lc_le {
+            writeln!(f, "- extended Lc and Le fields")?;
+        }
+        if self.extended_length_information {
+            writeln!(f, "- extended Length Information")?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Card service data (see 6 Historical Bytes)
 #[derive(Debug, PartialEq)]
 pub struct CardServiceData {
-    select_by_full_df_name: bool,
-    select_by_partial_df_name: bool,
+    select_by_full_df_name: bool, // Application Selection by full DF name (AID)
+    select_by_partial_df_name: bool, // Application Selection by partial DF name
     dos_available_in_ef_dir: bool,
-    dos_available_in_ef_atr_info: bool,
-    access_services: [bool; 3],
+    dos_available_in_ef_atr_info: bool, // should be true if extended length supported
+    access_services: [bool; 3],         // should be '010' if extended length supported
     mf: bool,
+}
+
+impl Display for CardServiceData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.select_by_full_df_name {
+            writeln!(f, "- Application Selection by full DF name")?;
+        }
+        if self.select_by_partial_df_name {
+            writeln!(f, "- Application Selection by partial DF name")?;
+        }
+        if self.dos_available_in_ef_dir {
+            writeln!(f, "- DOs available in EF.DIR")?;
+        }
+        if self.dos_available_in_ef_atr_info {
+            writeln!(f, "- DOs available in EF.ATR/INFO")?;
+        }
+
+        write!(
+            f,
+            "- EF.DIR and EF.ATR/INFO access services by the GET DATA command (BER-TLV): "
+        )?;
+        for a in self.access_services {
+            if a {
+                write!(f, "1")?;
+            } else {
+                write!(f, "0")?;
+            }
+        }
+        writeln!(f)?;
+
+        if self.mf {
+            writeln!(f, "- Card with MF")?;
+        }
+
+        Ok(())
+    }
 }
 
 /// 4.4.3.7 Extended Capabilities
@@ -274,11 +336,89 @@ pub struct ExtendedCapabilities {
     mse_command_support: Option<bool>,        // v3
 }
 
+impl Display for ExtendedCapabilities {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.secure_messaging {
+            writeln!(f, "- secure messaging")?;
+        }
+        if self.get_challenge {
+            writeln!(f, "- get challenge")?;
+        }
+        if self.key_import {
+            writeln!(f, "- key import")?;
+        }
+        if self.pw_status_change {
+            writeln!(f, "- PW Status changeable")?;
+        }
+        if self.private_use_dos {
+            writeln!(f, "- private use DOs")?;
+        }
+        if self.algo_attrs_changeable {
+            writeln!(f, "- algorithm attributes changeable")?;
+        }
+        if self.aes {
+            writeln!(f, "- PSO:DEC/ENC with AES")?;
+        }
+        if self.kdf_do {
+            writeln!(f, "- KDF-DO")?;
+        }
+        if self.sm_algo != 0 {
+            writeln!(f, "- secure messaging algorithm: {:#02X}", self.sm_algo)?;
+        }
+
+        if self.max_len_challenge != 0 {
+            writeln!(
+                f,
+                "- maximum length of challenge: {}",
+                self.max_len_challenge
+            )?;
+        }
+        writeln!(
+            f,
+            "- maximum length cardholder certificates: {}",
+            self.max_len_cardholder_cert
+        )?;
+
+        // v2
+        if let Some(max_cmd_len) = self.max_cmd_len {
+            writeln!(f, "- maximum command length: {}", max_cmd_len)?;
+        }
+        if let Some(max_resp_len) = self.max_resp_len {
+            writeln!(f, "- maximum response length: {}", max_resp_len)?;
+        }
+
+        // v3
+        if let Some(max_len_special_do) = self.max_len_special_do {
+            writeln!(
+                f,
+                "- maximum length for special DOs: {}",
+                max_len_special_do
+            )?;
+        }
+        if self.pin_block_2_format_support == Some(true) {
+            writeln!(f, "- PIN block 2 format supported")?;
+        }
+        if self.mse_command_support == Some(true) {
+            writeln!(f, "- MSE command (for DEC and AUT) supported")?;
+        }
+
+        Ok(())
+    }
+}
+
 /// 4.1.3.1 Extended length information
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedLengthInfo {
     max_command_bytes: u16,
     max_response_bytes: u16,
+}
+
+impl Display for ExtendedLengthInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "- max command length: {}", self.max_command_bytes)?;
+        writeln!(f, "- max response length: {}", self.max_response_bytes)?;
+        Ok(())
+    }
 }
 
 /// Cardholder Related Data (see spec pg. 22)

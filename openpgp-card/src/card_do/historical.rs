@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! 6 Historical Bytes
@@ -72,6 +72,10 @@ fn split_tl(tl: u8) -> (u8, u8) {
 impl HistoricalBytes {
     pub fn card_capabilities(&self) -> Option<&CardCapabilities> {
         self.cc.as_ref()
+    }
+
+    pub fn card_service_data(&self) -> Option<&CardServiceData> {
+        self.csd.as_ref()
     }
 }
 
