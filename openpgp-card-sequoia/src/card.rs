@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Perform operations on a card. Different states of a card are modeled by
@@ -6,6 +6,7 @@
 
 use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
+use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
@@ -415,20 +416,32 @@ impl Admin<'_, '_> {
         self.oc.opt.key_import(key, key_type)
     }
 
+    /// Wrapper fn for `public_to_fingerprint` that uses SHA256/AES128 as default parameters.
+    ///
+    /// FIXME: This is a hack.
+    /// These parameters should probably be automatically determined based on the algorithm used?
+    fn ptf(
+        pkm: &PublicKeyMaterial,
+        time: KeyGenerationTime,
+        key_type: KeyType,
+    ) -> Result<Fingerprint, Error> {
+        public_to_fingerprint(
+            pkm,
+            &time,
+            key_type,
+            Some(HashAlgorithm::SHA256),
+            Some(SymmetricAlgorithm::AES128),
+        )
+    }
+
     pub fn generate_key_simple(
         &mut self,
         key_type: KeyType,
         algo: Option<AlgoSimple>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         match algo {
-            Some(algo) => self
-                .oc
-                .opt
-                .generate_key_simple(public_to_fingerprint, key_type, algo),
-            None => self
-                .oc
-                .opt
-                .generate_key(public_to_fingerprint, key_type, None),
+            Some(algo) => self.oc.opt.generate_key_simple(Self::ptf, key_type, algo),
+            None => self.oc.opt.generate_key(Self::ptf, key_type, None),
         }
     }
 }

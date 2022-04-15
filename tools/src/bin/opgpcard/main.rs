@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Result};
@@ -15,9 +15,12 @@ use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::Sex;
 use openpgp_card::{CardBackend, KeyType, OpenPgp};
 use openpgp_card_sequoia::card::{Admin, Open};
-use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
+use openpgp_card_sequoia::util::{
+    make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
+};
 use openpgp_card_sequoia::{sq_util, PublicKey};
 
+use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use std::io::Write;
 
 mod cli;
@@ -403,27 +406,36 @@ fn print_pubkey(ident: Option<String>, user_pin: Option<PathBuf>) -> Result<()> 
 
     let pkm = open.public_key(KeyType::Signing)?;
     let times = open.key_generation_times()?;
+    let fps = open.fingerprints()?;
 
-    let key_sig = public_key_material_to_key(
+    let key_sig = public_key_material_and_fp_to_key(
         &pkm,
         KeyType::Signing,
-        *times.signature().expect("Signature time is unset"),
+        times.signature().expect("Signature time is unset"),
+        fps.signature().expect("Signature fingerprint is unset"),
     )?;
 
     let mut key_dec = None;
     if let Ok(pkm) = open.public_key(KeyType::Decryption) {
         if let Some(ts) = times.decryption() {
-            key_dec = Some(public_key_material_to_key(&pkm, KeyType::Decryption, *ts)?);
+            key_dec = Some(public_key_material_and_fp_to_key(
+                &pkm,
+                KeyType::Decryption,
+                ts,
+                fps.decryption().expect("Decryption fingerprint is unset"),
+            )?);
         }
     }
 
     let mut key_aut = None;
     if let Ok(pkm) = open.public_key(KeyType::Authentication) {
         if let Some(ts) = times.authentication() {
-            key_aut = Some(public_key_material_to_key(
+            key_aut = Some(public_key_material_and_fp_to_key(
                 &pkm,
                 KeyType::Authentication,
-                *ts,
+                ts,
+                fps.authentication()
+                    .expect("Authentication fingerprint is unset"),
             )?);
         }
     }
@@ -663,14 +675,20 @@ fn gen_subkeys(
     // We begin by generating the signing subkey, which is mandatory.
     println!(" Generate subkey for Signing");
     let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, algo)?;
-    let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
+    let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, &ts, None, None)?;
 
     // make decryption subkey (unless disabled), with the same algorithm as
     // the sig key
     let key_dec = if decrypt {
         println!(" Generate subkey for Decryption");
         let (pkm, ts) = admin.generate_key_simple(KeyType::Decryption, algo)?;
-        Some(public_key_material_to_key(&pkm, KeyType::Decryption, ts)?)
+        Some(public_key_material_to_key(
+            &pkm,
+            KeyType::Decryption,
+            &ts,
+            Some(HashAlgorithm::SHA256),      // FIXME
+            Some(SymmetricAlgorithm::AES128), // FIXME
+        )?)
     } else {
         None
     };
@@ -684,7 +702,9 @@ fn gen_subkeys(
         Some(public_key_material_to_key(
             &pkm,
             KeyType::Authentication,
-            ts,
+            &ts,
+            None,
+            None,
         )?)
     } else {
         None

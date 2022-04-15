@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Odds and ends, will most likely be restructured.
@@ -24,6 +24,7 @@ use openpgp::serialize::stream::{Message, Signer};
 use openpgp::types::{KeyFlags, PublicKeyAlgorithm, SignatureType, Timestamp};
 use openpgp::{Cert, Packet};
 use sequoia_openpgp as openpgp;
+use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
@@ -173,11 +174,77 @@ pub fn make_cert<'app>(
     Cert::try_from(pp)
 }
 
-/// Helper fn: get a Sequoia PublicKey from an openpgp-card PublicKeyMaterial
+/// Meta-Helper fn: get a Sequoia PublicKey from an openpgp-card PublicKeyMaterial, timestamp and
+/// card-Fingerprint.
+///
+/// For ECC decryption keys, possible values for the parameters `hash` and `sym` will be tested.
+/// Once a key with matching fingerprint is found in this way, it is considered the correct key,
+/// and returned.
+///
+/// The Fingerprint of the retrieved PublicKey is always validated against the `Fingerprint` as
+/// stored on the card. If the fingerprints doesn't match, an Error is returned.
+pub fn public_key_material_and_fp_to_key(
+    pkm: &PublicKeyMaterial,
+    key_type: KeyType,
+    time: &KeyGenerationTime,
+    fingerprint: &Fingerprint,
+) -> Result<PublicKey, Error> {
+    // Possible hash/sym parameters based on statistics over 2019-12 SKS dump:
+    // https://gitlab.com/sequoia-pgp/sequoia/-/issues/838#note_909813463
+
+    // We try these parameters in descending order of occurrence and return the PublicKey
+    // once the Fingerprint matches.
+
+    let param: &[_] = match (pkm, key_type) {
+        (PublicKeyMaterial::E(_), KeyType::Decryption) => &[
+            (
+                Some(HashAlgorithm::SHA256),
+                Some(SymmetricAlgorithm::AES128),
+            ),
+            (
+                Some(HashAlgorithm::SHA512),
+                Some(SymmetricAlgorithm::AES256),
+            ),
+            (
+                Some(HashAlgorithm::SHA384),
+                Some(SymmetricAlgorithm::AES256),
+            ),
+            (
+                Some(HashAlgorithm::SHA384),
+                Some(SymmetricAlgorithm::AES192),
+            ),
+            (
+                Some(HashAlgorithm::SHA256),
+                Some(SymmetricAlgorithm::AES256),
+            ),
+        ],
+        _ => &[(None, None)],
+    };
+
+    for (hash, sym) in param {
+        if let Ok(key) = public_key_material_to_key(pkm, key_type, time, *hash, *sym) {
+            // check FP
+            if key.fingerprint().as_bytes() == fingerprint.as_bytes() {
+                // return if match
+                return Ok(key);
+            }
+        }
+    }
+
+    Err(Error::InternalError(
+        "Couldn't find key with matching fingerprint".to_string(),
+    ))
+}
+
+/// Helper fn: get a Sequoia PublicKey from an openpgp-card PublicKeyMaterial.
+///
+/// For ECC decryption keys, `hash` and `sym` can be optionally specified.
 pub fn public_key_material_to_key(
     pkm: &PublicKeyMaterial,
     key_type: KeyType,
-    time: KeyGenerationTime,
+    time: &KeyGenerationTime,
+    hash: Option<HashAlgorithm>,
+    sym: Option<SymmetricAlgorithm>,
 ) -> Result<PublicKey, Error> {
     let time = Timestamp::from(time.get()).into();
 
@@ -236,11 +303,8 @@ pub fn public_key_material_to_key(
                     }
                     KeyType::Decryption => {
                         if algo_ecc.curve() == Curve::Cv25519 {
-                            // FIXME: not setting `hash` and `sym` is not
-                            // ok when a cert already exists
-
                             // EdDSA
-                            let k4 = Key4::import_public_cv25519(ecc.data(), None, None, time)
+                            let k4 = Key4::import_public_cv25519(ecc.data(), hash, sym, time)
                                 .map_err(|e| {
                                     Error::InternalError(format!(
                                         "sequoia Key4::import_public_cv25519 failed: {:?}",
@@ -250,9 +314,6 @@ pub fn public_key_material_to_key(
 
                             Ok(k4.into())
                         } else {
-                            // FIXME: just defining `hash` and `sym` is not
-                            // ok when a cert already exists
-
                             // ECDH
                             let k4 = Key4::new(
                                 time,
@@ -260,8 +321,8 @@ pub fn public_key_material_to_key(
                                 mpi::PublicKey::ECDH {
                                     curve,
                                     q: mpi::MPI::new(ecc.data()),
-                                    hash: Default::default(),
-                                    sym: Default::default(),
+                                    hash: hash.unwrap_or_default(),
+                                    sym: sym.unwrap_or_default(),
                                 },
                             )
                             .map_err(|e| {
@@ -286,13 +347,17 @@ pub fn public_key_material_to_key(
 
 /// Mapping function to get a fingerprint from "PublicKeyMaterial +
 /// timestamp + KeyType" (intended for use with `CardApp.generate_key()`).
-pub fn public_to_fingerprint(
+///
+/// For ECC decryption keys, `hash` and `sym` can be optionally specified.
+pub(crate) fn public_to_fingerprint(
     pkm: &PublicKeyMaterial,
-    time: KeyGenerationTime,
+    time: &KeyGenerationTime,
     kt: KeyType,
+    hash: Option<HashAlgorithm>,
+    sym: Option<SymmetricAlgorithm>,
 ) -> Result<Fingerprint, Error> {
     // Transform PublicKeyMaterial into a Sequoia Key
-    let key = public_key_material_to_key(pkm, kt, time)?;
+    let key = public_key_material_to_key(pkm, kt, time, hash, sym)?;
 
     // Get fingerprint from the Sequoia Key
     let fp = key.fingerprint();

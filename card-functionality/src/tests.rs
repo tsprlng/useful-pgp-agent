@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
@@ -10,13 +10,16 @@ use thiserror;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::SerializeInto;
+use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{CardBackend, Error, KeyType, OpenPgp, OpenPgpTransaction, StatusBytes};
 use openpgp_card_sequoia::card::Open;
-use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key, public_to_fingerprint};
+use openpgp_card_sequoia::util::{
+    make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
+};
 
 use crate::cards::TestCardData;
 use crate::util;
@@ -226,9 +229,11 @@ pub fn test_keygen(
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgp = OpenPgp::new(card);
-    let mut pgpt = pgp.transaction()?;
+    let pgpt = pgp.transaction()?;
 
-    pgpt.verify_pw3(b"12345678")?;
+    let mut open = Open::new(pgpt)?;
+    open.verify_admin(b"12345678")?;
+    let mut admin = open.admin_card().expect("Couldn't get Admin card");
 
     // Generate all three subkeys on card
     let algo = param[0];
@@ -236,20 +241,24 @@ pub fn test_keygen(
     let alg = AlgoSimple::try_from(algo)?;
 
     println!(" Generate subkey for Signing");
-    let (pkm, ts) = pgpt.generate_key_simple(public_to_fingerprint, KeyType::Signing, alg)?;
-    let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, ts)?;
+    let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, Some(alg))?;
+    let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, &ts, None, None)?;
 
     println!(" Generate subkey for Decryption");
-    let (pkm, ts) = pgpt.generate_key_simple(public_to_fingerprint, KeyType::Decryption, alg)?;
-    let key_dec = public_key_material_to_key(&pkm, KeyType::Decryption, ts)?;
+    let (pkm, ts) = admin.generate_key_simple(KeyType::Decryption, Some(alg))?;
+    let key_dec = public_key_material_to_key(
+        &pkm,
+        KeyType::Decryption,
+        &ts,
+        Some(HashAlgorithm::SHA256),
+        Some(SymmetricAlgorithm::AES128),
+    )?;
 
     println!(" Generate subkey for Authentication");
-    let (pkm, ts) =
-        pgpt.generate_key_simple(public_to_fingerprint, KeyType::Authentication, alg)?;
-    let key_aut = public_key_material_to_key(&pkm, KeyType::Authentication, ts)?;
+    let (pkm, ts) = admin.generate_key_simple(KeyType::Authentication, Some(alg))?;
+    let key_aut = public_key_material_to_key(&pkm, KeyType::Authentication, &ts, None, None)?;
 
     // Generate a Cert for this set of generated keys
-    let mut open = Open::new(pgpt)?;
     let cert = make_cert(
         &mut open,
         key_sig,
@@ -274,36 +283,43 @@ pub fn test_get_pub(
     let mut pgpt = pgp.transaction()?;
 
     let ard = pgpt.application_related_data()?;
-    let key_gen = ard.key_generation_times()?;
+    let times = ard.key_generation_times()?;
+    let fps = ard.fingerprints()?;
 
     // --
 
     let sig = pgpt.public_key(KeyType::Signing)?;
-    let ts = key_gen.signature().unwrap().get().into();
-    let key = public_key_material_to_key(&sig, KeyType::Signing, ts)?;
+    let ts = times.signature().unwrap().get().into();
+    let key =
+        public_key_material_and_fp_to_key(&sig, KeyType::Signing, &ts, fps.signature().unwrap())?;
 
     println!(" sig key data from card -> {:x?}", key);
 
     // --
 
     let dec = pgpt.public_key(KeyType::Decryption)?;
-    let ts = key_gen.decryption().unwrap().get().into();
-    let key = public_key_material_to_key(&dec, KeyType::Decryption, ts)?;
+    let ts = times.decryption().unwrap().get().into();
+    let key = public_key_material_and_fp_to_key(
+        &dec,
+        KeyType::Decryption,
+        &ts,
+        fps.decryption().unwrap(),
+    )?;
 
     println!(" dec key data from card -> {:x?}", key);
 
     // --
 
     let auth = pgpt.public_key(KeyType::Authentication)?;
-    let ts = key_gen.authentication().unwrap().get().into();
-    let key = public_key_material_to_key(&auth, KeyType::Authentication, ts)?;
+    let ts = times.authentication().unwrap().get().into();
+    let key = public_key_material_and_fp_to_key(
+        &auth,
+        KeyType::Authentication,
+        &ts,
+        fps.authentication().unwrap(),
+    )?;
 
     println!(" auth key data from card -> {:x?}", key);
-
-    // FIXME: assert that key FP is equal to FP from card
-
-    // ca.generate_key(fp, KeyType::Decryption)?;
-    // ca.generate_key(fp, KeyType::Authentication)?;
 
     Ok(vec![])
 }
