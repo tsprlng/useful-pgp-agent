@@ -125,10 +125,9 @@ Password validation retry count:
 
 ### Get OpenPGP public key
 
-It is possible to get an OpenPGP public key representation of the keys on a card in many (but not all) circumstances.
+This command returns an OpenPGP public key representation of the keys on a card.
 
-This command will always return an OpenPGP public key representation, however, eliptic curve-based decryption
-(sub-)keys may be wrong (see https://gitlab.com/hkos/openpgp-card/-/issues/2).  
+To bind the decryption and authentication subkeys (if any) to the signing key, the user pin needs to be provided.
 
 ```
 $ opgpcard pubkey
@@ -205,38 +204,45 @@ Most of the output is probably not of interest to regular users.
 
 ```
 $ opgpcard info
-OpenPGP card FF06:00002001 (card version 2.0)
+OpenPGP card FFFE:12345678 (card version 2.0)
 
-CardCapabilities {
-    command_chaining: true,
-    extended_lc_le: false,
-    extended_length_information: false,
-}
+Application Identifier: D276000124 01 01 0200 FFFE 12345678 0000
+Manufacturer [FFFE]: Range reserved for randomly assigned serial numbers.
 
-ExtendedCapabilities {
-    secure_messaging: true,
-    get_challenge: true,
-    key_import: true,
-    pw_status_change: true,
-    private_use_dos: true,
-    algo_attrs_changeable: false,
-    aes: false,
-    kdf_do: false,
-    sm_algo: 0,
-    max_len_challenge: 255,
-    max_len_cardholder_cert: 1216,
-    max_cmd_len: Some(
-        255,
-    ),
-    max_resp_len: Some(
-        255,
-    ),
-    max_len_special_do: None,
-    pin_block_2_format_support: None,
-    mse_command_support: None,
-}
+Card Capabilities:
+- command chaining
 
-Firmware Version: 1.0.18
+Card service data:
+- Application Selection by full DF name
+- EF.DIR and EF.ATR/INFO access services by the GET DATA command (BER-TLV): 010
+
+Extended Capabilities:
+- get challenge
+- key import
+- PW Status changeable
+- algorithm attributes changeable
+- KDF-DO
+- maximum length of challenge: 32
+- maximum length cardholder certificates: 2048
+- maximum command length: 255
+- maximum response length: 256
+
+Supported algorithms:
+SIG: RSA 2048 [e 32]
+SIG: RSA 4096 [e 32]
+SIG: Secp256k1 (ECDSA)
+SIG: Ed25519 (EdDSA)
+SIG: Ed448 (EdDSA)
+DEC: RSA 2048 [e 32]
+DEC: RSA 4096 [e 32]
+DEC: Secp256k1 (ECDSA)
+DEC: Cv25519 (ECDH)
+DEC: X448 (ECDH)
+AUT: RSA 2048 [e 32]
+AUT: RSA 4096 [e 32]
+AUT: Secp256k1 (ECDSA)
+AUT: Ed25519 (EdDSA)
+AUT: Ed448 (EdDSA)
 ```
 
 Or to query a specific card:
