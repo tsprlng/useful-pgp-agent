@@ -13,7 +13,7 @@ documentation = "https://docs.rs/crate/openpgp-card"
 
 [dependencies]
 blanket = "0.2.0"
-nom = "6"
+nom = "7"
 hex-slice = "0.1"
 thiserror = "1"
 log = "0.4"
