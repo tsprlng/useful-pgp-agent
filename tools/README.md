@@ -123,7 +123,7 @@ Password validation retry count:
   user pw: 3, reset: 3, admin pw: 3
 ```
 
-### Get OpenPGP public key
+### Get an OpenPGP public key representation from a card
 
 This command returns an OpenPGP public key representation of the keys on a card.
 
@@ -169,6 +169,27 @@ And/or pass the user PIN as a file, for non-interactive use":
 ```
 $ opgpcard pubkey -p <user-pin-file>
 ```
+
+#### Caution: the exported public key material isn't always what you want
+
+The result of exporting public key material from a card is only an approximation of the original public key, since
+some metadata is not available on OpenPGP cards. This missing metadata includes expiration dates.
+
+Also, if your card only contains subkeys, but not the original primary key, then the exported certificate will use the
+signing subkey from the card as the primary key for the exported certificate.
+
+One way to safely process this exported public key material from a card is via `sq key adopt`.
+
+You can use this approach when you have access to your private primary key material (in the following example, we
+assume this key is available in `key.pgp`). Then you can bind the public key material from a card to your key:
+
+```
+opgpcard pubkey > public.key
+sq key adopt key.pgp public.pgp
+```
+
+In that process, you will be able to manually set any relevant flags.
+
 
 ### Using a card for ssh auth
 
