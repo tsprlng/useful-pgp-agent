@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     rpassword::read_password_from_tty(Some("Repeat the new resetting code: "))?;
 
                 if newpin1 == newpin2 {
-                    admin.set_resetting_code(&newpin1)?;
+                    admin.set_resetting_code(newpin1.as_bytes())?;
                 } else {
                     return Err(anyhow::anyhow!("PINs do not match.").into());
                 }
@@ -162,7 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // reset to new user pin
                 open.reset_user_pin(rst.as_bytes(), newpin1.as_bytes())
             } else if let Some(mut admin) = open.admin_card() {
-                admin.reset_user_pin(&newpin1)
+                admin.reset_user_pin(newpin1.as_bytes())
             } else {
                 return Err(anyhow::anyhow!("Failed to use card in admin-mode.").into());
             };

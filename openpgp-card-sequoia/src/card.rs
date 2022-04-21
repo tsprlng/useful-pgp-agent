@@ -395,12 +395,12 @@ impl Admin<'_, '_> {
         }
     }
 
-    pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
-        self.oc.opt.set_resetting_code(pin.as_bytes())
+    pub fn set_resetting_code(&mut self, pin: &[u8]) -> Result<(), Error> {
+        self.oc.opt.set_resetting_code(pin)
     }
 
-    pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
-        self.oc.opt.reset_retry_counter_pw1(new.as_bytes(), None)
+    pub fn reset_user_pin(&mut self, new: &[u8]) -> Result<(), Error> {
+        self.oc.opt.reset_retry_counter_pw1(new, None)
     }
 
     /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.
