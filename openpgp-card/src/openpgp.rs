@@ -85,36 +85,6 @@ impl<'a> OpenPgpTransaction<'a> {
         self.tx.application_related_data()
     }
 
-    // #[allow(dead_code)]
-    // fn ca_fingerprints() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn key_information() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_pso_cds() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_pso_dec() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_pso_aut() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_attestation() {
-    //     unimplemented!()
-    // }
-
     // --- login data (5e) ---
 
     /// Get URL (5f50)

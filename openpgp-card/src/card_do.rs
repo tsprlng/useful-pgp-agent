@@ -34,7 +34,6 @@ pub struct ApplicationRelatedData(pub(crate) Tlv);
 impl ApplicationRelatedData {
     /// Get application identifier (AID), ISO 7816-4
     pub fn application_id(&self) -> Result<ApplicationIdentifier, Error> {
-        // get from cached "application related data"
         let aid = self.0.find(&[0x4f].into());
 
         if let Some(aid) = aid {
@@ -46,7 +45,6 @@ impl ApplicationRelatedData {
 
     /// Get historical bytes
     pub fn historical_bytes(&self) -> Result<HistoricalBytes, Error> {
-        // get from cached "application related data"
         let hist = self.0.find(&[0x5f, 0x52].into());
 
         if let Some(hist) = hist {
@@ -62,7 +60,6 @@ impl ApplicationRelatedData {
     /// Get extended length information (ISO 7816-4), which
     /// contains maximum number of bytes for command and response.
     pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>, Error> {
-        // get from cached "application related data"
         let eli = self.0.find(&[0x7f, 0x66].into());
 
         log::trace!("Extended length information: {:x?}", eli);
@@ -88,7 +85,6 @@ impl ApplicationRelatedData {
 
     /// Get extended Capabilities
     pub fn extended_capabilities(&self) -> Result<ExtendedCapabilities, Error> {
-        // FIXME: caching?
         let app_id = self.application_id()?;
         let version = app_id.version();
 
@@ -109,7 +105,6 @@ impl ApplicationRelatedData {
 
     /// Get algorithm attributes (for each key type)
     pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo, Error> {
-        // get from cached "application related data"
         let aa = self.0.find(&[key_type.algorithm_tag()].into());
 
         if let Some(aa) = aa {
@@ -124,7 +119,6 @@ impl ApplicationRelatedData {
 
     /// Get PW status Bytes
     pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
-        // get from cached "application related data"
         let psb = self.0.find(&[0xc4].into());
 
         if let Some(psb) = psb {
@@ -143,7 +137,6 @@ impl ApplicationRelatedData {
     /// Fingerprint, per key type.
     /// Zero bytes indicate a not defined private key.
     pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
-        // Get from cached "application related data"
         let fp = self.0.find(&[0xc5].into());
 
         if let Some(fp) = fp {
@@ -156,6 +149,12 @@ impl ApplicationRelatedData {
             Err(Error::NotFound("Failed to get fingerprints.".into()))
         }
     }
+
+    // FIXME
+    // #[allow(dead_code)]
+    // fn ca_fingerprints() {
+    //     unimplemented!()
+    // }
 
     /// Generation dates/times of key pairs
     pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, crate::Error> {
@@ -173,6 +172,31 @@ impl ApplicationRelatedData {
             ))
         }
     }
+
+    // #[allow(dead_code)]
+    // fn key_information() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_pso_cds() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_pso_dec() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_pso_aut() {
+    //     unimplemented!()
+    // }
+    //
+    // #[allow(dead_code)]
+    // fn uif_attestation() {
+    //     unimplemented!()
+    // }
 }
 
 /// Security support template (see spec pg. 24)
