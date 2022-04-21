@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2022 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[book]
+authors = ["hkos"]
+language = "en"
+multilingual = false
+src = "src"
+title = "OpenPGP card user guide"
+
+[output.html]
+git-repository-url = "https://gitlab.com/hkos/openpgp-card"
+git-repository-icon = "fa-gitlab"
+
+[build]
+build-dir = "../public"
