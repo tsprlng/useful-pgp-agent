@@ -5,8 +5,8 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # OpenPGP card tools
 
-This crate contains two tools for inspecting, configuring and using OpenPGP
-cards: `opgpcard` and `opgpcard-pin`.
+This crate contains the `opgpcard` tool for inspecting, configuring and using OpenPGP
+cards.
 
 # Install
 
@@ -36,7 +36,7 @@ binaries.
 ## opgpcard
 
 A tool to inspect, configure and use OpenPGP cards. All calls of this tool are
-usable in a non-interactive way (this tool is designed to be easily usable from
+usable in a non-interactive way (this tool is designed both for interactive use, and to be easily usable from
 shell-scripts).
 
 Alternatively, PINs can be entered interactively on the host computer, or via a pinpad on the smartcard reader,
@@ -413,6 +413,120 @@ or interactively
 $ opgpcard decrypt -c ABCD:01234567 -r <cert-file> <input-file>
 ```
 
+### PIN management
+
+OpenPGP cards use PINs (numerical passwords) to verify that a user is allowed to perform an operation.
+
+To use the cryptographic operations on a card (such as decryption or signing), the *User PIN* is required.
+
+To configure a card (for example to import OpenPGP key material into the card's key slots), the *Admin PIN* is needed.
+
+By default, on unconfigured (or factory reset) cards, the User PIN is typically set to `123456`,
+and the Admin PIN is set to `12345678`.
+
+#### Blocked cards and resetting
+
+When a user has entered a wrong User PIN too often, the card goes into a blocked state, in which presenting the
+User PIN successfully is not possible anymore. The purpose of this is to prevent attackers from trying all possible
+PINs (e.g. after stealing a card).
+
+To be able to use the card again, the user PIN must be "reset".
+
+A user PIN reset can be performed by presenting the Admin PIN.
+
+#### The resetting code
+
+OpenPGP cards offer an additional, optional, *Resetting Code* mechanism.
+
+The resetting code may be configured on a card and used to reset the User PIN if it has been forgotten or blocked.
+When unblocking a card with the Resetting Code, the Admin PIN is not needed.
+
+The Resetting Code mechanism is only useful in scenarios where a user doesn't have access to (or prefers not to use)
+the Admin PIN (e.g. in some corporate settings, users might not be given the Admin PIN for
+their cards. Instead, an admin may define a resetting code and give that code to the user).
+
+On unconfigured (or factory reset) cards, the Resetting Code is typically unset.
+
+
+#### Set a new user PIN
+
+Setting a new user PIN requires the admin PIN:
+
+```
+$ opgpcard pin -c ABCD:01234567 set-user
+```
+
+For non-interactive PIN change:
+
+```
+$ opgpcard pin -c ABCD:01234567 set-user -p <old-user-pin-file> -q <new-user-pin-file>
+```
+
+#### Set new admin PIN
+
+This requires the (previous) admin PIN.
+
+```
+$ opgpcard pin -c ABCD:01234567 set-admin
+```
+
+For non-interactive PIN change:
+
+```
+$ opgpcard pin -c ABCD:01234567 set-admin -p <old-admin-pin-file> -q <new-admin-pin-file>
+```
+
+#### Reset user PIN with admin PIN
+
+The user PIN can be reset to a different (or the same) PIN by providing the admin PIN.
+This is possible at any time, including when a wrong user PIN has been entered too often, and the card refuses to accept the user PIN any more.
+
+```
+$ opgpcard pin -c ABCD:01234567 reset-user
+```
+
+For non-interactive PIN change:
+
+```
+$ opgpcard pin -c ABCD:01234567 reset-user -P <admin-pin-file> -p <new-user-pin-file>
+```
+
+#### Configuring the resetting code
+
+The resetting code is an alternative mechanism to recover from a lost or locked user PIN.
+
+You can set the resetting code after verifying the admin PIN. Once a resetting code is configured on your card,
+you can use that code to reset the user PIN without needing the admin PIN.
+
+```
+$ opgpcard pin -c 0006:16019180 set-reset
+```
+
+To non-interactively set the resetting code:
+
+```
+$ opgpcard pin -c 0006:16019180 set-reset -P <admin-pin-file> -r <resetting-code-file>
+```
+
+#### Reset user PIN with the resetting code
+
+If a resetting code is configured on a card, you can use that code to reset the user PIN:
+
+```
+$ opgpcard pin -c 0006:16019180 reset-user-rc
+Enter resetting code:
+Enter new user PIN:
+Repeat the new user PIN:
+
+User PIN has been set.
+```
+
+To non-interactively use the resetting code:
+
+```
+$ opgpcard pin -c 0006:16019180 reset-user-rc -r <resetting-code-file> -p <new-user-pin-file>
+```
+
 ### Factory reset
 
 Factory reset:
@@ -427,7 +541,7 @@ NOTE: you do not need a PIN to reset a card!
 
 When using a shell like
 [bash](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Here-Strings)
-, you can pass user and/or admin PINs via file-descriptors:
+, you can pass user and/or admin PINs via file-descriptors (instead of from a file on disk):
 
 ```
 $ opgpcard sign --detached -c ABCD:01234567 -p /dev/fd/3 -s <cert-file> 3<<<123456
@@ -440,70 +554,6 @@ $ opgpcard admin -c ABCD:01234567 -P /dev/fd/3 generate -p /dev/fd/4 -o <output-
 ### Directly entering PINs on card readers with pinpad
 
 If your OpenPGP card is inserted in a card reader with a pinpad, this tool 
-offers you the option to use the pinpad to enter the user- or admin-PINs.
-To do this, you can omit the `-p` and/or '`-P`' parameters - then you will 
+offers you the option to use the pinpad to enter the User- or Admin PINs.
+To do this, you can omit the `-p` and/or `-P` parameters. Then you will 
 be prompted to enter the user or admin PINs where needed. 
-
-## opgpcard-pin
-
-An interactive tool to set the admin and user PINs, and to reset the user PIN
-on OpenPGP cards.
-
-### Set a new user PIN
-
-Setting a new user PIN requires the admin PIN:
-
-```
-opgpcard-pin -c ABCD:01234567 set-user-pin
-```
-(The default admin PIN on unconfigured cards is typically `12345678`)
-
-### Set new admin PIN
-
-This requires the (previous) admin PIN.
-
-```
-opgpcard-pin -c ABCD:01234567 set-admin-pin
-```
-
-(The default admin PIN on unconfigured cards is typically `12345678`)
-
-### Recover from blocked user PIN (using the admin PIN)
-
-When a user has entered a wrong user PIN too often, the card goes into a blocked state, in which presenting the
-user PIN is not possible anymore. The purpose of this is to prevent attackers from trying all possible PINs
-(e.g. after stealing a card).
-
-To be able to use the card again, the user PIN must be "reset".
-
-Reset user PIN after it has been blocked (requires admin PIN):
-
-```
-opgpcard-pin -c ABCD:01234567 reset-user-pin -a
-```
-
-### Recover from blocked user PIN (using the resetting code)
-
-The resetting code is an optional/alternative method to recover from a blocked user PIN.
-
-Context: in some (e.g. corporate) settings, users might not be given the admin PIN for their cards.
-Instead, an admin may define a resetting code and give that code to the user.
-
-Set resetting code (requires admin PIN):
-
-```
-opgpcard-pin -c ABCD:01234567 set-reset-code
-```
-
-Once a reset code has been defined, the user can
-reset the blocked user PIN, using the resetting code:
-
-```
-opgpcard-pin -c ABCD:01234567 reset-user-pin
-```
-
-### Directly entering PINs on card readers with pinpad
-
-If your OpenPGP card is inserted in a card reader with a pinpad, this tool
-assumes you will want to enter all PINs via that pinpad. It will prompt 
-you to enter PINs accordingly.

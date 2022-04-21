@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::crypto_data::{EccType, PublicKeyMaterial};
-use openpgp_card::{CardBackend, Error};
+use openpgp_card::{CardBackend, Error, StatusBytes};
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
@@ -34,6 +34,19 @@ pub(crate) fn get_pin(open: &mut Open, pin_file: Option<PathBuf>, msg: &str) -> 
     } else {
         // we have a pinpad
         None
+    }
+}
+
+/// Let the user input a PIN twice, return PIN if both entries match, error otherwise
+pub(crate) fn input_pin_twice(msg1: &str, msg2: &str) -> Result<Vec<u8>> {
+    // get new user pin
+    let newpin1 = rpassword::read_password_from_tty(Some(msg1))?;
+    let newpin2 = rpassword::read_password_from_tty(Some(msg2))?;
+
+    if newpin1 != newpin2 {
+        Err(anyhow::anyhow!("PINs do not match."))
+    } else {
+        Ok(newpin1.as_bytes().to_vec())
     }
 }
 
@@ -194,4 +207,27 @@ pub(crate) fn get_ssh_pubkey_string(pkm: &PublicKeyMaterial, ident: String) -> R
     let s = String::from_utf8_lossy(&v).to_string();
 
     Ok(s.trim().into())
+}
+
+/// Gnuk doesn't allow the User password (pw1) to be changed while no
+/// private key material exists on the card.
+///
+/// This fn checks for Gnuk's Status code and the case that no keys exist
+/// on the card, and prints a note to the user, pointing out that the
+/// absence of keys on the card might be the reason for the error they get.
+pub(crate) fn print_gnuk_note(err: Error, card: &Open) -> Result<()> {
+    if matches!(
+        err,
+        Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied)
+    ) {
+        // check if no keys exist on the card
+        let fps = card.fingerprints()?;
+        if fps.signature() == None && fps.decryption() == None && fps.authentication() == None {
+            println!(
+                "\nNOTE: Some cards (e.g. Gnuk) don't allow \
+                        User PIN change while no keys exist on the card."
+            );
+        }
+    }
+    Ok(())
 }

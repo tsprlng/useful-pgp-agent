@@ -20,6 +20,7 @@ use openpgp_card_sequoia::util::{
 };
 use openpgp_card_sequoia::{sq_util, PublicKey};
 
+use crate::util::{load_pin, print_gnuk_note};
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use std::io::Write;
 
@@ -138,6 +139,210 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         !no_auth,
                         algo,
                     )?;
+                }
+            }
+        }
+        cli::Command::Pin { ident, cmd } => {
+            let mut card = util::open_card(&ident)?;
+            let mut pgp = OpenPgp::new(&mut card);
+            let pgpt = pgp.transaction()?;
+
+            let pinpad_modify = pgpt.feature_pinpad_modify();
+
+            let mut open = Open::new(pgpt)?;
+
+            match cmd {
+                cli::PinCommand::SetUser {
+                    user_pin_old,
+                    user_pin_new,
+                } => {
+                    let res = if !pinpad_modify {
+                        // get current user pin
+                        let user_pin1 = util::get_pin(&mut open, user_pin_old, ENTER_USER_PIN)
+                            .expect("this should never be None");
+
+                        // verify pin
+                        open.verify_user(&user_pin1)?;
+                        println!("PIN was accepted by the card.\n");
+
+                        let pin_new = match user_pin_new {
+                            None => {
+                                // ask user for new user pin
+                                util::input_pin_twice(
+                                    "Enter new user PIN: ",
+                                    "Repeat the new user PIN: ",
+                                )?
+                            }
+                            Some(path) => load_pin(&path)?,
+                        };
+
+                        // set new user pin
+                        open.change_user_pin(&user_pin1, &pin_new)
+                    } else {
+                        // set new user pin via pinpad
+                        open.change_user_pin_pinpad(&|| {
+                            println!(
+                                "Enter old user PIN on card reader pinpad, then new user PIN (twice)."
+                            )
+                        })
+                    };
+
+                    if res.is_err() {
+                        println!("\nFailed to change the user PIN!");
+                        println!("{:?}", res);
+
+                        if let Err(err) = res {
+                            print_gnuk_note(err, &open)?;
+                        }
+                    } else {
+                        println!("\nUser PIN has been set.");
+                    }
+                }
+                cli::PinCommand::SetAdmin {
+                    admin_pin_old,
+                    admin_pin_new,
+                } => {
+                    if !pinpad_modify {
+                        // get current admin pin
+                        let admin_pin1 = util::get_pin(&mut open, admin_pin_old, ENTER_ADMIN_PIN)
+                            .expect("this should never be None");
+
+                        // verify pin
+                        open.verify_admin(&admin_pin1)?;
+                        println!("PIN was accepted by the card.\n");
+
+                        let pin_new = match admin_pin_new {
+                            None => {
+                                // ask user for new admin pin
+                                util::input_pin_twice(
+                                    "Enter new admin PIN: ",
+                                    "Repeat the new admin PIN: ",
+                                )?
+                            }
+                            Some(path) => load_pin(&path)?,
+                        };
+
+                        // set new admin pin
+                        open.change_admin_pin(&admin_pin1, &pin_new)?;
+                    } else {
+                        // set new admin pin via pinpad
+                        open.change_admin_pin_pinpad(&|| {
+                            println!(
+                                "Enter old admin PIN on card reader pinpad, then new admin PIN (twice)."
+                            )
+                        })?;
+                    };
+
+                    println!("\nAdmin PIN has been set.");
+                }
+
+                cli::PinCommand::ResetUser {
+                    admin_pin,
+                    user_pin_new,
+                } => {
+                    // verify admin pin
+                    match util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN) {
+                        Some(admin_pin) => {
+                            // verify pin
+                            open.verify_admin(&admin_pin)?;
+                        }
+                        None => {
+                            open.verify_admin_pinpad(&|| println!("Enter admin PIN on pinpad."))?;
+                        }
+                    }
+                    println!("PIN was accepted by the card.\n");
+
+                    // ask user for new user pin
+                    let pin = match user_pin_new {
+                        None => util::input_pin_twice(
+                            "Enter new user PIN: ",
+                            "Repeat the new user PIN: ",
+                        )?,
+                        Some(path) => load_pin(&path)?,
+                    };
+
+                    let res = if let Some(mut admin) = open.admin_card() {
+                        admin.reset_user_pin(&pin)
+                    } else {
+                        return Err(anyhow::anyhow!("Failed to use card in admin-mode.").into());
+                    };
+
+                    if res.is_err() {
+                        println!("\nFailed to change the user PIN!");
+                        if let Err(err) = res {
+                            print_gnuk_note(err, &open)?;
+                        }
+                    } else {
+                        println!("\nUser PIN has been set.");
+                    }
+                }
+
+                cli::PinCommand::SetReset {
+                    admin_pin,
+                    reset_code,
+                } => {
+                    // verify admin pin
+                    match util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN) {
+                        Some(admin_pin) => {
+                            // verify pin
+                            open.verify_admin(&admin_pin)?;
+                        }
+                        None => {
+                            open.verify_admin_pinpad(&|| println!("Enter admin PIN on pinpad."))?;
+                        }
+                    }
+                    println!("PIN was accepted by the card.\n");
+
+                    // ask user for new resetting code
+                    let code = match reset_code {
+                        None => util::input_pin_twice(
+                            "Enter new resetting code: ",
+                            "Repeat the new resetting code: ",
+                        )?,
+                        Some(path) => load_pin(&path)?,
+                    };
+
+                    if let Some(mut admin) = open.admin_card() {
+                        admin.set_resetting_code(&code)?;
+                        println!("\nResetting code has been set.");
+                    } else {
+                        return Err(anyhow::anyhow!("Failed to use card in admin-mode.").into());
+                    };
+                }
+
+                cli::PinCommand::ResetUserRc {
+                    reset_code,
+                    user_pin_new,
+                } => {
+                    // reset by presenting resetting code
+
+                    let rst = if let Some(path) = reset_code {
+                        // load resetting code from file
+                        load_pin(&path)?
+                    } else {
+                        // input resetting code
+                        rpassword::read_password_from_tty(Some("Enter resetting code: "))?
+                            .as_bytes()
+                            .to_vec()
+                    };
+
+                    // ask user for new user pin
+                    let pin = match user_pin_new {
+                        None => util::input_pin_twice(
+                            "Enter new user PIN: ",
+                            "Repeat the new user PIN: ",
+                        )?,
+                        Some(path) => load_pin(&path)?,
+                    };
+
+                    // reset to new user pin
+                    match open.reset_user_pin(&rst, &pin) {
+                        Err(err) => {
+                            println!("\nFailed to change the user PIN!");
+                            print_gnuk_note(err, &open)?;
+                        }
+                        Ok(_) => println!("\nUser PIN has been set."),
+                    }
                 }
             }
         }
