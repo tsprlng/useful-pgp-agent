@@ -27,8 +27,8 @@ use std::io::Write;
 mod cli;
 mod util;
 
-const ENTER_USER_PIN: &str = "Enter user PIN:";
-const ENTER_ADMIN_PIN: &str = "Enter admin PIN:";
+const ENTER_USER_PIN: &str = "Enter User PIN:";
+const ENTER_ADMIN_PIN: &str = "Enter Admin PIN:";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
@@ -169,8 +169,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             None => {
                                 // ask user for new user pin
                                 util::input_pin_twice(
-                                    "Enter new user PIN: ",
-                                    "Repeat the new user PIN: ",
+                                    "Enter new User PIN: ",
+                                    "Repeat the new User PIN: ",
                                 )?
                             }
                             Some(path) => load_pin(&path)?,
@@ -182,13 +182,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // set new user pin via pinpad
                         open.change_user_pin_pinpad(&|| {
                             println!(
-                                "Enter old user PIN on card reader pinpad, then new user PIN (twice)."
+                                "Enter old User PIN on card reader pinpad, then new User PIN (twice)."
                             )
                         })
                     };
 
                     if res.is_err() {
-                        println!("\nFailed to change the user PIN!");
+                        println!("\nFailed to change the User PIN!");
                         println!("{:?}", res);
 
                         if let Err(err) = res {
@@ -215,8 +215,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             None => {
                                 // ask user for new admin pin
                                 util::input_pin_twice(
-                                    "Enter new admin PIN: ",
-                                    "Repeat the new admin PIN: ",
+                                    "Enter new Admin PIN: ",
+                                    "Repeat the new Admin PIN: ",
                                 )?
                             }
                             Some(path) => load_pin(&path)?,
@@ -228,7 +228,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // set new admin pin via pinpad
                         open.change_admin_pin_pinpad(&|| {
                             println!(
-                                "Enter old admin PIN on card reader pinpad, then new admin PIN (twice)."
+                                "Enter old Admin PIN on card reader pinpad, then new Admin PIN (twice)."
                             )
                         })?;
                     };
@@ -247,7 +247,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             open.verify_admin(&admin_pin)?;
                         }
                         None => {
-                            open.verify_admin_pinpad(&|| println!("Enter admin PIN on pinpad."))?;
+                            open.verify_admin_pinpad(&|| println!("Enter Admin PIN on pinpad."))?;
                         }
                     }
                     println!("PIN was accepted by the card.\n");
@@ -255,8 +255,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // ask user for new user pin
                     let pin = match user_pin_new {
                         None => util::input_pin_twice(
-                            "Enter new user PIN: ",
-                            "Repeat the new user PIN: ",
+                            "Enter new User PIN: ",
+                            "Repeat the new User PIN: ",
                         )?,
                         Some(path) => load_pin(&path)?,
                     };
@@ -268,7 +268,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
 
                     if res.is_err() {
-                        println!("\nFailed to change the user PIN!");
+                        println!("\nFailed to change the User PIN!");
                         if let Err(err) = res {
                             print_gnuk_note(err, &open)?;
                         }
@@ -288,7 +288,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             open.verify_admin(&admin_pin)?;
                         }
                         None => {
-                            open.verify_admin_pinpad(&|| println!("Enter admin PIN on pinpad."))?;
+                            open.verify_admin_pinpad(&|| println!("Enter Admin PIN on pinpad."))?;
                         }
                     }
                     println!("PIN was accepted by the card.\n");
@@ -329,8 +329,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // ask user for new user pin
                     let pin = match user_pin_new {
                         None => util::input_pin_twice(
-                            "Enter new user PIN: ",
-                            "Repeat the new user PIN: ",
+                            "Enter new User PIN: ",
+                            "Repeat the new User PIN: ",
                         )?,
                         Some(path) => load_pin(&path)?,
                     };
@@ -338,7 +338,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // reset to new user pin
                     match open.reset_user_pin(&rst, &pin) {
                         Err(err) => {
-                            println!("\nFailed to change the user PIN!");
+                            println!("\nFailed to change the User PIN!");
                             print_gnuk_note(err, &open)?;
                         }
                         Ok(_) => println!("\nUser PIN has been set."),
@@ -662,7 +662,7 @@ fn print_pubkey(ident: Option<String>, user_pin: Option<PathBuf>) -> Result<()> 
         key_dec,
         key_aut,
         user_pin.as_deref(),
-        &|| println!("Enter user PIN on card reader pinpad."),
+        &|| println!("Enter User PIN on card reader pinpad."),
     )?;
 
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
@@ -813,7 +813,7 @@ fn get_cert(
     if user_pin.is_none() && open.feature_pinpad_verify() {
         println!(
             "The public cert will now be generated.\n\n\
-             You will need to enter your user PIN multiple times during this process.\n\n"
+             You will need to enter your User PIN multiple times during this process.\n\n"
         );
     }
 
@@ -870,7 +870,7 @@ fn generate_keys(
     // need "signing" access to the card (to make binding signatures within
     // the Cert).
     let cert = get_cert(&mut open, key_sig, key_dec, key_aut, user_pin, &|| {
-        println!("Enter user PIN on card reader pinpad.")
+        println!("Enter User PIN on card reader pinpad.")
     })?;
 
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
