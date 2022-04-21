@@ -189,10 +189,9 @@ Decryption key
 Authentication key
   algorithm: RSA 2048 [e 32]
 
+Retry counters: User PIN: 3, Admin PIN: 3, Resetting Code: 3
 Signature counter: 0
-Signature pin only valid once: true
-Password validation retry count:
-  user pw: 3, reset: 3, admin pw: 3
+Signature PIN only valid once: true
 ```
 
 The two subkeys have been loaded into the suitable slots on the card.

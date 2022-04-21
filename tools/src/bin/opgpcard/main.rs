@@ -499,26 +499,25 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         }
     }
 
-    // technical details about the card and its state
+    // technical details about the card's state
 
     println!();
-
-    let sst = open.security_support_template()?;
-    println!("Signature counter: {}", sst.signature_count());
 
     let pws = open.pw_status_bytes()?;
 
     println!(
-        "Signature pin only valid once: {}",
-        pws.pw1_cds_valid_once()
+        "Retry counters: User PIN: {}, Admin PIN: {}, Resetting Code: {}",
+        pws.err_count_pw1(),
+        pws.err_count_pw3(),
+        pws.err_count_rc(),
     );
 
-    println!("Password validation retry count:");
+    let sst = open.security_support_template()?;
+    println!("Signature counter: {}", sst.signature_count());
+
     println!(
-        "  user pw: {}, reset: {}, admin pw: {}",
-        pws.err_count_pw1(),
-        pws.err_count_rc(),
-        pws.err_count_pw3(),
+        "Signature PIN only valid once: {}",
+        pws.pw1_cds_valid_once()
     );
 
     // FIXME: print "Login Data", "Key Information"

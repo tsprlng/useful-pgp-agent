@@ -42,7 +42,7 @@ shell-scripts).
 Alternatively, PINs can be entered interactively on the host computer, or via a pinpad on the smartcard reader,
 if available.
 
-### List and inspect cards
+### List cards
 
 List idents of all currently connected cards:
 
@@ -50,17 +50,19 @@ List idents of all currently connected cards:
 $ opgpcard list
 Available OpenPGP cards:
  ABCD:01234567
- ABCD:87654321
+ 0007:87654321
 ```
 
-Print status information about a card. The card is implicitly selected.
-However, this only works if exactly one card is connected:
+### Inspect cards
+
+Print status information about the data on a card.
+The card is implicitly selected (if exactly one card is connected):
 
 ```
 $ opgpcard status
 OpenPGP card ABCD:01234567 (card version 2.0)
 
-Cardholder: Foo Bar
+Cardholder: Alice Adams
 
 Signature key
   fingerprint: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
@@ -77,10 +79,9 @@ Authentication key
   created: 2022-03-25 20:15:49
   algorithm: Ed25519 (EdDSA)
 
+Retry counters: User PIN: 3, Admin PIN: 3, Resetting Code: 3
 Signature counter: 3
-Signature pin only valid once: true
-Password validation retry count:
-  user pw: 3, reset: 3, admin pw: 3
+Signature PIN only valid once: true
 
 ```
 
@@ -91,7 +92,7 @@ is plugged in):
 $ opgpcard status --card ABCD:01234567
 ```
 
-Add `-v` for more verbose card status (this prints public key data for each key slot):
+Add `-v` for more verbose card status (this additionally outputs the raw public key data for each key slot):
 
 ```
 $ opgpcard status -c ABCD:01234567 -v
@@ -117,10 +118,9 @@ Authentication key
   algorithm: Ed25519 (EdDSA)
   public key material: ECC, data: BFE1E5EB31032E0F4320E163082BEDBAD2A6318EC368375F7A65D22AC7AB7444
 
+Retry counters: User PIN: 3, Admin PIN: 3, Resetting Code: 3
 Signature counter: 3
-Signature pin only valid once: true
-Password validation retry count:
-  user pw: 3, reset: 3, admin pw: 3
+Signature PIN only valid once: true
 ```
 
 ### Get an OpenPGP public key representation from a card
