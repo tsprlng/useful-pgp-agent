@@ -109,26 +109,7 @@ Some software may use this URL to obtain a copy of the corresponding public key 
 `$ opgpcard admin -c FFFE:12345678 url <url>`
 
 If you do use the URL field, the URL should serve a copy of your public key.
-For most use cases, you don't need to set the URL.
-
-### Using `keys.openpgp.org` for the URL 
-
-If you have uploaded (or plan to upload) your certificate to the `keys.openpgp.org` keyserver, you can set the URL
-field on your card to point to that server:
-
-If the fingerprint of your certificate is `0123456789ABCDEF0123456789ABCDEF01234567`, then you can set the URL
-as follows:
-
-`$ opgpcard admin -c FFFE:12345678 url "https://keys.openpgp.org/vks/v1/by-fingerprint/0123456789ABCDEF0123456789ABCDEF01234567"`
-
-### Other URLs
-
-You can use any URL that serves your public key, including a link to your certificate on:
-
-- gitlab (`https://gitlab.com/<username>.gpg`) or github (`https://github.com/<username>.gpg`)
-- any other keyserver, such as https://keyserver.ubuntu.com/,
-- a WKD server,
-- a copy of your certificate on your personal website, ...
+For most use cases, you don't need to set this URL.
 
 # Importing a key to a card
 

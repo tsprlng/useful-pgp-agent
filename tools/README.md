@@ -307,6 +307,27 @@ or interactively
 $ opgpcard admin -c ABCD:01234567 url "https://key.url.example"
 ```
 
+
+##### Using `keys.openpgp.org` for the URL
+
+If you have uploaded (or plan to upload) your certificate to the `keys.openpgp.org` keyserver, you can set the URL
+field on your card to point to that server:
+
+If the fingerprint of your certificate is `0123456789ABCDEF0123456789ABCDEF01234567`, then you can set the URL
+as follows:
+
+`$ opgpcard admin -c FFFE:12345678 url "https://keys.openpgp.org/vks/v1/by-fingerprint/0123456789ABCDEF0123456789ABCDEF01234567"`
+
+##### Other URLs
+
+You can use any URL that serves your public key, including a link to your certificate on:
+
+- gitlab (`https://gitlab.com/<username>.gpg`) or github (`https://github.com/<username>.gpg`)
+- any other keyserver, such as https://keyserver.ubuntu.com/,
+- a WKD server,
+- a copy of your certificate on your personal website, ...
+
+
 #### Import keys
 
 Import private key onto a card. This works if at most one (sub)key per role
