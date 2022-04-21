@@ -321,7 +321,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         load_pin(&path)?
                     } else {
                         // input resetting code
-                        rpassword::read_password_from_tty(Some("Enter resetting code: "))?
+                        rpassword::prompt_password("Enter resetting code: ")?
                             .as_bytes()
                             .to_vec()
                     };

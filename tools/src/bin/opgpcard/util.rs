@@ -29,7 +29,7 @@ pub(crate) fn get_pin(open: &mut Open, pin_file: Option<PathBuf>, msg: &str) -> 
         Some(load_pin(&path).ok()?)
     } else if !open.feature_pinpad_verify() {
         // we have no pin file and no pinpad
-        let pin = rpassword::read_password_from_tty(Some(msg)).ok()?;
+        let pin = rpassword::prompt_password(msg).ok()?;
         Some(pin.into_bytes())
     } else {
         // we have a pinpad
@@ -40,8 +40,8 @@ pub(crate) fn get_pin(open: &mut Open, pin_file: Option<PathBuf>, msg: &str) -> 
 /// Let the user input a PIN twice, return PIN if both entries match, error otherwise
 pub(crate) fn input_pin_twice(msg1: &str, msg2: &str) -> Result<Vec<u8>> {
     // get new user pin
-    let newpin1 = rpassword::read_password_from_tty(Some(msg1))?;
-    let newpin2 = rpassword::read_password_from_tty(Some(msg2))?;
+    let newpin1 = rpassword::prompt_password(msg1)?;
+    let newpin2 = rpassword::prompt_password(msg2)?;
 
     if newpin1 != newpin2 {
         Err(anyhow::anyhow!("PINs do not match."))
