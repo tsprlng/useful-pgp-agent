@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use clap::{AppSettings, Parser};
@@ -8,9 +8,10 @@ use std::path::PathBuf;
 #[clap(
     name = "opgpcard",
     author = "Heiko Schäfer <heiko@schaefer.name>",
+    version,
     disable_help_subcommand(true),
     global_setting(AppSettings::DeriveDisplayOrder),
-    about = "A tool for managing OpenPGP cards."
+    about = "A tool for inspecting and configuring OpenPGP cards."
 )]
 pub struct Cli {
     #[clap(subcommand)]
@@ -19,7 +20,10 @@ pub struct Cli {
 
 #[derive(Parser, Debug)]
 pub enum Command {
+    /// Enumerate available OpenPGP cards
     List {},
+
+    /// Show information about the data on a card
     Status {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: Option<String>,
@@ -27,14 +31,20 @@ pub enum Command {
         #[clap(name = "verbose", short = 'v', long = "verbose")]
         verbose: bool,
     },
+
+    /// Show technical details about a card
     Info {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: Option<String>,
     },
+
+    /// Display a card's authentication key as an SSH public key
     Ssh {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: Option<String>,
     },
+
+    /// Export the key data on a card as an OpenPGP public key
     Pubkey {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: Option<String>,
@@ -42,17 +52,8 @@ pub enum Command {
         #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
         user_pin: Option<PathBuf>,
     },
-    FactoryReset {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: String,
-    },
-    SetIdentity {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: String,
 
-        #[clap(name = "identity")]
-        id: u8,
-    },
+    /// Administer data on a card (including keys and metadata)
     Admin {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
@@ -63,6 +64,8 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: AdminCommand,
     },
+
+    /// PIN management (change PINs, reset blocked PINs)
     Pin {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
@@ -70,6 +73,8 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: PinCommand,
     },
+
+    /// Decrypt data using a card
     Decrypt {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
@@ -84,6 +89,8 @@ pub enum Command {
         #[clap(name = "input")]
         input: Option<PathBuf>,
     },
+
+    /// Sign data using a card
     Sign {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
@@ -102,14 +109,29 @@ pub enum Command {
         #[clap(name = "input")]
         input: Option<PathBuf>,
     },
+
+    /// Completely reset a card (deletes all data, including the keys on the card!)
+    FactoryReset {
+        #[clap(name = "card ident", short = 'c', long = "card")]
+        ident: String,
+    },
+
+    /// Change identity (applies only to Nitrokey Start)
+    SetIdentity {
+        #[clap(name = "card ident", short = 'c', long = "card")]
+        ident: String,
+
+        #[clap(name = "identity")]
+        id: u8,
+    },
 }
 
 #[derive(Parser, Debug)]
 pub enum AdminCommand {
-    /// Set name
+    /// Set cardholder name
     Name { name: String },
 
-    /// Set URL
+    /// Set cardholder URL
     Url { url: String },
 
     /// Import a Key.
@@ -128,6 +150,7 @@ pub enum AdminCommand {
         #[clap(name = "Authentication key fingerprint", short = 'a', long = "auth-fp")]
         auth_fp: Option<String>,
     },
+
     /// Generate a Key.
     ///
     /// A signing key is always created, decryption and authentication keys
@@ -172,7 +195,7 @@ pub enum PinCommand {
         admin_pin_new: Option<PathBuf>,
     },
 
-    /// Reset User PIN with admin PIN
+    /// Reset User PIN with Admin PIN
     ResetUser {
         #[clap(name = "Admin PIN file", short = 'P', long = "admin-pin")]
         admin_pin: Option<PathBuf>,
@@ -190,9 +213,9 @@ pub enum PinCommand {
         reset_code: Option<PathBuf>,
     },
 
-    /// Reset User PIN with 'resetting code'
+    /// Reset User PIN with 'Resetting Code'
     ResetUserRc {
-        #[clap(name = "Resetting code file", short = 'r', long = "reset-code")]
+        #[clap(name = "Resetting Code file", short = 'r', long = "reset-code")]
         reset_code: Option<PathBuf>,
 
         #[clap(name = "User PIN file new", short = 'p', long = "user-pin-new")]
