@@ -98,7 +98,7 @@ Add `-v` for more verbose card status (this additionally outputs the raw public 
 $ opgpcard status -c ABCD:01234567 -v
 OpenPGP card ABCD:01234567 (card version 2.0)
 
-Cardholder: Foo Bar
+Cardholder: Alice Adams
 
 Signature key
   fingerprint: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
@@ -135,7 +135,7 @@ OpenPGP card ABCD:01234567
 Enter User PIN:
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Comment: F9C7 97CB 1AF2 1C68 AEEC  8D4D 1002 89F5 5EF6 B2D4
-Comment: baz
+Comment: Alice Adams
 
 xjMEYkOmahYJKwYBBAHaRw8BAQdADwHIuuSgboyzgcLci8Hc0Q15YHKfDP8/CZG4
 uumYosXNA2JhesLABgQTFgoAeAWCYkjTagWJAAAAAAkQEAKJ9V72stRHFAAAAAAA
@@ -164,7 +164,7 @@ You can query a specific card
 $ opgpcard pubkey -c ABCD:01234567
 ```
 
-And/or pass the User PIN as a file, for non-interactive use":
+And/or pass the User PIN as a file, for non-interactive use:
 
 ```
 $ opgpcard pubkey -p <user-pin-file>
@@ -203,7 +203,7 @@ $ opgpcard ssh
 OpenPGP card ABCD:01234567
 
 Authentication key fingerprint:
-BEC2E8D8AD9C54A6AEDE71CCA1CE6FAC5ABF0BE4
+59A5CD3EA88F8707D887EAAE13545F404E11BE1C
 
 Authentication key as ssh public key:
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII2dcYBqMCamidT5MpE3Cl3MIKcYMBekGXbK2aaN6JaH opgpcard:ABCD:01234567
@@ -285,14 +285,14 @@ used in a smartcard reader that has a pinpad.
 Set cardholder name, with pin file:
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Foo Bar"
+$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Alice Adams"
 ```
 
 Set cardholder name, with interactive PIN input
 (either on the host computer, or via a smartcard reader pinpad):
 
 ```
-$ opgpcard admin -c ABCD:01234567 name "Foo Bar"
+$ opgpcard admin -c ABCD:01234567 name "Alice Adams"
 ```
 
 #### Set cardholder URL
@@ -520,13 +520,13 @@ You can set the resetting code after verifying the Admin PIN. Once a resetting c
 you can use that code to reset the User PIN without needing the Admin PIN.
 
 ```
-$ opgpcard pin -c 0006:16019180 set-reset
+$ opgpcard pin -c ABCD:01234567 set-reset
 ```
 
 To non-interactively set the resetting code:
 
 ```
-$ opgpcard pin -c 0006:16019180 set-reset -P <admin-pin-file> -r <resetting-code-file>
+$ opgpcard pin -c ABCD:01234567 set-reset -P <admin-pin-file> -r <resetting-code-file>
 ```
 
 #### Reset User PIN with the resetting code
@@ -534,7 +534,7 @@ $ opgpcard pin -c 0006:16019180 set-reset -P <admin-pin-file> -r <resetting-code
 If a resetting code is configured on a card, you can use that code to reset the User PIN:
 
 ```
-$ opgpcard pin -c 0006:16019180 reset-user-rc
+$ opgpcard pin -c ABCD:01234567 reset-user-rc
 Enter resetting code:
 Enter new User PIN:
 Repeat the new User PIN:
@@ -545,7 +545,7 @@ User PIN has been set.
 To non-interactively use the resetting code:
 
 ```
-$ opgpcard pin -c 0006:16019180 reset-user-rc -r <resetting-code-file> -p <new-user-pin-file>
+$ opgpcard pin -c ABCD:01234567 reset-user-rc -r <resetting-code-file> -p <new-user-pin-file>
 ```
 
 ### Factory reset
