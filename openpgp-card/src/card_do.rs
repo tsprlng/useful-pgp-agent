@@ -177,26 +177,42 @@ impl ApplicationRelatedData {
     // fn key_information() {
     //     unimplemented!()
     // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_pso_cds() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_pso_dec() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_pso_aut() {
-    //     unimplemented!()
-    // }
-    //
-    // #[allow(dead_code)]
-    // fn uif_attestation() {
-    //     unimplemented!()
-    // }
+
+    pub fn uif_pso_cds(&self) -> Result<Option<UIF>, Error> {
+        let uif = self.0.find(&[0xd6].into());
+
+        match uif {
+            None => Ok(None),
+            Some(v) => Ok(Some(v.serialize().try_into()?)),
+        }
+    }
+
+    pub fn uif_pso_dec(&self) -> Result<Option<UIF>, Error> {
+        let uif = self.0.find(&[0xd7].into());
+
+        match uif {
+            None => Ok(None),
+            Some(v) => Ok(Some(v.serialize().try_into()?)),
+        }
+    }
+
+    pub fn uif_pso_aut(&self) -> Result<Option<UIF>, Error> {
+        let uif = self.0.find(&[0xd8].into());
+
+        match uif {
+            None => Ok(None),
+            Some(v) => Ok(Some(v.serialize().try_into()?)),
+        }
+    }
+
+    pub fn uif_attestation(&self) -> Result<Option<UIF>, Error> {
+        let uif = self.0.find(&[0xd9].into());
+
+        match uif {
+            None => Ok(None),
+            Some(v) => Ok(Some(v.serialize().try_into()?)),
+        }
+    }
 }
 
 /// Security support template (see spec pg. 24)
@@ -227,6 +243,145 @@ impl KeyGenerationTime {
         let datetime = DateTime::<Utc>::from(d);
 
         datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+}
+
+/// User Interaction Flag (UIF) (see spec pg. 24)
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct UIF([u8; 2]);
+
+impl TryFrom<Vec<u8>> for UIF {
+    type Error = Error;
+
+    fn try_from(v: Vec<u8>) -> Result<Self, Self::Error> {
+        if v.len() == 2 {
+            Ok(UIF(v.try_into().unwrap()))
+        } else {
+            Err(Error::ParseError(format!("Can't get UID from {:x?}", v)))
+        }
+    }
+}
+
+impl UIF {
+    pub fn touch_policy(&self) -> TouchPolicy {
+        self.0[0].into()
+    }
+
+    pub fn set_touch_policy(&mut self, tm: TouchPolicy) {
+        self.0[0] = tm.into();
+    }
+
+    pub fn features(&self) -> Features {
+        self.0[1].into()
+    }
+
+    pub(crate) fn as_bytes(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
+impl Display for UIF {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Touch policy: {} [Features: {}]",
+            self.touch_policy(),
+            self.features()
+        )
+    }
+}
+
+/// User interaction setting.
+///
+/// See spec pg 24 and https://github.com/Yubico/yubikey-manager/blob/main/ykman/openpgp.py
+#[non_exhaustive]
+pub enum TouchPolicy {
+    Off,
+    On,
+    Fixed,
+    Cached,
+    CachedFixed,
+    Unknown(u8),
+}
+
+impl Display for TouchPolicy {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TouchPolicy::Off => write!(f, "Off"),
+            TouchPolicy::On => write!(f, "On"),
+            TouchPolicy::Fixed => write!(f, "Fixed"),
+            TouchPolicy::Cached => write!(f, "Cached"),
+            TouchPolicy::CachedFixed => write!(f, "CachedFixed"),
+            TouchPolicy::Unknown(i) => write!(f, "Unknown({})", i),
+        }
+    }
+}
+
+impl From<TouchPolicy> for u8 {
+    fn from(tm: TouchPolicy) -> Self {
+        match tm {
+            TouchPolicy::Off => 0,
+            TouchPolicy::On => 1,
+            TouchPolicy::Fixed => 2,
+            TouchPolicy::Cached => 3,
+            TouchPolicy::CachedFixed => 4,
+            TouchPolicy::Unknown(i) => i,
+        }
+    }
+}
+
+impl From<u8> for TouchPolicy {
+    fn from(i: u8) -> Self {
+        match i {
+            0 => TouchPolicy::Off,
+            1 => TouchPolicy::On,
+            2 => TouchPolicy::Fixed,
+            3 => TouchPolicy::Cached,
+            4 => TouchPolicy::CachedFixed,
+            _ => TouchPolicy::Unknown(i),
+        }
+    }
+}
+
+/// "additional hardware for user interaction" (see spec 4.1.3.2)
+pub struct Features(u8);
+
+impl From<u8> for Features {
+    fn from(i: u8) -> Self {
+        Features(i)
+    }
+}
+
+impl Display for Features {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut ft = vec![];
+
+        if self.0 & 0x80 != 0 {
+            ft.push("Display")
+        }
+        if self.0 & 0x40 != 0 {
+            ft.push("Biometric input sensor")
+        }
+        if self.0 & 0x20 != 0 {
+            ft.push("Button")
+        }
+        if self.0 & 0x10 != 0 {
+            ft.push("Keypad")
+        }
+        if self.0 & 0x8 != 0 {
+            ft.push("LED")
+        }
+        if self.0 & 0x4 != 0 {
+            ft.push("Loudspeaker")
+        }
+        if self.0 & 0x2 != 0 {
+            ft.push("Microphone")
+        }
+        if self.0 & 0x1 != 0 {
+            ft.push("Touchscreen")
+        }
+
+        write!(f, "{}", ft.join(", "))
     }
 }
 

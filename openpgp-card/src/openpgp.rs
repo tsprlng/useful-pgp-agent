@@ -8,7 +8,7 @@ use crate::apdu::commands;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
     ApplicationRelatedData, CardholderRelatedData, Fingerprint, KeyGenerationTime, Lang,
-    PWStatusBytes, SecuritySupportTemplate, Sex,
+    PWStatusBytes, SecuritySupportTemplate, Sex, UIF,
 };
 use crate::crypto_data::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial};
 use crate::tlv::{value::Value, Tlv};
@@ -716,6 +716,30 @@ impl<'a> OpenPgpTransaction<'a> {
         log::info!("OpenPgpTransaction: set_resetting_code");
 
         let cmd = commands::put_data(&[0xd3], resetting_code.to_vec());
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
+    }
+
+    /// Set UIF for PSO:CDS
+    pub fn set_uif_pso_cds(&mut self, uif: &UIF) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_uif_pso_cds");
+
+        let cmd = commands::put_data(&[0xd6], uif.as_bytes().to_vec());
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
+    }
+
+    /// Set UIF for PSO:DEC
+    pub fn set_uif_pso_dec(&mut self, uif: &UIF) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_uif_pso_dec");
+
+        let cmd = commands::put_data(&[0xd7], uif.as_bytes().to_vec());
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
+    }
+
+    /// Set UIF for PSO:AUT
+    pub fn set_uif_pso_aut(&mut self, uif: &UIF) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_uif_pso_aut");
+
+        let cmd = commands::put_data(&[0xd8], uif.as_bytes().to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
