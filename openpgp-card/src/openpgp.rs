@@ -218,24 +218,6 @@ impl<'a> OpenPgpTransaction<'a> {
         Ok(resp.data()?.to_vec())
     }
 
-    /// Set data of "private use" DO.
-    ///
-    /// `num` must be between 1 and 4.
-    ///
-    /// Access condition:
-    /// - 1/3 need PW1 (82)
-    /// - 2/4 need PW3
-    pub fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>, Error> {
-        log::info!("OpenPgpTransaction: set_private_use_do");
-
-        assert!((1..=4).contains(&num));
-
-        let cmd = commands::put_private_use_do(num, data);
-        let resp = apdu::send_command(self.tx(), cmd, true)?;
-
-        Ok(resp.data()?.to_vec())
-    }
-
     // ----------
 
     /// Reset all state on this OpenPGP card.
@@ -596,7 +578,25 @@ impl<'a> OpenPgpTransaction<'a> {
         Ok(resp.data().map(|d| d.to_vec())?)
     }
 
-    // --- admin ---
+    // --- PUT DO ---
+
+    /// Set data of "private use" DO.
+    ///
+    /// `num` must be between 1 and 4.
+    ///
+    /// Access condition:
+    /// - 1/3 need PW1 (82)
+    /// - 2/4 need PW3
+    pub fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: set_private_use_do");
+
+        assert!((1..=4).contains(&num));
+
+        let cmd = commands::put_private_use_do(num, data);
+        let resp = apdu::send_command(self.tx(), cmd, true)?;
+
+        Ok(resp.data()?.to_vec())
+    }
 
     pub fn set_name(&mut self, name: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_name");
@@ -631,25 +631,54 @@ impl<'a> OpenPgpTransaction<'a> {
         apdu::send_command(self.tx(), put_url, false)?.try_into()
     }
 
-    pub fn set_creation_time(
+    /// Set cardholder certificate (for AUT, DEC or SIG).
+    ///
+    /// Call select_data() before calling this fn, to select a particular
+    /// certificate (if the card supports multiple certificates).
+    pub fn set_cardholder_certificate(&mut self, data: Vec<u8>) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_cardholder_certificate");
+
+        let cmd = commands::put_cardholder_certificate(data);
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
+    }
+
+    /// Set algorithm attributes
+    /// (4.4.3.9 Algorithm Attributes)
+    pub fn set_algorithm_attributes(
         &mut self,
-        time: KeyGenerationTime,
         key_type: KeyType,
+        algo: &Algo,
     ) -> Result<(), Error> {
-        log::info!("OpenPgpTransaction: set_creation_time");
+        log::info!("OpenPgpTransaction: set_algorithm_attributes");
 
-        // Timestamp update
-        let time_value: Vec<u8> = time
-            .get()
-            .to_be_bytes()
-            .iter()
-            .skip_while(|&&e| e == 0)
-            .copied()
-            .collect();
+        // Command to PUT the algorithm attributes
+        let cmd = commands::put_data(&[key_type.algorithm_tag()], algo.to_data_object()?);
 
-        let time_cmd = commands::put_data(&[key_type.timestamp_put_tag()], time_value);
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
+    }
 
-        apdu::send_command(self.tx(), time_cmd, false)?.try_into()
+    /// Set PW Status Bytes.
+    ///
+    /// If `long` is false, send 1 byte to the card, otherwise 4.
+    /// According to the spec, length information should not be changed.
+    ///
+    /// So, effectively, with 'long == false' the setting `pw1_cds_multi`
+    /// can be changed.
+    /// With 'long == true', the settings `pw1_pin_block` and `pw3_pin_block`
+    /// can also be changed.
+    ///
+    /// (See OpenPGP card spec, pg. 28)
+    pub fn set_pw_status_bytes(
+        &mut self,
+        pw_status: &PWStatusBytes,
+        long: bool,
+    ) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_pw_status_bytes");
+
+        let data = pw_status.serialize_for_put(long);
+
+        let cmd = commands::put_pw_status(data);
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
     pub fn set_fingerprint(&mut self, fp: Fingerprint, key_type: KeyType) -> Result<(), Error> {
@@ -681,55 +710,30 @@ impl<'a> OpenPgpTransaction<'a> {
         apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
     }
 
-    /// Set PW Status Bytes.
-    ///
-    /// If `long` is false, send 1 byte to the card, otherwise 4.
-    /// According to the spec, length information should not be changed.
-    ///
-    /// So, effectively, with 'long == false' the setting `pw1_cds_multi`
-    /// can be changed.
-    /// With 'long == true', the settings `pw1_pin_block` and `pw3_pin_block`
-    /// can also be changed.
-    ///
-    /// (See OpenPGP card spec, pg. 28)
-    pub fn set_pw_status_bytes(
+    pub fn set_creation_time(
         &mut self,
-        pw_status: &PWStatusBytes,
-        long: bool,
-    ) -> Result<(), Error> {
-        log::info!("OpenPgpTransaction: set_pw_status_bytes");
-
-        let data = pw_status.serialize_for_put(long);
-
-        let cmd = commands::put_pw_status(data);
-        apdu::send_command(self.tx(), cmd, false)?.try_into()
-    }
-
-    /// Set cardholder certificate (for AUT, DEC or SIG).
-    ///
-    /// Call select_data() before calling this fn, to select a particular
-    /// certificate (if the card supports multiple certificates).
-    pub fn set_cardholder_certificate(&mut self, data: Vec<u8>) -> Result<(), Error> {
-        log::info!("OpenPgpTransaction: set_cardholder_certificate");
-
-        let cmd = commands::put_cardholder_certificate(data);
-        apdu::send_command(self.tx(), cmd, false)?.try_into()
-    }
-
-    /// Set algorithm attributes
-    /// (4.4.3.9 Algorithm Attributes)
-    pub fn set_algorithm_attributes(
-        &mut self,
+        time: KeyGenerationTime,
         key_type: KeyType,
-        algo: &Algo,
     ) -> Result<(), Error> {
-        log::info!("OpenPgpTransaction: set_algorithm_attributes");
+        log::info!("OpenPgpTransaction: set_creation_time");
 
-        // Command to PUT the algorithm attributes
-        let cmd = commands::put_data(&[key_type.algorithm_tag()], algo.to_data_object()?);
+        // Timestamp update
+        let time_value: Vec<u8> = time
+            .get()
+            .to_be_bytes()
+            .iter()
+            .skip_while(|&&e| e == 0)
+            .copied()
+            .collect();
 
-        apdu::send_command(self.tx(), cmd, false)?.try_into()
+        let time_cmd = commands::put_data(&[key_type.timestamp_put_tag()], time_value);
+
+        apdu::send_command(self.tx(), time_cmd, false)?.try_into()
     }
+
+    // FIXME: optional DO SM-Key-ENC
+
+    // FIXME: optional DO SM-Key-MAC
 
     /// Set resetting code
     /// (4.3.4 Resetting Code)
@@ -739,6 +743,8 @@ impl<'a> OpenPgpTransaction<'a> {
         let cmd = commands::put_data(&[0xd3], resetting_code.to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
+
+    // FIXME: optional DO for PSO:ENC/DEC with AES
 
     /// Set UIF for PSO:CDS
     pub fn set_uif_pso_cds(&mut self, uif: &UIF) -> Result<(), Error> {
@@ -763,6 +769,20 @@ impl<'a> OpenPgpTransaction<'a> {
         let cmd = commands::put_data(&[0xd8], uif.as_bytes().to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
+
+    // FIXME: UIF for Attestation key and Generate Attestation command (Yubico)
+
+    // FIXME: Attestation key algo attr, FP, CA-FP, creation time
+
+    // FIXME: SM keys (ENC and MAC) with Tags D1 and D2
+
+    // FIXME: KDF DO
+
+    // FIXME: certificate used with secure messaging
+
+    // FIXME: Attestation Certificate (Yubico)
+
+    // -----------------
 
     /// Import an existing private key to the card.
     /// (This implicitly sets the algorithm info, fingerprint and timestamp)
