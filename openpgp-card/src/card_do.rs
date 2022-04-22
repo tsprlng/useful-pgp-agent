@@ -184,8 +184,12 @@ impl ApplicationRelatedData {
         }
     }
 
-    fn key_information() {
-        unimplemented!()
+    pub fn key_information(&self) -> Result<Option<KeyInformation>, Error> {
+        let ki = self.0.find(&[0xde].into());
+
+        // TODO: return an error in .into(), if the format of the value is bad
+
+        Ok(ki.map(|v| v.serialize().into()))
     }
 
     pub fn uif_pso_cds(&self) -> Result<Option<UIF>, Error> {
@@ -392,6 +396,121 @@ impl Display for Features {
         }
 
         write!(f, "{}", ft.join(", "))
+    }
+}
+
+pub struct KeyInformation(Vec<u8>);
+
+impl From<Vec<u8>> for KeyInformation {
+    fn from(v: Vec<u8>) -> Self {
+        KeyInformation(v)
+    }
+}
+
+impl KeyInformation {
+    /// How many "additional" keys do we have information for?
+    pub fn num_additional(&self) -> usize {
+        (self.0.len() - 6) / 2
+    }
+
+    fn get_ref(&self, n: usize) -> u8 {
+        self.0[n * 2]
+    }
+    fn get_status(&self, n: usize) -> KeyStatus {
+        self.0[n * 2 + 1].into()
+    }
+
+    pub fn sig_ref(&self) -> u8 {
+        self.get_ref(0)
+    }
+    pub fn sig_status(&self) -> KeyStatus {
+        self.get_status(0)
+    }
+
+    pub fn dec_ref(&self) -> u8 {
+        self.get_ref(1)
+    }
+    pub fn dec_status(&self) -> KeyStatus {
+        self.get_status(1)
+    }
+
+    pub fn aut_ref(&self) -> u8 {
+        self.get_ref(2)
+    }
+    pub fn aut_status(&self) -> KeyStatus {
+        self.get_status(2)
+    }
+
+    pub fn additional_ref(&self, num: usize) -> u8 {
+        self.get_ref(3 + num)
+    }
+    pub fn additional_status(&self, num: usize) -> KeyStatus {
+        self.get_status(3 + num)
+    }
+}
+
+impl Display for KeyInformation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "signature key      (#{}): {}",
+            self.sig_ref(),
+            self.sig_status()
+        )?;
+        writeln!(
+            f,
+            "decryption key     (#{}): {}",
+            self.dec_ref(),
+            self.dec_status()
+        )?;
+        writeln!(
+            f,
+            "authentication key (#{}): {}",
+            self.aut_ref(),
+            self.aut_status()
+        )?;
+
+        for i in 0..self.num_additional() {
+            writeln!(
+                f,
+                "additional key {}   (#{}): {}",
+                i,
+                self.additional_ref(i),
+                self.additional_status(i)
+            )?;
+        }
+
+        Ok(())
+    }
+}
+
+#[non_exhaustive]
+pub enum KeyStatus {
+    NotPresent,
+    Generated,
+    Imported,
+    Unknown(u8),
+}
+
+impl From<u8> for KeyStatus {
+    fn from(i: u8) -> Self {
+        match i {
+            0 => KeyStatus::NotPresent,
+            1 => KeyStatus::Generated,
+            2 => KeyStatus::Imported,
+            _ => KeyStatus::Unknown(i),
+        }
+    }
+}
+
+impl Display for KeyStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeyStatus::NotPresent => write!(f, "not present"),
+            KeyStatus::Generated => write!(f, "generated"),
+            KeyStatus::Imported => write!(f, "imported"),
+            KeyStatus::Unknown(i) => write!(f, "unknown status ({})", i),
+        }
     }
 }
 
