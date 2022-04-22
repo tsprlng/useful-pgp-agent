@@ -403,7 +403,11 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     let mut card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(&mut *card);
-    let mut open = Open::new(pgp.transaction()?)?;
+    let mut pgpt = pgp.transaction()?;
+
+    let ard = pgpt.application_related_data()?;
+
+    let mut open = Open::new(pgpt)?;
 
     print!("OpenPGP card {}", open.application_identifier()?.ident());
 
@@ -503,24 +507,72 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
     println!();
 
+    let sst = open.security_support_template()?;
+    println!("Signatures made: {}", sst.signature_count());
+
+    println!();
+
     let pws = open.pw_status_bytes()?;
 
     println!(
-        "Retry counters: User PIN: {}, Admin PIN: {}, Resetting Code: {}",
+        "Remaining tries: User PIN: {}, Admin PIN: {}, Reset Code: {}",
         pws.err_count_pw1(),
         pws.err_count_pw3(),
         pws.err_count_rc(),
     );
-
-    let sst = open.security_support_template()?;
-    println!("Signature counter: {}", sst.signature_count());
-
     println!(
         "Signature PIN only valid once: {}",
         pws.pw1_cds_valid_once()
     );
 
-    // FIXME: print "Login Data", "Key Information"
+    if verbose {
+        println!();
+
+        if let Ok(Some(ki)) = ard.key_information() {
+            println!("Key Information:\n{}", ki);
+        }
+
+        if let Some(uif) = ard.uif_pso_cds()? {
+            println!(
+                "Touch policy signing:        {} [Features: {}]",
+                uif.touch_policy(),
+                uif.features()
+            );
+        }
+
+        if let Some(uif) = ard.uif_pso_dec()? {
+            println!(
+                "Touch policy decryption:     {} [Features: {}]",
+                uif.touch_policy(),
+                uif.features()
+            );
+        }
+
+        if let Some(uif) = ard.uif_pso_dec()? {
+            println!(
+                "Touch policy authentication: {} [Features: {}]",
+                uif.touch_policy(),
+                uif.features()
+            );
+        }
+
+        if let Some(uif) = ard.uif_attestation()? {
+            println!(
+                "Touch policy attestation:    {} [Features: {}]",
+                uif.touch_policy(),
+                uif.features()
+            );
+        }
+
+        if let Ok(fps) = ard.ca_fingerprints() {
+            println!();
+            for x in fps.iter().enumerate() {
+                println!("CA fingerprint {}: {:x?}", x.0 + 1, x.1);
+            }
+        }
+    }
+
+    // FIXME: print "Login Data"
 
     Ok(())
 }
