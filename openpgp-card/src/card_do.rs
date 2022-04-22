@@ -150,11 +150,22 @@ impl ApplicationRelatedData {
         }
     }
 
-    // FIXME
-    // #[allow(dead_code)]
-    // fn ca_fingerprints() {
-    //     unimplemented!()
-    // }
+    pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
+        let fp = self.0.find(&[0xc6].into());
+
+        if let Some(fp) = fp {
+            // FIXME: using a KeySet is a weird hack
+            let fp: KeySet<Fingerprint> = (&fp.serialize()[..]).try_into()?;
+
+            let fp = [fp.signature, fp.decryption, fp.authentication];
+
+            log::trace!("CA Fp: {:x?}", fp);
+
+            Ok(fp)
+        } else {
+            Err(Error::NotFound("Failed to get CA fingerprints.".into()))
+        }
+    }
 
     /// Generation dates/times of key pairs
     pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, crate::Error> {
@@ -173,10 +184,9 @@ impl ApplicationRelatedData {
         }
     }
 
-    // #[allow(dead_code)]
-    // fn key_information() {
-    //     unimplemented!()
-    // }
+    fn key_information() {
+        unimplemented!()
+    }
 
     pub fn uif_pso_cds(&self) -> Result<Option<UIF>, Error> {
         let uif = self.0.find(&[0xd6].into());

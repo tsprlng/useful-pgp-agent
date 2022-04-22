@@ -660,6 +660,27 @@ impl<'a> OpenPgpTransaction<'a> {
         apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
     }
 
+    pub fn set_ca_fingerprint_1(&mut self, fp: Fingerprint) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_ca_fingerprint_1");
+
+        let fp_cmd = commands::put_data(&[0xCA], fp.as_bytes().to_vec());
+        apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
+    }
+
+    pub fn set_ca_fingerprint_2(&mut self, fp: Fingerprint) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_ca_fingerprint_2");
+
+        let fp_cmd = commands::put_data(&[0xCB], fp.as_bytes().to_vec());
+        apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
+    }
+
+    pub fn set_ca_fingerprint_3(&mut self, fp: Fingerprint) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_ca_fingerprint_3");
+
+        let fp_cmd = commands::put_data(&[0xCC], fp.as_bytes().to_vec());
+        apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
+    }
+
     /// Set PW Status Bytes.
     ///
     /// If `long` is false, send 1 byte to the card, otherwise 4.
