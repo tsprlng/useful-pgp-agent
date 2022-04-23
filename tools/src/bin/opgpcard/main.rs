@@ -600,7 +600,7 @@ fn print_ssh(ident: Option<String>) -> Result<()> {
     if let Ok(pkm) = open.public_key(KeyType::Authentication) {
         if let Ok(ssh) = util::get_ssh_pubkey_string(&pkm, ident) {
             println!();
-            println!("Authentication key as ssh public key:\n{}", ssh);
+            println!("SSH public key:\n{}", ssh);
         }
     }
 

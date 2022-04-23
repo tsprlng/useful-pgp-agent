@@ -205,7 +205,7 @@ OpenPGP card ABCD:01234567
 Authentication key fingerprint:
 59A5CD3EA88F8707D887EAAE13545F404E11BE1C
 
-Authentication key as ssh public key:
+SSH public key:
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII2dcYBqMCamidT5MpE3Cl3MIKcYMBekGXbK2aaN6JaH opgpcard:ABCD:01234567
 ```
 
