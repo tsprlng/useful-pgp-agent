@@ -9,7 +9,6 @@ use std::path::PathBuf;
     name = "opgpcard",
     author = "Heiko Schäfer <heiko@schaefer.name>",
     version,
-    disable_help_subcommand(true),
     global_setting(AppSettings::DeriveDisplayOrder),
     about = "A tool for inspecting and configuring OpenPGP cards."
 )]
