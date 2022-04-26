@@ -5,20 +5,23 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # The opgpcard tool
 
-To set up (or inspect) an OpenPGP card, we'll use the `opgpcard` tool.
-So first, we install that tool.
+To set up and inspect OpenPGP cards, we'll use the [`opgpcard`](https://crates.io/crates/openpgp-card-tools) tool,
+which is based on [Sequoia PGP](https://sequoia-pgp.org/)
+and [new Rust OpenPGP card libraries](https://gitlab.com/hkos/openpgp-card).
 
-In short:
+## Install
 
-1. install the build dependencies, then
-2. `cargo install openpgp-card-tools`
+To install the `opgpcard` tool, we
 
-Longer form [installation instructions](https://gitlab.com/hkos/openpgp-card/-/tree/main/tools#install).
+- install the required build dependencies (a Rust toolchain, pcsc-lite, nettle), then
+- `cargo install openpgp-card-tools`
+
+[Detailed installation instructions](https://gitlab.com/hkos/openpgp-card/-/tree/main/tools#install).
 
 
 # Exploring the state of an OpenPGP card
 
-Using the `opgpcard` tool (installed above), you can easily check the status of a card that is plugged in:
+Using the `opgpcard` tool, you can easily check the status of a card:
 
 `$ opgpcard status`
 
@@ -29,15 +32,25 @@ OpenPGP card FFFE:12345678 (card version 2.0)
 [...]
 ```
 
-In this case, the card identifier is `FFFE:12345678` (you'll need to use the identifier for your card, in some of the following steps).
+... and then show information about the keys on the card (if any).
+
+In this case, the card's identifier is `FFFE:12345678`
+(you'll need this identifier for your card, in some of the following steps).
 
 
 # Specifying which card to operate on
 
-For read operations, when exactly one card is plugged in, `opgpcard` will automatically use that card.
+`opgpcard` is designed to work just as reliably and easily in environments where many OpenPGP card devices exist,
+and are plugged in at the same time. Therefore, you will need to explicitly specify which card you want to operate on,
+in many cases.
 
-In all other cases (when multiple cards are plugged in, or for any write operations), you need to specify which card
-you want to interact with, via the `-c` parameter.
+For read operations `opgpcard` will automatically use that card, when exactly one card is plugged in.
+
+In all other cases:
+- when multiple cards are plugged in, and
+- for any write operations,
+ 
+you need to specify which card you want to interact with, via the `--card` (`-c`) parameter.
 
 For example:
 
@@ -45,50 +58,52 @@ For example:
 
 ## Enumerating all available cards
 
-You can use `opgpcard list` to enumerate all cards that are connected to the system.
+You can use `opgpcard list` to enumerate all cards that are connected to your system.
 
 
 # PINs
 
 For some operations, OpenPGP cards require the user to provide a 'PIN', to show that the user is authorized to perform the operation.
 
-Most OpenPGP cards distinguish two different PINs:
+Most OpenPGP cards use two different PINs (for different types of operations):
 
-1. a *User PIN* and
-2. an *Admin PIN*.
+- *User PIN*,
+- *Admin PIN*.
 
-The User PIN is needed for cryptographic operations (such as decryption or signing with the card).
-The Admin PIN is needed to configure the card itself (for example to import a key onto a card).
+The User PIN is required for cryptographic operations,  such as decryption or signing with the card.
+The Admin PIN is needed to configure the card itself, for example to import a key onto the card.
 
-On new (or factory reset) cards, the default User PIN is typically `123456`, the default Admin PIN is `12345678`.
+On new cards (or after a factory reset), the default User PIN is `123456`, the default Admin PIN is `12345678`.
 
 ## Modes of PIN entry
 
 `opgpcard` supports three different modes of PIN entry:
 
-1. When the OpenPGP card is inserted in a Smartcard reader with a pinpad (that is, when the OpenPGP card is inserted into a hardware reader device that has a numerical keypad), PINs can be entered directly via that pinpad.
+1. When the OpenPGP card is inserted in a Smartcard reader with a pinpad, PINs can be entered directly via that pinpad.
 
-2. If no pinpad reader is available, PINs can be entered directly on the host computer.
+2. If no pinpad reader is available, PINs can be entered on the host computer.
 
-3. Alternatively it's possible to supply PINs via a file (or a file descriptor), which can be convenient in non-interactive settings.
+3. Alternatively, it's possible to supply PINs via a file (or a file descriptor). This can be convenient in non-interactive settings, like shell scripts.
 
 ## Changing your User and Admin PIN from the default values
 
-To change the User PIN from its default of `123456` to a value that third parties can't easily guess, run:
+To change the User PIN from its default of `123456` to a different value (one that third parties can't easily guess),
+run:
 
 `$ opgpcard pin -c FFFE:12345678 set-user`
 
-This command will ask you to enter the current User PIN (so `123456`, if your card is new), and then a new PIN,
+This command will ask you to enter the current User PIN (`123456`, if your card is new), and then a new PIN,
 twice (to avoid inadvertently setting the PIN to an unintended value).
 
-And analogously for the Admin PIN, to change it from its default of `12345678`:
+Analogously for the Admin PIN, to change it from its default of `12345678`:
 
 `$ opgpcard pin -c FFFE:12345678 set-admin`
 
-Typically, the minimum length is 6 digits for the User PIN and 8 digits for the Admin PIN.
+The minimum length for User PINs is 6 digits. For the Admin PIN, 8 digits.
 
 (Note that if you lose your Admin PIN, there is no way to recover it! In that case you can start over by blanking the
-card with the `factory-reset` command. This resets the PINs to their defaults and removes all keys from the card.)
+card with the `factory-reset` command. A `factory-reset` reverts the PINs to their defaults and removes all keys from
+the card.)
 
 
 # Setting metadata on a card
@@ -97,14 +112,14 @@ card with the `factory-reset` command. This resets the PINs to their defaults an
 
 You can set a "Cardholder Name" on an OpenPGP card. That name field is informational. 
 
-`opgpcard admin -c FFFE:12345678 name "Alice Adams"`
+`$ opgpcard admin -c FFFE:12345678 name "Alice Adams"`
 
 ## Set URL
 
 You can set a URL on an OpenPGP card.
 
 The URL "should contain a Link to a set of public keys in OpenPGP format, related to the card".
-Some software may use this URL to obtain a copy of the corresponding public key for a card.
+Some software may use this URL to obtain a copy of the corresponding public key for the key material on your card.
 
 `$ opgpcard admin -c FFFE:12345678 url <url>`
 
@@ -113,19 +128,25 @@ For most use cases, you don't need to set this URL.
 
 # Importing a key to a card
 
-*(This operation will delete keys that currently exist on your card.
+*(This operation deletes keys that currently exist on your card.
 Make sure your card doesn't contain irreplaceable keys before you import keys!)*
 
-If you have a key that you want to use, you can use that key.
+If you have an existing key that you want to import onto your card, you need a file that contains the key
+(if you want to use a private key from a GnuPG store, you can export it with `gpg --export-secret-key -a <fingerprint> > key.pgp`).
 
-If you don't (or if you want to first experiment with a test-key) you can generate a new key with the `sq` utility
-(available as `sequoia-sq` in a number of distributions, or installable with the `cargo` Rust package manager).
+If you don't have a key yet (or if you prefer to experiment with a test-key, for now), you can generate a new key with
+the `sq` utility (available as `sequoia-sq`
+in [a number of distributions](https://repology.org/project/sequoia-sq/versions), or you can
+[build it as a container, or with the Cargo package manager](https://gitlab.com/sequoia-pgp/sequoia#building-sequoia)).
+
+To generate a basic OpenPGP key, we run:
 
 ```
 $ sq key generate --export key.pgp
 ```
 
-We can inspect this newly generated key (or your pre-existing key) by running:
+We can inspect this newly generated key (or your pre-existing key) by looking at the structure of the OpenPGP key data
+in the file:
 
 ```
 $ sq inspect key.pgp
@@ -156,19 +177,26 @@ Expiration time: 2025-04-20 03:12:48 UTC (creation time + P1095DT62781S)
       Key flags: transport encryption, data-at-rest encryption
 ```
 
-In this case, we see (in the `Key flags` field) that the primary key `17F2509AB619C8D78B598E54567817AC43A7F7AE`
-can be used for certification only.
-In addition, there is a signing subkey `E7A3D0E45991BE6445668CFD348634FD4CC638CA`
-and an encryption subkey `593970CE20BFE3D58AA4EF12EA988C77EEC05B0A`:
+Here, we see (by looking at the `Key flags` fields) that the primary key `17F2509AB619C8D78B598E54567817AC43A7F7AE`
+can be used for certification only.  In addition, there is a signing subkey `E7A3D0E45991BE6445668CFD348634FD4CC638CA`
+and an encryption subkey `593970CE20BFE3D58AA4EF12EA988C77EEC05B0A`.
 
-To explicitly import the two subkeys onto our card, we run:
+## Automatically importing subkeys for simple OpenPGP keys
+
+Because this key has only one (sub)key for signing and encrypting, respectively, we can import it onto our card easily:
 
 ```
-$ opgpcard admin -c FFFE:12345678 import --sig-fp E7A3D0E45991BE6445668CFD348634FD4CC638CA --dec-fp 593970CE20BFE3D58AA4EF12EA988C77EEC05B0A key.pgp
+$ opgpcard admin -c FFFE:12345678 import key.pgp
 Enter Admin PIN:
 Uploading E7A3D0E45991BE6445668CFD348634FD4CC638CA as signing key
 Uploading 593970CE20BFE3D58AA4EF12EA988C77EEC05B0A as decryption key
 ```
+
+We see that the two subkeys have been loaded into the suitable slots on the card.
+
+For this key, we don't need to explicitly specify the fingerprints of the keys we want to import:
+`opgpcard admin import` can automatically import keys that contain exactly one signing (sub)key, and zero or one
+decryption and authentication subkeys, respectively.
 
 Checking the card's status now shows:
 
@@ -194,13 +222,16 @@ Signature counter: 0
 Signature PIN only valid once: true
 ```
 
-The two subkeys have been loaded into the suitable slots on the card.
 
-In fact, for this key, we don't need to explicitly specify the fingerprints. `opgpcard admin import` automatically
-imports keys that contain exactly one signing (sub)key, and zero or one decryption and authentication subkeys, respectively:
+## Explicitly picking (sub)keys to import, for more complex OpenPGP keys
+
+If our key contains multiple (sub)keys for signing, encrypting, or authentication, respectively,
+we need to explicitly specify which subkeys we want imported onto our card.
+
+With the OpenPGP key from above, that would look like:
 
 ```
-opgpcard admin -c FFFE:12345678 import key.pgp
+$ opgpcard admin -c FFFE:12345678 import --sig-fp E7A3D0E45991BE6445668CFD348634FD4CC638CA --dec-fp 593970CE20BFE3D58AA4EF12EA988C77EEC05B0A key.pgp
 Enter Admin PIN:
 Uploading E7A3D0E45991BE6445668CFD348634FD4CC638CA as signing key
 Uploading 593970CE20BFE3D58AA4EF12EA988C77EEC05B0A as decryption key
@@ -209,15 +240,14 @@ Uploading 593970CE20BFE3D58AA4EF12EA988C77EEC05B0A as decryption key
 
 # Key generation on a card
 
-*(This operation will delete keys that currently exist on your card.
+*(This operation deletes keys that currently exist on your card.
 Make sure your card doesn't contain irreplaceable keys before you generate keys on your card!)*
 
-This step will generate a new set of ECC Curve25519 keys on your OpenPGP card: 
+To generate a new set of ECC Curve 25519 keys on your OpenPGP card, we can run: 
 
-`opgpcard admin -c FFFE:12345678 generate -o output-cert.pub 25519`
+`$ opgpcard admin -c FFFE:12345678 generate -o cert.pub 25519`
 
-The file `output-cert.pub` will contain the OpenPGP public key that corresponds to the newly generated keys on the card.
-We won't need this public key for ssh use (but you might need it if you want to use the key on this card for other purposes).
+The output file `cert.pub` will contain the OpenPGP public key that corresponds to the newly generated keys on the card.
 
 ## Pros and cons of generating keys on a card
 
@@ -227,5 +257,8 @@ even if it is fully compromised.
 
 On the other hand, this means that you can - by design - not make a backup (or second copy) of these private keys.
 If the card is lost (or breaks) these keys are gone forever. 
+
+(Also, when generating private key material on a card, you rely on the hard- and software of that card not to have
+flaws that may compromise your key's security.)
 
 Depending on your use case, these tradeoffs may or may not be a good fit for your goals.
