@@ -18,6 +18,28 @@ To install the `opgpcard` tool, we
 
 [Detailed installation instructions](https://gitlab.com/hkos/openpgp-card/-/tree/main/tools#install).
 
+## Running opgpcard
+
+### Make sure PC/SC is available
+
+`opgpcard` uses the PC/SC framework. So on Linux-based systems, you need to make sure the `pcscd` 
+service is running to be able to access your OpenPGP cards.
+
+### Troubleshooting "Error: No cards found"
+
+If `opgpcard` unexpectedly prints `Error: No cards found`, your OpenPGP card might be locked by GnuPG.
+
+When you use GnuPG with an OpenPGP card, its `scdaemon` service typically opens your card with exclusive access
+privileges, for an indefinite duration. This prevents other software from accessing the card.
+
+To re-gain access to your card, you can:
+- mechanically unplug and replug the card, or you can
+- tell GnuPG to temporarily shut down its `scdaemon` subsystem (the recommended way to do this is: `gpgconf --kill scdaemon`).
+
+After this, `opgpcard` should be able to access your OpenPGP card.
+
+(Note: With recent versions of GnuPG, you can configure `scdaemon` to
+[use PC/SC in shared access mode](https://www.gnupg.org/documentation/manuals/gnupg/Scdaemon-Options.html#index-pcsc_002dshared))
 
 # Exploring the state of an OpenPGP card
 

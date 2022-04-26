@@ -33,6 +33,9 @@ $ cargo install openpgp-card-tools
 Finally, add `$HOME/.cargo/bin` to your PATH to be able to run the installed
 binaries.
 
+`opgpcard` uses the PC/SC framework. So on Linux-based systems, you need to make sure the `pcscd`
+service is running, to be able to access your OpenPGP cards.
+
 ## opgpcard
 
 A tool to inspect, configure and use OpenPGP cards. All calls of this tool are
