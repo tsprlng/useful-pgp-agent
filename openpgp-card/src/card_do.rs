@@ -737,13 +737,51 @@ pub struct CardholderRelatedData {
     sex: Option<Sex>,
 }
 
-/// 4.4.3.5 Sex (according to ISO 5218)
+/// 4.4.3.5 Sex
+/// Encoded in accordance with https://en.wikipedia.org/wiki/ISO/IEC_5218
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Sex {
     NotKnown,
     Male,
     Female,
     NotApplicable,
+    UndefinedValue(u8), // ISO 5218 doesn't define this value
+}
+
+impl Display for Sex {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotKnown => write!(f, "Not known"),
+            Self::Male => write!(f, "Male"),
+            Self::Female => write!(f, "Female"),
+            Self::NotApplicable => write!(f, "Not applicable"),
+            Self::UndefinedValue(v) => write!(f, "Undefined value {:x?}", v),
+        }
+    }
+}
+
+impl From<&Sex> for u8 {
+    fn from(sex: &Sex) -> u8 {
+        match sex {
+            Sex::NotKnown => 0x30,
+            Sex::Male => 0x31,
+            Sex::Female => 0x32,
+            Sex::NotApplicable => 0x39,
+            Sex::UndefinedValue(v) => *v,
+        }
+    }
+}
+
+impl From<u8> for Sex {
+    fn from(s: u8) -> Self {
+        match s {
+            0x30 => Self::NotKnown,
+            0x31 => Self::Male,
+            0x32 => Self::Female,
+            0x39 => Self::NotApplicable,
+            v => Self::UndefinedValue(v),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -795,28 +833,6 @@ impl From<&[u8; 1]> for Lang {
 impl From<&[u8; 2]> for Lang {
     fn from(data: &[u8; 2]) -> Self {
         Lang::Value([data[0], data[1]])
-    }
-}
-
-impl From<&Sex> for u8 {
-    fn from(sex: &Sex) -> u8 {
-        match sex {
-            Sex::NotKnown => 0x30,
-            Sex::Male => 0x31,
-            Sex::Female => 0x32,
-            Sex::NotApplicable => 0x39,
-        }
-    }
-}
-
-impl From<u8> for Sex {
-    fn from(s: u8) -> Self {
-        match s {
-            0x31 => Sex::Male,
-            0x32 => Sex::Female,
-            0x39 => Sex::NotApplicable,
-            _ => Sex::NotKnown,
-        }
     }
 }
 
