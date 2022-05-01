@@ -271,13 +271,11 @@ pub enum KeyType {
 impl KeyType {
     /// Get C1/C2/C3/DA values for this KeyTypes, to use as Tag
     fn algorithm_tag(&self) -> u8 {
-        use KeyType::*;
-
         match self {
-            Signing => 0xC1,
-            Decryption => 0xC2,
-            Authentication => 0xC3,
-            Attestation => 0xDA,
+            Self::Signing => 0xC1,
+            Self::Decryption => 0xC2,
+            Self::Authentication => 0xC3,
+            Self::Attestation => 0xDA,
         }
     }
 
@@ -286,13 +284,11 @@ impl KeyType {
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// fingerprint information from the card uses the combined Tag C5)
     fn fingerprint_put_tag(&self) -> u8 {
-        use KeyType::*;
-
         match self {
-            Signing => 0xC7,
-            Decryption => 0xC8,
-            Authentication => 0xC9,
-            Attestation => 0xDB,
+            Self::Signing => 0xC7,
+            Self::Decryption => 0xC8,
+            Self::Authentication => 0xC9,
+            Self::Attestation => 0xDB,
         }
     }
 
@@ -301,13 +297,11 @@ impl KeyType {
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// timestamp information from the card uses the combined Tag CD)
     fn timestamp_put_tag(&self) -> u8 {
-        use KeyType::*;
-
         match self {
-            Signing => 0xCE,
-            Decryption => 0xCF,
-            Authentication => 0xD0,
-            Attestation => 0xDD,
+            Self::Signing => 0xCE,
+            Self::Decryption => 0xCF,
+            Self::Authentication => 0xD0,
+            Self::Attestation => 0xDD,
         }
     }
 }
