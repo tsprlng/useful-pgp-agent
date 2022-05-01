@@ -465,7 +465,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
     if let Some(kgt) = kgt.signature() {
-        println! {"  created: {}", kgt.formatted()};
+        println! {"  created: {}", kgt.to_datetime()};
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Signing)?};
     if verbose {
@@ -480,7 +480,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
     if let Some(kgt) = kgt.decryption() {
-        println! {"  created: {}", kgt.formatted()};
+        println! {"  created: {}", kgt.to_datetime()};
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Decryption)?};
     if verbose {
@@ -495,7 +495,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         println!("  fingerprint: {}", fp.to_spaced_hex());
     }
     if let Some(kgt) = kgt.authentication() {
-        println! {"  created: {}", kgt.formatted()};
+        println! {"  created: {}", kgt.to_datetime()};
     }
     println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
     if verbose {

@@ -252,11 +252,15 @@ impl KeyGenerationTime {
         self.0
     }
 
-    pub fn formatted(&self) -> String {
+    pub fn to_datetime(&self) -> DateTime<Utc> {
         let d = UNIX_EPOCH + Duration::from_secs(self.get() as u64);
-        let datetime = DateTime::<Utc>::from(d);
+        DateTime::<Utc>::from(d)
+    }
+}
 
-        datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+impl Display for KeyGenerationTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_datetime())
     }
 }
 
