@@ -195,20 +195,19 @@ impl<'a> DerefMut for dyn CardTransaction + Send + Sync + 'a {
 
 /// Information about the capabilities of a card.
 ///
-/// This configuration can is used to determine e.g. if chaining or extended
-/// length can be used when communicating with the card.
+/// CardCaps is used to signal capabilities (chaining, extended length support, max
+/// command/response sizes, max PIN lengths) of the current card to backends.
 ///
-/// CardCaps data is used internally and can be used by card backends, it is unlikely to be
-/// useful for users of this library.
+/// CardCaps is not intended for users of this library.
 ///
-/// (The information is retrieved from card metadata, specifically from
-/// "Card Capabilities", "Extended length information" and "PWStatus")
+/// (The information is gathered from the "Card Capabilities", "Extended length information" and
+/// "PWStatus" DOs)
 #[derive(Clone, Copy, Debug)]
 pub struct CardCaps {
-    /// Extended Lc and Le fields
+    /// Does the card support extended Lc and Le fields?
     ext_support: bool,
 
-    /// Command chaining
+    /// Command chaining support?
     chaining_support: bool,
 
     /// Maximum number of bytes in a command APDU
@@ -217,10 +216,10 @@ pub struct CardCaps {
     /// Maximum number of bytes in a response APDU
     max_rsp_bytes: u16,
 
-    /// Maximum length of pw1
+    /// Maximum length of PW1
     pw1_max_len: u8,
 
-    /// Maximum length of pw3
+    /// Maximum length of PW3
     pw3_max_len: u8,
 }
 
