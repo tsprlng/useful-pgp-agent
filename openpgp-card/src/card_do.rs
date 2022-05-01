@@ -737,6 +737,23 @@ pub struct CardholderRelatedData {
     sex: Option<Sex>,
 }
 
+impl Display for CardholderRelatedData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if let Some(name) = &self.name {
+            writeln!(f, "Name: {}", Self::latin1_to_string(name))?;
+        }
+        if let Some(sex) = self.sex {
+            writeln!(f, "Sex: {}", sex)?;
+        }
+        if let Some(lang) = &self.lang {
+            for (n, l) in lang.iter().enumerate() {
+                writeln!(f, "Lang {}: {}", n + 1, l)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 /// 4.4.3.5 Sex
 /// Encoded in accordance with https://en.wikipedia.org/wiki/ISO/IEC_5218
 #[derive(Debug, PartialEq, Clone, Copy)]

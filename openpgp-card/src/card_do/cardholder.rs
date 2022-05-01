@@ -13,6 +13,14 @@ impl CardholderRelatedData {
         self.name.as_deref()
     }
 
+    /// The name field is defined as latin1 encoded,
+    /// with ´<´ and ´<<´ filler characters to separate elements and name-parts.
+    ///
+    /// (The filler/separation characters are not processed by this fn)
+    pub(crate) fn latin1_to_string(s: &[u8]) -> String {
+        s.iter().map(|&c| c as char).collect()
+    }
+
     pub fn lang(&self) -> Option<&[Lang]> {
         self.lang.as_deref()
     }

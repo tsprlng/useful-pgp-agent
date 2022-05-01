@@ -419,6 +419,7 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
     let crd = open.cardholder_related_data()?;
 
     if let Some(name) = crd.name() {
+        // FIXME: decoding as utf8 is wrong (the spec defines this field as latin1 encoded)
         let name = String::from_utf8_lossy(name).to_string();
 
         print!("Cardholder: ");
