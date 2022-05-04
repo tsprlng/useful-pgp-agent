@@ -7,7 +7,7 @@
 
 use crate::algorithm::Algo;
 use crate::card_do::{Fingerprint, KeyGenerationTime};
-use crate::Error;
+use crate::{oid, Error};
 
 /// A hash value that can be signed by the card.
 #[non_exhaustive]
@@ -24,9 +24,9 @@ impl Hash<'_> {
     /// digestinfo for SHA*. Other OIDs are not implemented.
     pub(crate) fn oid(&self) -> Option<&'static [u8]> {
         match self {
-            Self::SHA256(_) => Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01]),
-            Self::SHA384(_) => Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02]),
-            Self::SHA512(_) => Some(&[0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03]),
+            Self::SHA256(_) => Some(oid::SHA256),
+            Self::SHA384(_) => Some(oid::SHA384),
+            Self::SHA512(_) => Some(oid::SHA512),
             Self::EdDSA(_) => panic!("OIDs for EdDSA are unimplemented"),
             Self::ECDSA(_) => panic!("OIDs for ECDSA are unimplemented"),
         }

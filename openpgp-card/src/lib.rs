@@ -33,6 +33,7 @@ pub mod card_do;
 pub mod crypto_data;
 mod errors;
 pub(crate) mod keys;
+mod oid;
 mod openpgp;
 mod tlv;
 

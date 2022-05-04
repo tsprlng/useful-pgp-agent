@@ -11,7 +11,7 @@
 
 use crate::card_do::ApplicationRelatedData;
 use crate::crypto_data::EccType;
-use crate::{keys, Error, KeyType};
+use crate::{keys, oid, Error, KeyType};
 
 use std::convert::TryFrom;
 use std::fmt;
@@ -313,17 +313,17 @@ impl Curve {
     pub fn oid(&self) -> &[u8] {
         use Curve::*;
         match self {
-            NistP256r1 => &[0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07],
-            NistP384r1 => &[0x2B, 0x81, 0x04, 0x00, 0x22],
-            NistP521r1 => &[0x2B, 0x81, 0x04, 0x00, 0x23],
-            BrainpoolP256r1 => &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07],
-            BrainpoolP384r1 => &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b],
-            BrainpoolP512r1 => &[0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d],
-            Secp256k1 => &[0x2B, 0x81, 0x04, 0x00, 0x0A],
-            Ed25519 => &[0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01],
-            Cv25519 => &[0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01],
-            Ed448 => &[0x2b, 0x65, 0x71],
-            X448 => &[0x2b, 0x65, 0x6f],
+            NistP256r1 => oid::NIST_P256R1,
+            NistP384r1 => oid::NIST_P384R1,
+            NistP521r1 => oid::NIST_P521R1,
+            BrainpoolP256r1 => oid::BRAINPOOL_P256R1,
+            BrainpoolP384r1 => oid::BRAINPOOL_P384R1,
+            BrainpoolP512r1 => oid::BRAINPOOL_P512R1,
+            Secp256k1 => oid::SECP256K1,
+            Ed25519 => oid::ED25519,
+            Cv25519 => oid::CV25519,
+            Ed448 => oid::ED448,
+            X448 => oid::X448,
         }
     }
 }
@@ -335,21 +335,21 @@ impl TryFrom<&[u8]> for Curve {
         use Curve::*;
 
         let curve = match oid {
-            [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07] => NistP256r1,
-            [0x2B, 0x81, 0x04, 0x00, 0x22] => NistP384r1,
-            [0x2B, 0x81, 0x04, 0x00, 0x23] => NistP521r1,
+            oid::NIST_P256R1 => NistP256r1,
+            oid::NIST_P384R1 => NistP384r1,
+            oid::NIST_P521R1 => NistP521r1,
 
-            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07] => BrainpoolP256r1,
-            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0b] => BrainpoolP384r1,
-            [0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0d] => BrainpoolP512r1,
+            oid::BRAINPOOL_P256R1 => BrainpoolP256r1,
+            oid::BRAINPOOL_P384R1 => BrainpoolP384r1,
+            oid::BRAINPOOL_P512R1 => BrainpoolP512r1,
 
-            [0x2B, 0x81, 0x04, 0x00, 0x0A] => Secp256k1,
+            oid::SECP256K1 => Secp256k1,
 
-            [0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01] => Ed25519,
-            [0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01] => Cv25519,
+            oid::ED25519 => Ed25519,
+            oid::CV25519 => Cv25519,
 
-            [0x2b, 0x65, 0x71] => Ed448,
-            [0x2b, 0x65, 0x6f] => X448,
+            oid::ED448 => Ed448,
+            oid::X448 => X448,
 
             _ => return Err(Error::ParseError(format!("Unknown curve OID {:?}", oid))),
         };
