@@ -331,6 +331,12 @@ pub(crate) enum Tags {
 
 impl From<Tags> for Tag {
     fn from(t: Tags) -> Self {
+        ShortTag::from(t).into()
+    }
+}
+
+impl From<Tags> for ShortTag {
+    fn from(t: Tags) -> Self {
         match t {
             // BER identifiers https://en.wikipedia.org/wiki/X.690#BER_encoding
             Tags::OctetString => [0x04].into(),
@@ -405,6 +411,39 @@ impl From<Tags> for Tag {
     }
 }
 
+/// A ShortTag is a Tlv tag that is guaranteed to be either 1 or 2 bytes long.
+///
+/// This covers any tag that can be used in the OpenPGP card context (the spec doesn't describe how
+/// longer tags might be used.)
+///
+/// (The type tlv::Tag will usually/always contain 1 or 2 byte long tags, in this library.
+/// But its length is not guaranteed by the type system)
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum ShortTag {
+    One(u8),
+    Two(u8, u8),
+}
+
+impl From<ShortTag> for Tag {
+    fn from(n: ShortTag) -> Self {
+        match n {
+            ShortTag::One(t0) => [t0].into(),
+            ShortTag::Two(t0, t1) => [t0, t1].into(),
+        }
+    }
+}
+
+impl From<[u8; 1]> for ShortTag {
+    fn from(v: [u8; 1]) -> Self {
+        ShortTag::One(v[0])
+    }
+}
+impl From<[u8; 2]> for ShortTag {
+    fn from(v: [u8; 2]) -> Self {
+        ShortTag::Two(v[0], v[1])
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PinType {
     Sign,
@@ -434,7 +473,7 @@ pub enum KeyType {
 
 impl KeyType {
     /// Get C1/C2/C3/DA values for this KeyTypes, to use as Tag
-    fn algorithm_tag(&self) -> Tag {
+    fn algorithm_tag(&self) -> ShortTag {
         match self {
             Self::Signing => Tags::AlgorithmAttributesSignature,
             Self::Decryption => Tags::AlgorithmAttributesDecryption,
@@ -448,7 +487,7 @@ impl KeyType {
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// fingerprint information from the card uses the combined Tag C5)
-    fn fingerprint_put_tag(&self) -> Tag {
+    fn fingerprint_put_tag(&self) -> ShortTag {
         match self {
             Self::Signing => Tags::FingerprintSignature,
             Self::Decryption => Tags::FingerprintDecryption,
@@ -462,7 +501,7 @@ impl KeyType {
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// timestamp information from the card uses the combined Tag CD)
-    fn timestamp_put_tag(&self) -> Tag {
+    fn timestamp_put_tag(&self) -> ShortTag {
         match self {
             Self::Signing => Tags::GenerationTimeSignature,
             Self::Decryption => Tags::GenerationTimeDecryption,

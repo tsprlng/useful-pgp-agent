@@ -4,7 +4,7 @@
 //! Pre-defined `Command` values for the OpenPGP card application
 
 use crate::apdu::command::Command;
-use crate::{Tag, Tags};
+use crate::{ShortTag, Tags};
 
 /// 7.2.1 SELECT
 /// (select the OpenPGP application on the card)
@@ -19,11 +19,10 @@ pub(crate) fn select_openpgp() -> Command {
 }
 
 /// 7.2.6 GET DATA
-fn get_data<T: Into<Tag>>(tag: T) -> Command {
-    match *tag.into().get() {
-        [tag0] => Command::new(0x00, 0xCA, 0, tag0, vec![]),
-        [tag0, tag1] => Command::new(0x00, 0xCA, tag0, tag1, vec![]),
-        _ => panic!("this should never happen"), // FIXME
+fn get_data<T: Into<ShortTag>>(tag: T) -> Command {
+    match tag.into() {
+        ShortTag::One(tag0) => Command::new(0x00, 0xCA, 0, tag0, vec![]),
+        ShortTag::Two(tag0, tag1) => Command::new(0x00, 0xCA, tag0, tag1, vec![]),
     }
 }
 
@@ -104,11 +103,10 @@ pub(crate) fn verify_pw3(pin: Vec<u8>) -> Command {
 }
 
 /// 7.2.8 PUT DATA,
-pub(crate) fn put_data<T: Into<Tag>>(tag: T, data: Vec<u8>) -> Command {
-    match *tag.into().get() {
-        [tag0] => Command::new(0x00, 0xda, 0, tag0, data),
-        [tag0, tag1] => Command::new(0x00, 0xda, tag0, tag1, data),
-        _ => panic!("this should never happen"), // FIXME
+pub(crate) fn put_data<T: Into<ShortTag>>(tag: T, data: Vec<u8>) -> Command {
+    match tag.into() {
+        ShortTag::One(tag0) => Command::new(0x00, 0xda, 0, tag0, data),
+        ShortTag::Two(tag0, tag1) => Command::new(0x00, 0xda, tag0, tag1, data),
     }
 }
 

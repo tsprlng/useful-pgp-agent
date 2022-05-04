@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Tag in a TLV data structure
+//! Tag in a TLV data structure.
+//!
+//! A Tag can span multiple octets, in the OpenPGP card context, only Tags spanning 1 or 2 octets
+//! should come up. However, this type can deal with arbitrary length Tags.
+//!
+//! (The `ShortTag` type models tags that are exactly 1 or 2 octets long)
+//!
+//! https://en.wikipedia.org/wiki/X.690#Encoding
 
 use nom::{branch, bytes::complete as bytes, combinator, number::complete as number, sequence};
 
