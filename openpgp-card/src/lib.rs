@@ -257,6 +257,7 @@ pub(crate) enum Tags {
     Null,
     ObjectIdentifier,
     Sequence,
+
     // GET DATA
     PrivateUse1,
     PrivateUse2,
@@ -298,6 +299,7 @@ pub(crate) enum Tags {
     AlgorithmInformation,
     CertificateSecureMessaging,
     AttestationCertificate,
+
     // PUT DATA (additional Tags that don't get used for GET DATA)
     FingerprintSignature,
     FingerprintDecryption,
@@ -310,23 +312,44 @@ pub(crate) enum Tags {
     GenerationTimeAuthentication,
     // FIXME: +D1, D2
     ResettingCode,
+
     // OTHER
     // 4.4.3.12 Private Key Template
     ExtendedHeaderList,
     CardholderPrivateKeyTemplate,
     ConcatenatedKeyData,
-    // 7.2.14 GENERATE ASYMMETRIC KEY PAIR
-    PublicKey,
-    // 7.2.11 PSO: DECIPHER
-    Cipher,
-    ExternalPublicKey,
-    // 7.2.5 SELECT DATA
-    GeneralReference,
-    TagList,
-    // 4.4.3.12 Private Key Template
     CrtKeySignature,
     CrtKeyConfidentiality,
     CrtKeyAuthentication,
+    PrivateKeyDataRsaPublicExponent,
+    PrivateKeyDataRsaPrime1,
+    PrivateKeyDataRsaPrime2,
+    PrivateKeyDataRsaPq,
+    PrivateKeyDataRsaDp1,
+    PrivateKeyDataRsaDq1,
+    PrivateKeyDataRsaModulus,
+    PrivateKeyDataEccPrivateKey,
+    PrivateKeyDataEccPublicKey,
+
+    // 7.2.14 GENERATE ASYMMETRIC KEY PAIR
+    PublicKey,
+    PublicKeyDataRsaModulus,
+    PublicKeyDataRsaExponent,
+    PublicKeyDataEccPoint,
+
+    // 7.2.11 PSO: DECIPHER
+    Cipher,
+    ExternalPublicKey,
+
+    // 7.2.5 SELECT DATA
+    GeneralReference,
+    TagList,
+}
+
+impl From<Tags> for Vec<u8> {
+    fn from(t: Tags) -> Self {
+        ShortTag::from(t).into()
+    }
 }
 
 impl From<Tags> for Tag {
@@ -343,6 +366,7 @@ impl From<Tags> for ShortTag {
             Tags::Null => [0x05].into(),
             Tags::ObjectIdentifier => [0x06].into(),
             Tags::Sequence => [0x30].into(),
+
             // GET DATA
             Tags::PrivateUse1 => [0x01, 0x01].into(),
             Tags::PrivateUse2 => [0x01, 0x02].into(),
@@ -384,6 +408,7 @@ impl From<Tags> for ShortTag {
             Tags::AlgorithmInformation => [0xfa].into(),
             Tags::CertificateSecureMessaging => [0xfb].into(),
             Tags::AttestationCertificate => [0xfc].into(),
+
             // PUT DATA
             Tags::FingerprintSignature => [0xc7].into(),
             Tags::FingerprintDecryption => [0xc8].into(),
@@ -395,18 +420,38 @@ impl From<Tags> for ShortTag {
             Tags::GenerationTimeDecryption => [0xcf].into(),
             Tags::GenerationTimeAuthentication => [0xd0].into(),
             Tags::ResettingCode => [0xd3].into(),
+
             // OTHER
+            // 4.4.3.12 Private Key Template
             Tags::ExtendedHeaderList => [0x4d].into(),
             Tags::CardholderPrivateKeyTemplate => [0x7f, 0x48].into(),
             Tags::ConcatenatedKeyData => [0x5f, 0x48].into(),
-            Tags::PublicKey => [0x7f, 0x49].into(),
-            Tags::Cipher => [0xa6].into(),
-            Tags::ExternalPublicKey => [0x86].into(),
-            Tags::GeneralReference => [0x60].into(),
-            Tags::TagList => [0x5c].into(),
             Tags::CrtKeySignature => [0xb6].into(),
             Tags::CrtKeyConfidentiality => [0xb8].into(),
             Tags::CrtKeyAuthentication => [0xa4].into(),
+            Tags::PrivateKeyDataRsaPublicExponent => [0x91].into(),
+            Tags::PrivateKeyDataRsaPrime1 => [0x92].into(), // Note: value reused!
+            Tags::PrivateKeyDataRsaPrime2 => [0x93].into(),
+            Tags::PrivateKeyDataRsaPq => [0x94].into(),
+            Tags::PrivateKeyDataRsaDp1 => [0x95].into(),
+            Tags::PrivateKeyDataRsaDq1 => [0x96].into(),
+            Tags::PrivateKeyDataRsaModulus => [0x97].into(),
+            Tags::PrivateKeyDataEccPrivateKey => [0x92].into(), // Note: value reused!
+            Tags::PrivateKeyDataEccPublicKey => [0x99].into(),
+
+            // 7.2.14 GENERATE ASYMMETRIC KEY PAIR
+            Tags::PublicKey => [0x7f, 0x49].into(),
+            Tags::PublicKeyDataRsaModulus => [0x81].into(),
+            Tags::PublicKeyDataRsaExponent => [0x82].into(),
+            Tags::PublicKeyDataEccPoint => [0x86].into(),
+
+            // 7.2.11 PSO: DECIPHER
+            Tags::Cipher => [0xa6].into(),
+            Tags::ExternalPublicKey => [0x86].into(),
+
+            // 7.2.5 SELECT DATA
+            Tags::GeneralReference => [0x60].into(),
+            Tags::TagList => [0x5c].into(),
         }
     }
 }
@@ -441,6 +486,14 @@ impl From<[u8; 1]> for ShortTag {
 impl From<[u8; 2]> for ShortTag {
     fn from(v: [u8; 2]) -> Self {
         ShortTag::Two(v[0], v[1])
+    }
+}
+impl From<ShortTag> for Vec<u8> {
+    fn from(t: ShortTag) -> Self {
+        match t {
+            ShortTag::One(t0) => vec![t0],
+            ShortTag::Two(t0, t1) => vec![t0, t1],
+        }
     }
 }
 

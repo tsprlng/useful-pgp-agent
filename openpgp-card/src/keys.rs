@@ -16,7 +16,7 @@ use crate::crypto_data::{
 };
 use crate::openpgp::OpenPgpTransaction;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
-use crate::{apdu, Error, KeyType, Tag, Tags};
+use crate::{apdu, Error, KeyType, Tags};
 
 /// Generate asymmetric key pair on the card.
 ///
@@ -92,10 +92,10 @@ pub(crate) fn gen_key_with_metadata(
 
 /// Transform a public key Tlv from the card into PublicKeyMaterial
 fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial, crate::Error> {
-    let n = tlv.find(Tag::from([0x81]));
-    let v = tlv.find(Tag::from([0x82]));
+    let n = tlv.find(Tags::PublicKeyDataRsaModulus);
+    let v = tlv.find(Tags::PublicKeyDataRsaExponent);
 
-    let ec = tlv.find(Tag::from([0x86]));
+    let ec = tlv.find(Tags::PublicKeyDataEccPoint);
 
     match (n, v, ec) {
         (Some(n), Some(v), None) => {
@@ -379,7 +379,7 @@ fn rsa_key_import_cmd(
     // Collect data for "Cardholder private key template" DO (7F48)
     //
     // (Describes the content of the Cardholder private key DO)
-    let mut cpkt_data = vec![];
+    let mut cpkt_data: Vec<u8> = vec![];
 
     // "Cardholder private key" (5F48)
     //
@@ -388,10 +388,9 @@ fn rsa_key_import_cmd(
     let mut key_data = Vec::new();
 
     // -- Public exponent: e --
-
+    cpkt_data.extend(Vec::from(Tags::PrivateKeyDataRsaPublicExponent));
     // Expected length of e in bytes, rounding up from the bit value in algo.
     let len_e_bytes = ((rsa_attrs.len_e() + 7) / 8) as u8;
-    cpkt_data.push(0x91);
     // len_e in bytes has a value of 3-4, it doesn't need TLV encoding
     cpkt_data.push(len_e_bytes);
 
@@ -411,11 +410,11 @@ fn rsa_key_import_cmd(
     let len_p_bytes: u16 = rsa_attrs.len_n() / 2 / 8;
     let len_q_bytes: u16 = rsa_attrs.len_n() / 2 / 8;
 
-    cpkt_data.push(0x92);
+    cpkt_data.extend(Vec::from(Tags::PrivateKeyDataRsaPrime1));
     // len p in bytes, TLV-encoded
     cpkt_data.extend_from_slice(&tlv_encode_length(len_p_bytes));
 
-    cpkt_data.push(0x93);
+    cpkt_data.extend(Vec::from(Tags::PrivateKeyDataRsaPrime2));
     // len q in bytes, TLV-encoded
     cpkt_data.extend_from_slice(&tlv_encode_length(len_q_bytes));
 
@@ -428,19 +427,19 @@ fn rsa_key_import_cmd(
     if rsa_attrs.import_format() == 2 || rsa_attrs.import_format() == 3 {
         // PQ: 1/q mod p
         let pq = rsa_key.pq();
-        cpkt_data.push(0x94);
+        cpkt_data.extend(Vec::from(Tags::PrivateKeyDataRsaPq));
         cpkt_data.extend(&tlv_encode_length(pq.len() as u16));
         key_data.extend(pq.iter());
 
         // DP1: d mod (p - 1)
         let dp1 = rsa_key.dp1();
-        cpkt_data.push(0x95);
+        cpkt_data.extend(Vec::from(Tags::PrivateKeyDataRsaDp1));
         cpkt_data.extend(&tlv_encode_length(dp1.len() as u16));
         key_data.extend(dp1.iter());
 
         // DQ1: d mod (q - 1)
         let dq1 = rsa_key.dq1();
-        cpkt_data.push(0x96);
+        cpkt_data.extend(Vec::from(Tags::PrivateKeyDataRsaDq1));
         cpkt_data.extend(&tlv_encode_length(dq1.len() as u16));
         key_data.extend(dq1.iter());
     }
@@ -448,7 +447,7 @@ fn rsa_key_import_cmd(
     // import format requires modulus n field
     if rsa_attrs.import_format() == 1 || rsa_attrs.import_format() == 3 {
         let n = rsa_key.n();
-        cpkt_data.push(0x97);
+        cpkt_data.extend(Vec::from(Tags::PrivateKeyDataRsaModulus));
         cpkt_data.extend(&tlv_encode_length(n.len() as u16));
         key_data.extend(n.iter());
     }
@@ -487,7 +486,7 @@ fn ecc_key_import_cmd(
     let mut key_data = Vec::new();
 
     // Process "scalar"
-    cpkt_data.push(0x92);
+    cpkt_data.extend(Vec::from(Tags::PrivateKeyDataEccPrivateKey));
     cpkt_data.extend_from_slice(&tlv_encode_length(private.len() as u16));
 
     key_data.extend(private);
@@ -496,7 +495,7 @@ fn ecc_key_import_cmd(
     if ecc_attrs.import_format() == Some(0xff) {
         let p = ecc_key.public();
 
-        cpkt_data.push(0x99);
+        cpkt_data.extend(Vec::from(Tags::PrivateKeyDataEccPublicKey));
         cpkt_data.extend_from_slice(&tlv_encode_length(p.len() as u16));
 
         key_data.extend(p);
