@@ -8,7 +8,7 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};
 use std::time::{Duration, UNIX_EPOCH};
 
-use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType};
+use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType, Tags};
 
 mod algo_attrs;
 mod algo_info;
@@ -34,7 +34,7 @@ pub struct ApplicationRelatedData(pub(crate) Tlv);
 impl ApplicationRelatedData {
     /// Get application identifier (AID), ISO 7816-4
     pub fn application_id(&self) -> Result<ApplicationIdentifier, Error> {
-        let aid = self.0.find(&[0x4f].into());
+        let aid = self.0.find(Tags::ApplicationIdentifier);
 
         if let Some(aid) = aid {
             Ok(ApplicationIdentifier::try_from(&aid.serialize()[..])?)
@@ -45,7 +45,7 @@ impl ApplicationRelatedData {
 
     /// Get historical bytes
     pub fn historical_bytes(&self) -> Result<HistoricalBytes, Error> {
-        let hist = self.0.find(&[0x5f, 0x52].into());
+        let hist = self.0.find(Tags::HistoricalBytes);
 
         if let Some(hist) = hist {
             log::trace!("Historical bytes: {:x?}", hist);
@@ -60,7 +60,7 @@ impl ApplicationRelatedData {
     /// Get extended length information (ISO 7816-4), which
     /// contains maximum number of bytes for command and response.
     pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>, Error> {
-        let eli = self.0.find(&[0x7f, 0x66].into());
+        let eli = self.0.find(Tags::ExtendedLengthInformation);
 
         log::trace!("Extended length information: {:x?}", eli);
 
@@ -89,7 +89,7 @@ impl ApplicationRelatedData {
         let version = app_id.version();
 
         // get from cached "application related data"
-        let ecap = self.0.find(&[0xc0].into());
+        let ecap = self.0.find(Tags::ExtendedCapabilities);
 
         if let Some(ecap) = ecap {
             Ok(ExtendedCapabilities::try_from((
@@ -105,7 +105,7 @@ impl ApplicationRelatedData {
 
     /// Get algorithm attributes (for each key type)
     pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo, Error> {
-        let aa = self.0.find(&[key_type.algorithm_tag()].into());
+        let aa = self.0.find(key_type.algorithm_tag());
 
         if let Some(aa) = aa {
             Algo::try_from(&aa.serialize()[..])
@@ -119,7 +119,7 @@ impl ApplicationRelatedData {
 
     /// Get PW status Bytes
     pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
-        let psb = self.0.find(&[0xc4].into());
+        let psb = self.0.find(Tags::PWStatusBytes);
 
         if let Some(psb) = psb {
             let pws = (&psb.serialize()[..]).try_into()?;
@@ -137,7 +137,7 @@ impl ApplicationRelatedData {
     /// Fingerprint, per key type.
     /// Zero bytes indicate a not defined private key.
     pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
-        let fp = self.0.find(&[0xc5].into());
+        let fp = self.0.find(Tags::Fingerprints);
 
         if let Some(fp) = fp {
             let fp: KeySet<Fingerprint> = (&fp.serialize()[..]).try_into()?;
@@ -151,7 +151,7 @@ impl ApplicationRelatedData {
     }
 
     pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
-        let fp = self.0.find(&[0xc6].into());
+        let fp = self.0.find(Tags::CaFingerprints);
 
         if let Some(fp) = fp {
             // FIXME: using a KeySet is a weird hack
@@ -169,7 +169,7 @@ impl ApplicationRelatedData {
 
     /// Generation dates/times of key pairs
     pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, crate::Error> {
-        let kg = self.0.find(&[0xcd].into());
+        let kg = self.0.find(Tags::GenerationTimes);
 
         if let Some(kg) = kg {
             let kg: KeySet<KeyGenerationTime> = (&kg.serialize()[..]).try_into()?;
@@ -185,7 +185,7 @@ impl ApplicationRelatedData {
     }
 
     pub fn key_information(&self) -> Result<Option<KeyInformation>, Error> {
-        let ki = self.0.find(&[0xde].into());
+        let ki = self.0.find(Tags::KeyInformation);
 
         // TODO: return an error in .into(), if the format of the value is bad
 
@@ -193,7 +193,7 @@ impl ApplicationRelatedData {
     }
 
     pub fn uif_pso_cds(&self) -> Result<Option<UIF>, Error> {
-        let uif = self.0.find(&[0xd6].into());
+        let uif = self.0.find(Tags::UifSig);
 
         match uif {
             None => Ok(None),
@@ -202,7 +202,7 @@ impl ApplicationRelatedData {
     }
 
     pub fn uif_pso_dec(&self) -> Result<Option<UIF>, Error> {
-        let uif = self.0.find(&[0xd7].into());
+        let uif = self.0.find(Tags::UifDec);
 
         match uif {
             None => Ok(None),
@@ -211,7 +211,7 @@ impl ApplicationRelatedData {
     }
 
     pub fn uif_pso_aut(&self) -> Result<Option<UIF>, Error> {
-        let uif = self.0.find(&[0xd8].into());
+        let uif = self.0.find(Tags::UifAuth);
 
         match uif {
             None => Ok(None),
@@ -220,7 +220,7 @@ impl ApplicationRelatedData {
     }
 
     pub fn uif_attestation(&self) -> Result<Option<UIF>, Error> {
-        let uif = self.0.find(&[0xd9].into());
+        let uif = self.0.find(Tags::UifAttestation);
 
         match uif {
             None => Ok(None),

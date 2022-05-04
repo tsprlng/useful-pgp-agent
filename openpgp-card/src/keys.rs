@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Generate and import keys
@@ -16,7 +16,7 @@ use crate::crypto_data::{
 };
 use crate::openpgp::OpenPgpTransaction;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
-use crate::{apdu, Error, KeyType};
+use crate::{apdu, Error, KeyType, Tag, Tags};
 
 /// Generate asymmetric key pair on the card.
 ///
@@ -92,10 +92,10 @@ pub(crate) fn gen_key_with_metadata(
 
 /// Transform a public key Tlv from the card into PublicKeyMaterial
 fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial, crate::Error> {
-    let n = tlv.find(&[0x81].into());
-    let v = tlv.find(&[0x82].into());
+    let n = tlv.find(Tag::from([0x81]));
+    let v = tlv.find(Tag::from([0x82]));
 
-    let ec = tlv.find(&[0x86].into());
+    let ec = tlv.find(Tag::from([0x86]));
 
     match (n, v, ec) {
         (Some(n), Some(v), None) => {
@@ -454,14 +454,14 @@ fn rsa_key_import_cmd(
     }
 
     // Assemble the DOs for upload
-    let cpkt = Tlv::new([0x7F, 0x48], Value::S(cpkt_data));
-    let cpk = Tlv::new([0x5F, 0x48], Value::S(key_data));
+    let cpkt = Tlv::new(Tags::CardholderPrivateKeyTemplate, Value::S(cpkt_data));
+    let cpk = Tlv::new(Tags::ConcatenatedKeyData, Value::S(key_data));
 
     // "Control Reference Template"
     let crt = control_reference_template(key_type)?;
 
     // "Extended header list (DO 4D)"
-    let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
+    let ehl = Tlv::new(Tags::ExtendedHeaderList, Value::C(vec![crt, cpkt, cpk]));
 
     // Return the full key import command
     Ok(commands::key_import(ehl.serialize().to_vec()))
@@ -505,16 +505,16 @@ fn ecc_key_import_cmd(
     // Assemble DOs
 
     // "Cardholder private key template"
-    let cpkt = Tlv::new([0x7F, 0x48], Value::S(cpkt_data));
+    let cpkt = Tlv::new(Tags::CardholderPrivateKeyTemplate, Value::S(cpkt_data));
 
     // "Cardholder private key"
-    let cpk = Tlv::new([0x5F, 0x48], Value::S(key_data));
+    let cpk = Tlv::new(Tags::ConcatenatedKeyData, Value::S(key_data));
 
     // "Control Reference Template"
     let crt = control_reference_template(key_type)?;
 
     // "Extended header list (DO 4D)" (contains the three inner TLV)
-    let ehl = Tlv::new([0x4d], Value::C(vec![crt, cpkt, cpk]));
+    let ehl = Tlv::new(Tags::ExtendedHeaderList, Value::C(vec![crt, cpkt, cpk]));
 
     // key import command
     Ok(commands::key_import(ehl.serialize().to_vec()))
@@ -524,10 +524,10 @@ fn ecc_key_import_cmd(
 fn control_reference_template(key_type: KeyType) -> Result<Tlv, Error> {
     // "Control Reference Template" (0xB8 | 0xB6 | 0xA4)
     let tag = match key_type {
-        KeyType::Decryption => 0xB8,
-        KeyType::Signing => 0xB6,
-        KeyType::Authentication => 0xA4,
+        KeyType::Decryption => Tags::CrtKeyConfidentiality,
+        KeyType::Signing => Tags::CrtKeySignature,
+        KeyType::Authentication => Tags::CrtKeyAuthentication,
         _ => return Err(Error::InternalError("Unexpected KeyType".to_string())),
     };
-    Ok(Tlv::new([tag], Value::S(vec![])))
+    Ok(Tlv::new(tag, Value::S(vec![])))
 }

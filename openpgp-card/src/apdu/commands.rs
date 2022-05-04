@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Pre-defined `Command` values for the OpenPGP card application
 
 use crate::apdu::command::Command;
+use crate::{Tag, Tags};
 
 /// 7.2.1 SELECT
 /// (select the OpenPGP application on the card)
@@ -17,49 +18,54 @@ pub(crate) fn select_openpgp() -> Command {
     )
 }
 
-/// 7.2.6 GET DATA (tag consists one byte)
-fn get_data1(tag0: u8) -> Command {
-    Command::new(0x00, 0xCA, 0, tag0, vec![])
-}
-
-/// 7.2.6 GET DATA (tag consists of two bytes)
-fn get_data2(tag0: u8, tag1: u8) -> Command {
-    Command::new(0x00, 0xCA, tag0, tag1, vec![])
+/// 7.2.6 GET DATA
+fn get_data<T: Into<Tag>>(tag: T) -> Command {
+    match *tag.into().get() {
+        [tag0] => Command::new(0x00, 0xCA, 0, tag0, vec![]),
+        [tag0, tag1] => Command::new(0x00, 0xCA, tag0, tag1, vec![]),
+        _ => panic!("this should never happen"), // FIXME
+    }
 }
 
 /// GET DO "Application related data"
 pub(crate) fn application_related_data() -> Command {
-    get_data1(0x6E)
+    get_data(Tags::ApplicationRelatedData)
 }
 
 /// GET DO "private use"
 pub(crate) fn private_use_do(num: u8) -> Command {
-    get_data2(0x01, num)
+    match num {
+        1 => get_data(Tags::PrivateUse1),
+        2 => get_data(Tags::PrivateUse2),
+        3 => get_data(Tags::PrivateUse3),
+        4 => get_data(Tags::PrivateUse4),
+        _ => panic!("this should never happen"), // FIXME
+    }
 }
 
 /// GET DO "Uniform resource locator"
 pub(crate) fn url() -> Command {
-    get_data2(0x5F, 0x50)
+    get_data(Tags::Url)
 }
 
 /// GET DO "Cardholder related data"
 pub(crate) fn cardholder_related_data() -> Command {
-    get_data1(0x65)
+    get_data(Tags::CardholderRelatedData)
 }
 
 /// GET DO "Security support template"
 pub(crate) fn security_support_template() -> Command {
-    get_data1(0x7A)
+    get_data(Tags::SecuritySupportTemplate)
 }
 
 /// GET DO "Cardholder certificate"
 pub(crate) fn cardholder_certificate() -> Command {
-    get_data2(0x7F, 0x21)
+    get_data(Tags::CardholderCertificate)
 }
 
 /// GET DO "Algorithm Information"
 pub(crate) fn algo_info() -> Command {
-    get_data1(0xFA)
+    get_data(Tags::AlgorithmInformation)
 }
 
 /// GET Firmware Version (yubikey specific?)
@@ -98,51 +104,53 @@ pub(crate) fn verify_pw3(pin: Vec<u8>) -> Command {
 }
 
 /// 7.2.8 PUT DATA,
-/// ('tag' must consist of either one or two bytes)
-pub(crate) fn put_data(tag: &[u8], data: Vec<u8>) -> Command {
-    assert!(!tag.is_empty() && tag.len() <= 2);
-
-    let (p1, p2) = if tag.len() == 2 {
-        (tag[0], tag[1])
-    } else {
-        (0, tag[0])
-    };
-    Command::new(0x00, 0xda, p1, p2, data)
+pub(crate) fn put_data<T: Into<Tag>>(tag: T, data: Vec<u8>) -> Command {
+    match *tag.into().get() {
+        [tag0] => Command::new(0x00, 0xda, 0, tag0, data),
+        [tag0, tag1] => Command::new(0x00, 0xda, tag0, tag1, data),
+        _ => panic!("this should never happen"), // FIXME
+    }
 }
 
 /// PUT DO "private use"
 pub(crate) fn put_private_use_do(num: u8, data: Vec<u8>) -> Command {
-    put_data(&[0x01, num], data)
+    match num {
+        1 => put_data(Tags::PrivateUse1, data),
+        2 => put_data(Tags::PrivateUse2, data),
+        3 => put_data(Tags::PrivateUse3, data),
+        4 => put_data(Tags::PrivateUse4, data),
+        _ => panic!("this should never happen"), // FIXME
+    }
 }
 
 /// PUT DO Name
 pub(crate) fn put_name(name: Vec<u8>) -> Command {
-    put_data(&[0x5b], name)
+    put_data(Tags::Name, name)
 }
 
 /// PUT DO Language preferences
 pub(crate) fn put_lang(lang: Vec<u8>) -> Command {
-    put_data(&[0x5f, 0x2d], lang)
+    put_data(Tags::LanguagePref, lang)
 }
 
 /// PUT DO Sex
 pub(crate) fn put_sex(sex: u8) -> Command {
-    put_data(&[0x5f, 0x35], vec![sex])
+    put_data(Tags::Sex, vec![sex])
 }
 
 /// PUT DO Uniform resource locator (URL)
 pub(crate) fn put_url(url: Vec<u8>) -> Command {
-    put_data(&[0x5f, 0x50], url)
+    put_data(Tags::Url, url)
 }
 
 /// PUT DO "PW status bytes"
 pub(crate) fn put_pw_status(data: Vec<u8>) -> Command {
-    put_data(&[0xc4], data)
+    put_data(Tags::PWStatusBytes, data)
 }
 
 /// PUT DO "Cardholder certificate"
 pub(crate) fn put_cardholder_certificate(data: Vec<u8>) -> Command {
-    put_data(&[0x7F, 0x21], data)
+    put_data(Tags::CardholderCertificate, data)
 }
 
 /// "RESET RETRY COUNTER" (PW1, user pin)

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 pub(crate) mod length;
@@ -28,13 +28,14 @@ impl Tlv {
     }
 
     /// Find the first occurrence of `tag` and return its value (if any)
-    pub fn find(&self, tag: &Tag) -> Option<&Value> {
-        if &self.tag == tag {
+    pub fn find<T: Clone + Into<Tag>>(&self, tag: T) -> Option<&Value> {
+        let t: Tag = tag.clone().into();
+        if self.tag == t {
             Some(&self.value)
         } else {
             if let Value::C(inner) = &self.value {
                 for tlv in inner {
-                    if let Some(found) = tlv.find(tag) {
+                    if let Some(found) = tlv.find(tag.clone()) {
                         return Some(found);
                     }
                 }
@@ -84,12 +85,12 @@ mod test {
     use std::convert::TryFrom;
 
     use super::{Tlv, Value};
-    use crate::Error;
+    use crate::{Error, Tags};
 
     #[test]
     fn test_tlv0() {
         let cpkt = Tlv::new(
-            [0x7F, 0x48],
+            Tags::CardholderPrivateKeyTemplate,
             Value::S(vec![
                 0x91, 0x03, 0x92, 0x82, 0x01, 0x00, 0x93, 0x82, 0x01, 0x00,
             ]),
@@ -109,16 +110,22 @@ mod test {
 
         assert_eq!(
             tlv,
-            Tlv::new([0x5b], Value::S(hex!("546573743C3C5465737469").to_vec()))
+            Tlv::new(
+                Tags::Name,
+                Value::S(hex!("546573743C3C5465737469").to_vec())
+            )
         );
 
         let (input, tlv) = Tlv::parse(input).unwrap();
 
-        assert_eq!(tlv, Tlv::new([0x5f, 0x2d], Value::S(hex!("6465").to_vec())));
+        assert_eq!(
+            tlv,
+            Tlv::new(Tags::LanguagePref, Value::S(hex!("6465").to_vec()))
+        );
 
         let (input, tlv) = Tlv::parse(input).unwrap();
 
-        assert_eq!(tlv, Tlv::new([0x5f, 0x35], Value::S(hex!("31").to_vec())));
+        assert_eq!(tlv, Tlv::new(Tags::Sex, Value::S(hex!("31").to_vec())));
 
         assert!(input.is_empty());
 
@@ -136,69 +143,69 @@ mod test {
         assert_eq!(serialized, data.to_vec());
 
         // outermost layer contains all bytes as value
-        let value = tlv.find(&[0x6e].into()).unwrap();
+        let value = tlv.find(Tags::ApplicationRelatedData).unwrap();
         assert_eq!(value.serialize(),
                    hex!("4f10d27600012401030400061601918000005f520800730000e00590007f740381012073820110c00a7d000bfe080000ff0000c106010800001100c206010800001100c306010800001100da06010800001100c407ff7f7f7f030003c5500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c6500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cd1000000000000000000000000000000000de0801000200030081027f660802020bfe02020bfed6020020d7020020d8020020d9020020"));
 
         // get and verify data for ecap tag
-        let value = tlv.find(&[0xc0].into()).unwrap();
+        let value = tlv.find(Tags::ExtendedCapabilities).unwrap();
         assert_eq!(value.serialize(), hex!("7d000bfe080000ff0000"));
 
-        let value = tlv.find(&[0x4f].into()).unwrap();
+        let value = tlv.find(Tags::ApplicationIdentifier).unwrap();
         assert_eq!(value.serialize(), hex!("d2760001240103040006160191800000"));
 
-        let value = tlv.find(&[0x5f, 0x52].into()).unwrap();
+        let value = tlv.find(Tags::HistoricalBytes).unwrap();
         assert_eq!(value.serialize(), hex!("00730000e0059000"));
 
-        let value = tlv.find(&[0x7f, 0x74].into()).unwrap();
+        let value = tlv.find(Tags::GeneralFeatureManagement).unwrap();
         assert_eq!(value.serialize(), hex!("810120"));
 
-        let value = tlv.find(&[0x73].into()).unwrap();
+        let value = tlv.find(Tags::DiscretionaryDataObjects).unwrap();
         assert_eq!(value.serialize(), hex!("c00a7d000bfe080000ff0000c106010800001100c206010800001100c306010800001100da06010800001100c407ff7f7f7f030003c5500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c6500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cd1000000000000000000000000000000000de0801000200030081027f660802020bfe02020bfed6020020d7020020d8020020d9020020"));
 
-        let value = tlv.find(&[0xc0].into()).unwrap();
+        let value = tlv.find(Tags::ExtendedCapabilities).unwrap();
         assert_eq!(value.serialize(), hex!("7d000bfe080000ff0000"));
 
-        let value = tlv.find(&[0xc1].into()).unwrap();
+        let value = tlv.find(Tags::AlgorithmAttributesSignature).unwrap();
         assert_eq!(value.serialize(), hex!("010800001100"));
 
-        let value = tlv.find(&[0xc2].into()).unwrap();
+        let value = tlv.find(Tags::AlgorithmAttributesDecryption).unwrap();
         assert_eq!(value.serialize(), hex!("010800001100"));
 
-        let value = tlv.find(&[0xc3].into()).unwrap();
+        let value = tlv.find(Tags::AlgorithmAttributesAuthentication).unwrap();
         assert_eq!(value.serialize(), hex!("010800001100"));
 
-        let value = tlv.find(&[0xda].into()).unwrap();
+        let value = tlv.find(Tags::AlgorithmAttributesAttestation).unwrap();
         assert_eq!(value.serialize(), hex!("010800001100"));
 
-        let value = tlv.find(&[0xc4].into()).unwrap();
+        let value = tlv.find(Tags::PWStatusBytes).unwrap();
         assert_eq!(value.serialize(), hex!("ff7f7f7f030003"));
 
-        let value = tlv.find(&[0xc5].into()).unwrap();
+        let value = tlv.find(Tags::Fingerprints).unwrap();
         assert_eq!(value.serialize(), hex!("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
 
-        let value = tlv.find(&[0xc6].into()).unwrap();
+        let value = tlv.find(Tags::CaFingerprints).unwrap();
         assert_eq!(value.serialize(), hex!("0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"));
 
-        let value = tlv.find(&[0xcd].into()).unwrap();
+        let value = tlv.find(Tags::GenerationTimes).unwrap();
         assert_eq!(value.serialize(), hex!("00000000000000000000000000000000"));
 
-        let value = tlv.find(&[0xde].into()).unwrap();
+        let value = tlv.find(Tags::KeyInformation).unwrap();
         assert_eq!(value.serialize(), hex!("0100020003008102"));
 
-        let value = tlv.find(&[0x7f, 0x66].into()).unwrap();
+        let value = tlv.find(Tags::ExtendedLengthInformation).unwrap();
         assert_eq!(value.serialize(), hex!("02020bfe02020bfe"));
 
-        let value = tlv.find(&[0xd6].into()).unwrap();
+        let value = tlv.find(Tags::UifSig).unwrap();
         assert_eq!(value.serialize(), hex!("0020"));
 
-        let value = tlv.find(&[0xd7].into()).unwrap();
+        let value = tlv.find(Tags::UifDec).unwrap();
         assert_eq!(value.serialize(), hex!("0020"));
 
-        let value = tlv.find(&[0xd8].into()).unwrap();
+        let value = tlv.find(Tags::UifAuth).unwrap();
         assert_eq!(value.serialize(), hex!("0020"));
 
-        let value = tlv.find(&[0xd9].into()).unwrap();
+        let value = tlv.find(Tags::UifAttestation).unwrap();
         assert_eq!(value.serialize(), hex!("0020"));
 
         Ok(())
@@ -210,11 +217,14 @@ mod test {
         // but has been abridged and changed. It does not represent a
         // complete valid OpenPGP card DO!
 
-        let a = Tlv::new([0x7F, 0x48], Value::S(vec![0x92, 0x03]));
+        let a = Tlv::new(
+            Tags::CardholderPrivateKeyTemplate,
+            Value::S(vec![0x92, 0x03]),
+        );
 
-        let b = Tlv::new([0x5F, 0x48], Value::S(vec![0x1, 0x2, 0x3]));
+        let b = Tlv::new(Tags::ConcatenatedKeyData, Value::S(vec![0x1, 0x2, 0x3]));
 
-        let tlv = Tlv::new([0x4d], Value::C(vec![a, b]));
+        let tlv = Tlv::new(Tags::ExtendedHeaderList, Value::C(vec![a, b]));
 
         assert_eq!(
             tlv.serialize(),

@@ -14,6 +14,7 @@ use crate::crypto_data::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial}
 use crate::tlv::{value::Value, Tlv};
 use crate::{
     apdu, keys, CardBackend, CardTransaction, Error, KeyType, PinType, SmartcardError, StatusBytes,
+    Tag, Tags,
 };
 
 /// An OpenPGP card access object, backed by a CardBackend implementation.
@@ -116,7 +117,7 @@ impl<'a> OpenPgpTransaction<'a> {
         resp.check_ok()?;
 
         let tlv = Tlv::try_from(resp.data()?)?;
-        let res = tlv.find(&[0x93].into()).ok_or_else(|| {
+        let res = tlv.find(Tag::from([0x93])).ok_or_else(|| {
             Error::NotFound("Couldn't get SecuritySupportTemplate DO".to_string())
         })?;
 
@@ -192,8 +193,8 @@ impl<'a> OpenPgpTransaction<'a> {
         log::info!("OpenPgpTransaction: select_data");
 
         let tlv = Tlv::new(
-            [0x60],
-            Value::C(vec![Tlv::new([0x5c], Value::S(tag.to_vec()))]),
+            Tags::GeneralReference,
+            Value::C(vec![Tlv::new(Tags::TagList, Value::S(tag.to_vec()))]),
         );
 
         let data = tlv.serialize();
@@ -487,13 +488,13 @@ impl<'a> OpenPgpTransaction<'a> {
                 //    -> 86 xx External Public Key
 
                 // External Public Key
-                let epk = Tlv::new([0x86], Value::S(eph.to_vec()));
+                let epk = Tlv::new(Tags::ExternalPublicKey, Value::S(eph.to_vec()));
 
                 // Public Key DO
-                let pkdo = Tlv::new([0x7f, 0x49], Value::C(vec![epk]));
+                let pkdo = Tlv::new(Tags::PublicKey, Value::C(vec![epk]));
 
                 // Cipher DO
-                let cdo = Tlv::new([0xa6], Value::C(vec![pkdo]));
+                let cdo = Tlv::new(Tags::Cipher, Value::C(vec![pkdo]));
 
                 self.pso_decipher(cdo.serialize())
             }
@@ -652,7 +653,7 @@ impl<'a> OpenPgpTransaction<'a> {
         log::info!("OpenPgpTransaction: set_algorithm_attributes");
 
         // Command to PUT the algorithm attributes
-        let cmd = commands::put_data(&[key_type.algorithm_tag()], algo.to_data_object()?);
+        let cmd = commands::put_data(key_type.algorithm_tag(), algo.to_data_object()?);
 
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
@@ -684,7 +685,7 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_fingerprint(&mut self, fp: Fingerprint, key_type: KeyType) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_fingerprint");
 
-        let fp_cmd = commands::put_data(&[key_type.fingerprint_put_tag()], fp.as_bytes().to_vec());
+        let fp_cmd = commands::put_data(key_type.fingerprint_put_tag(), fp.as_bytes().to_vec());
 
         apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
     }
@@ -692,21 +693,21 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_ca_fingerprint_1(&mut self, fp: Fingerprint) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_ca_fingerprint_1");
 
-        let fp_cmd = commands::put_data(&[0xCA], fp.as_bytes().to_vec());
+        let fp_cmd = commands::put_data(Tags::CaFingerprint1, fp.as_bytes().to_vec());
         apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
     }
 
     pub fn set_ca_fingerprint_2(&mut self, fp: Fingerprint) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_ca_fingerprint_2");
 
-        let fp_cmd = commands::put_data(&[0xCB], fp.as_bytes().to_vec());
+        let fp_cmd = commands::put_data(Tags::CaFingerprint2, fp.as_bytes().to_vec());
         apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
     }
 
     pub fn set_ca_fingerprint_3(&mut self, fp: Fingerprint) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_ca_fingerprint_3");
 
-        let fp_cmd = commands::put_data(&[0xCC], fp.as_bytes().to_vec());
+        let fp_cmd = commands::put_data(Tags::CaFingerprint3, fp.as_bytes().to_vec());
         apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
     }
 
@@ -726,7 +727,7 @@ impl<'a> OpenPgpTransaction<'a> {
             .copied()
             .collect();
 
-        let time_cmd = commands::put_data(&[key_type.timestamp_put_tag()], time_value);
+        let time_cmd = commands::put_data(key_type.timestamp_put_tag(), time_value);
 
         apdu::send_command(self.tx(), time_cmd, false)?.try_into()
     }
@@ -740,7 +741,7 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_resetting_code(&mut self, resetting_code: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_resetting_code");
 
-        let cmd = commands::put_data(&[0xd3], resetting_code.to_vec());
+        let cmd = commands::put_data(Tags::ResettingCode, resetting_code.to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
@@ -750,7 +751,7 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_uif_pso_cds(&mut self, uif: &UIF) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_uif_pso_cds");
 
-        let cmd = commands::put_data(&[0xd6], uif.as_bytes().to_vec());
+        let cmd = commands::put_data(Tags::UifSig, uif.as_bytes().to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
@@ -758,7 +759,7 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_uif_pso_dec(&mut self, uif: &UIF) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_uif_pso_dec");
 
-        let cmd = commands::put_data(&[0xd7], uif.as_bytes().to_vec());
+        let cmd = commands::put_data(Tags::UifDec, uif.as_bytes().to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
@@ -766,7 +767,7 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_uif_pso_aut(&mut self, uif: &UIF) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_uif_pso_aut");
 
-        let cmd = commands::put_data(&[0xd8], uif.as_bytes().to_vec());
+        let cmd = commands::put_data(Tags::UifAuth, uif.as_bytes().to_vec());
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
@@ -870,20 +871,20 @@ fn digestinfo(hash: Hash) -> Vec<u8> {
     match hash {
         Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
             let tlv = Tlv::new(
-                [0x30],
+                Tags::Sequence,
                 Value::C(vec![
                     Tlv::new(
-                        [0x30],
+                        Tags::Sequence,
                         Value::C(vec![
                             Tlv::new(
-                                [0x06],
+                                Tags::ObjectIdentifier,
                                 // unwrapping is ok, for SHA*
                                 Value::S(hash.oid().unwrap().to_vec()),
                             ),
-                            Tlv::new([0x05], Value::S(vec![])),
+                            Tlv::new(Tags::Null, Value::S(vec![])),
                         ]),
                     ),
-                    Tlv::new([0x04], Value::S(hash.digest().to_vec())),
+                    Tlv::new(Tags::OctetString, Value::S(hash.digest().to_vec())),
                 ]),
             );
 

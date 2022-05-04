@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Client library for
@@ -24,6 +24,8 @@
 //! The [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
 //! crate offers a higher level wrapper based on the
 //! [Sequoia PGP](https://sequoia-pgp.org/) implementation.
+
+extern crate core;
 
 pub mod algorithm;
 pub(crate) mod apdu;
@@ -117,7 +119,10 @@ pub trait CardTransaction {
 
         log::trace!(" ARD value: {:x?}", value);
 
-        Ok(ApplicationRelatedData(Tlv::new(Tag::from([0x6E]), value)))
+        Ok(ApplicationRelatedData(Tlv::new(
+            Tags::ApplicationRelatedData,
+            value,
+        )))
     }
 
     /// Get a CardApp based on a CardTransaction.
@@ -241,6 +246,165 @@ impl CardCaps {
     }
 }
 
+/// Tags, as specified and used in the OpenPGP card 3.4.1 spec.
+/// All tags in OpenPGP card are either 1 or 2 bytes long.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[non_exhaustive]
+#[allow(dead_code)]
+pub(crate) enum Tags {
+    // BER identifiers
+    OctetString,
+    Null,
+    ObjectIdentifier,
+    Sequence,
+    // GET DATA
+    PrivateUse1,
+    PrivateUse2,
+    PrivateUse3,
+    PrivateUse4,
+    ApplicationIdentifier,
+    LoginData,
+    Url,
+    HistoricalBytes,
+    CardholderRelatedData,
+    Name,
+    LanguagePref,
+    Sex,
+    ApplicationRelatedData,
+    ExtendedLengthInformation,
+    GeneralFeatureManagement,
+    DiscretionaryDataObjects,
+    ExtendedCapabilities,
+    AlgorithmAttributesSignature,
+    AlgorithmAttributesDecryption,
+    AlgorithmAttributesAuthentication,
+    PWStatusBytes,
+    Fingerprints,
+    CaFingerprints,
+    GenerationTimes,
+    KeyInformation,
+    UifSig,
+    UifDec,
+    UifAuth,
+    UifAttestation,
+    SecuritySupportTemplate,
+    DigitalSignatureCounter,
+    CardholderCertificate,
+    AlgorithmAttributesAttestation,
+    FingerprintAttestation,
+    CaFingerprintAttestation,
+    GenerationTimeAttestation,
+    KdfDo,
+    AlgorithmInformation,
+    CertificateSecureMessaging,
+    AttestationCertificate,
+    // PUT DATA (additional Tags that don't get used for GET DATA)
+    FingerprintSignature,
+    FingerprintDecryption,
+    FingerprintAuthentication,
+    CaFingerprint1,
+    CaFingerprint2,
+    CaFingerprint3,
+    GenerationTimeSignature,
+    GenerationTimeDecryption,
+    GenerationTimeAuthentication,
+    // FIXME: +D1, D2
+    ResettingCode,
+    // OTHER
+    // 4.4.3.12 Private Key Template
+    ExtendedHeaderList,
+    CardholderPrivateKeyTemplate,
+    ConcatenatedKeyData,
+    // 7.2.14 GENERATE ASYMMETRIC KEY PAIR
+    PublicKey,
+    // 7.2.11 PSO: DECIPHER
+    Cipher,
+    ExternalPublicKey,
+    // 7.2.5 SELECT DATA
+    GeneralReference,
+    TagList,
+    // 4.4.3.12 Private Key Template
+    CrtKeySignature,
+    CrtKeyConfidentiality,
+    CrtKeyAuthentication,
+}
+
+impl From<Tags> for Tag {
+    fn from(t: Tags) -> Self {
+        match t {
+            // BER identifiers https://en.wikipedia.org/wiki/X.690#BER_encoding
+            Tags::OctetString => [0x04].into(),
+            Tags::Null => [0x05].into(),
+            Tags::ObjectIdentifier => [0x06].into(),
+            Tags::Sequence => [0x30].into(),
+            // GET DATA
+            Tags::PrivateUse1 => [0x01, 0x01].into(),
+            Tags::PrivateUse2 => [0x01, 0x02].into(),
+            Tags::PrivateUse3 => [0x01, 0x03].into(),
+            Tags::PrivateUse4 => [0x01, 0x04].into(),
+            Tags::ApplicationIdentifier => [0x4f].into(),
+            Tags::LoginData => [0x5e].into(),
+            Tags::Url => [0x5f, 0x50].into(),
+            Tags::HistoricalBytes => [0x5f, 0x52].into(),
+            Tags::CardholderRelatedData => [0x65].into(),
+            Tags::Name => [0x5b].into(),
+            Tags::LanguagePref => [0x5f, 0x2d].into(),
+            Tags::Sex => [0x5f, 0x35].into(),
+            Tags::ApplicationRelatedData => [0x6e].into(),
+            Tags::ExtendedLengthInformation => [0x7f, 0x66].into(),
+            Tags::GeneralFeatureManagement => [0x7f, 0x74].into(),
+            Tags::DiscretionaryDataObjects => [0x73].into(),
+            Tags::ExtendedCapabilities => [0xc0].into(),
+            Tags::AlgorithmAttributesSignature => [0xc1].into(),
+            Tags::AlgorithmAttributesDecryption => [0xc2].into(),
+            Tags::AlgorithmAttributesAuthentication => [0xc3].into(),
+            Tags::PWStatusBytes => [0xc4].into(),
+            Tags::Fingerprints => [0xc5].into(),
+            Tags::CaFingerprints => [0xc6].into(),
+            Tags::GenerationTimes => [0xcd].into(),
+            Tags::KeyInformation => [0xde].into(),
+            Tags::UifSig => [0xd6].into(),
+            Tags::UifDec => [0xd7].into(),
+            Tags::UifAuth => [0xd8].into(),
+            Tags::UifAttestation => [0xd9].into(),
+            Tags::SecuritySupportTemplate => [0x7a].into(),
+            Tags::DigitalSignatureCounter => [0x93].into(),
+            Tags::CardholderCertificate => [0x7f, 0x21].into(),
+            Tags::AlgorithmAttributesAttestation => [0xda].into(),
+            Tags::FingerprintAttestation => [0xdb].into(),
+            Tags::CaFingerprintAttestation => [0xdc].into(),
+            Tags::GenerationTimeAttestation => [0xdd].into(),
+            Tags::KdfDo => [0xf9].into(),
+            Tags::AlgorithmInformation => [0xfa].into(),
+            Tags::CertificateSecureMessaging => [0xfb].into(),
+            Tags::AttestationCertificate => [0xfc].into(),
+            // PUT DATA
+            Tags::FingerprintSignature => [0xc7].into(),
+            Tags::FingerprintDecryption => [0xc8].into(),
+            Tags::FingerprintAuthentication => [0xc9].into(),
+            Tags::CaFingerprint1 => [0xca].into(),
+            Tags::CaFingerprint2 => [0xcb].into(),
+            Tags::CaFingerprint3 => [0xcc].into(),
+            Tags::GenerationTimeSignature => [0xce].into(),
+            Tags::GenerationTimeDecryption => [0xcf].into(),
+            Tags::GenerationTimeAuthentication => [0xd0].into(),
+            Tags::ResettingCode => [0xd3].into(),
+            // OTHER
+            Tags::ExtendedHeaderList => [0x4d].into(),
+            Tags::CardholderPrivateKeyTemplate => [0x7f, 0x48].into(),
+            Tags::ConcatenatedKeyData => [0x5f, 0x48].into(),
+            Tags::PublicKey => [0x7f, 0x49].into(),
+            Tags::Cipher => [0xa6].into(),
+            Tags::ExternalPublicKey => [0x86].into(),
+            Tags::GeneralReference => [0x60].into(),
+            Tags::TagList => [0x5c].into(),
+            Tags::CrtKeySignature => [0xb6].into(),
+            Tags::CrtKeyConfidentiality => [0xb8].into(),
+            Tags::CrtKeyAuthentication => [0xa4].into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PinType {
     Sign,
@@ -270,39 +434,42 @@ pub enum KeyType {
 
 impl KeyType {
     /// Get C1/C2/C3/DA values for this KeyTypes, to use as Tag
-    fn algorithm_tag(&self) -> u8 {
+    fn algorithm_tag(&self) -> Tag {
         match self {
-            Self::Signing => 0xC1,
-            Self::Decryption => 0xC2,
-            Self::Authentication => 0xC3,
-            Self::Attestation => 0xDA,
+            Self::Signing => Tags::AlgorithmAttributesSignature,
+            Self::Decryption => Tags::AlgorithmAttributesDecryption,
+            Self::Authentication => Tags::AlgorithmAttributesAuthentication,
+            Self::Attestation => Tags::AlgorithmAttributesAttestation,
         }
+        .into()
     }
 
     /// Get C7/C8/C9/DB values for this KeyTypes, to use as Tag.
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// fingerprint information from the card uses the combined Tag C5)
-    fn fingerprint_put_tag(&self) -> u8 {
+    fn fingerprint_put_tag(&self) -> Tag {
         match self {
-            Self::Signing => 0xC7,
-            Self::Decryption => 0xC8,
-            Self::Authentication => 0xC9,
-            Self::Attestation => 0xDB,
+            Self::Signing => Tags::FingerprintSignature,
+            Self::Decryption => Tags::FingerprintDecryption,
+            Self::Authentication => Tags::FingerprintAuthentication,
+            Self::Attestation => Tags::FingerprintAttestation,
         }
+        .into()
     }
 
     /// Get CE/CF/D0/DD values for this KeyTypes, to use as Tag.
     ///
     /// (NOTE: these Tags are only used for "PUT DO", but GETting
     /// timestamp information from the card uses the combined Tag CD)
-    fn timestamp_put_tag(&self) -> u8 {
+    fn timestamp_put_tag(&self) -> Tag {
         match self {
-            Self::Signing => 0xCE,
-            Self::Decryption => 0xCF,
-            Self::Authentication => 0xD0,
-            Self::Attestation => 0xDD,
+            Self::Signing => Tags::GenerationTimeSignature,
+            Self::Decryption => Tags::GenerationTimeDecryption,
+            Self::Authentication => Tags::GenerationTimeAuthentication,
+            Self::Attestation => Tags::GenerationTimeAttestation,
         }
+        .into()
     }
 }
 
