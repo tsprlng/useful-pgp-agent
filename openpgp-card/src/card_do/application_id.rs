@@ -55,7 +55,7 @@ impl ApplicationIdentifier {
     }
 
     /// Mapping of manufacturer id to a name, data from:
-    /// https://en.wikipedia.org/wiki/OpenPGP_card [2022-04-07]
+    /// <https://en.wikipedia.org/wiki/OpenPGP_card> [2022-04-07]
     pub fn manufacturer_name(&self) -> &'static str {
         match self.manufacturer {
             0x0000 => "Testcard",

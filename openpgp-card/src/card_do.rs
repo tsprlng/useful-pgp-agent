@@ -311,7 +311,7 @@ impl Display for UIF {
 
 /// User interaction setting.
 ///
-/// See spec pg 24 and https://github.com/Yubico/yubikey-manager/blob/main/ykman/openpgp.py
+/// See spec pg 24 and <https://github.com/Yubico/yubikey-manager/blob/main/ykman/openpgp.py>
 #[non_exhaustive]
 pub enum TouchPolicy {
     Off,
@@ -759,7 +759,7 @@ impl Display for CardholderRelatedData {
 }
 
 /// 4.4.3.5 Sex
-/// Encoded in accordance with https://en.wikipedia.org/wiki/ISO/IEC_5218
+/// Encoded in accordance with <https://en.wikipedia.org/wiki/ISO/IEC_5218>
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Sex {
     NotKnown,

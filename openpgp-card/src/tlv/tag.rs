@@ -8,7 +8,7 @@
 //!
 //! (The `ShortTag` type models tags that are exactly 1 or 2 octets long)
 //!
-//! https://en.wikipedia.org/wiki/X.690#Encoding
+//! <https://en.wikipedia.org/wiki/X.690#Encoding>
 
 use nom::{branch, bytes::complete as bytes, combinator, number::complete as number, sequence};
 
