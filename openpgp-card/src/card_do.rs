@@ -309,7 +309,8 @@ impl Display for UIF {
     }
 }
 
-/// User interaction setting.
+/// User interaction setting: is a 'touch' needed to perform an operation on the card?
+/// This setting is used in 4.4.3.6 User Interaction Flag (UIF)
 ///
 /// See spec pg 24 and <https://github.com/Yubico/yubikey-manager/blob/main/ykman/openpgp.py>
 #[non_exhaustive]
@@ -403,6 +404,7 @@ impl Display for Features {
     }
 }
 
+/// 4.4.3.8 Key Information
 pub struct KeyInformation(Vec<u8>);
 
 impl From<Vec<u8>> for KeyInformation {
@@ -488,6 +490,8 @@ impl Display for KeyInformation {
     }
 }
 
+/// KeyStatus is contained in `KeyInformation`. It encodes if key material on a card was imported
+/// or generated on the card.
 #[non_exhaustive]
 pub enum KeyStatus {
     NotPresent,
@@ -759,6 +763,7 @@ impl Display for CardholderRelatedData {
 }
 
 /// 4.4.3.5 Sex
+///
 /// Encoded in accordance with <https://en.wikipedia.org/wiki/ISO/IEC_5218>
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Sex {
@@ -805,6 +810,9 @@ impl From<u8> for Sex {
     }
 }
 
+/// Individual language for Language Preferences (4.4.3.4), accessible via `CardholderRelatedData`.
+///
+/// Encoded according to <https://en.wikipedia.org/wiki/ISO_639-1>
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Lang {
     Value([u8; 2]),

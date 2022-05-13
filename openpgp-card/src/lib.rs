@@ -13,17 +13,18 @@
 //! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
 //! This library can't directly access cards by itself. Instead, users
-//! need to supply an implementation of the [`CardBackend`]
-//! / [`CardTransaction`] traits, to access cards.
-//!
-//! The companion crate
+//! need to supply a backend that implements the [`CardBackend`]
+//! / [`CardTransaction`] traits. The companion crate
 //! [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
-//! offers a backend that uses [pcsclite](https://pcsclite.apdu.fr/) to
-//! communicate with smartcards.
+//! offers a backend that uses [PC/SC](https://en.wikipedia.org/wiki/PC/SC) to
+//! communicate with Smart Cards.
 //!
 //! The [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
-//! crate offers a higher level wrapper based on the
-//! [Sequoia PGP](https://sequoia-pgp.org/) implementation.
+//! crate offers a higher level wrapper based on the [Sequoia PGP](https://sequoia-pgp.org/)
+//! implementation.
+//!
+//! See the [architecture diagram](https://gitlab.com/hkos/openpgp-card#architecture) for
+//! a visualization.
 
 extern crate core;
 
@@ -498,10 +499,19 @@ impl From<ShortTag> for Vec<u8> {
     }
 }
 
+/// Specify a PIN to *verify* (distinguishes between `Sign`, `User` and `Admin`).
+///
+/// (Note that for PIN *management*, in particular changing a PIN, "signing and user" are
+/// not distinguished. They always share the same PIN value `PW1`)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PinType {
+    /// Verify PW1 in mode P2=81 (for the PSO:CDS operation)
     Sign,
+
+    /// Verify PW1 in mode P2=82 (for all other User operations)
     User,
+
+    /// Verify PW3 (for Admin operations)
     Admin,
 }
 
