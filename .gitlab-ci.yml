@@ -161,6 +161,23 @@ run_cardtest_ykneo:
     # (the base image of run_cardtest uses bookworm)
     key: "bookworm"
 
+run_cardtest_fluffypgp:
+  stage: virtual-test
+  image: registry.gitlab.com/hkos/openpgp-card-images/fluffypgp-builddeps
+  script:
+    - /etc/init.d/pcscd start
+    - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - cargo run -p openpgp-card-tests --bin import -- $CONFIG
+    - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
+  variables:
+    CONFIG: "card-functionality/docker/test-fluffypgp.toml"
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    # (the base image of run_cardtest uses bookworm)
+    key: "bookworm"
+
 hardware-builddeps:
   stage: hw-builddeps
   needs: [ ]
