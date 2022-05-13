@@ -43,7 +43,7 @@ Additionally, there are the following non-library crates that are built on
 top of the libraries described above:
 
 - [openpgp-card-tools](https://crates.io/crates/openpgp-card-sequoia),
-  two CLI tools aimed at end users, to manage and use OpenPGP cards.
+  a CLI tool to inspect, manage and use OpenPGP cards, aimed at end users.
 - [openpgp-card-tests](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality),
   a test-suite that runs OpenPGP card operations on smartcards.
 - [openpgp-card-examples](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-examples),
