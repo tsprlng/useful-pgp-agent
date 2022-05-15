@@ -132,7 +132,7 @@ run_cardtest_smartpgp:
   image: registry.gitlab.com/hkos/openpgp-card-images/smartpgp-builddeps
   script:
     - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
     - cargo run -p openpgp-card-tools --bin opgpcard -- status
     - cargo run -p openpgp-card-tools --bin opgpcard -- info
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
@@ -151,7 +151,7 @@ run_cardtest_ykneo:
   image: registry.gitlab.com/hkos/openpgp-card-images/ykneo-builddeps
   script:
     - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
     - cargo run -p openpgp-card-tools --bin opgpcard -- status
     - cargo run -p openpgp-card-tools --bin opgpcard -- info
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
@@ -170,7 +170,7 @@ run_cardtest_fluffypgp:
   image: registry.gitlab.com/hkos/openpgp-card-images/fluffypgp-builddeps
   script:
     - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
     - cargo run -p openpgp-card-tools --bin opgpcard -- status
     - cargo run -p openpgp-card-tools --bin opgpcard -- info
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
