@@ -133,6 +133,8 @@ run_cardtest_smartpgp:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - cargo run -p openpgp-card-tools --bin opgpcard -- status
+    - cargo run -p openpgp-card-tools --bin opgpcard -- info
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
@@ -150,6 +152,8 @@ run_cardtest_ykneo:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - cargo run -p openpgp-card-tools --bin opgpcard -- status
+    - cargo run -p openpgp-card-tools --bin opgpcard -- info
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
@@ -167,6 +171,8 @@ run_cardtest_fluffypgp:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh" jcardsim
+    - cargo run -p openpgp-card-tools --bin opgpcard -- status
+    - cargo run -p openpgp-card-tools --bin opgpcard -- info
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
