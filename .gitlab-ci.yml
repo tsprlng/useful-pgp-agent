@@ -138,7 +138,7 @@ run_cardtest_smartpgp:
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
-    CONFIG: "card-functionality/docker/test-smartpgp.toml"
+    CONFIG: "card-functionality/ci/virt-smartpgp.toml"
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
@@ -157,7 +157,7 @@ run_cardtest_ykneo:
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
-    CONFIG: "card-functionality/docker/test-ykneo.toml"
+    CONFIG: "card-functionality/ci/virt-ykneo.toml"
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
@@ -176,7 +176,7 @@ run_cardtest_fluffypgp:
     - cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
-    CONFIG: "card-functionality/docker/test-fluffypgp.toml"
+    CONFIG: "card-functionality/ci/virt-fluffypgp.toml"
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
