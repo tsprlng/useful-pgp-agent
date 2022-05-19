@@ -2,6 +2,9 @@
 # SPDX-FileCopyrightText: 2021 Nora Widdecke <mail@nora.pink>
 # SPDX-License-Identifier: CC0-1.0
 
+# Base image for running CI tests against physical OpenPGP cards:
+# Debian image + build dependencies for Sequoia PGP, and build/run time dependencies for openpgp-card.
+
 FROM rust:1-slim-bullseye
 
 RUN apt update -y -qq \
