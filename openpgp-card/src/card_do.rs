@@ -313,6 +313,9 @@ impl Display for UIF {
 /// This setting is used in 4.4.3.6 User Interaction Flag (UIF)
 ///
 /// See spec pg 24 and <https://github.com/Yubico/yubikey-manager/blob/main/ykman/openpgp.py>
+///
+/// Touch policies were introduced in YubiKey Version 4.2.0 with modes ON, OFF and FIXED.
+/// YubiKey Version >= 5.2.1 added support for modes CACHED and CACHED_FIXED.
 #[non_exhaustive]
 pub enum TouchPolicy {
     Off,
