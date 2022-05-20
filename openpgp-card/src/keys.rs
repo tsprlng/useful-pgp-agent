@@ -16,7 +16,7 @@ use crate::crypto_data::{
 };
 use crate::openpgp::OpenPgpTransaction;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
-use crate::{apdu, Error, KeyType, Tags};
+use crate::{apdu, Error, KeyType, Tag, Tags};
 
 /// Generate asymmetric key pair on the card.
 ///
@@ -526,7 +526,22 @@ fn control_reference_template(key_type: KeyType) -> Result<Tlv, Error> {
         KeyType::Decryption => Tags::CrtKeyConfidentiality,
         KeyType::Signing => Tags::CrtKeySignature,
         KeyType::Authentication => Tags::CrtKeyAuthentication,
-        _ => return Err(Error::InternalError("Unexpected KeyType".to_string())),
+        KeyType::Attestation => {
+            // The attestation key CRT looks like: [B6 03 84 01 81]
+            //
+            // This is a "Control Reference Template in extended format with Key-Ref".
+            // (See "4.4.3.12 Private Key Template")
+            let tlv = Tlv::new(
+                Tags::CrtKeySignature,
+                // Spec page 38: [..] to indicate the private key: "empty or 84 01 xx"
+                Value::C(vec![Tlv::new(
+                    Tag::from([0x84]),
+                    // Spec page 43: "Key-Ref 0x81 is reserved for the Attestation key of Yubico."
+                    Value::S(vec![0x81]),
+                )]),
+            );
+            return Ok(tlv);
+        }
     };
     Ok(Tlv::new(tag, Value::S(vec![])))
 }
