@@ -78,6 +78,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
         }
+        cli::Command::Attestation { cmd } => match cmd {
+            cli::AttCommand::Cert { ident } => {
+                let mut card = pick_card_for_reading(ident)?;
+
+                let mut pgp = OpenPgp::new(&mut *card);
+                let mut open = Open::new(pgp.transaction()?)?;
+
+                if let Ok(ac) = open.attestation_certificate() {
+                    let pem = util::pem_encode(ac);
+                    println!("{}", pem);
+                }
+            }
+            cli::AttCommand::Generate {
+                ident,
+                key,
+                user_pin,
+            } => {
+                let mut card = util::open_card(&ident)?;
+                let mut pgp = OpenPgp::new(&mut card);
+
+                let mut open = Open::new(pgp.transaction()?)?;
+                let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
+
+                let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
+
+                let kt = match key.as_str() {
+                    "SIG" => KeyType::Signing,
+                    "DEC" => KeyType::Decryption,
+                    "AUT" => KeyType::Authentication,
+                    _ => {
+                        return Err(anyhow!("Unexpected Key Type {}", key).into());
+                    }
+                };
+                sign.generate_attestation(kt)?;
+            }
+            cli::AttCommand::Statement { ident, key } => {
+                let mut card = pick_card_for_reading(ident)?;
+
+                let mut pgp = OpenPgp::new(&mut *card);
+                let mut open = Open::new(pgp.transaction()?)?;
+
+                // Load cardholder certificate from card.
+
+                // FIXME/Note: SELECT_DATA seemed to not work as expected on YK5,
+                let cert = match key.as_str() {
+                    "AUT" => open.cardholder_certificate()?,
+                    "DEC" => {
+                        // skip first cardholder certificate
+                        let _ = open.cardholder_certificate()?;
+                        open.next_cardholder_certificate()?
+                    }
+                    "SIG" => {
+                        // skip first two cardholder certificates
+                        let _ = open.cardholder_certificate()?;
+                        let _ = open.next_cardholder_certificate()?;
+                        open.next_cardholder_certificate()?
+                    }
+
+                    _ => {
+                        return Err(anyhow!("Unexpected Key Type {}", key).into());
+                    }
+                };
+
+                if !cert.is_empty() {
+                    let pem = util::pem_encode(cert);
+                    println!("{}", pem);
+                } else {
+                    println!("Cardholder certificate slot is empty");
+                }
+            }
+        },
         cli::Command::FactoryReset { ident } => {
             factory_reset(&ident)?;
         }

@@ -17,6 +17,7 @@ openpgp-card = { path = "../openpgp-card", version = "0.2.4" }
 openpgp-card-pcsc = { path = "../pcsc", version = "0.2" }
 openpgp-card-sequoia = { path = "../openpgp-card-sequoia", version = "0.0.11" }
 sshkeys = "0.3.2"
+pem = "1"
 rpassword = "6"
 anyhow = "1"
 clap = { version = "3.1", features = ["derive"] }

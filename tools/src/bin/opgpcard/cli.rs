@@ -109,6 +109,12 @@ pub enum Command {
         input: Option<PathBuf>,
     },
 
+    /// Attestation management (Yubico)
+    Attestation {
+        #[clap(subcommand)]
+        cmd: AttCommand,
+    },
+
     /// Completely reset a card (deletes all data, including the keys on the card!)
     FactoryReset {
         #[clap(name = "card ident", short = 'c', long = "card")]
@@ -219,5 +225,36 @@ pub enum PinCommand {
 
         #[clap(name = "User PIN file new", short = 'p', long = "user-pin-new")]
         user_pin_new: Option<PathBuf>,
+    },
+}
+
+#[derive(Parser, Debug)]
+pub enum AttCommand {
+    /// Print the card's "Attestation Certificate"
+    Cert {
+        #[clap(name = "card ident", short = 'c', long = "card")]
+        ident: Option<String>,
+    },
+
+    /// Generate "Attestation Statement" for one of the key slots on the card
+    Generate {
+        #[clap(name = "card ident", short = 'c', long = "card")]
+        ident: String,
+
+        #[clap(name = "Key slot (SIG|DEC|AUT)", short = 'k', long = "key")]
+        key: String,
+
+        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
+        user_pin: Option<PathBuf>,
+    },
+
+    /// Print a "cardholder certificate" from the card.
+    /// This shows the "Attestation Statement", if one has been generated.
+    Statement {
+        #[clap(name = "card ident", short = 'c', long = "card")]
+        ident: Option<String>,
+
+        #[clap(name = "Key slot (SIG|DEC|AUT)", short = 'k', long = "key")]
+        key: String,
     },
 }

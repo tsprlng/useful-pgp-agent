@@ -231,3 +231,14 @@ pub(crate) fn print_gnuk_note(err: Error, card: &Open) -> Result<()> {
     }
     Ok(())
 }
+
+pub(crate) fn pem_encode(data: Vec<u8>) -> String {
+    const PEM_TAG: &str = "CERTIFICATE";
+
+    let pem = pem::Pem {
+        tag: String::from(PEM_TAG),
+        contents: data,
+    };
+
+    pem::encode(&pem)
+}
