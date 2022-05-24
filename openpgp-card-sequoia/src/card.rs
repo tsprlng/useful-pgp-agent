@@ -341,6 +341,11 @@ impl<'app, 'open> Sign<'app, 'open> {
 
         CardSigner::with_pubkey(&mut self.oc.opt, pubkey)
     }
+
+    /// Generate Attestation (Yubico)
+    pub fn generate_attestation(&mut self, key_type: KeyType) -> Result<(), Error> {
+        self.oc.opt.generate_attestation(key_type)
+    }
 }
 
 /// An OpenPGP card after successful verification of PW3 ("Admin privileges")

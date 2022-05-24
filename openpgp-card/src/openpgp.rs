@@ -780,7 +780,22 @@ impl<'a> OpenPgpTransaction<'a> {
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
-    // FIXME: UIF for Attestation key and Generate Attestation command (Yubico)
+    // FIXME: UIF for Attestation key
+
+    /// Generate Attestation (Yubico)
+    pub fn generate_attestation(&mut self, key_type: KeyType) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: generate_attestation");
+
+        let key = match key_type {
+            KeyType::Signing => 0x01,
+            KeyType::Decryption => 0x02,
+            KeyType::Authentication => 0x03,
+            _ => return Err(Error::InternalError("Unexpected KeyType".to_string())),
+        };
+
+        let cmd = commands::generate_attestation(key);
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
+    }
 
     // FIXME: Attestation key algo attr, FP, CA-FP, creation time
 

@@ -218,6 +218,15 @@ pub(crate) fn key_import(data: Vec<u8>) -> Command {
     Command::new(0x00, 0xDB, 0x3F, 0xFF, data)
 }
 
+/// Generate attestation (Yubico)
+///
+/// key: 0x01 (SIG), 0x02 (DEC), 0x03 (AUT)
+///
+/// https://developers.yubico.com/PGP/Attestation.html
+pub(crate) fn generate_attestation(key: u8) -> Command {
+    Command::new(0x80, 0xFB, key, 0x00, vec![])
+}
+
 /// 7.2.16 TERMINATE DF
 pub(crate) fn terminate_df() -> Command {
     Command::new(0x00, 0xe6, 0x00, 0x00, vec![])
