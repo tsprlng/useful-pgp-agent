@@ -271,6 +271,14 @@ impl<'a> Open<'a> {
         self.opt.security_support_template()
     }
 
+    /// "GET NEXT DATA" for the DO cardholder certificate.
+    ///
+    /// Cardholder certificate data for multiple slots can be read from the card by first calling
+    /// cardholder_certificate(), followed by up to two calls to  next_cardholder_certificate().
+    pub fn next_cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
+        self.opt.next_cardholder_certificate()
+    }
+
     // DO "Algorithm Information" (0xFA)
     pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>, Error> {
         // The DO "Algorithm Information" (Tag FA) shall be present if

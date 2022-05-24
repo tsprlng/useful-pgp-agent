@@ -149,6 +149,17 @@ impl<'a> OpenPgpTransaction<'a> {
         apdu::send_command(self.tx(), cmd, true)?.try_into()
     }
 
+    /// Call "GET NEXT DATA" for the DO cardholder certificate.
+    ///
+    /// Cardholder certificate data for multiple slots can be read from the card by first calling
+    /// cardholder_certificate(), followed by up to two calls to  next_cardholder_certificate().
+    pub fn next_cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: next_cardholder_certificate");
+
+        let cmd = commands::get_next_cardholder_certificate();
+        apdu::send_command(self.tx(), cmd, true)?.try_into()
+    }
+
     /// Get "Algorithm Information"
     pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>, Error> {
         log::info!("OpenPgpTransaction: algorithm_information");

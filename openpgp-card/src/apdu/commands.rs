@@ -62,6 +62,11 @@ pub(crate) fn cardholder_certificate() -> Command {
     get_data(Tags::CardholderCertificate)
 }
 
+/// GET NEXT DATA for DO "Cardholder certificate"
+pub(crate) fn get_next_cardholder_certificate() -> Command {
+    Command::new(0x00, 0xCC, 0x7f, 0x21, vec![])
+}
+
 /// GET DO "Algorithm Information"
 pub(crate) fn algo_info() -> Command {
     get_data(Tags::AlgorithmInformation)
