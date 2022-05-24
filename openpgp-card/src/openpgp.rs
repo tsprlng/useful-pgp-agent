@@ -139,7 +139,7 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Get cardholder certificate (each for AUT, DEC and SIG).
     ///
-    /// Call select_data() before calling this fn, to select a particular
+    /// Call select_data() before calling this fn to select a particular
     /// certificate (if the card supports multiple certificates).
     #[allow(dead_code)]
     pub fn cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
@@ -634,7 +634,7 @@ impl<'a> OpenPgpTransaction<'a> {
 
     /// Set cardholder certificate (for AUT, DEC or SIG).
     ///
-    /// Call select_data() before calling this fn, to select a particular
+    /// Call select_data() before calling this fn to select a particular
     /// certificate (if the card supports multiple certificates).
     pub fn set_cardholder_certificate(&mut self, data: Vec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_cardholder_certificate");
