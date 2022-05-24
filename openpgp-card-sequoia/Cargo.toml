@@ -5,7 +5,7 @@
 name = "openpgp-card-sequoia"
 description = "Wrapper of openpgp-card for use with Sequoia PGP"
 license = "MIT OR Apache-2.0"
-version = "0.0.11"
+version = "0.0.12"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 edition = "2018"
 repository = "https://gitlab.com/hkos/openpgp-card"
@@ -14,7 +14,7 @@ documentation = "https://docs.rs/crate/openpgp-card-sequoia"
 [dependencies]
 sequoia-openpgp = "1.4"
 nettle = "7"
-openpgp-card = { path = "../openpgp-card", version = "0.2" }
+openpgp-card = { path = "../openpgp-card", version = "0.2.5" }
 chrono = "0.4"
 anyhow = "1"
 thiserror = "1"
