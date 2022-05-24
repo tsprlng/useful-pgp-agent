@@ -286,6 +286,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                         // verify pin
                         open.verify_admin(&admin_pin1)?;
+                        // (Verifying the PIN here fixes this class of problems:
+                        // https://developers.yubico.com/PGP/PGP_PIN_Change_Behavior.html
+                        // It is also just generally more user friendly than failing later)
                         println!("PIN was accepted by the card.\n");
 
                         let pin_new = match admin_pin_new {
