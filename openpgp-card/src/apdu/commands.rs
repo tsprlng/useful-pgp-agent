@@ -67,6 +67,11 @@ pub(crate) fn algo_info() -> Command {
     get_data(Tags::AlgorithmInformation)
 }
 
+/// GET DO "Attestation Certificate (Yubico)"
+pub(crate) fn attestation_certificate() -> Command {
+    get_data(Tags::AttestationCertificate)
+}
+
 /// GET Firmware Version (yubikey specific?)
 pub(crate) fn firmware_version() -> Command {
     Command::new(0x00, 0xF1, 0x00, 0x00, vec![])

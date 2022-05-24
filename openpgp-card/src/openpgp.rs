@@ -160,6 +160,15 @@ impl<'a> OpenPgpTransaction<'a> {
         Ok(Some(ai))
     }
 
+    /// Get "Attestation Certificate (Yubico)"
+    pub fn attestation_certificate(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: attestation_certificate");
+
+        let resp = apdu::send_command(self.tx(), commands::attestation_certificate(), true)?;
+
+        Ok(resp.data()?.into())
+    }
+
     /// Firmware Version (YubiKey specific (?))
     pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: firmware_version");

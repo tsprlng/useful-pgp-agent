@@ -285,6 +285,11 @@ impl<'a> Open<'a> {
         self.opt.algorithm_information()
     }
 
+    /// Get "Attestation Certificate (Yubico)"
+    pub fn attestation_certificate(&mut self) -> Result<Vec<u8>, Error> {
+        self.opt.attestation_certificate()
+    }
+
     /// Firmware Version, YubiKey specific (?)
     pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
         self.opt.firmware_version()
