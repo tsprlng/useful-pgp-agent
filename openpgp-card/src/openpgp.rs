@@ -840,7 +840,13 @@ impl<'a> OpenPgpTransaction<'a> {
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
-    // FIXME: UIF for Attestation key
+    /// Set UIF for Attestation key
+    pub fn set_uif_attestation(&mut self, uif: &UIF) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_uif_attestation");
+
+        let cmd = commands::put_data(Tags::UifAttestation, uif.as_bytes().to_vec());
+        apdu::send_command(self.tx(), cmd, false)?.try_into()
+    }
 
     /// Generate Attestation (Yubico)
     pub fn generate_attestation(&mut self, key_type: KeyType) -> Result<(), Error> {
