@@ -581,3 +581,62 @@ If your OpenPGP card is inserted in a card reader with a pinpad, this tool
 offers you the option to use the pinpad to enter the User- or Admin PINs.
 To do this, you can omit the `-p` and/or `-P` parameters. Then you will 
 be prompted to enter the user or Admin PINs where needed. 
+
+### Attestation
+
+Yubico implements a [proprietary extension](https://developers.yubico.com/PGP/Attestation.html) to the OpenPGP card
+standard to *"cryptographically certify that a certain asymmetric key has been generated on device, and not imported"*.
+
+This feature is available on Yubikey 5 devices with firmware version 5.2 or newer.
+
+#### Attestation key/certificate
+
+*"The YubiKey is pre-loaded with an attestation certificate and matching attestation key issued by the Yubico CA.
+The template and key are replaceable, which permits an individual or organization to issue attestations verifiable 
+with their own CA if they prefer. If replaced, the Yubico template can never be restored."*
+
+This tool does not currently support replacing the attestation key on a Yubikey.
+It only supports use of the Yubico-provided attestation key to generate "attestation statements".
+
+The attestation certificate on a card can be inspected as follows:
+
+```
+$ opgpcard attestation cert
+-----BEGIN CERTIFICATE-----
+[...]
+-----END CERTIFICATE-----
+```
+
+#### Generating an attestation statement
+
+For any key slot on the card you can generate an attestation statement,
+if the key material in that key slot has been generated on the card.
+
+It's not possible to generate attestation statements for key material that was imported to the card
+(the attestation statement certifies that the key has been generated on the card).
+
+To generate an attestation statement, run:
+
+```
+$ opgpcard attestation generate --key SIG -c 0006:12345678
+```
+
+Supported values for `--key` are `SIG`, `DEC` and `AUT`.
+
+Generation of an attestation requires the User PIN. By default it also requires touch confirmation
+(the touch policy configuration for the attestation key slot is set to `On` by default).
+
+#### Viewing an attestation statement
+
+When the Yubikey generates an attestation statement, it gets stored in a `cardholder certificate` data object on the card.
+
+After an attestation statement has been generated, it can be read from the card and viewed in pem-encoded format:
+
+```
+$ opgpcard attestation statement --key SIG
+-----BEGIN CERTIFICATE-----
+[...]
+-----END CERTIFICATE-----
+```
+
+Supported values for `--key` are `SIG`, `DEC` and `AUT`.
