@@ -207,9 +207,30 @@ impl<'a> OpenPgpTransaction<'a> {
         }
     }
 
-    /// SELECT DATA ("select a DO in the current template",
-    /// e.g. for cardholder certificate)
-    pub fn select_data(&mut self, num: u8, tag: &[u8]) -> Result<Vec<u8>, Error> {
+    /// SELECT DATA ("select a DO in the current template").
+    ///
+    /// This command currently only applies to
+    /// [`cardholder_certificate`](OpenPgpTransaction::cardholder_certificate) and
+    /// [`set_cardholder_certificate`](OpenPgpTransaction::set_cardholder_certificate)
+    /// in OpenPGP card.
+    ///
+    /// `yk_workaround`: Yubikey 5 up to (and including) firmware version 5.4.3 need a workaround
+    /// for this command. Set to `true` to apply this workaround.
+    /// (When sending the SELECT DATA command as defined in the card spec, without enabling the
+    /// workaround, bad Yubikey firmware versions (<= 5.4.3) return
+    /// [`IncorrectParametersCommandDataField`](StatusBytes::IncorrectParametersCommandDataField))
+    ///
+    /// (This library leaves it up to consumers to decide on a strategy for dealing with this
+    /// issue. Possible strategies include:
+    /// - asking the card for its [`firmware_version`](OpenPgpTransaction::firmware_version)
+    ///   and using the workaround if version <=5.4.3
+    /// - trying this command first without the workaround, then with workaround if the card
+    ///   returns
+    ///   [`IncorrectParametersCommandDataField`](StatusBytes::IncorrectParametersCommandDataField)
+    /// - for read operations: using
+    ///   [`next_cardholder_certificate`](OpenPgpTransaction::next_cardholder_certificate)
+    ///   instead of SELECT DATA)
+    pub fn select_data(&mut self, num: u8, tag: &[u8], yk_workaround: bool) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: select_data");
 
         let tlv = Tlv::new(
@@ -217,10 +238,25 @@ impl<'a> OpenPgpTransaction<'a> {
             Value::C(vec![Tlv::new(Tags::TagList, Value::S(tag.to_vec()))]),
         );
 
-        let data = tlv.serialize();
+        let mut data = tlv.serialize();
+
+        if yk_workaround {
+            // Workaround for Yubikey 5.
+            // This hack is needed <= 5.4.3 according to ykman sources
+            // (see _select_certificate() in ykman/openpgp.py).
+
+            assert!(data.len() <= 255); // catch blatant misuse: tags are 1-2 bytes long
+
+            data.insert(0, data.len() as u8);
+        }
 
         let cmd = commands::select_data(num, data);
-        apdu::send_command(self.tx(), cmd, true)?.try_into()
+
+        // Possible response data (Control Parameter = CP) don't need to be evaluated by the
+        // application (See "7.2.5 SELECT DATA")
+        let _ = apdu::send_command(self.tx(), cmd, true)?.try_into()?;
+
+        Ok(())
     }
 
     // --- optional private DOs (0101 - 0104) ---

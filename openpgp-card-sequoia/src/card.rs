@@ -271,6 +271,11 @@ impl<'a> Open<'a> {
         self.opt.security_support_template()
     }
 
+    /// SELECT DATA ("select a DO in the current template").
+    pub fn select_data(&mut self, num: u8, tag: &[u8], yk_workaround: bool) -> Result<(), Error> {
+        self.opt.select_data(num, tag, yk_workaround)
+    }
+
     /// Get cardholder certificate.
     ///
     /// Call select_data() before calling this fn to select a particular
