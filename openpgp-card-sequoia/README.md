@@ -12,6 +12,8 @@ It offers convenient access to
 [OpenPGP card](https://en.wikipedia.org/wiki/OpenPGP_card)
 functionality using [Sequoia PGP](https://sequoia-pgp.org/).
 
+Note: the current API of this crate is an early draft, reflected by version numbers in the 0.0.x range.
+
 **Example code**
 
 The program `main.rs` performs a number of functions on an OpenPGP card.
