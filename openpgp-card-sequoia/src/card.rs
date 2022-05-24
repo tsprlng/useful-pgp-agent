@@ -271,6 +271,14 @@ impl<'a> Open<'a> {
         self.opt.security_support_template()
     }
 
+    /// Get cardholder certificate.
+    ///
+    /// Call select_data() before calling this fn to select a particular
+    /// certificate (if the card supports multiple certificates).
+    pub fn cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
+        self.opt.cardholder_certificate()
+    }
+
     /// "GET NEXT DATA" for the DO cardholder certificate.
     ///
     /// Cardholder certificate data for multiple slots can be read from the card by first calling
