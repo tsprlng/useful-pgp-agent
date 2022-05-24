@@ -119,27 +119,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut pgp = OpenPgp::new(&mut *card);
                 let mut open = Open::new(pgp.transaction()?)?;
 
-                // Load cardholder certificate from card.
+                // Get cardholder certificate from card.
 
-                // FIXME/Note: SELECT_DATA seemed to not work as expected on YK5,
-                let cert = match key.as_str() {
-                    "AUT" => open.cardholder_certificate()?,
-                    "DEC" => {
-                        // skip first cardholder certificate
-                        let _ = open.cardholder_certificate()?;
-                        open.next_cardholder_certificate()?
+                let mut select_data_workaround = false;
+                // Use "select data" workaround if the card reports a
+                // yk firmware version number >= 5 and <= 5.4.3
+                if let Ok(version) = open.firmware_version() {
+                    if version.len() == 3
+                        && version[0] == 5
+                        && (version[1] < 4 || (version[1] == 4 && version[2] <= 3))
+                    {
+                        select_data_workaround = true;
                     }
-                    "SIG" => {
-                        // skip first two cardholder certificates
-                        let _ = open.cardholder_certificate()?;
-                        let _ = open.next_cardholder_certificate()?;
-                        open.next_cardholder_certificate()?
-                    }
+                }
+
+                // Select cardholder certificate
+                match key.as_str() {
+                    "AUT" => open.select_data(0, &[0x7F, 0x21], select_data_workaround)?,
+                    "DEC" => open.select_data(1, &[0x7F, 0x21], select_data_workaround)?,
+                    "SIG" => open.select_data(2, &[0x7F, 0x21], select_data_workaround)?,
 
                     _ => {
                         return Err(anyhow!("Unexpected Key Type {}", key).into());
                     }
                 };
+
+                // Get DO "cardholder certificate" (returns the slot that was previously selected)
+                let cert = open.cardholder_certificate()?;
 
                 if !cert.is_empty() {
                     let pem = util::pem_encode(cert);
