@@ -430,6 +430,10 @@ impl Admin<'_, '_> {
         self.oc.opt.set_resetting_code(pin)
     }
 
+    pub fn set_pso_enc_dec_key(&mut self, key: &[u8]) -> Result<(), Error> {
+        self.oc.opt.set_pso_enc_dec_key(key)
+    }
+
     pub fn reset_user_pin(&mut self, new: &[u8]) -> Result<(), Error> {
         self.oc.opt.reset_retry_counter_pw1(new, None)
     }

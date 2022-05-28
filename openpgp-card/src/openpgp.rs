@@ -801,6 +801,19 @@ impl<'a> OpenPgpTransaction<'a> {
         apdu::send_command(self.tx(), cmd, false)?.try_into()
     }
 
+    /// Set AES key for symmetric decryption/encryption operations.
+    ///
+    /// Optional DO (announced in Extended Capabilities) for
+    /// PSO:ENC/DEC with AES (32 bytes dec. in case of
+    /// AES256, 16 bytes dec. in case of AES128).
+    pub fn set_pso_enc_dec_key(&mut self, key: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_pso_enc_dec_key");
+
+        let fp_cmd = commands::put_data(Tags::PsoEncDecKey, key.to_vec());
+
+        apdu::send_command(self.tx(), fp_cmd, false)?.try_into()
+    }
+
     // FIXME: optional DO for PSO:ENC/DEC with AES
 
     /// Set UIF for PSO:CDS

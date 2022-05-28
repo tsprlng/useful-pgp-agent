@@ -314,6 +314,7 @@ pub(crate) enum Tags {
     GenerationTimeAuthentication,
     // FIXME: +D1, D2
     ResettingCode,
+    PsoEncDecKey,
 
     // OTHER
     // 4.4.3.12 Private Key Template
@@ -422,6 +423,7 @@ impl From<Tags> for ShortTag {
             Tags::GenerationTimeDecryption => [0xcf].into(),
             Tags::GenerationTimeAuthentication => [0xd0].into(),
             Tags::ResettingCode => [0xd3].into(),
+            Tags::PsoEncDecKey => [0xd5].into(),
 
             // OTHER
             // 4.4.3.12 Private Key Template
