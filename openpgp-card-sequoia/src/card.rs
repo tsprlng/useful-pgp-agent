@@ -13,7 +13,7 @@ use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
     ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
-    SecuritySupportTemplate, Sex,
+    SecuritySupportTemplate, Sex, TouchPolicy,
 };
 use openpgp_card::{Error, KeySet, KeyType, OpenPgpTransaction};
 
@@ -424,6 +424,34 @@ impl Admin<'_, '_> {
         } else {
             Err(Error::InternalError("URL too long".into()))
         }
+    }
+
+    pub fn set_uif(&mut self, key: KeyType, policy: TouchPolicy) -> Result<(), Error> {
+        let uif = match key {
+            KeyType::Signing => self.oc.ard.uif_pso_cds()?,
+            KeyType::Decryption => self.oc.ard.uif_pso_dec()?,
+            KeyType::Authentication => self.oc.ard.uif_pso_aut()?,
+            KeyType::Attestation => self.oc.ard.uif_attestation()?,
+            _ => unimplemented!(),
+        };
+
+        if let Some(mut uif) = uif {
+            uif.set_touch_policy(policy);
+
+            match key {
+                KeyType::Signing => self.oc.opt.set_uif_pso_cds(&uif)?,
+                KeyType::Decryption => self.oc.opt.set_uif_pso_dec(&uif)?,
+                KeyType::Authentication => self.oc.opt.set_uif_pso_aut(&uif)?,
+                KeyType::Attestation => self.oc.opt.set_uif_attestation(&uif)?,
+                _ => unimplemented!(),
+            }
+        } else {
+            return Err(Error::UnsupportedFeature(
+                "User Interaction Flag not available".into(),
+            ));
+        };
+
+        Ok(())
     }
 
     pub fn set_resetting_code(&mut self, pin: &[u8]) -> Result<(), Error> {
