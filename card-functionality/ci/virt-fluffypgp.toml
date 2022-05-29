@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 [card.fluffypgp]
-backend.pcsc = "FFFD:00000001"
+backend.pcsc = "FFF1:00000001"
 config.keygen = [
     "RSA2k"
 ]

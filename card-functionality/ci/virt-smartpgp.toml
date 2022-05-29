@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 [card.smartpgp]
-backend.pcsc = "FFFF:00001234"
+backend.pcsc = "AFAF:00001234"
 config.keygen = [
     "RSA2k", "RSA3k", "RSA4k",
     "NIST256", "NIST384", "NIST521"
