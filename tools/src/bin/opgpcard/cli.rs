@@ -29,6 +29,10 @@ pub enum Command {
 
         #[clap(name = "verbose", short = 'v', long = "verbose")]
         verbose: bool,
+
+        /// Print public key material for each key slot
+        #[clap(name = "pkm", short = 'p', long = "public-key-material")]
+        pkm: bool,
     },
 
     /// Show technical details about a card

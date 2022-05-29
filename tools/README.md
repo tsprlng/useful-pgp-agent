@@ -56,36 +56,35 @@ Available OpenPGP cards:
  0007:87654321
 ```
 
-### Inspect cards
+### Inspect card status
 
 Print status information about the data on a card.
 The card is implicitly selected (if exactly one card is connected):
 
 ```
 $ opgpcard status
-OpenPGP card ABCD:01234567 (card version 2.0)
+OpenPGP card ABCD:01234567 (card version 3.4)
 
 Cardholder: Alice Adams
+Language preferences: 'en'
 
 Signature key
-  fingerprint: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
-  created: 2022-03-25 20:15:49
-  algorithm: Ed25519 (EdDSA)
+  Fingerprint: 034B 348C EDA2 064C AA22  74E4 7563 E86F 5CAB C2A4
+  Algorithm: Ed25519 (EdDSA)
+  Created: 2022-05-21 13:15:19 UTC
+  Signatures made: 11
 
 Decryption key
-  fingerprint: 68CB 4EDD 4D49 90B8 2CEC  2D22 EF7E 5B6A 2012 694C
-  created: 2022-03-25 20:15:49
-  algorithm: Cv25519 (ECDH)
+  Fingerprint: 338B EE09 3950 D831 A76F  0EB9 13D6 2DF6 8C9E 5176
+  Algorithm: Cv25519 (ECDH)
+  Created: 2022-05-21 13:15:19 UTC
 
 Authentication key
-  fingerprint: 59A5 CD3E A88F 8707 D887  EAAE 1354 5F40 4E11 BE1C
-  created: 2022-03-25 20:15:49
-  algorithm: Ed25519 (EdDSA)
+  Fingerprint: 4881 A22E 7EC6 26D1 1202  50B0 A7D7 F0D5 0C8D F719
+  Algorithm: Ed25519 (EdDSA)
+  Created: 2022-05-21 13:15:19 UTC
 
-Retry counters: User PIN: 3, Admin PIN: 3, Resetting Code: 3
-Signature counter: 3
-Signature PIN only valid once: true
-
+Remaining PIN attempts: User: 3, Admin: 3, Reset Code: 0
 ```
 
 Explicitly print the status information for a specific card (this command syntax is needed, when more than one card
@@ -95,36 +94,45 @@ is plugged in):
 $ opgpcard status --card ABCD:01234567
 ```
 
-Add `-v` for more verbose card status (this additionally outputs the raw public key data for each key slot):
+Add `-v` for more verbose card status:
 
 ```
-$ opgpcard status -c ABCD:01234567 -v
-OpenPGP card ABCD:01234567 (card version 2.0)
+OpenPGP card ABCD:01234567 (card version 3.4)
 
 Cardholder: Alice Adams
+Language preferences: 'en'
 
 Signature key
-  fingerprint: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
-  created: 2022-03-25 20:15:49
-  algorithm: Ed25519 (EdDSA)
-  public key material: ECC, data: 4C6364692AA4212AA95CF25FF31FD5F94CCAC173BFD77C918E443F09FAAFE3F5
+  Fingerprint: 034B 348C EDA2 064C AA22  74E4 7563 E86F 5CAB C2A4
+  Algorithm: Ed25519 (EdDSA)
+  Created: 2022-05-21 13:15:19 UTC
+  Touch policy: Cached [Features: Button]
+  Key Status: generated
+  User PIN presentation valid for unlimited signatures
+  Signatures made: 11
 
 Decryption key
-  fingerprint: 68CB 4EDD 4D49 90B8 2CEC  2D22 EF7E 5B6A 2012 694C
-  created: 2022-03-25 20:15:49
-  algorithm: Cv25519 (ECDH)
-  public key material: ECC, data: B99202743227D87D5F24639937DF75C936AC7933CE3328F5BF6AFA174A4A8745
+  Fingerprint: 338B EE09 3950 D831 A76F  0EB9 13D6 2DF6 8C9E 5176
+  Algorithm: Cv25519 (ECDH)
+  Created: 2022-05-21 13:15:19 UTC
+  Touch policy: Off [Features: Button]
+  Key Status: generated
 
 Authentication key
-  fingerprint: 59A5 CD3E A88F 8707 D887  EAAE 1354 5F40 4E11 BE1C
-  created: 2022-03-25 20:15:49
-  algorithm: Ed25519 (EdDSA)
-  public key material: ECC, data: BFE1E5EB31032E0F4320E163082BEDBAD2A6318EC368375F7A65D22AC7AB7444
+  Fingerprint: 4881 A22E 7EC6 26D1 1202  50B0 A7D7 F0D5 0C8D F719
+  Algorithm: Ed25519 (EdDSA)
+  Created: 2022-05-21 13:15:19 UTC
+  Touch policy: Off [Features: Button]
+  Key Status: generated
 
-Retry counters: User PIN: 3, Admin PIN: 3, Resetting Code: 3
-Signature counter: 3
-Signature PIN only valid once: true
+Remaining PIN attempts: User: 3, Admin: 3, Reset Code: 0
+
+Touch policy attestation:    Cached [Features: Button]
+
+Key Status (#129): imported
 ```
+
+The `-p` flag additionally outputs the raw public key data for each key slot.
 
 ### Get an OpenPGP public key representation from a card
 

@@ -40,8 +40,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Available OpenPGP cards:");
             list_cards()?;
         }
-        cli::Command::Status { ident, verbose } => {
-            print_status(ident, verbose)?;
+        cli::Command::Status {
+            ident,
+            verbose,
+            pkm,
+        } => {
+            print_status(ident, verbose, pkm)?;
         }
         cli::Command::Info { ident } => {
             print_info(ident)?;
@@ -479,7 +483,7 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
     }
 }
 
-fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
+fn print_status(ident: Option<String>, verbose: bool, pkm: bool) -> Result<()> {
     let mut card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(&mut *card);
@@ -497,6 +501,9 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
     // card / cardholder metadata
     let crd = open.cardholder_related_data()?;
+
+    // Remember if any cardholder information is printed (if so, we print a newline later)
+    let mut card_holder_output = false;
 
     if let Some(name) = crd.name() {
         // FIXME: decoding as utf8 is wrong (the spec defines this field as latin1 encoded)
@@ -518,11 +525,14 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
         let name = name.iter().cloned().rev().collect::<Vec<_>>().join(" ");
 
         println!("{}", name);
+
+        card_holder_output = true;
     }
 
     let url = open.url()?;
     if !url.is_empty() {
         println!("URL: {}", url);
+        card_holder_output = true;
     }
 
     if let Some(lang) = crd.lang() {
@@ -532,53 +542,110 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
             .collect::<Vec<_>>()
             .join(", ");
         println!("Language preferences: '{}'", l);
+        card_holder_output = true;
     }
+
+    if card_holder_output {
+        println!();
+    }
+
+    // key information (imported vs. generated on card)
+    let ki = ard.key_information().ok().flatten();
+
+    let pws = open.pw_status_bytes()?;
 
     // information about subkeys
 
     let fps = open.fingerprints()?;
     let kgt = open.key_generation_times()?;
 
-    println!();
     println!("Signature key");
     if let Some(fp) = fps.signature() {
-        println!("  fingerprint: {}", fp.to_spaced_hex());
+        println!("  Fingerprint: {}", fp.to_spaced_hex());
     }
+    println! {"  Algorithm: {}", open.algorithm_attributes(KeyType::Signing)?};
     if let Some(kgt) = kgt.signature() {
-        println! {"  created: {}", kgt.to_datetime()};
+        println! {"  Created: {}", kgt.to_datetime()};
     }
-    println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Signing)?};
     if verbose {
+        if let Some(uif) = ard.uif_pso_cds()? {
+            println!(
+                "  Touch policy: {} [Features: {}]",
+                uif.touch_policy(),
+                uif.features()
+            );
+        }
+        if let Some(ks) = ki.as_ref().map(|ki| ki.sig_status()) {
+            println!("  Key Status: {}", ks);
+        }
+    }
+
+    if verbose {
+        if pws.pw1_cds_valid_once() {
+            println!("  User PIN presentation valid for one signature");
+        } else {
+            println!("  User PIN presentation valid for unlimited signatures");
+        }
+    }
+
+    let sst = open.security_support_template()?;
+    println!("  Signatures made: {}", sst.signature_count());
+
+    if pkm {
         if let Ok(pkm) = open.public_key(KeyType::Signing) {
-            println! {"  public key material: {}", pkm};
+            println! {"  Public key material: {}", pkm};
         }
     }
 
     println!();
     println!("Decryption key");
     if let Some(fp) = fps.decryption() {
-        println!("  fingerprint: {}", fp.to_spaced_hex());
+        println!("  Fingerprint: {}", fp.to_spaced_hex());
     }
+    println! {"  Algorithm: {}", open.algorithm_attributes(KeyType::Decryption)?};
     if let Some(kgt) = kgt.decryption() {
-        println! {"  created: {}", kgt.to_datetime()};
+        println! {"  Created: {}", kgt.to_datetime()};
     }
-    println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Decryption)?};
     if verbose {
+        if let Some(uif) = ard.uif_pso_dec()? {
+            println!(
+                "  Touch policy: {} [Features: {}]",
+                uif.touch_policy(),
+                uif.features()
+            );
+        }
+        if let Some(ks) = ki.as_ref().map(|ki| ki.dec_status()) {
+            println!("  Key Status: {}", ks);
+        }
+    }
+    if pkm {
         if let Ok(pkm) = open.public_key(KeyType::Decryption) {
-            println! {"  public key material: {}", pkm};
+            println! {"  Public key material: {}", pkm};
         }
     }
 
     println!();
     println!("Authentication key");
     if let Some(fp) = fps.authentication() {
-        println!("  fingerprint: {}", fp.to_spaced_hex());
+        println!("  Fingerprint: {}", fp.to_spaced_hex());
     }
+    println! {"  Algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
     if let Some(kgt) = kgt.authentication() {
-        println! {"  created: {}", kgt.to_datetime()};
+        println! {"  Created: {}", kgt.to_datetime()};
     }
-    println! {"  algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
     if verbose {
+        if let Some(uif) = ard.uif_pso_aut()? {
+            println!(
+                "  Touch policy: {} [Features: {}]",
+                uif.touch_policy(),
+                uif.features()
+            );
+        }
+        if let Some(ks) = ki.as_ref().map(|ki| ki.aut_status()) {
+            println!("  Key Status: {}", ks);
+        }
+    }
+    if pkm {
         if let Ok(pkm) = open.public_key(KeyType::Authentication) {
             println! {"  public key material: {}", pkm};
         }
@@ -588,54 +655,15 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
 
     println!();
 
-    let sst = open.security_support_template()?;
-    println!("Signatures made: {}", sst.signature_count());
-
-    println!();
-
-    let pws = open.pw_status_bytes()?;
-
     println!(
-        "Remaining tries: User PIN: {}, Admin PIN: {}, Reset Code: {}",
+        "Remaining PIN attempts: User: {}, Admin: {}, Reset Code: {}",
         pws.err_count_pw1(),
         pws.err_count_pw3(),
         pws.err_count_rc(),
     );
-    println!(
-        "Signature PIN only valid once: {}",
-        pws.pw1_cds_valid_once()
-    );
 
     if verbose {
         println!();
-
-        if let Ok(Some(ki)) = ard.key_information() {
-            println!("Key Information:\n{}", ki);
-        }
-
-        if let Some(uif) = ard.uif_pso_cds()? {
-            println!(
-                "Touch policy signing:        {} [Features: {}]",
-                uif.touch_policy(),
-                uif.features()
-            );
-        }
-
-        if let Some(uif) = ard.uif_pso_dec()? {
-            println!(
-                "Touch policy decryption:     {} [Features: {}]",
-                uif.touch_policy(),
-                uif.features()
-            );
-        }
-
-        if let Some(uif) = ard.uif_pso_dec()? {
-            println!(
-                "Touch policy authentication: {} [Features: {}]",
-                uif.touch_policy(),
-                uif.features()
-            );
-        }
 
         if let Some(uif) = ard.uif_attestation()? {
             println!(
@@ -643,12 +671,29 @@ fn print_status(ident: Option<String>, verbose: bool) -> Result<()> {
                 uif.touch_policy(),
                 uif.features()
             );
+            println!();
+        }
+
+        if let Some(ki) = ki {
+            let num = ki.num_additional();
+            for i in 0..num {
+                println!(
+                    "Key Status (#{}): {}",
+                    ki.additional_ref(i),
+                    ki.additional_status(i)
+                );
+            }
+
+            if num > 0 {
+                println!();
+            }
         }
 
         if let Ok(fps) = ard.ca_fingerprints() {
-            println!();
-            for x in fps.iter().enumerate() {
-                println!("CA fingerprint {}: {:x?}", x.0 + 1, x.1);
+            for (num, fp) in fps.iter().enumerate() {
+                if let Some(fp) = fp {
+                    println!("CA fingerprint {}: {:x?}", num + 1, fp);
+                }
             }
         }
     }
