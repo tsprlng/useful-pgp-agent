@@ -12,7 +12,7 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::card_do::Sex;
+use openpgp_card::card_do::{Sex, TouchPolicy};
 use openpgp_card::{CardBackend, KeyType, OpenPgp};
 use openpgp_card_sequoia::card::{Admin, Open};
 use openpgp_card_sequoia::util::{
@@ -220,6 +220,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         !no_auth,
                         algo,
                     )?;
+                }
+                cli::AdminCommand::Touch { key, policy } => {
+                    let kt = match key.as_str() {
+                        "SIG" => KeyType::Signing,
+                        "DEC" => KeyType::Decryption,
+                        "AUT" => KeyType::Authentication,
+                        "ATT" => KeyType::Attestation,
+                        _ => {
+                            return Err(anyhow!("Unexpected Key Type {}", key).into());
+                        }
+                    };
+                    let pol = match policy.as_str() {
+                        "Off" => TouchPolicy::Off,
+                        "On" => TouchPolicy::On,
+                        "Fixed" => TouchPolicy::Fixed,
+                        "Cached" => TouchPolicy::Cached,
+                        "Cached-Fixed" => TouchPolicy::CachedFixed,
+                        _ => {
+                            return Err(anyhow!("Unexpected Policy {}", policy).into());
+                        }
+                    };
+
+                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
+
+                    let _ = admin.set_uif(kt, pol)?;
                 }
             }
         }
@@ -667,7 +692,7 @@ fn print_status(ident: Option<String>, verbose: bool, pkm: bool) -> Result<()> {
 
         if let Some(uif) = ard.uif_attestation()? {
             println!(
-                "Touch policy attestation:    {} [Features: {}]",
+                "Touch policy attestation: {} [Features: {}]",
                 uif.touch_policy(),
                 uif.features()
             );

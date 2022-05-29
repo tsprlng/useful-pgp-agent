@@ -127,7 +127,7 @@ Authentication key
 
 Remaining PIN attempts: User: 3, Admin: 3, Reset Code: 0
 
-Touch policy attestation:    Cached [Features: Button]
+Touch policy attestation: Cached [Features: Button]
 
 Key Status (#129): imported
 ```
@@ -290,6 +290,37 @@ for non-interactive use.
 
 Alternatively, the PIN can be entered interactively on the host computer, or via a pinpad if the OpenPGP card is
 used in a smartcard reader that has a pinpad.
+
+#### Set touch policy
+
+Cards can require a type of confirmation before cryptographic operations are performed
+(the feature is often implemented as a mechanical button on the card).
+
+Not all cards implement this feature.
+
+Rationale: when the card requires touch confirmation, an attacker who gains control of the user's host computer
+cannot perform cryptographic operations on the card at will - even after they learn the user's PINs.
+
+This feature is configured per key slot. The user can choose to require (or not require) touch confirmation separately
+for signing, decryption, authentication and attestation operations.
+
+E.g., when the touch policy is set to `On` for the `SIG` key slot, then every signing operation requires a touch button
+confirmation:
+
+```
+opgpcard admin -c ABCD:01234567 touch --key SIG --policy On
+```
+
+Valid values for the key slot are: `SIG`, `DEC`, `AUT`, `ATT` (some cards only support the first three).
+
+Available policies can include: `Off`, `On`, `Fixed`, `Cached`, `CachedFixed`.
+Some cards only support a subset of these.
+
+- `Off` means that no touch confirmation is required.
+- `On` means that each operation requires on touch confirmation.
+- The `Fixed` policies are like `On`, but the policies cannot be changed without performing a factory reset on the card.
+- With the `Cached` policies, a touch confirmation is valid for multiple operations within 15 seconds.
+
 
 #### Set cardholder name
 

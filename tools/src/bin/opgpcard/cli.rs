@@ -182,6 +182,19 @@ pub enum AdminCommand {
         #[clap()]
         algo: Option<String>,
     },
+
+    /// Set touch policy
+    Touch {
+        #[clap(name = "Key slot (SIG|DEC|AUT|ATT)", short = 'k', long = "key")]
+        key: String,
+
+        #[clap(
+            name = "Policy (Off|On|Fixed|Cached|Cached-Fixed)",
+            short = 'p',
+            long = "policy"
+        )]
+        policy: String,
+    },
 }
 
 #[derive(Parser, Debug)]
