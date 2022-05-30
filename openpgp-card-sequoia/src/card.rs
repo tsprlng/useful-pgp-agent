@@ -71,8 +71,8 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_user_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
-        prompt();
+    pub fn verify_user_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
+        pinpad_prompt();
 
         let _ = self.opt.verify_pw1_user_pinpad()?;
         self.pw1 = true;
@@ -88,8 +88,11 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_user_for_signing_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
-        prompt();
+    pub fn verify_user_for_signing_pinpad(
+        &mut self,
+        pinpad_prompt: &dyn Fn(),
+    ) -> Result<(), Error> {
+        pinpad_prompt();
 
         let _ = self.opt.verify_pw1_sign_pinpad()?;
 
@@ -105,8 +108,8 @@ impl<'a> Open<'a> {
         Ok(())
     }
 
-    pub fn verify_admin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
-        prompt();
+    pub fn verify_admin_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
+        pinpad_prompt();
 
         let _ = self.opt.verify_pw3_pinpad()?;
         self.pw3 = true;
@@ -131,8 +134,8 @@ impl<'a> Open<'a> {
         self.opt.change_pw1(old, new)
     }
 
-    pub fn change_user_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
-        prompt();
+    pub fn change_user_pin_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
+        pinpad_prompt();
         self.opt.change_pw1_pinpad()
     }
 
@@ -144,8 +147,8 @@ impl<'a> Open<'a> {
         self.opt.change_pw3(old, new)
     }
 
-    pub fn change_admin_pin_pinpad(&mut self, prompt: &dyn Fn()) -> Result<(), Error> {
-        prompt();
+    pub fn change_admin_pin_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
+        pinpad_prompt();
         self.opt.change_pw3_pinpad()
     }
 
