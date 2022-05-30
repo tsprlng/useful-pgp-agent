@@ -95,7 +95,7 @@ pub fn test_sign(
     let cert = Cert::from_str(param[0])?;
 
     let msg = "Hello world, I am signed.";
-    let sig = openpgp_card_sequoia::util::sign(&mut pgpt, &cert, &mut msg.as_bytes())?;
+    let sig = openpgp_card_sequoia::util::sign(&mut pgpt, &cert, &mut msg.as_bytes(), &|| {})?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);
@@ -265,6 +265,7 @@ pub fn test_keygen(
         Some(key_dec),
         Some(key_aut),
         Some(b"123456"),
+        &|| {},
         &|| {},
     )?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;

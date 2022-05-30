@@ -49,7 +49,8 @@ pub fn make_cert<'app>(
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
     pw1: Option<&[u8]>,
-    prompt: &dyn Fn(),
+    pinpad_prompt: &dyn Fn(),
+    touch_prompt: &(dyn Fn() + Send + Sync),
 ) -> Result<Cert> {
     let mut pp = vec![];
 
@@ -80,11 +81,11 @@ pub fn make_cert<'app>(
             if let Some(pw1) = pw1 {
                 open.verify_user_for_signing(pw1)?;
             } else {
-                open.verify_user_for_signing_pinpad(prompt)?;
+                open.verify_user_for_signing_pinpad(pinpad_prompt)?;
             }
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_pubkey(key_sig.clone());
+                let mut card_signer = sign.signer_from_pubkey(key_sig.clone(), touch_prompt);
 
                 let signing_bsig: Packet = sub_dec
                     .bind(&mut card_signer, &cert, signing_builder)?
@@ -111,11 +112,11 @@ pub fn make_cert<'app>(
             if let Some(pw1) = pw1 {
                 open.verify_user_for_signing(pw1)?;
             } else {
-                open.verify_user_for_signing_pinpad(prompt)?;
+                open.verify_user_for_signing_pinpad(pinpad_prompt)?;
             }
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_pubkey(key_sig.clone());
+                let mut card_signer = sign.signer_from_pubkey(key_sig.clone(), touch_prompt);
 
                 // Temporary version of the cert
                 let cert = Cert::try_from(pp.clone())?;
@@ -153,12 +154,12 @@ pub fn make_cert<'app>(
             if let Some(pw1) = pw1 {
                 open.verify_user_for_signing(pw1)?;
             } else {
-                open.verify_user_for_signing_pinpad(prompt)?;
+                open.verify_user_for_signing_pinpad(pinpad_prompt)?;
             }
 
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_pubkey(key_sig);
+                let mut card_signer = sign.signer_from_pubkey(key_sig, touch_prompt);
 
                 // Temporary version of the cert
                 let cert = Cert::try_from(pp.clone())?;
@@ -378,10 +379,11 @@ pub fn sign(
     card_tx: &'_ mut OpenPgpTransaction<'_>,
     cert: &Cert,
     input: &mut dyn io::Read,
+    touch_prompt: &(dyn Fn() + Send + Sync),
 ) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
     {
-        let s = signer::CardSigner::new(card_tx, cert)?;
+        let s = signer::CardSigner::new(card_tx, cert, touch_prompt)?;
 
         let message = Message::new(&mut armorer);
         let mut message = Signer::new(message, s).detached().build()?;

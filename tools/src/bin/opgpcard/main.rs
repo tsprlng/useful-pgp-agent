@@ -920,7 +920,7 @@ fn sign_detached(
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 
     let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
-    let s = sign.signer(&cert)?;
+    let s = sign.signer(&cert, &|| println!("Touch confirmation needed for signing"))?;
 
     let message = Armorer::new(Message::new(std::io::stdout())).build()?;
     let mut signer = Signer::new(message, s).detached().build()?;
@@ -1019,7 +1019,9 @@ fn get_cert(
         );
     }
 
-    make_cert(open, key_sig, key_dec, key_aut, user_pin, prompt)
+    make_cert(open, key_sig, key_dec, key_aut, user_pin, prompt, &|| {
+        println!("Touch confirmation needed for signing")
+    })
 }
 
 fn generate_keys(

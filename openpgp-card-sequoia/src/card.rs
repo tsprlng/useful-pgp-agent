@@ -352,18 +352,26 @@ pub struct Sign<'app, 'open> {
 }
 
 impl<'app, 'open> Sign<'app, 'open> {
-    pub fn signer(&mut self, cert: &Cert) -> std::result::Result<CardSigner<'_, 'app>, Error> {
+    pub fn signer(
+        &mut self,
+        cert: &Cert,
+        touch_prompt: &'open (dyn Fn() + Send + Sync),
+    ) -> std::result::Result<CardSigner<'_, 'app>, Error> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::new(&mut self.oc.opt, cert)
+        CardSigner::new(&mut self.oc.opt, cert, touch_prompt)
     }
 
-    pub fn signer_from_pubkey(&mut self, pubkey: PublicKey) -> CardSigner<'_, 'app> {
+    pub fn signer_from_pubkey(
+        &mut self,
+        pubkey: PublicKey,
+        touch_prompt: &'open (dyn Fn() + Send + Sync),
+    ) -> CardSigner<'_, 'app> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::with_pubkey(&mut self.oc.opt, pubkey)
+        CardSigner::with_pubkey(&mut self.oc.opt, pubkey, touch_prompt)
     }
 
     /// Generate Attestation (Yubico)

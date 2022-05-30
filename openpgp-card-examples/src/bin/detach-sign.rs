@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sign = open.signing_card().unwrap();
 
     let cert = Cert::from_file(cert_file)?;
-    let s = sign.signer(&cert)?;
+    let s = sign.signer(&cert, &|| println!("Touch confirmation needed for signing"))?;
 
     let stdout = std::io::stdout();
 

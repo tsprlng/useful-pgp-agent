@@ -116,7 +116,7 @@
 //! # let (cert, _) =
 //! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
 //! #       .generate()?;
-//! let signer = user.signer(&cert);
+//! let signer = user.signer(&cert, &|| println!("Touch confirmation needed for signing"));
 //!
 //! // Perform signing operation(s)
 //! // ..

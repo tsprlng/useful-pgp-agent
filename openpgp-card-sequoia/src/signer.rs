@@ -22,6 +22,9 @@ pub struct CardSigner<'a, 'app> {
 
     /// The matching public key for the card's signing key
     public: PublicKey,
+
+    /// Callback function to signal if touch confirmation is needed
+    touch_prompt: &'a (dyn Fn() + Send + Sync),
 }
 
 impl<'a, 'app> CardSigner<'a, 'app> {
@@ -29,9 +32,10 @@ impl<'a, 'app> CardSigner<'a, 'app> {
     ///
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
-    pub fn new(
+    pub(crate) fn new(
         ca: &'a mut OpenPgpTransaction<'app>,
         cert: &openpgp::Cert,
+        touch_prompt: &'a (dyn Fn() + Send + Sync),
     ) -> Result<CardSigner<'a, 'app>, Error> {
         // Get the fingerprint for the signing key from the card.
         let ard = ca.application_related_data()?;
@@ -44,7 +48,7 @@ impl<'a, 'app> CardSigner<'a, 'app> {
 
             if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
                 let key = eka.key().clone();
-                Ok(Self::with_pubkey(ca, key))
+                Ok(Self::with_pubkey(ca, key, touch_prompt))
             } else {
                 Err(Error::InternalError(format!(
                     "Failed to find (sub)key {} in cert",
@@ -61,8 +65,13 @@ impl<'a, 'app> CardSigner<'a, 'app> {
     pub(crate) fn with_pubkey(
         ca: &'a mut OpenPgpTransaction<'app>,
         public: PublicKey,
+        touch_prompt: &'a (dyn Fn() + Send + Sync),
     ) -> CardSigner<'a, 'app> {
-        CardSigner { ca, public }
+        CardSigner {
+            ca,
+            public,
+            touch_prompt,
+        }
     }
 }
 
@@ -76,6 +85,18 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
         hash_algo: openpgp::types::HashAlgorithm,
         digest: &[u8],
     ) -> openpgp::Result<mpi::Signature> {
+        // FIXME: use cached ARD value from caller?
+        let ard = self.ca.application_related_data()?;
+
+        // Touch is required if:
+        // - the card supports the feature
+        // - and the policy is set to a value other than 'Off'
+        let touch_required = if let Some(uif) = ard.uif_pso_cds()? {
+            uif.touch_policy().touch_required()
+        } else {
+            false
+        };
+
         // Delegate a signing operation to the OpenPGP card.
         //
         // This fn prepares the data structures that openpgp-card needs to
@@ -111,6 +132,10 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
                     }
                 };
 
+                if touch_required {
+                    (self.touch_prompt)();
+                }
+
                 let sig = self.ca.signature_for_hash(hash)?;
 
                 let mpi = mpi::MPI::new(&sig[..]);
@@ -118,6 +143,10 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
             }
             (PublicKeyAlgorithm::EdDSA, mpi::PublicKey::EdDSA { .. }) => {
                 let hash = Hash::EdDSA(digest);
+
+                if touch_required {
+                    (self.touch_prompt)();
+                }
 
                 let sig = self.ca.signature_for_hash(hash)?;
 
@@ -133,6 +162,10 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
                     Curve::NistP521 => Hash::ECDSA(&digest[..64]),
                     _ => Hash::ECDSA(digest),
                 };
+
+                if touch_required {
+                    (self.touch_prompt)();
+                }
 
                 let sig = self.ca.signature_for_hash(hash)?;
 

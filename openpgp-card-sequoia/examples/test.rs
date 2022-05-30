@@ -196,7 +196,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let text = "Hello world, I am signed.";
 
-        let signer = sign.signer(&cert)?;
+        let signer = sign.signer(&cert, &|| {})?;
         let sig = sq_util::sign_helper(signer, &mut text.as_bytes())?;
 
         println!("Signature from card:\n{}", sig)
