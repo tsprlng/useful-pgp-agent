@@ -379,7 +379,20 @@ impl<'app, 'open> Sign<'app, 'open> {
     }
 
     /// Generate Attestation (Yubico)
-    pub fn generate_attestation(&mut self, key_type: KeyType) -> Result<(), Error> {
+    pub fn generate_attestation(
+        &mut self,
+        key_type: KeyType,
+        touch_prompt: &'open (dyn Fn() + Send + Sync),
+    ) -> Result<(), Error> {
+        // Touch is required if:
+        // - the card supports the feature
+        // - and the policy is set to a value other than 'Off'
+        if let Some(uif) = self.oc.ard.uif_attestation()? {
+            if uif.touch_policy().touch_required() {
+                (touch_prompt)();
+            }
+        }
+
         self.oc.opt.generate_attestation(key_type)
     }
 }

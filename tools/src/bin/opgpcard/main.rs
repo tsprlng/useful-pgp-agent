@@ -115,7 +115,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         return Err(anyhow!("Unexpected Key Type {}", key).into());
                     }
                 };
-                sign.generate_attestation(kt)?;
+                sign.generate_attestation(kt, &|| {
+                    println!("Touch confirmation needed to generate an attestation")
+                })?;
             }
             cli::AttCommand::Statement { ident, key } => {
                 let mut card = pick_card_for_reading(ident)?;
