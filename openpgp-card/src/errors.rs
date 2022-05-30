@@ -35,6 +35,9 @@ pub enum Error {
     #[error("Unsupported algorithm: {0}")]
     UnsupportedAlgo(String),
 
+    #[error("Unsupported feature: {0}")]
+    UnsupportedFeature(String),
+
     // FIXME: placeholder, remove again later?
     #[error("Internal error: {0}")]
     InternalError(String),
