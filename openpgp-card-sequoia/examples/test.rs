@@ -169,7 +169,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Encrypted message:\n{}", msg);
 
         let sp = StandardPolicy::new();
-        let d = user.decryptor(&cert)?;
+        let d = user.decryptor(&cert, &|| {
+            println!("Touch confirmation needed for decryption")
+        })?;
         let res = sq_util::decryption_helper(d, msg.into_bytes(), &sp)?;
 
         let plain = String::from_utf8_lossy(&res);

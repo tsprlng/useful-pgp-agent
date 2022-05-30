@@ -24,6 +24,9 @@ pub struct CardDecryptor<'a, 'app> {
 
     /// The matching public key for the card's decryption key
     public: PublicKey,
+
+    /// Callback function to signal if touch confirmation is needed
+    touch_prompt: &'a (dyn Fn() + Send + Sync),
 }
 
 impl<'a, 'app> CardDecryptor<'a, 'app> {
@@ -34,6 +37,7 @@ impl<'a, 'app> CardDecryptor<'a, 'app> {
     pub fn new(
         ca: &'a mut OpenPgpTransaction<'app>,
         cert: &Cert,
+        touch_prompt: &'a (dyn Fn() + Send + Sync),
     ) -> Result<CardDecryptor<'a, 'app>, Error> {
         // Get the fingerprint for the decryption key from the card.
         let ard = ca.application_related_data()?;
@@ -46,7 +50,11 @@ impl<'a, 'app> CardDecryptor<'a, 'app> {
 
             if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
                 let public = eka.key().clone();
-                Ok(Self { ca, public })
+                Ok(Self {
+                    ca,
+                    public,
+                    touch_prompt,
+                })
             } else {
                 Err(Error::InternalError(format!(
                     "Failed to find (sub)key {} in cert",
@@ -71,6 +79,18 @@ impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
         ciphertext: &mpi::Ciphertext,
         _plaintext_len: Option<usize>,
     ) -> openpgp::Result<crypto::SessionKey> {
+        // FIXME: use cached ARD value from caller?
+        let ard = self.ca.application_related_data()?;
+
+        // Touch is required if:
+        // - the card supports the feature
+        // - and the policy is set to a value other than 'Off'
+        let touch_required = if let Some(uif) = ard.uif_pso_dec()? {
+            uif.touch_policy().touch_required()
+        } else {
+            false
+        };
+
         // Delegate a decryption operation to the OpenPGP card.
         //
         // This fn prepares the data structures that openpgp-card needs to
@@ -80,6 +100,11 @@ impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
         match (ciphertext, self.public.mpis()) {
             (mpi::Ciphertext::RSA { c: ct }, mpi::PublicKey::RSA { .. }) => {
                 let dm = Cryptogram::RSA(ct.value());
+
+                if touch_required {
+                    (self.touch_prompt)();
+                }
+
                 let dec = self.ca.decipher(dm)?;
 
                 let sk = openpgp::crypto::SessionKey::from(&dec[..]);
@@ -99,6 +124,10 @@ impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
                     // NIST curves: ephemeral key with header byte
                     Cryptogram::ECDH(e.value())
                 };
+
+                if touch_required {
+                    (self.touch_prompt)();
+                }
 
                 // Decryption operation on the card
                 let mut dec = self.ca.decipher(dm)?;

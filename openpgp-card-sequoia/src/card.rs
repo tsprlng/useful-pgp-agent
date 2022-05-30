@@ -340,8 +340,12 @@ pub struct User<'app, 'open> {
 }
 
 impl<'app, 'open> User<'app, 'open> {
-    pub fn decryptor(&mut self, cert: &Cert) -> Result<CardDecryptor<'_, 'app>, Error> {
-        CardDecryptor::new(&mut self.oc.opt, cert)
+    pub fn decryptor(
+        &mut self,
+        cert: &Cert,
+        touch_prompt: &'open (dyn Fn() + Send + Sync),
+    ) -> Result<CardDecryptor<'_, 'app>, Error> {
+        CardDecryptor::new(&mut self.oc.opt, cert, touch_prompt)
     }
 }
 

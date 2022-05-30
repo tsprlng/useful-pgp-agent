@@ -72,7 +72,7 @@ pub fn test_decrypt(
 
     let p = StandardPolicy::new();
 
-    let res = openpgp_card_sequoia::util::decrypt(&mut pgpt, &cert, msg.into_bytes(), &p)?;
+    let res = openpgp_card_sequoia::util::decrypt(&mut pgpt, &cert, msg.into_bytes(), &|| {}, &p)?;
     let plain = String::from_utf8_lossy(&res);
 
     assert_eq!(plain, "Hello world!\n");

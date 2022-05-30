@@ -404,13 +404,14 @@ pub fn decrypt(
     card_tx: &'_ mut OpenPgpTransaction<'_>,
     cert: &Cert,
     msg: Vec<u8>,
+    touch_prompt: &(dyn Fn() + Send + Sync),
     p: &dyn Policy,
 ) -> Result<Vec<u8>> {
     let mut decrypted = Vec::new();
     {
         let reader = io::BufReader::new(&msg[..]);
 
-        let d = decryptor::CardDecryptor::new(card_tx, cert)?;
+        let d = decryptor::CardDecryptor::new(card_tx, cert, touch_prompt)?;
 
         let db = DecryptorBuilder::from_reader(reader)?;
         let mut decryptor = db.with_policy(p, None, d)?;

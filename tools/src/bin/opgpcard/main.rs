@@ -892,7 +892,9 @@ fn decrypt(
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 
     let mut user = util::verify_to_user(&mut open, user_pin.as_deref())?;
-    let d = user.decryptor(&cert)?;
+    let d = user.decryptor(&cert, &|| {
+        println!("Touch confirmation needed for decryption")
+    })?;
 
     let db = DecryptorBuilder::from_reader(input)?;
     let mut decryptor = db.with_policy(&p, None, d)?;

@@ -73,7 +73,7 @@
 //! # let (cert, _) =
 //! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
 //! #       .generate()?;
-//! let decryptor = user.decryptor(&cert);
+//! let decryptor = user.decryptor(&cert, &|| { println!("Touch confirmation needed for decryption") });
 //!
 //! // Perform decryption operation(s)
 //! // ..

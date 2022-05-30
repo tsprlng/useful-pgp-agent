@@ -35,7 +35,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let p = StandardPolicy::new();
     let cert = Cert::from_file(cert_file)?;
-    let d = user.decryptor(&cert)?;
+    let d = user.decryptor(&cert, &|| {
+        println!("Touch confirmation needed for decryption")
+    })?;
     let stdin = std::io::stdin();
 
     let mut stdout = std::io::stdout();
