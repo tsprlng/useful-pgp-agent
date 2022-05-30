@@ -316,6 +316,7 @@ impl Display for UIF {
 ///
 /// Touch policies were introduced in YubiKey Version 4.2.0 with modes ON, OFF and FIXED.
 /// YubiKey Version >= 5.2.1 added support for modes CACHED and CACHED_FIXED.
+#[derive(Eq, PartialEq)]
 #[non_exhaustive]
 pub enum TouchPolicy {
     Off,
@@ -324,6 +325,17 @@ pub enum TouchPolicy {
     Cached,
     CachedFixed,
     Unknown(u8),
+}
+
+impl TouchPolicy {
+    /// Returns "true" if this TouchPolicy (probably) requires touch confirmation.
+    ///
+    /// Note: When the Policy is set to `Cached` or `CachedFixed`, there is no way to be sure if a
+    /// previous touch confirmation is still valid (touch confirmations are valid for 15s, in
+    /// Cached mode)
+    pub fn touch_required(&self) -> bool {
+        !matches!(self, Self::Off)
+    }
 }
 
 impl Display for TouchPolicy {
