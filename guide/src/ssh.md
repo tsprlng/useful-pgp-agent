@@ -93,11 +93,9 @@ This is an experimental Private Key Store that enables use of cryptographic keys
 We'll build and run it in place, for this guide:
 
 ```
-$ export PKS_OPENPGP_CARD=$XDG_RUNTIME_DIR/pks-openpgp-card.sock
-
 $ git clone https://gitlab.com/sequoia-pgp/pks-openpgp-card
 $ cd pks-openpgp-card
-$ cargo run -- -H unix://$PKS_OPENPGP_CARD
+$ cargo run -- -H unix://$XDG_RUNTIME_DIR/pks-openpgp-card.sock
 ```
 
 ## Private Key Store-based SSH Agent
@@ -105,17 +103,14 @@ $ cargo run -- -H unix://$PKS_OPENPGP_CARD
 An SSH Agent implementation that can use keys on OpenPGP cards, via the Private Key Store from the previous step.
 
 ```
-$ export PKS_OPENPGP_CARD=$XDG_RUNTIME_DIR/pks-openpgp-card.sock
-$ export SSH_AUTH_SOCK=$XDG_RUNTIME_DIR/ssh-agent-pks.sock
-
 $ git clone https://gitlab.com/sequoia-pgp/ssh-agent-pks
 $ cd ssh-agent-pks
-$ cargo run -- -H unix://$SSH_AUTH_SOCK --endpoint $PKS_OPENPGP_CARD
+$ cargo run -- -H unix://$XDG_RUNTIME_DIR/ssh-agent-pks.sock --endpoint $XDG_RUNTIME_DIR/pks-openpgp-card.sock
 ```
 
 ## Using the SSH Agent
 
-To use `ssh-agent-pks` from your system's SSH client, the variable `SSH_AUTH_SOCK` must point to it:
+To use `ssh-agent-pks` with your system's SSH client, the variable `SSH_AUTH_SOCK` must point to it:
 
 `export SSH_AUTH_SOCK=$XDG_RUNTIME_DIR/ssh-agent-pks.sock`
 
