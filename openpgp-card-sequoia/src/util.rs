@@ -237,6 +237,57 @@ pub fn public_key_material_and_fp_to_key(
     ))
 }
 
+/// Get a PublicKey representation for a key slot on the card
+pub fn key_slot(open: &mut Open, kt: KeyType) -> Result<Option<PublicKey>> {
+    // FIXME: only read these once, if multiple subkeys are retrieved from the card
+    let times = open.key_generation_times()?;
+    let fps = open.fingerprints()?;
+
+    match kt {
+        KeyType::Signing => {
+            // FIXME: handle empty signing key slot
+
+            let pkm = open.public_key(KeyType::Signing)?;
+
+            let key_sig = public_key_material_and_fp_to_key(
+                &pkm,
+                KeyType::Signing,
+                times.signature().expect("Signature time is unset"),
+                fps.signature().expect("Signature fingerprint is unset"),
+            )?;
+            Ok(Some(key_sig))
+        }
+        KeyType::Decryption => {
+            if let Ok(pkm) = open.public_key(KeyType::Decryption) {
+                if let Some(ts) = times.decryption() {
+                    return Ok(Some(public_key_material_and_fp_to_key(
+                        &pkm,
+                        KeyType::Decryption,
+                        ts,
+                        fps.decryption().expect("Decryption fingerprint is unset"),
+                    )?));
+                }
+            }
+            Ok(None)
+        }
+        KeyType::Authentication => {
+            if let Ok(pkm) = open.public_key(KeyType::Authentication) {
+                if let Some(ts) = times.authentication() {
+                    return Ok(Some(public_key_material_and_fp_to_key(
+                        &pkm,
+                        KeyType::Authentication,
+                        ts,
+                        fps.authentication()
+                            .expect("Authentication fingerprint is unset"),
+                    )?));
+                }
+            }
+            Ok(None)
+        }
+        _ => unimplemented!(),
+    }
+}
+
 /// Helper fn: get a Sequoia PublicKey from an openpgp-card PublicKeyMaterial.
 ///
 /// For ECC decryption keys, `hash` and `sym` can be optionally specified.
