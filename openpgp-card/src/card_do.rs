@@ -316,7 +316,7 @@ impl Display for UIF {
 ///
 /// Touch policies were introduced in YubiKey Version 4.2.0 with modes ON, OFF and FIXED.
 /// YubiKey Version >= 5.2.1 added support for modes CACHED and CACHED_FIXED.
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 #[non_exhaustive]
 pub enum TouchPolicy {
     Off,
@@ -507,6 +507,7 @@ impl Display for KeyInformation {
 
 /// KeyStatus is contained in `KeyInformation`. It encodes if key material on a card was imported
 /// or generated on the card.
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[non_exhaustive]
 pub enum KeyStatus {
     NotPresent,
