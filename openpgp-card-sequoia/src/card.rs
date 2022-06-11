@@ -57,6 +57,16 @@ impl<'a> Open<'a> {
         })
     }
 
+    /// Replace cached "application related data" in this instance of Open
+    /// with the current data on the card.
+    ///
+    /// This is needed e.g. after importing or generating keys on a card, to
+    /// see these changes reflected in `self.ard`.
+    pub fn reload_ard(&mut self) -> Result<(), Error> {
+        self.ard = self.opt.application_related_data()?;
+        Ok(())
+    }
+
     pub fn feature_pinpad_verify(&mut self) -> bool {
         self.opt.feature_pinpad_verify()
     }
