@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: CC0-1.0
 
 stages:
-  - pages
   - lint
   - test
   - virtual-test
@@ -21,21 +20,6 @@ cache: &general_cache_config
   paths:
     - target/
     - $CARGO_HOME
-
-pages:
-  stage: pages
-  image: debian:stable-slim
-  before_script:
-    - apt update -y -qq
-    - apt install -y -qq --no-install-recommends wget ca-certificates
-    - wget https://github.com/rust-lang/mdBook/releases/download/v0.4.15/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz
-    - tar xvzf mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz
-  script:
-    - ./mdbook build guide/
-  artifacts:
-    paths:
-      - public
-  cache: [ ]
 
 reuse:
   stage: lint
