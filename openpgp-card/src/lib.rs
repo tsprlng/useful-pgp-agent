@@ -23,7 +23,7 @@
 //! crate offers a higher level wrapper based on the [Sequoia PGP](https://sequoia-pgp.org/)
 //! implementation.
 //!
-//! See the [architecture diagram](https://gitlab.com/hkos/openpgp-card#architecture) for
+//! See the [architecture diagram](https://gitlab.com/openpgp-card/openpgp-card#architecture) for
 //! a visualization.
 
 extern crate core;

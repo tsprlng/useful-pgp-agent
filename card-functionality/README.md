@@ -65,7 +65,7 @@ systemctl start pcscd
 ```
 
 (Alternatively, you could use the experimental
-[scdaemon backend](https://gitlab.com/hkos/openpgp-card/-/tree/scdc))
+[scdaemon backend](https://gitlab.com/openpgp-card/openpgp-card/-/tree/scdc))
 
 
 # Running tests (against emulated Gnuk via PC/SC)

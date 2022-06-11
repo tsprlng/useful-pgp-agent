@@ -44,9 +44,9 @@ top of the libraries described above:
 
 - [openpgp-card-tools](https://crates.io/crates/openpgp-card-sequoia),
   a CLI tool to inspect, manage and use OpenPGP cards, aimed at end users.
-- [openpgp-card-tests](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality),
+- [openpgp-card-tests](https://gitlab.com/openpgp-card/openpgp-card/-/tree/main/card-functionality),
   a test-suite that runs OpenPGP card operations on smartcards.
-- [openpgp-card-examples](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-examples),
+- [openpgp-card-examples](https://gitlab.com/openpgp-card/openpgp-card/-/tree/main/card-examples),
   small example applications that demonstrate how you can use these 
   libraries in your own projects to access OpenPGP card functionality.
 
@@ -112,14 +112,14 @@ It's possible to run simulated JavaCard applets on a host computer, and
 make those available via the [PCSC lite](https://pcsclite.apdu.fr/) framework.
 
 To simplify testing against such simulated cards, the
-https://gitlab.com/hkos/openpgp-card-images repository provides Container 
+https://gitlab.com/openpgp-card/virtual-cards repository provides Container 
 images for the "SmartPGP" and "YubiKey NEO" OpenPGP card implementations.
 
 These images are used to run card-functionality tests on gitlab's CI.
 See the GitLab CI config
-[hkos/openpgp-card:.gitlab-ci.yml](https://gitlab.com/hkos/openpgp-card/-/blob/main/.gitlab-ci.yml)
+[openpgp-card/openpgp-card:.gitlab-ci.yml](https://gitlab.com/openpgp-card/openpgp-card/-/blob/main/.gitlab-ci.yml)
 and the Dockerfiles and run script:
-[hkos/openpgp-card:card-functionality/docker/](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality/docker/).
+[openpgp-card/openpgp-card:card-functionality/docker/](https://gitlab.com/openpgp-card/openpgp-card/-/tree/main/card-functionality/docker/).
 
 
 ### Emulated Gnuk
@@ -136,7 +136,7 @@ This means that to use an emulated Gnuk, you need to have both root
 privileges and be able to load a kernel module (so running an emulated 
 Gnuk is not currently possible in GitLab CI).
 
-See the [README](https://gitlab.com/hkos/openpgp-card/-/tree/main/card-functionality#running-tests-against-emulated-gnuk-via-pcsc)
+See the [README](https://gitlab.com/openpgp-card/openpgp-card/-/tree/main/card-functionality#running-tests-against-emulated-gnuk-via-pcsc)
 of the `card-functionality` project for more information on this.
 
 

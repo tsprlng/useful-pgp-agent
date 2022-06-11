@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 To set up and inspect OpenPGP cards, we'll use the [`opgpcard`](https://crates.io/crates/openpgp-card-tools) tool,
 which is based on [Sequoia PGP](https://sequoia-pgp.org/)
-and [new Rust OpenPGP card libraries](https://gitlab.com/hkos/openpgp-card).
+and [new Rust OpenPGP card libraries](https://gitlab.com/openpgp-card/openpgp-card).
 
 ## Install
 
@@ -16,7 +16,7 @@ To install the `opgpcard` tool, we
 - install the required build dependencies (a Rust toolchain, pcsc-lite, nettle), then
 - `cargo install openpgp-card-tools`
 
-[Detailed installation instructions](https://gitlab.com/hkos/openpgp-card/-/tree/main/tools#install).
+[Detailed installation instructions](https://gitlab.com/openpgp-card/openpgp-card/-/tree/main/tools#install).
 
 ## Running opgpcard
 

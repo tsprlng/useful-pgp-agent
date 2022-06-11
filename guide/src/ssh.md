@@ -10,7 +10,7 @@ In this guide, we'll set up OpenPGP card-based SSH logins to a remote machine.
 We assume that you have an OpenPGP card plugged into your client machine, and that an authentication key is available
 on that card.
 
-We also assume that the `opgpcard` tool [is installed](https://hkos.gitlab.io/openpgp-card/opgpcard.html#install).
+We also assume that the `opgpcard` tool [is installed](https://openpgp-card.gitlab.io/openpgp-card/opgpcard.html#install).
 
 ## Optional: generate throwaway keys on your card, for this guide
 

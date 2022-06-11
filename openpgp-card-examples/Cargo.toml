@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 version = "0.0.1"
 authors = ["Wiktor Kwapisiewicz <wiktor@metacode.biz>"]
 edition = "2018"
-repository = "https://gitlab.com/hkos/openpgp-card"
+repository = "https://gitlab.com/openpgp-card/openpgp-card"
 documentation = "https://docs.rs/crate/openpgp-card-examples"
 
 [dependencies]

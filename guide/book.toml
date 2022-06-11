@@ -9,7 +9,7 @@ src = "src"
 title = "OpenPGP card user guide"
 
 [output.html]
-git-repository-url = "https://gitlab.com/hkos/openpgp-card"
+git-repository-url = "https://gitlab.com/openpgp-card/openpgp-card"
 git-repository-icon = "fa-gitlab"
 
 [build]

@@ -29,7 +29,7 @@ Until now, most users have interacted with OpenPGP cards using one or both of:
 ## New OpenPGP card tools
 
 This series of guides introduces a new set of tools that leverage OpenPGP cards, written in Rust.
-These tools are built on a set of [OpenPGP card libraries](https://gitlab.com/hkos/openpgp-card)
+These tools are built on a set of [OpenPGP card libraries](https://gitlab.com/openpgp-card/openpgp-card)
 and [Sequoia PGP](https://sequoia-pgp.org/).
 
 The ultimate goal of this series is to document a complete suite of easy-to-use tools for all use cases around

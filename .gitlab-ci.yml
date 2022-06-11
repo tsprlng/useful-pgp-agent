@@ -129,7 +129,7 @@ cargo-test-debian-bookworm:
 
 run_cardtest_smartpgp:
   stage: virtual-test
-  image: registry.gitlab.com/hkos/openpgp-card-images/smartpgp-builddeps
+  image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
@@ -148,7 +148,7 @@ run_cardtest_smartpgp:
 
 run_cardtest_ykneo:
   stage: virtual-test
-  image: registry.gitlab.com/hkos/openpgp-card-images/ykneo-builddeps
+  image: registry.gitlab.com/openpgp-card/virtual-cards/ykneo-builddeps
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
@@ -167,7 +167,7 @@ run_cardtest_ykneo:
 
 run_cardtest_fluffypgp:
   stage: virtual-test
-  image: registry.gitlab.com/hkos/openpgp-card-images/fluffypgp-builddeps
+  image: registry.gitlab.com/openpgp-card/virtual-cards/fluffypgp-builddeps
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
@@ -209,7 +209,7 @@ hardware-builddeps:
   cache: [ ]
 
 .hw-test-template:
-  image: registry.gitlab.com/hkos/openpgp-card/hardware-builddeps
+  image: registry.gitlab.com/openpgp-card/openpgp-card/hardware-builddeps
   tags:
     - card
   parallel:
