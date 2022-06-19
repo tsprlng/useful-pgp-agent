@@ -245,17 +245,17 @@ pub fn key_slot(open: &mut Open, kt: KeyType) -> Result<Option<PublicKey>> {
 
     match kt {
         KeyType::Signing => {
-            // FIXME: handle empty signing key slot
-
-            let pkm = open.public_key(KeyType::Signing)?;
-
-            let key_sig = public_key_material_and_fp_to_key(
-                &pkm,
-                KeyType::Signing,
-                times.signature().expect("Signature time is unset"),
-                fps.signature().expect("Signature fingerprint is unset"),
-            )?;
-            Ok(Some(key_sig))
+            if let Ok(pkm) = open.public_key(KeyType::Signing) {
+                if let Some(ts) = times.signature() {
+                    return Ok(Some(public_key_material_and_fp_to_key(
+                        &pkm,
+                        KeyType::Signing,
+                        ts,
+                        fps.signature().expect("Signature fingerprint is unset"),
+                    )?));
+                }
+            }
+            Ok(None)
         }
         KeyType::Decryption => {
             if let Ok(pkm) = open.public_key(KeyType::Decryption) {
