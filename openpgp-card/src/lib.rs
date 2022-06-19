@@ -528,7 +528,7 @@ impl PinType {
 }
 
 /// Identify a Key slot on an OpenPGP card
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[non_exhaustive]
 pub enum KeyType {
     Signing,
