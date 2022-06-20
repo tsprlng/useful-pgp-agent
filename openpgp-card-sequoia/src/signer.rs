@@ -25,6 +25,9 @@ pub struct CardSigner<'a, 'app> {
 
     /// Callback function to signal if touch confirmation is needed
     touch_prompt: &'a (dyn Fn() + Send + Sync),
+
+    /// sign or auth? (true = auth)
+    auth: bool,
 }
 
 impl<'a, 'app> CardSigner<'a, 'app> {
@@ -32,7 +35,7 @@ impl<'a, 'app> CardSigner<'a, 'app> {
     ///
     /// An Error is returned if no match between the card's signing
     /// key and a (sub)key of `cert` can be made.
-    pub(crate) fn new(
+    pub(crate) fn with_cert(
         ca: &'a mut OpenPgpTransaction<'app>,
         cert: &openpgp::Cert,
         touch_prompt: &'a (dyn Fn() + Send + Sync),
@@ -71,6 +74,20 @@ impl<'a, 'app> CardSigner<'a, 'app> {
             ca,
             public,
             touch_prompt,
+            auth: false,
+        }
+    }
+
+    pub(crate) fn with_pubkey_for_auth(
+        ca: &'a mut OpenPgpTransaction<'app>,
+        public: PublicKey,
+        touch_prompt: &'a (dyn Fn() + Send + Sync),
+    ) -> CardSigner<'a, 'app> {
+        CardSigner {
+            ca,
+            public,
+            touch_prompt,
+            auth: true,
         }
     }
 }
@@ -88,21 +105,35 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
         // FIXME: use cached ARD value from caller?
         let ard = self.ca.application_related_data()?;
 
+        // Get UIF setting for the sign or auth slot
+        let uif = if !self.auth {
+            ard.uif_pso_cds()?
+        } else {
+            ard.uif_pso_aut()?
+        };
+
         // Touch is required if:
         // - the card supports the feature
         // - and the policy is set to a value other than 'Off'
-        let touch_required = if let Some(uif) = ard.uif_pso_cds()? {
+        let touch_required = if let Some(uif) = uif {
             uif.touch_policy().touch_required()
         } else {
             false
         };
 
-        // Delegate a signing operation to the OpenPGP card.
+        let sig_fn = if !self.auth {
+            OpenPgpTransaction::signature_for_hash
+        } else {
+            OpenPgpTransaction::authenticate_for_hash
+        };
+
+        // Delegate a signing (or auth) operation to the OpenPGP card.
         //
         // This fn prepares the data structures that openpgp-card needs to
         // perform the signing operation.
         //
         // (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
+        // or (7.2.13 INTERNAL AUTHENTICATE)
 
         match (self.public.pk_algo(), self.public.mpis()) {
             #[allow(deprecated)]
@@ -136,7 +167,7 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
                     (self.touch_prompt)();
                 }
 
-                let sig = self.ca.signature_for_hash(hash)?;
+                let sig = sig_fn(self.ca, hash)?;
 
                 let mpi = mpi::MPI::new(&sig[..]);
                 Ok(mpi::Signature::RSA { s: mpi })
@@ -148,7 +179,7 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
                     (self.touch_prompt)();
                 }
 
-                let sig = self.ca.signature_for_hash(hash)?;
+                let sig = sig_fn(self.ca, hash)?;
 
                 let r = mpi::MPI::new(&sig[..32]);
                 let s = mpi::MPI::new(&sig[32..]);
@@ -167,7 +198,7 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
                     (self.touch_prompt)();
                 }
 
-                let sig = self.ca.signature_for_hash(hash)?;
+                let sig = sig_fn(self.ca, hash)?;
 
                 let len_2 = sig.len() / 2;
                 let r = mpi::MPI::new(&sig[..len_2]);

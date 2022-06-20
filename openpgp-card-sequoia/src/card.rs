@@ -357,6 +357,14 @@ impl<'app, 'open> User<'app, 'open> {
     ) -> Result<CardDecryptor<'_, 'app>, Error> {
         CardDecryptor::new(&mut self.oc.opt, cert, touch_prompt)
     }
+
+    pub fn authenticator(
+        &mut self,
+        pubkey: PublicKey,
+        touch_prompt: &'open (dyn Fn() + Send + Sync),
+    ) -> CardSigner<'_, 'app> {
+        CardSigner::with_pubkey_for_auth(&mut self.oc.opt, pubkey, touch_prompt)
+    }
 }
 
 /// An OpenPGP card after successfully verifying PW1 in mode 81
@@ -374,7 +382,7 @@ impl<'app, 'open> Sign<'app, 'open> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::new(&mut self.oc.opt, cert, touch_prompt)
+        CardSigner::with_cert(&mut self.oc.opt, cert, touch_prompt)
     }
 
     pub fn signer_from_pubkey(

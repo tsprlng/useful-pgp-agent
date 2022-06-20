@@ -434,7 +434,7 @@ pub fn sign(
 ) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
     {
-        let s = signer::CardSigner::new(card_tx, cert, touch_prompt)?;
+        let s = signer::CardSigner::with_cert(card_tx, cert, touch_prompt)?;
 
         let message = Message::new(&mut armorer);
         let mut message = Signer::new(message, s).detached().build()?;
