@@ -164,29 +164,17 @@ impl<'a> Open<'a> {
 
     /// Get a view of the card authenticated for "User" commands.
     pub fn user_card<'b>(&'b mut self) -> Option<User<'a, 'b>> {
-        if self.pw1 {
-            Some(User { oc: self })
-        } else {
-            None
-        }
+        Some(User { oc: self })
     }
 
     /// Get a view of the card authenticated for Signing.
     pub fn signing_card<'b>(&'b mut self) -> Option<Sign<'a, 'b>> {
-        if self.pw1_sign {
-            Some(Sign { oc: self })
-        } else {
-            None
-        }
+        Some(Sign { oc: self })
     }
 
     /// Get a view of the card authenticated for "Admin" commands.
     pub fn admin_card<'b>(&'b mut self) -> Option<Admin<'a, 'b>> {
-        if self.pw3 {
-            Some(Admin { oc: self })
-        } else {
-            None
-        }
+        Some(Admin { oc: self })
     }
 
     // --- application data ---
