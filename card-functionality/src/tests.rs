@@ -332,7 +332,7 @@ pub fn test_reset(
     let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
-    let _res = pgpt.factory_reset()?;
+    pgpt.factory_reset()?;
     Ok(vec![])
 }
 

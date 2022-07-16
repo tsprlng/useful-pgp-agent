@@ -179,12 +179,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 cli::AdminCommand::Name { name } => {
                     let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
-                    let _ = admin.set_name(&name)?;
+                    admin.set_name(&name)?;
                 }
                 cli::AdminCommand::Url { url } => {
                     let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
-                    let _ = admin.set_url(&url)?;
+                    admin.set_url(&url)?;
                 }
                 cli::AdminCommand::Import {
                     keyfile,
@@ -246,7 +246,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
-                    let _ = admin.set_uif(kt, pol)?;
+                    admin.set_uif(kt, pol)?;
                 }
             }
         }
