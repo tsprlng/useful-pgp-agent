@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use std::convert::{TryFrom, TryInto};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 use std::time::{Duration, UNIX_EPOCH};
 
 use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType, Tags};
@@ -960,7 +960,7 @@ impl Fingerprint {
         let mut fp = String::new();
 
         for i in 0..20 {
-            fp.push_str(&format!("{:02X}", self.0[i]));
+            let _ = write!(&mut fp, "{:02X}", self.0[i]);
 
             if i < 19 && (i % 2 == 1) {
                 fp.push(' ');
