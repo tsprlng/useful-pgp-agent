@@ -10,3 +10,7 @@ License: CC0-1.0
 Files: card-functionality/data/*
 Copyright: 2021 Heiko Schaefer <heiko@schaefer.name>
 License: CC0-1.0
+
+Files: tools/debian/*
+Copyright: 2022 Lars Wirzenius <liw@liw.fi>
+License: CC0-1.0
