@@ -76,7 +76,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_user(&mut self, pin: &[u8]) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1_user(pin)?;
+        self.opt.verify_pw1_user(pin)?;
         self.pw1 = true;
         Ok(())
     }
@@ -84,13 +84,13 @@ impl<'a> Open<'a> {
     pub fn verify_user_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
         pinpad_prompt();
 
-        let _ = self.opt.verify_pw1_user_pinpad()?;
+        self.opt.verify_pw1_user_pinpad()?;
         self.pw1 = true;
         Ok(())
     }
 
     pub fn verify_user_for_signing(&mut self, pin: &[u8]) -> Result<(), Error> {
-        let _ = self.opt.verify_pw1_sign(pin)?;
+        self.opt.verify_pw1_sign(pin)?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -104,7 +104,7 @@ impl<'a> Open<'a> {
     ) -> Result<(), Error> {
         pinpad_prompt();
 
-        let _ = self.opt.verify_pw1_sign_pinpad()?;
+        self.opt.verify_pw1_sign_pinpad()?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -113,7 +113,7 @@ impl<'a> Open<'a> {
     }
 
     pub fn verify_admin(&mut self, pin: &[u8]) -> Result<(), Error> {
-        let _ = self.opt.verify_pw3(pin)?;
+        self.opt.verify_pw3(pin)?;
         self.pw3 = true;
         Ok(())
     }
@@ -121,7 +121,7 @@ impl<'a> Open<'a> {
     pub fn verify_admin_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
         pinpad_prompt();
 
-        let _ = self.opt.verify_pw3_pinpad()?;
+        self.opt.verify_pw3_pinpad()?;
         self.pw3 = true;
         Ok(())
     }

@@ -254,7 +254,7 @@ impl<'a> OpenPgpTransaction<'a> {
 
         // Possible response data (Control Parameter = CP) don't need to be evaluated by the
         // application (See "7.2.5 SELECT DATA")
-        let _ = apdu::send_command(self.tx(), cmd, true)?.try_into()?;
+        apdu::send_command(self.tx(), cmd, true)?.try_into()?;
 
         Ok(())
     }
