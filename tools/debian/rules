@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem cargo
+
+override_dh_auto_clean:
+	echo auto clean
+
+override_dh_auto_configure:
+	echo auto configure
+
+override_dh_auto_build:
+	cargo --version
+	rustc --version
+	cargo build --release
+
+override_dh_auto_test:
+	true
+
+override_dh_auto_install:
+	install -d debian/openpgp-card-tool/bin
+	cargo install --locked --path=. --root=debian/openpgp-card-tool
+	find debian -name ".crates*" -delete
