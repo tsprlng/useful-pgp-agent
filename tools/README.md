@@ -453,13 +453,13 @@ For now, this tool only supports creating detached signatures, like this
 (if no input file is set, stdin is read):
 
 ```
-$ opgpcard sign --detached -c ABCD:01234567 -p <user-pin-file> -s <cert-file> <input-file>
+$ opgpcard sign --detached -c ABCD:01234567 -p <user-pin-file> <input-file>
 ```
 
 or interactively
 
 ```
-$ opgpcard sign --detached -c ABCD:01234567 -s <cert-file> <input-file>
+$ opgpcard sign --detached -c ABCD:01234567 <input-file>
 ```
 
 ### Decrypting
@@ -467,13 +467,13 @@ $ opgpcard sign --detached -c ABCD:01234567 -s <cert-file> <input-file>
 Decryption using a card (if no input file is set, stdin is read):
 
 ```
-$ opgpcard decrypt -c ABCD:01234567 -p <user-pin-file> -r <cert-file> <input-file>
+$ opgpcard decrypt -c ABCD:01234567 -p <user-pin-file> <input-file>
 ```
 
 or interactively
 
 ```
-$ opgpcard decrypt -c ABCD:01234567 -r <cert-file> <input-file>
+$ opgpcard decrypt -c ABCD:01234567 <input-file>
 ```
 
 ### PIN management

@@ -85,9 +85,6 @@ pub enum Command {
         #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
         user_pin: Option<PathBuf>,
 
-        #[clap(name = "recipient-cert-file", short = 'r', long = "recipient-cert")]
-        cert_file: PathBuf,
-
         /// Input file (stdin if unset)
         #[clap(name = "input")]
         input: Option<PathBuf>,
@@ -104,9 +101,6 @@ pub enum Command {
 
         #[clap(name = "detached", short = 'd', long = "detached")]
         detached: bool,
-
-        #[clap(name = "signer-cert-file", short = 's', long = "signer-cert")]
-        cert_file: PathBuf,
 
         /// Input file (stdin if unset)
         #[clap(name = "input")]

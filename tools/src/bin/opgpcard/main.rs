@@ -62,20 +62,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Decrypt {
             ident,
             user_pin,
-            cert_file,
             input,
         } => {
-            decrypt(&ident, user_pin, &cert_file, input.as_deref())?;
+            decrypt(&ident, user_pin, input.as_deref())?;
         }
         cli::Command::Sign {
             ident,
             user_pin,
-            cert_file,
             detached,
             input,
         } => {
             if detached {
-                sign_detached(&ident, user_pin, &cert_file, input.as_deref())?;
+                sign_detached(&ident, user_pin, input.as_deref())?;
             } else {
                 return Err(
                     anyhow::anyhow!("Only detached signatures are supported for now").into(),
@@ -878,11 +876,9 @@ fn print_pubkey(ident: Option<String>, user_pin: Option<PathBuf>) -> Result<()> 
 fn decrypt(
     ident: &str,
     pin_file: Option<PathBuf>,
-    cert_file: &Path,
     input: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let p = StandardPolicy::new();
-    let cert = Cert::from_file(cert_file)?;
 
     let input = util::open_or_stdin(input)?;
 
@@ -894,9 +890,7 @@ fn decrypt(
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 
     let mut user = util::verify_to_user(&mut open, user_pin.as_deref())?;
-    let d = user.decryptor(&cert, &|| {
-        println!("Touch confirmation needed for decryption")
-    })?;
+    let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
 
     let db = DecryptorBuilder::from_reader(input)?;
     let mut decryptor = db.with_policy(&p, None, d)?;
@@ -909,11 +903,8 @@ fn decrypt(
 fn sign_detached(
     ident: &str,
     pin_file: Option<PathBuf>,
-    cert_file: &Path,
     input: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let cert = Cert::from_file(cert_file)?;
-
     let mut input = util::open_or_stdin(input)?;
 
     let mut card = util::open_card(ident)?;
@@ -924,7 +915,7 @@ fn sign_detached(
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 
     let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
-    let s = sign.signer(&cert, &|| println!("Touch confirmation needed for signing"))?;
+    let s = sign.signer(&|| println!("Touch confirmation needed for signing"))?;
 
     let message = Armorer::new(Message::new(std::io::stdout())).build()?;
     let mut signer = Signer::new(message, s).detached().build()?;
