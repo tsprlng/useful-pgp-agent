@@ -163,15 +163,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             .user_card()
             .expect("We just validated, this should not fail");
 
-        let cert = Cert::from_file(TEST_KEY_PATH)?;
+        let _cert = Cert::from_file(TEST_KEY_PATH)?;
         let msg = std::fs::read_to_string(TEST_ENC_MSG).expect("Unable to read file");
 
         println!("Encrypted message:\n{}", msg);
 
         let sp = StandardPolicy::new();
-        let d = user.decryptor(&cert, &|| {
-            println!("Touch confirmation needed for decryption")
-        })?;
+        let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
         let res = sq_util::decryption_helper(d, msg.into_bytes(), &sp)?;
 
         let plain = String::from_utf8_lossy(&res);
@@ -194,11 +192,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Use Sign access to card
         let mut sign = open.signing_card().expect("just verified");
 
-        let cert = Cert::from_file(TEST_KEY_PATH)?;
+        let _cert = Cert::from_file(TEST_KEY_PATH)?;
 
         let text = "Hello world, I am signed.";
 
-        let signer = sign.signer(&cert, &|| {})?;
+        let signer = sign.signer(&|| {})?;
         let sig = sq_util::sign_helper(signer, &mut text.as_bytes())?;
 
         println!("Signature from card:\n{}", sig)

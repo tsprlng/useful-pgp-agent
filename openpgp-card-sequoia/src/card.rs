@@ -7,7 +7,6 @@
 use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
-use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
@@ -15,13 +14,13 @@ use openpgp_card::card_do::{
     ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
     SecuritySupportTemplate, Sex, TouchPolicy,
 };
+use openpgp_card::crypto_data::PublicKeyMaterial;
 use openpgp_card::{Error, KeySet, KeyType, OpenPgpTransaction};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
 use crate::util::{public_to_fingerprint, vka_as_uploadable_key};
 use crate::PublicKey;
-use openpgp_card::crypto_data::PublicKeyMaterial;
 
 /// Representation of an opened OpenPGP card in its base state (i.e. no
 /// passwords have been verified, default authorization applies).
@@ -340,13 +339,40 @@ pub struct User<'app, 'open> {
 impl<'app, 'open> User<'app, 'open> {
     pub fn decryptor(
         &mut self,
-        cert: &Cert,
         touch_prompt: &'open (dyn Fn() + Send + Sync),
     ) -> Result<CardDecryptor<'_, 'app>, Error> {
-        CardDecryptor::new(&mut self.oc.opt, cert, touch_prompt)
+        let pk = crate::util::key_slot(self.oc, KeyType::Decryption)?
+            .expect("Couldn't get decryption pubkey from card");
+
+        Ok(CardDecryptor::with_pubkey(
+            &mut self.oc.opt,
+            pk,
+            touch_prompt,
+        ))
+    }
+
+    pub fn decryptor_from_public(
+        &mut self,
+        pubkey: PublicKey,
+        touch_prompt: &'open (dyn Fn() + Send + Sync),
+    ) -> CardDecryptor<'_, 'app> {
+        CardDecryptor::with_pubkey(&mut self.oc.opt, pubkey, touch_prompt)
     }
 
     pub fn authenticator(
+        &mut self,
+        touch_prompt: &'open (dyn Fn() + Send + Sync),
+    ) -> Result<CardSigner<'_, 'app>, Error> {
+        let pk = crate::util::key_slot(self.oc, KeyType::Authentication)?
+            .expect("Couldn't get authentication pubkey from card");
+
+        Ok(CardSigner::with_pubkey_for_auth(
+            &mut self.oc.opt,
+            pk,
+            touch_prompt,
+        ))
+    }
+    pub fn authenticator_from_public(
         &mut self,
         pubkey: PublicKey,
         touch_prompt: &'open (dyn Fn() + Send + Sync),
@@ -364,16 +390,18 @@ pub struct Sign<'app, 'open> {
 impl<'app, 'open> Sign<'app, 'open> {
     pub fn signer(
         &mut self,
-        cert: &Cert,
         touch_prompt: &'open (dyn Fn() + Send + Sync),
-    ) -> std::result::Result<CardSigner<'_, 'app>, Error> {
+    ) -> Result<CardSigner<'_, 'app>, Error> {
         // FIXME: depending on the setting in "PW1 Status byte", only one
         // signature can be made after verification for signing
 
-        CardSigner::with_cert(&mut self.oc.opt, cert, touch_prompt)
+        let pk = crate::util::key_slot(self.oc, KeyType::Signing)?
+            .expect("Couldn't get signing pubkey from card");
+
+        Ok(CardSigner::with_pubkey(&mut self.oc.opt, pk, touch_prompt))
     }
 
-    pub fn signer_from_pubkey(
+    pub fn signer_from_public(
         &mut self,
         pubkey: PublicKey,
         touch_prompt: &'open (dyn Fn() + Send + Sync),

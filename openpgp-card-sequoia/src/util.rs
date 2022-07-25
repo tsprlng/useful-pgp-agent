@@ -29,11 +29,13 @@ use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
-use openpgp_card::{Error, KeyType, OpenPgpTransaction};
+use openpgp_card::{Error, KeyType};
 
 use crate::card::Open;
+use crate::decryptor::CardDecryptor;
 use crate::privkey::SequoiaKey;
-use crate::{decryptor, signer, PublicKey};
+use crate::signer::CardSigner;
+use crate::PublicKey;
 
 /// Create a Cert from the three subkeys on a card.
 /// (Calling this multiple times will result in different Certs!)
@@ -85,7 +87,7 @@ pub fn make_cert<'app>(
             }
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_pubkey(key_sig.clone(), touch_prompt);
+                let mut card_signer = sign.signer_from_public(key_sig.clone(), touch_prompt);
 
                 let signing_bsig: Packet = sub_dec
                     .bind(&mut card_signer, &cert, signing_builder)?
@@ -116,7 +118,7 @@ pub fn make_cert<'app>(
             }
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_pubkey(key_sig.clone(), touch_prompt);
+                let mut card_signer = sign.signer_from_public(key_sig.clone(), touch_prompt);
 
                 // Temporary version of the cert
                 let cert = Cert::try_from(pp.clone())?;
@@ -159,7 +161,7 @@ pub fn make_cert<'app>(
 
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_pubkey(key_sig, touch_prompt);
+                let mut card_signer = sign.signer_from_public(key_sig, touch_prompt);
 
                 // Temporary version of the cert
                 let cert = Cert::try_from(pp.clone())?;
@@ -238,7 +240,7 @@ pub fn public_key_material_and_fp_to_key(
 }
 
 /// Get a PublicKey representation for a key slot on the card
-pub fn key_slot(open: &mut Open, kt: KeyType) -> Result<Option<PublicKey>> {
+pub fn key_slot(open: &mut Open, kt: KeyType) -> Result<Option<PublicKey>, Error> {
     // FIXME: only read these once, if multiple subkeys are retrieved from the card
     let times = open.key_generation_times()?;
     let fps = open.fingerprints()?;
@@ -425,17 +427,9 @@ pub fn vka_as_uploadable_key(
     Box::new(sqk)
 }
 
-/// FIXME: this fn is used in card_functionality, but should be removed
-pub fn sign(
-    card_tx: &'_ mut OpenPgpTransaction<'_>,
-    cert: &Cert,
-    input: &mut dyn io::Read,
-    touch_prompt: &(dyn Fn() + Send + Sync),
-) -> Result<String> {
+pub fn sign(s: CardSigner, input: &mut dyn io::Read) -> Result<String> {
     let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
     {
-        let s = signer::CardSigner::with_cert(card_tx, cert, touch_prompt)?;
-
         let message = Message::new(&mut armorer);
         let mut message = Signer::new(message, s).detached().build()?;
 
@@ -450,19 +444,10 @@ pub fn sign(
     String::from_utf8(buffer).context("Failed to convert signature to utf8")
 }
 
-/// FIXME: this fn is used in card_functionality, but should be removed
-pub fn decrypt(
-    card_tx: &'_ mut OpenPgpTransaction<'_>,
-    cert: &Cert,
-    msg: Vec<u8>,
-    touch_prompt: &(dyn Fn() + Send + Sync),
-    p: &dyn Policy,
-) -> Result<Vec<u8>> {
+pub fn decrypt(d: CardDecryptor, msg: Vec<u8>, p: &dyn Policy) -> Result<Vec<u8>> {
     let mut decrypted = Vec::new();
     {
         let reader = io::BufReader::new(&msg[..]);
-
-        let d = decryptor::CardDecryptor::new(card_tx, cert, touch_prompt)?;
 
         let db = DecryptorBuilder::from_reader(reader)?;
         let mut decryptor = db.with_policy(p, None, d)?;

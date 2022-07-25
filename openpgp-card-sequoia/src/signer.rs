@@ -11,9 +11,8 @@ use openpgp::types::{Curve, PublicKeyAlgorithm};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::crypto_data::Hash;
-use openpgp_card::{Error, OpenPgpTransaction};
+use openpgp_card::OpenPgpTransaction;
 
-use crate::sq_util;
 use crate::PublicKey;
 
 pub struct CardSigner<'a, 'app> {
@@ -31,40 +30,6 @@ pub struct CardSigner<'a, 'app> {
 }
 
 impl<'a, 'app> CardSigner<'a, 'app> {
-    /// Try to create a CardSigner.
-    ///
-    /// An Error is returned if no match between the card's signing
-    /// key and a (sub)key of `cert` can be made.
-    pub(crate) fn with_cert(
-        ca: &'a mut OpenPgpTransaction<'app>,
-        cert: &openpgp::Cert,
-        touch_prompt: &'a (dyn Fn() + Send + Sync),
-    ) -> Result<CardSigner<'a, 'app>, Error> {
-        // Get the fingerprint for the signing key from the card.
-        let ard = ca.application_related_data()?;
-        let fps = ard.fingerprints()?;
-        let fp = fps.signature();
-
-        if let Some(fp) = fp {
-            // Transform into Sequoia Fingerprint
-            let fp = openpgp::Fingerprint::from_bytes(fp.as_bytes());
-
-            if let Some(eka) = sq_util::get_subkey_by_fingerprint(cert, &fp)? {
-                let key = eka.key().clone();
-                Ok(Self::with_pubkey(ca, key, touch_prompt))
-            } else {
-                Err(Error::InternalError(format!(
-                    "Failed to find (sub)key {} in cert",
-                    fp
-                )))
-            }
-        } else {
-            Err(Error::InternalError(
-                "Failed to get the signing key's Fingerprint from the card".to_string(),
-            ))
-        }
-    }
-
     pub(crate) fn with_pubkey(
         ca: &'a mut OpenPgpTransaction<'app>,
         public: PublicKey,

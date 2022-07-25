@@ -67,13 +67,8 @@
 //! open.verify_user(b"123456")?;
 //! let mut user = open.user_card().expect("This should not fail");
 //!
-//! // Get decryptor (`cert` must contain a public key that corresponds
-//! // to the key material on the card)
-//! # use sequoia_openpgp::cert::CertBuilder;
-//! # let (cert, _) =
-//! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
-//! #       .generate()?;
-//! let decryptor = user.decryptor(&cert, &|| { println!("Touch confirmation needed for decryption") });
+//! // Get decryptor
+//! let decryptor = user.decryptor(&|| { println!("Touch confirmation needed for decryption") });
 //!
 //! // Perform decryption operation(s)
 //! // ..
@@ -110,13 +105,8 @@
 //! open.verify_user_for_signing(b"123456")?;
 //! let mut user = open.signing_card().expect("This should not fail");
 //!
-//! // Get signer (`cert` must contain a public key that corresponds
-//! // to the key material on the card)
-//! # use sequoia_openpgp::cert::CertBuilder;
-//! # let (cert, _) =
-//! #   CertBuilder::general_purpose(None, Some("alice@example.org"))
-//! #       .generate()?;
-//! let signer = user.signer(&cert, &|| println!("Touch confirmation needed for signing"));
+//! // Get signer
+//! let signer = user.signer(&|| println!("Touch confirmation needed for signing"));
 //!
 //! // Perform signing operation(s)
 //! // ..
