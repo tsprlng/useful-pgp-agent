@@ -65,14 +65,18 @@ pub fn test_decrypt(
         "test_decrypt needs filenames for 'cert' and 'encrypted'"
     );
 
-    let cert = Cert::from_str(param[0])?;
     let msg = param[1].to_string();
 
     pgpt.verify_pw1_user(b"123456")?;
 
     let p = StandardPolicy::new();
 
-    let res = openpgp_card_sequoia::util::decrypt(&mut pgpt, &cert, msg.into_bytes(), &|| {}, &p)?;
+    let mut open = Open::new(pgpt)?;
+
+    let mut user = open.user_card().unwrap();
+    let d = user.decryptor(&|| {})?;
+
+    let res = openpgp_card_sequoia::util::decrypt(d, msg.into_bytes(), &p)?;
     let plain = String::from_utf8_lossy(&res);
 
     assert_eq!(plain, "Hello world!\n");
@@ -94,8 +98,13 @@ pub fn test_sign(
 
     let cert = Cert::from_str(param[0])?;
 
+    let mut open = Open::new(pgpt)?;
+
+    let mut sign = open.signing_card().unwrap();
+    let s = sign.signer(&|| {})?;
+
     let msg = "Hello world, I am signed.";
-    let sig = openpgp_card_sequoia::util::sign(&mut pgpt, &cert, &mut msg.as_bytes(), &|| {})?;
+    let sig = openpgp_card_sequoia::util::sign(s, &mut msg.as_bytes())?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);

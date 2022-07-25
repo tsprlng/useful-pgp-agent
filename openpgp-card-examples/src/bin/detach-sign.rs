@@ -5,22 +5,19 @@ use openpgp_card::OpenPgp;
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::Open;
 
-use openpgp::parse::Parse;
 use openpgp::serialize::stream::{Armorer, Message, Signer};
-use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().collect::<Vec<_>>();
 
-    if args.len() < 3 {
-        eprintln!("Usage: detach-sign card-ident pin-file cert-file");
+    if args.len() < 2 {
+        eprintln!("Usage: detach-sign card-ident pin-file");
         return Ok(());
     }
 
     let card_ident = &args[0];
     let pin_file = &args[1];
-    let cert_file = &args[2];
 
     let mut card = PcscBackend::open_by_ident(card_ident, None)?;
     let mut pgp = OpenPgp::new(&mut card);
@@ -32,9 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     open.verify_user_for_signing(&pin)?;
 
     let mut sign = open.signing_card().unwrap();
-
-    let cert = Cert::from_file(cert_file)?;
-    let s = sign.signer(&cert, &|| println!("Touch confirmation needed for signing"))?;
+    let s = sign.signer(&|| println!("Touch confirmation needed for signing"))?;
 
     let stdout = std::io::stdout();
 

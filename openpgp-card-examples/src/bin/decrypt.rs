@@ -7,20 +7,18 @@ use openpgp_card_sequoia::card::Open;
 
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
 use openpgp::policy::StandardPolicy;
-use openpgp::Cert;
 use sequoia_openpgp as openpgp;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().collect::<Vec<_>>();
 
-    if args.len() < 3 {
-        eprintln!("Usage: decrypt card-ident pin-file cert-file");
+    if args.len() < 2 {
+        eprintln!("Usage: decrypt card-ident pin-file");
         return Ok(());
     }
 
     let card_ident = &args[0];
     let pin_file = &args[1];
-    let cert_file = &args[2];
 
     let mut card = PcscBackend::open_by_ident(card_ident, None)?;
     let mut pgp = OpenPgp::new(&mut card);
@@ -34,10 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut user = open.user_card().unwrap();
 
     let p = StandardPolicy::new();
-    let cert = Cert::from_file(cert_file)?;
-    let d = user.decryptor(&cert, &|| {
-        println!("Touch confirmation needed for decryption")
-    })?;
+
+    let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
     let stdin = std::io::stdin();
 
     let mut stdout = std::io::stdout();
