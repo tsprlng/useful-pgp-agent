@@ -132,7 +132,7 @@ Touch policy attestation: Cached [Features: Button]
 Key Status (#129): imported
 ```
 
-The `-p` flag additionally outputs the raw public key data for each key slot.
+The `--public-key-material` flag additionally outputs the raw public key data for each key slot.
 
 ### Get an OpenPGP public key representation from a card
 
@@ -172,7 +172,7 @@ nvraDw==
 You can query a specific card
 
 ```
-$ opgpcard pubkey -c ABCD:01234567
+$ opgpcard pubkey --card ABCD:01234567
 ```
 
 And/or pass the User PIN as a file, for non-interactive use:
@@ -308,7 +308,7 @@ E.g., when the touch policy is set to `On` for the `SIG` key slot, then every si
 confirmation:
 
 ```
-opgpcard admin -c ABCD:01234567 touch --key SIG --policy On
+opgpcard admin --card ABCD:01234567 touch --key SIG --policy On
 ```
 
 Valid values for the key slot are: `SIG`, `DEC`, `AUT`, `ATT` (some cards only support the first three).
@@ -328,25 +328,25 @@ Set cardholder name, with interactive PIN input
 (either on the host computer, or via a smartcard reader pinpad):
 
 ```
-$ opgpcard admin -c ABCD:01234567 name "Alice Adams"
+$ opgpcard admin --card ABCD:01234567 name "Alice Adams"
 ```
 
 Set cardholder name, with a pin file, non-interactively:
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Alice Adams"
+$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> name "Alice Adams"
 ```
 
 #### Set cardholder URL
 
 ```
-$ opgpcard admin -c ABCD:01234567 url "https://key.url.example"
+$ opgpcard admin --card ABCD:01234567 url "https://key.url.example"
 ```
 
 or non-interactively:
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> url "https://key.url.example"
+$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> url "https://key.url.example"
 ```
 
 
@@ -359,7 +359,7 @@ If the fingerprint of your certificate is `0123456789ABCDEF0123456789ABCDEF01234
 as follows:
 
 ```
-$ opgpcard admin -c FFFE:12345678 url "https://keys.openpgp.org/vks/v1/by-fingerprint/0123456789ABCDEF0123456789ABCDEF01234567"
+$ opgpcard admin --card FFFE:12345678 url "https://keys.openpgp.org/vks/v1/by-fingerprint/0123456789ABCDEF0123456789ABCDEF01234567"
 ```
 
 ##### Other URLs
@@ -378,13 +378,13 @@ Import private key onto a card. This works if at most one (sub)key per role
 (sign, decrypt, auth) exists in `key.priv`:
 
 ```
-$ opgpcard admin -c ABCD:01234567 import key.priv
+$ opgpcard admin --card ABCD:01234567 import key.priv
 ```
 
 or non-interactively
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv
+$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> import key.priv
 ```
 
 Import private key onto a card while explicitly selecting subkeys. Explicitly
@@ -392,7 +392,7 @@ specified fingerprints are necessary if more than one subkey exists
 in `key.priv` for any role (spaces in fingerprints are ignored).
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv \
+$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> import key.priv \
  --sig-fp "F290 DBBF 21DB 8634 3C96  157B 87BE 15B7 F548 D97C" \
  --dec-fp "3C6E 08F6 7613 8935 8B8D  7666 73C7 F1A9 EEDA C360" \
  --auth-fp "D6AA 48EF 39A2 6F26 C42D  5BCB AAD2 14D5 5332 C838"
@@ -409,13 +409,13 @@ The User PIN can be provided with the `-p <user-pin-file>`, or interactively on 
 reader pinpad.
 
 ```
-$ opgpcard admin -c ABCD:01234567 generate -o <output-cert-file> 25519
+$ opgpcard admin --card ABCD:01234567 generate --output <output-cert-file> 25519
 ```
 
 or non-interactively
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> -o <output-cert-file> 25519
+$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> --output <output-cert-file> 25519
 ```
 
 Output will look like:
@@ -455,13 +455,13 @@ For now, this tool only supports creating detached signatures, like this
 (if no input file is set, stdin is read):
 
 ```
-$ opgpcard sign --detached -c ABCD:01234567 <input-file>
+$ opgpcard sign --detached --card ABCD:01234567 <input-file>
 ```
 
 or non-interactively
 
 ```
-$ opgpcard sign --detached -c ABCD:01234567 -p <user-pin-file> <input-file>
+$ opgpcard sign --detached --card ABCD:01234567 -p <user-pin-file> <input-file>
 ```
 
 ### Decrypting
@@ -469,13 +469,13 @@ $ opgpcard sign --detached -c ABCD:01234567 -p <user-pin-file> <input-file>
 Decryption using a card (if no input file is set, stdin is read):
 
 ```
-$ opgpcard decrypt -c ABCD:01234567 <input-file>
+$ opgpcard decrypt --card ABCD:01234567 <input-file>
 ```
 
 or non-interactively
 
 ```
-$ opgpcard decrypt -c ABCD:01234567 -p <user-pin-file> <input-file>
+$ opgpcard decrypt --card ABCD:01234567 -p <user-pin-file> <input-file>
 ```
 
 ### PIN management
@@ -518,13 +518,13 @@ On unconfigured (or factory reset) cards, the Resetting Code is typically unset.
 Setting a new User PIN requires the Admin PIN:
 
 ```
-$ opgpcard pin -c ABCD:01234567 set-user
+$ opgpcard pin --card ABCD:01234567 set-user
 ```
 
 For non-interactive PIN change:
 
 ```
-$ opgpcard pin -c ABCD:01234567 set-user -p <old-user-pin-file> -q <new-user-pin-file>
+$ opgpcard pin --card ABCD:01234567 set-user -p <old-user-pin-file> -q <new-user-pin-file>
 ```
 
 #### Set new Admin PIN
@@ -532,13 +532,13 @@ $ opgpcard pin -c ABCD:01234567 set-user -p <old-user-pin-file> -q <new-user-pin
 This requires the (previous) Admin PIN.
 
 ```
-$ opgpcard pin -c ABCD:01234567 set-admin
+$ opgpcard pin --card ABCD:01234567 set-admin
 ```
 
 For non-interactive PIN change:
 
 ```
-$ opgpcard pin -c ABCD:01234567 set-admin -P <old-admin-pin-file> -Q <new-admin-pin-file>
+$ opgpcard pin --card ABCD:01234567 set-admin -P <old-admin-pin-file> -Q <new-admin-pin-file>
 ```
 
 #### Reset User PIN with Admin PIN
@@ -548,13 +548,13 @@ This is possible at any time, including when a wrong User PIN has been entered t
 and the card refuses to accept the User PIN anymore.
 
 ```
-$ opgpcard pin -c ABCD:01234567 reset-user
+$ opgpcard pin --card ABCD:01234567 reset-user
 ```
 
 For non-interactive PIN change:
 
 ```
-$ opgpcard pin -c ABCD:01234567 reset-user -P <admin-pin-file> -p <new-user-pin-file>
+$ opgpcard pin --card ABCD:01234567 reset-user -P <admin-pin-file> -p <new-user-pin-file>
 ```
 
 #### Configuring the resetting code
@@ -565,13 +565,13 @@ You can set the resetting code after verifying the Admin PIN. Once a resetting c
 you can use that code to reset the User PIN without needing the Admin PIN.
 
 ```
-$ opgpcard pin -c ABCD:01234567 set-reset
+$ opgpcard pin --card ABCD:01234567 set-reset
 ```
 
 To non-interactively set the resetting code:
 
 ```
-$ opgpcard pin -c ABCD:01234567 set-reset -P <admin-pin-file> -r <resetting-code-file>
+$ opgpcard pin --card ABCD:01234567 set-reset -P <admin-pin-file> -r <resetting-code-file>
 ```
 
 #### Reset User PIN with the resetting code
@@ -579,7 +579,7 @@ $ opgpcard pin -c ABCD:01234567 set-reset -P <admin-pin-file> -r <resetting-code
 If a resetting code is configured on a card, you can use that code to reset the User PIN:
 
 ```
-$ opgpcard pin -c ABCD:01234567 reset-user-rc
+$ opgpcard pin --card ABCD:01234567 reset-user-rc
 Enter resetting code:
 Enter new User PIN:
 Repeat the new User PIN:
@@ -590,7 +590,7 @@ User PIN has been set.
 To non-interactively use the resetting code:
 
 ```
-$ opgpcard pin -c ABCD:01234567 reset-user-rc -r <resetting-code-file> -p <new-user-pin-file>
+$ opgpcard pin --card ABCD:01234567 reset-user-rc -r <resetting-code-file> -p <new-user-pin-file>
 ```
 
 ### Factory reset
@@ -598,7 +598,7 @@ $ opgpcard pin -c ABCD:01234567 reset-user-rc -r <resetting-code-file> -p <new-u
 Factory reset:
 
 ```
-$ opgpcard factory-reset -c ABCD:01234567
+$ opgpcard factory-reset --card ABCD:01234567
 ```
 
 NOTE: you do not need a PIN to reset a card!
@@ -610,11 +610,11 @@ When using a shell like
 , you can pass User- and/or Admin PINs via file-descriptors (instead of from a file on disk):
 
 ```
-$ opgpcard sign --detached -c ABCD:01234567 -p /dev/fd/3 3<<<123456
+$ opgpcard sign --detached --card ABCD:01234567 -p /dev/fd/3 3<<<123456
 ```
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P /dev/fd/3 generate -p /dev/fd/4 -o <output-cert-file> 25519 3<<<12345678 4<<<123456
+$ opgpcard admin --card ABCD:01234567 -P /dev/fd/3 generate -p /dev/fd/4 --output <output-cert-file> 25519 3<<<12345678 4<<<123456
 ```
 
 ### Directly entering PINs on card readers with pinpad
@@ -660,7 +660,7 @@ It's not possible to generate attestation statements for key material that was i
 To generate an attestation statement, run:
 
 ```
-$ opgpcard attestation generate --key SIG -c 0006:01234567
+$ opgpcard attestation generate --key SIG --card 0006:01234567
 ```
 
 Supported values for `--key` are `SIG`, `DEC` and `AUT`.
