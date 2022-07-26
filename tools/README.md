@@ -293,12 +293,12 @@ used in a smartcard reader that has a pinpad.
 
 #### Set touch policy
 
-Cards can require a type of confirmation before cryptographic operations are performed
-(the feature is often implemented as a mechanical button on the card).
+Cards can require confirmation by the user before cryptographic operations are performed
+(this confirmation feature is often implemented as a mechanical button on the card).
 
-Not all cards implement this feature.
+However, not all cards implement this feature.
 
-Rationale: when the card requires touch confirmation, an attacker who gains control of the user's host computer
+Rationale: when a card requires touch confirmation, an attacker who gains control of the user's host computer
 cannot perform cryptographic operations on the card at will - even after they learn the user's PINs.
 
 This feature is configured per key slot. The user can choose to require (or not require) touch confirmation separately
@@ -324,12 +324,6 @@ Some cards only support a subset of these.
 
 #### Set cardholder name
 
-Set cardholder name, with pin file:
-
-```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Alice Adams"
-```
-
 Set cardholder name, with interactive PIN input
 (either on the host computer, or via a smartcard reader pinpad):
 
@@ -337,28 +331,36 @@ Set cardholder name, with interactive PIN input
 $ opgpcard admin -c ABCD:01234567 name "Alice Adams"
 ```
 
+Set cardholder name, with a pin file, non-interactively:
+
+```
+$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> name "Alice Adams"
+```
+
 #### Set cardholder URL
-
-```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> url "https://key.url.example"
-```
-
-or interactively
 
 ```
 $ opgpcard admin -c ABCD:01234567 url "https://key.url.example"
 ```
 
+or non-interactively:
+
+```
+$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> url "https://key.url.example"
+```
+
 
 ##### Using `keys.openpgp.org` for the URL
 
-If you have uploaded (or plan to upload) your certificate to the `keys.openpgp.org` keyserver, you can set the URL
-field on your card to point to that server:
+If you have uploaded (or plan to upload) your certificate (your public key) to the `keys.openpgp.org` keyserver,
+you can point the URL field on your card there:
 
 If the fingerprint of your certificate is `0123456789ABCDEF0123456789ABCDEF01234567`, then you can set the URL
 as follows:
 
-`$ opgpcard admin -c FFFE:12345678 url "https://keys.openpgp.org/vks/v1/by-fingerprint/0123456789ABCDEF0123456789ABCDEF01234567"`
+```
+$ opgpcard admin -c FFFE:12345678 url "https://keys.openpgp.org/vks/v1/by-fingerprint/0123456789ABCDEF0123456789ABCDEF01234567"
+```
 
 ##### Other URLs
 
@@ -376,18 +378,18 @@ Import private key onto a card. This works if at most one (sub)key per role
 (sign, decrypt, auth) exists in `key.priv`:
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv
-```
-
-or interactively
-
-```
 $ opgpcard admin -c ABCD:01234567 import key.priv
+```
+
+or non-interactively
+
+```
+$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv
 ```
 
 Import private key onto a card while explicitly selecting subkeys. Explicitly
 specified fingerprints are necessary if more than one subkey exists
-in `key.priv` for any role (note: spaces in fingerprints are ignored).
+in `key.priv` for any role (spaces in fingerprints are ignored).
 
 ```
 $ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> import key.priv \
@@ -407,13 +409,13 @@ The User PIN can be provided with the `-p <user-pin-file>`, or interactively on 
 reader pinpad.
 
 ```
-$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> -o <output-cert-file> 25519
-```
-
-or interactively
-
-```
 $ opgpcard admin -c ABCD:01234567 generate -o <output-cert-file> 25519
+```
+
+or non-interactively
+
+```
+$ opgpcard admin -c ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> -o <output-cert-file> 25519
 ```
 
 Output will look like:
@@ -453,13 +455,13 @@ For now, this tool only supports creating detached signatures, like this
 (if no input file is set, stdin is read):
 
 ```
-$ opgpcard sign --detached -c ABCD:01234567 -p <user-pin-file> <input-file>
-```
-
-or interactively
-
-```
 $ opgpcard sign --detached -c ABCD:01234567 <input-file>
+```
+
+or non-interactively
+
+```
+$ opgpcard sign --detached -c ABCD:01234567 -p <user-pin-file> <input-file>
 ```
 
 ### Decrypting
@@ -467,20 +469,20 @@ $ opgpcard sign --detached -c ABCD:01234567 <input-file>
 Decryption using a card (if no input file is set, stdin is read):
 
 ```
-$ opgpcard decrypt -c ABCD:01234567 -p <user-pin-file> <input-file>
-```
-
-or interactively
-
-```
 $ opgpcard decrypt -c ABCD:01234567 <input-file>
+```
+
+or non-interactively
+
+```
+$ opgpcard decrypt -c ABCD:01234567 -p <user-pin-file> <input-file>
 ```
 
 ### PIN management
 
 OpenPGP cards use PINs (numerical passwords) to verify that a user is allowed to perform an operation.
 
-To use the cryptographic operations on a card (such as decryption or signing), the *User PIN* is required.
+To use cryptographic operations on a card (such as decryption or signing), the *User PIN* is required.
 
 To configure a card (for example to import OpenPGP key material into the card's key slots), the *Admin PIN* is needed.
 
@@ -536,13 +538,14 @@ $ opgpcard pin -c ABCD:01234567 set-admin
 For non-interactive PIN change:
 
 ```
-$ opgpcard pin -c ABCD:01234567 set-admin -p <old-admin-pin-file> -q <new-admin-pin-file>
+$ opgpcard pin -c ABCD:01234567 set-admin -P <old-admin-pin-file> -Q <new-admin-pin-file>
 ```
 
 #### Reset User PIN with Admin PIN
 
 The User PIN can be reset to a different (or the same) PIN by providing the Admin PIN.
-This is possible at any time, including when a wrong User PIN has been entered too often, and the card refuses to accept the User PIN any more.
+This is possible at any time, including when a wrong User PIN has been entered too often,
+and the card refuses to accept the User PIN anymore.
 
 ```
 $ opgpcard pin -c ABCD:01234567 reset-user
@@ -607,7 +610,7 @@ When using a shell like
 , you can pass User- and/or Admin PINs via file-descriptors (instead of from a file on disk):
 
 ```
-$ opgpcard sign --detached -c ABCD:01234567 -p /dev/fd/3 -s <cert-file> 3<<<123456
+$ opgpcard sign --detached -c ABCD:01234567 -p /dev/fd/3 3<<<123456
 ```
 
 ```
@@ -630,7 +633,7 @@ This feature is available on YubiKey 5 devices with firmware version 5.2 or newe
 
 #### Attestation key/certificate
 
-*"The YubiKey is pre-loaded with an attestation certificate and matching attestation key issued by the Yubico CA.
+*"The YubiKey is preloaded with an attestation certificate and matching attestation key issued by the Yubico CA.
 The template and key are replaceable, which permits an individual or organization to issue attestations verifiable 
 with their own CA if they prefer. If replaced, the Yubico template can never be restored."*
 
@@ -657,12 +660,12 @@ It's not possible to generate attestation statements for key material that was i
 To generate an attestation statement, run:
 
 ```
-$ opgpcard attestation generate --key SIG -c 0006:12345678
+$ opgpcard attestation generate --key SIG -c 0006:01234567
 ```
 
 Supported values for `--key` are `SIG`, `DEC` and `AUT`.
 
-Generation of an attestation requires the User PIN. By default it also requires touch confirmation
+Generation of an attestation requires the User PIN. By default, it also requires touch confirmation
 (the touch policy configuration for the attestation key slot is set to `On` by default).
 
 #### Viewing an attestation statement
