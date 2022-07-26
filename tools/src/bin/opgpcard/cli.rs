@@ -31,7 +31,7 @@ pub enum Command {
         verbose: bool,
 
         /// Print public key material for each key slot
-        #[clap(name = "pkm", short = 'p', long = "public-key-material")]
+        #[clap(name = "pkm", short = 'K', long = "public-key-material")]
         pkm: bool,
     },
 
