@@ -3,7 +3,7 @@
 
 //! Client library for
 //! [OpenPGP card](https://en.wikipedia.org/wiki/OpenPGP_card)
-//! devices (such as Gnuk, Yubikey, or Java smartcards running an OpenPGP
+//! devices (such as Gnuk, YubiKey, or Java smartcards running an OpenPGP
 //! card application).
 //!
 //! This library aims to offer

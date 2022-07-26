@@ -187,7 +187,7 @@ impl TryFrom<&[u8]> for HistoricalBytes {
 
         // Ignore final two (status) bytes:
         // according to the spec, they 'normally' show [0x90, 0x0] - but
-        // Yubikey Neo shows [0x0, 0x0].
+        // YubiKey Neo shows [0x0, 0x0].
         // It's unclear if these status bytes are ever useful to process?
 
         let cc = cc.map(CardCapabilities::from);

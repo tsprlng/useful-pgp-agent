@@ -293,7 +293,7 @@ pub(crate) fn determine_ecc_attrs(
         // Note: Looking up ecc_type in the card's "Algorithm Information"
         // seems to do more harm than good, so we don't do it.
         // Some cards report erroneous information about supported algorithms
-        // - e.g. Yubikey 5 reports support for EdDSA over Cv25519 and
+        // - e.g. YubiKey 5 reports support for EdDSA over Cv25519 and
         // Ed25519, but not ECDH.
         //
         // We do however, use import_format from algorithm information.

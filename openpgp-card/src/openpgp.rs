@@ -214,10 +214,10 @@ impl<'a> OpenPgpTransaction<'a> {
     /// [`set_cardholder_certificate`](OpenPgpTransaction::set_cardholder_certificate)
     /// in OpenPGP card.
     ///
-    /// `yk_workaround`: Yubikey 5 up to (and including) firmware version 5.4.3 need a workaround
+    /// `yk_workaround`: YubiKey 5 up to (and including) firmware version 5.4.3 need a workaround
     /// for this command. Set to `true` to apply this workaround.
     /// (When sending the SELECT DATA command as defined in the card spec, without enabling the
-    /// workaround, bad Yubikey firmware versions (<= 5.4.3) return
+    /// workaround, bad YubiKey firmware versions (<= 5.4.3) return
     /// [`IncorrectParametersCommandDataField`](StatusBytes::IncorrectParametersCommandDataField))
     ///
     /// (This library leaves it up to consumers to decide on a strategy for dealing with this
@@ -241,7 +241,7 @@ impl<'a> OpenPgpTransaction<'a> {
         let mut data = tlv.serialize();
 
         if yk_workaround {
-            // Workaround for Yubikey 5.
+            // Workaround for YubiKey 5.
             // This hack is needed <= 5.4.3 according to ykman sources
             // (see _select_certificate() in ykman/openpgp.py).
 

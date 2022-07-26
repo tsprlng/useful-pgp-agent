@@ -626,7 +626,7 @@ be prompted to enter the user or Admin PINs where needed.
 Yubico implements a [proprietary extension](https://developers.yubico.com/PGP/Attestation.html) to the OpenPGP card
 standard to *"cryptographically certify that a certain asymmetric key has been generated on device, and not imported"*.
 
-This feature is available on Yubikey 5 devices with firmware version 5.2 or newer.
+This feature is available on YubiKey 5 devices with firmware version 5.2 or newer.
 
 #### Attestation key/certificate
 
@@ -634,7 +634,7 @@ This feature is available on Yubikey 5 devices with firmware version 5.2 or newe
 The template and key are replaceable, which permits an individual or organization to issue attestations verifiable 
 with their own CA if they prefer. If replaced, the Yubico template can never be restored."*
 
-This tool does not currently support replacing the attestation key on a Yubikey.
+This tool does not currently support replacing the attestation key on a YubiKey.
 It only supports use of the Yubico-provided attestation key to generate "attestation statements".
 
 The attestation certificate on a card can be inspected as follows:
@@ -667,7 +667,7 @@ Generation of an attestation requires the User PIN. By default it also requires 
 
 #### Viewing an attestation statement
 
-When the Yubikey generates an attestation statement, it gets stored in a `cardholder certificate` data object on the card.
+When the YubiKey generates an attestation statement, it gets stored in a `cardholder certificate` data object on the card.
 
 After an attestation statement has been generated, it can be read from the card and viewed in pem-encoded format:
 

@@ -128,7 +128,7 @@ mod test {
 
     #[test]
     fn test_yk5() {
-        // Yubikey 5
+        // YubiKey 5
         let data = hex!("7d 00 0b fe 08 00 00 ff 00 00");
 
         let ec = ExtendedCapabilities::try_from((&data[..], 0x0304)).unwrap();

@@ -45,12 +45,12 @@ behavior.
 
 ## Example for card-specific behavior that contradicts the spec
 
-Yubikey 5 fails to handle the VERIFY command with empty data
+YubiKey 5 fails to handle the VERIFY command with empty data
 (see OpenPGP card spec, 7.2.2: "If the command is called
 without data, the actual access status of the addressed password is
 returned or the access status is set to 'not verified'").
 
-The Yubikey 5 erroneously returns Status 0x6a80 ("Incorrect parameters in
+The YubiKey 5 erroneously returns Status 0x6a80 ("Incorrect parameters in
 the command data field").
 
 

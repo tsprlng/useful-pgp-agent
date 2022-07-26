@@ -20,4 +20,4 @@ Built-Using: ${cargo:Built-Using}
 Description: tool to manage OpenPGP hardware tokens
  The opgpcard tool allows you to inspect, configure, administer,
  factory reset, and generally manage OpenPGP cards (hardware tokens),
- such as Gnuk, Yubikeys, Nitrokeys, and similar.
+ such as Gnuk, YubiKeys, Nitrokeys, and similar.
