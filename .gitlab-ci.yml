@@ -117,10 +117,10 @@ run_cardtest_smartpgp:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
-    - cargo run -p openpgp-card-tools --bin opgpcard -- status
-    - cargo run -p openpgp-card-tools --bin opgpcard -- info
-    - cargo run -p openpgp-card-tests --bin import -- $CONFIG
-    - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
     CONFIG: "card-functionality/ci/virt-smartpgp.toml"
   cache:
@@ -136,10 +136,10 @@ run_cardtest_ykneo:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
-    - cargo run -p openpgp-card-tools --bin opgpcard -- status
-    - cargo run -p openpgp-card-tools --bin opgpcard -- info
-    - cargo run -p openpgp-card-tests --bin import -- $CONFIG
-    - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
     CONFIG: "card-functionality/ci/virt-ykneo.toml"
   cache:
@@ -155,10 +155,10 @@ run_cardtest_fluffypgp:
   script:
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
-    - cargo run -p openpgp-card-tools --bin opgpcard -- status
-    - cargo run -p openpgp-card-tools --bin opgpcard -- info
-    - cargo run -p openpgp-card-tests --bin import -- $CONFIG
-    - cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
     CONFIG: "card-functionality/ci/virt-fluffypgp.toml"
   cache:
@@ -204,9 +204,7 @@ hardware-builddeps:
           - "card-functionality/ci/nitro-pro2.toml"
           - "card-functionality/ci/nitro-start.toml"
   script:
-    #- /etc/init.d/pcscd start
-    #- sleep 5
-    - RUST_LOG=debug cargo run --bin $ARG -- $CONFIG
+    - RUST_BACKTRACE=1 RUST_LOG=debug cargo run --bin $ARG -- $CONFIG
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
