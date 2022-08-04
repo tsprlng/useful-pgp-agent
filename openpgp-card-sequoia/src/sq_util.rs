@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use std::io;
 
 use openpgp::armor;
-use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
+use openpgp::cert::amalgamation::key::{ErasedKeyAmalgamation, ValidErasedKeyAmalgamation};
 use openpgp::crypto;
 use openpgp::packet::key::{PublicParts, SecretParts};
 use openpgp::parse::{
@@ -22,7 +22,6 @@ use openpgp::{Cert, Fingerprint};
 use sequoia_openpgp as openpgp;
 
 use openpgp_card::{Error, KeyType};
-use sequoia_openpgp::cert::amalgamation::key::ErasedKeyAmalgamation;
 
 /// Retrieve a (sub)key from a Cert, for a given KeyType.
 ///
