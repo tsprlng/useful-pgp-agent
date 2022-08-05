@@ -5,7 +5,7 @@
 name = "openpgp-card-tools"
 description = "CLI tools for OpenPGP cards"
 license = "MIT OR Apache-2.0"
-version = "0.0.12"
+version = "0.0.13"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 edition = "2018"
 repository = "https://gitlab.com/openpgp-card/openpgp-card"
@@ -20,6 +20,6 @@ sshkeys = "0.3.2"
 pem = "1"
 rpassword = "6"
 anyhow = "1"
-clap = { version = "3.1", features = ["derive"] }
+clap = { version = "3", features = ["derive"] }
 env_logger = "0.9"
 log = "0.4"
