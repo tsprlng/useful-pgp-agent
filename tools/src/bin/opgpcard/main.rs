@@ -5,10 +5,14 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 
+use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
+use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
+use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::parse::{stream::DecryptorBuilder, Parse};
-use sequoia_openpgp::policy::StandardPolicy;
+use sequoia_openpgp::policy::{Policy, StandardPolicy};
 use sequoia_openpgp::serialize::stream::{Armorer, Message, Signer};
 use sequoia_openpgp::serialize::SerializeInto;
+use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
@@ -21,7 +25,6 @@ use openpgp_card_sequoia::util::{
 use openpgp_card_sequoia::{sq_util, PublicKey};
 
 use crate::util::{load_pin, print_gnuk_note};
-use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use std::io::Write;
 
 mod cli;
@@ -191,15 +194,104 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     auth_fp,
                 } => {
                     let key = Cert::from_file(keyfile)?;
-                    let admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
-                    if (&sig_fp, &dec_fp, &auth_fp) == (&None, &None, &None) {
-                        // If no fingerprint has been provided, we check if
-                        // there is zero or one (sub)key for each keytype,
-                        // and if so, import these keys to the card.
-                        key_import_yolo(admin, &key)?;
-                    } else {
-                        key_import_explicit(admin, &key, sig_fp, dec_fp, auth_fp)?;
+                    let p = StandardPolicy::new();
+
+                    // select the (sub)keys to upload
+                    let [sig, dec, auth] = match (&sig_fp, &dec_fp, &auth_fp) {
+                        // No fingerprint has been provided, try to autoselect keys
+                        // (this fails if there is more than one (sub)key for any keytype).
+                        (&None, &None, &None) => keys_pick_yolo(&key, &p)?,
+
+                        _ => keys_pick_explicit(&key, &p, sig_fp, dec_fp, auth_fp)?,
+                    };
+
+                    let mut pws: Vec<String> = vec![];
+
+                    // helper: true, if `pw` decrypts `key`
+                    let pw_ok = |key: &Key<SecretParts, UnspecifiedRole>, pw: &str| {
+                        key.clone()
+                            .decrypt_secret(&sequoia_openpgp::crypto::Password::from(pw))
+                            .is_ok()
+                    };
+
+                    // helper: if any password in `pws` decrypts `key`, return that password
+                    let find_pw = |key: &Key<SecretParts, UnspecifiedRole>, pws: &[String]| {
+                        pws.iter().find(|pw| pw_ok(key, pw)).cloned()
+                    };
+
+                    // helper: check if we have the right password for `key` in `pws`,
+                    // if so return it. otherwise ask the user for the password,
+                    // add it to `pws` and return it.
+                    let mut get_pw_for_key =
+                        |key: &Option<ValidErasedKeyAmalgamation<SecretParts>>,
+                         key_type: &str|
+                         -> Result<Option<String>> {
+                            if let Some(k) = key {
+                                if !k.has_secret() {
+                                    // key has no secret key material, it can't be imported
+                                    return Err(anyhow!(
+                                        "(Sub)Key {} contains no private key material",
+                                        k.fingerprint()
+                                    ));
+                                }
+
+                                if k.has_unencrypted_secret() {
+                                    // key is unencrypted, we need no password
+                                    return Ok(None);
+                                }
+
+                                // key is encrypted, we need the password
+
+                                // do we already have the right password?
+                                if let Some(pw) = find_pw(k, &pws) {
+                                    return Ok(Some(pw));
+                                }
+
+                                // no, we need to get the password from user
+                                let pw = rpassword::prompt_password(format!(
+                                    "Enter password for {} (sub)key {}:",
+                                    key_type,
+                                    k.fingerprint()
+                                ))?;
+
+                                if pw_ok(k, &pw) {
+                                    // remember pw for next subkeys
+                                    pws.push(pw.clone());
+
+                                    Ok(Some(pw))
+                                } else {
+                                    // this password doesn't work, error out
+                                    Err(anyhow!(
+                                        "Password not valid for (Sub)Key {}",
+                                        k.fingerprint()
+                                    ))
+                                }
+                            } else {
+                                // we have no key for this slot, so we don't need a password
+                                Ok(None)
+                            }
+                        };
+
+                    // get passwords, if encrypted (try previous pw before asking for user input)
+                    let sig_p = get_pw_for_key(&sig, "signing")?;
+                    let dec_p = get_pw_for_key(&dec, "decryption")?;
+                    let auth_p = get_pw_for_key(&auth, "authentication")?;
+
+                    // upload keys to card
+                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
+
+                    if let Some(sig) = sig {
+                        println!("Uploading {} as signing key", sig.fingerprint());
+                        admin.upload_key(sig, KeyType::Signing, sig_p)?;
+                    }
+                    if let Some(dec) = dec {
+                        println!("Uploading {} as decryption key", dec.fingerprint());
+                        admin.upload_key(dec, KeyType::Decryption, dec_p)?;
+                    }
+                    if let Some(auth) = auth {
+                        println!("Uploading {} as authentication key", auth.fingerprint());
+                        admin.upload_key(auth, KeyType::Authentication, auth_p)?;
                     }
                 }
                 cli::AdminCommand::Generate {
@@ -935,68 +1027,32 @@ fn factory_reset(ident: &str) -> Result<()> {
     open.factory_reset().map_err(|e| anyhow!(e))
 }
 
-fn key_import_yolo(mut admin: Admin, key: &Cert) -> Result<()> {
-    let p = StandardPolicy::new();
+fn keys_pick_yolo<'a>(
+    key: &'a Cert,
+    policy: &'a dyn Policy,
+) -> Result<[Option<ValidErasedKeyAmalgamation<'a, SecretParts>>; 3]> {
+    let key_by_type = |kt| sq_util::subkey_by_type(key, policy, kt);
 
-    let sig = sq_util::subkey_by_type(key, &p, KeyType::Signing)?;
-
-    let dec = sq_util::subkey_by_type(key, &p, KeyType::Decryption)?;
-
-    let auth = sq_util::subkey_by_type(key, &p, KeyType::Authentication)?;
-
-    if let Some(sig) = sig {
-        println!("Uploading {} as signing key", sig.fingerprint());
-        admin.upload_key(sig, KeyType::Signing, None)?;
-    }
-    if let Some(dec) = dec {
-        println!("Uploading {} as decryption key", dec.fingerprint());
-        admin.upload_key(dec, KeyType::Decryption, None)?;
-    }
-    if let Some(auth) = auth {
-        println!("Uploading {} as authentication key", auth.fingerprint());
-        admin.upload_key(auth, KeyType::Authentication, None)?;
-    }
-
-    Ok(())
+    Ok([
+        key_by_type(KeyType::Signing)?,
+        key_by_type(KeyType::Decryption)?,
+        key_by_type(KeyType::Authentication)?,
+    ])
 }
 
-fn key_import_explicit(
-    mut admin: Admin,
-    key: &Cert,
+fn keys_pick_explicit<'a>(
+    key: &'a Cert,
+    policy: &'a dyn Policy,
     sig_fp: Option<String>,
     dec_fp: Option<String>,
     auth_fp: Option<String>,
-) -> Result<()> {
-    let p = StandardPolicy::new();
+) -> Result<[Option<ValidErasedKeyAmalgamation<'a, SecretParts>>; 3]> {
+    let key_by_fp = |fp: Option<String>| match fp {
+        Some(fp) => sq_util::private_subkey_by_fingerprint(key, policy, &fp),
+        None => Ok(None),
+    };
 
-    if let Some(sig_fp) = sig_fp {
-        if let Some(sig) = sq_util::private_subkey_by_fingerprint(key, &p, &sig_fp)? {
-            println!("Uploading {} as signing key", sig.fingerprint());
-            admin.upload_key(sig, KeyType::Signing, None)?;
-        } else {
-            println!("ERROR: Couldn't find {} as signing key", sig_fp);
-        }
-    }
-
-    if let Some(dec_fp) = dec_fp {
-        if let Some(dec) = sq_util::private_subkey_by_fingerprint(key, &p, &dec_fp)? {
-            println!("Uploading {} as decryption key", dec.fingerprint());
-            admin.upload_key(dec, KeyType::Decryption, None)?;
-        } else {
-            println!("ERROR: Couldn't find {} as decryption key", dec_fp);
-        }
-    }
-
-    if let Some(auth_fp) = auth_fp {
-        if let Some(auth) = sq_util::private_subkey_by_fingerprint(key, &p, &auth_fp)? {
-            println!("Uploading {} as authentication key", auth.fingerprint());
-            admin.upload_key(auth, KeyType::Authentication, None)?;
-        } else {
-            println!("ERROR: Couldn't find {} as authentication key", auth_fp);
-        }
-    }
-
-    Ok(())
+    Ok([key_by_fp(sig_fp)?, key_by_fp(dec_fp)?, key_by_fp(auth_fp)?])
 }
 
 fn get_cert(
