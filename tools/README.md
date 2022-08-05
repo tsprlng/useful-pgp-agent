@@ -401,6 +401,12 @@ $ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> import key.priv \
 When fingerprints are only specified for a subset of the roles, no keys will
 be imported for the other roles.
 
+If the private (sub)keys in the import file are password protected, the user will be prompted to enter
+the password. If (sub)keys are encrypted with different passwords, the user will be prompted multiple times.
+(Background: OpenPGP keys can be password protected when they are stored in files, but on an OpenPGP card
+the keys always exist in unencrypted form. Therefore, they need to be decrypted for import.)
+
+
 #### Generate Keys on the card
 
 Key generation needs both the Admin PIN and the User PIN (the User PIN is needed to export the new key as a public key).
