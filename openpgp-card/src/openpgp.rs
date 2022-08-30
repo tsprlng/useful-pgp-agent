@@ -141,6 +141,16 @@ impl<'a> OpenPgpTransaction<'a> {
     ///
     /// Call select_data() before calling this fn to select a particular
     /// certificate (if the card supports multiple certificates).
+    ///
+    /// According to the OpenPGP card specification:
+    ///
+    /// The cardholder certificate DOs are designed to store a certificate (e. g. X.509)
+    /// for the keys in the card. They can be used to identify the card in a client-server
+    /// authentication, where specific non-OpenPGP-certificates are needed, for S-MIME and
+    /// other x.509 related functions.
+    ///
+    /// (See https://support.nitrokey.com/t/nitrokey-pro-and-pkcs-11-support-on-linux/160/4
+    /// for some discussion of the `cardholder certificate` OpenPGP card feature)
     #[allow(dead_code)]
     pub fn cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: cardholder_certificate");
