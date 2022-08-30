@@ -507,7 +507,7 @@ impl Display for KeyInformation {
 
 /// KeyStatus is contained in `KeyInformation`. It encodes if key material on a card was imported
 /// or generated on the card.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
 pub enum KeyStatus {
     NotPresent,
@@ -558,7 +558,7 @@ impl Display for ApplicationIdentifier {
 }
 
 /// 6 Historical Bytes
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HistoricalBytes {
     /// category indicator byte
     cib: u8,
@@ -574,7 +574,7 @@ pub struct HistoricalBytes {
 }
 
 /// Card Capabilities (see 6 Historical Bytes)
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CardCapabilities {
     command_chaining: bool,
     extended_lc_le: bool,
@@ -598,7 +598,7 @@ impl Display for CardCapabilities {
 }
 
 /// Card service data (see 6 Historical Bytes)
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CardServiceData {
     select_by_full_df_name: bool, // Application Selection by full DF name (AID)
     select_by_partial_df_name: bool, // Application Selection by partial DF name
@@ -754,7 +754,7 @@ impl Display for ExtendedLengthInfo {
 }
 
 /// Cardholder Related Data (see spec pg. 22)
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CardholderRelatedData {
     name: Option<Vec<u8>>,
     lang: Option<Vec<Lang>>,
@@ -781,7 +781,7 @@ impl Display for CardholderRelatedData {
 /// 4.4.3.5 Sex
 ///
 /// Encoded in accordance with <https://en.wikipedia.org/wiki/ISO/IEC_5218>
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Sex {
     NotKnown,
     Male,
@@ -829,7 +829,7 @@ impl From<u8> for Sex {
 /// Individual language for Language Preferences (4.4.3.4), accessible via `CardholderRelatedData`.
 ///
 /// Encoded according to <https://en.wikipedia.org/wiki/ISO_639-1>
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Lang {
     Value([u8; 2]),
     Invalid(u8),
@@ -882,7 +882,7 @@ impl From<&[u8; 2]> for Lang {
 }
 
 /// PW status Bytes (see spec page 23)
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct PWStatusBytes {
     pub(crate) pw1_cds_valid_once: bool,
     pub(crate) pw1_pin_block: bool,

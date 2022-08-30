@@ -586,7 +586,7 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
         if cards.len() == 1 {
             Ok(Box::new(cards.pop().unwrap()))
         } else if cards.is_empty() {
-            return Err(anyhow::anyhow!("No cards found"));
+            Err(anyhow::anyhow!("No cards found"))
         } else {
             println!("Found {} cards:", cards.len());
             list_cards()?;
@@ -595,7 +595,7 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             println!("Specify which card to use with '--card <card ident>'");
             println!();
 
-            return Err(anyhow::anyhow!("Specify card"));
+            Err(anyhow::anyhow!("Specify card"))
         }
     }
 }

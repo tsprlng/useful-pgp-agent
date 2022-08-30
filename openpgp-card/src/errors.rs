@@ -50,7 +50,7 @@ impl From<StatusBytes> for Error {
 }
 
 /// OpenPGP card "Status Bytes" (ok statuses and errors)
-#[derive(thiserror::Error, Debug, PartialEq, Copy, Clone)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq, Copy, Clone)]
 #[non_exhaustive]
 pub enum StatusBytes {
     #[error("Command correct")]

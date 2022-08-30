@@ -339,10 +339,10 @@ fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Resul
         Ok((**algo.last().unwrap()).clone())
     } else {
         // RSA with this bit length is not in algo_info
-        return Err(Error::UnsupportedAlgo(format!(
+        Err(Error::UnsupportedAlgo(format!(
             "RSA {} unsupported according to algo_info",
             rsa_bits
-        )));
+        )))
     }
 }
 
