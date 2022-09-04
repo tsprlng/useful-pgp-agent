@@ -181,6 +181,14 @@ And/or pass the User PIN as a file, for non-interactive use:
 $ opgpcard pubkey -p <user-pin-file>
 ```
 
+In the process of exporting the key material on a card as a certificate (public key), one or more User IDs can be
+bound to the certificate:
+
+```
+$ opgpcard pubkey -p <user-pin-file> --user-id "Alice Adams <alice@example.org>"
+```
+
+
 #### Caution: the exported public key material isn't always what you want
 
 The result of exporting public key material from a card is only an approximation of the original public key, since
@@ -454,6 +462,13 @@ x3z8hDoRKAU=
 =v95a
 -----END PGP PUBLIC KEY BLOCK-----
 ```
+
+In the context of generating key material, one or more User IDs can be bound to the exported certificate:
+
+```
+$ opgpcard admin --card ABCD:01234567 generate --user-id "Alice Adams <alice@example.org>" --output <output-cert-file> 25519
+```
+
 
 ### Signing
 
