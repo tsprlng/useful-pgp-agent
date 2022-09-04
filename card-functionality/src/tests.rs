@@ -276,6 +276,7 @@ pub fn test_keygen(
         Some(b"123456"),
         &|| {},
         &|| {},
+        &[],
     )?;
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 

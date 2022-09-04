@@ -56,8 +56,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Ssh { ident } => {
             print_ssh(ident)?;
         }
-        cli::Command::Pubkey { ident, user_pin } => {
-            print_pubkey(ident, user_pin)?;
+        cli::Command::Pubkey {
+            ident,
+            user_pin,
+            user_id,
+        } => {
+            print_pubkey(ident, user_pin, user_id)?;
         }
         cli::Command::SetIdentity { ident, id } => {
             set_identity(&ident, id)?;
@@ -300,6 +304,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     no_decrypt,
                     no_auth,
                     algo,
+                    user_id,
                 } => {
                     let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
 
@@ -311,6 +316,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         !no_decrypt,
                         !no_auth,
                         algo,
+                        user_id,
                     )?;
                 }
                 cli::AdminCommand::Touch { key, policy } => {
@@ -902,7 +908,11 @@ fn print_ssh(ident: Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn print_pubkey(ident: Option<String>, user_pin: Option<PathBuf>) -> Result<()> {
+fn print_pubkey(
+    ident: Option<String>,
+    user_pin: Option<PathBuf>,
+    user_ids: Vec<String>,
+) -> Result<()> {
     let mut card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(&mut *card);
@@ -956,6 +966,7 @@ fn print_pubkey(ident: Option<String>, user_pin: Option<PathBuf>) -> Result<()> 
         key_dec,
         key_aut,
         user_pin.as_deref(),
+        &user_ids,
         &|| println!("Enter User PIN on card reader pinpad."),
     )?;
 
@@ -1061,6 +1072,7 @@ fn get_cert(
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
     user_pin: Option<&[u8]>,
+    user_ids: &[String],
     prompt: &dyn Fn(),
 ) -> Result<Cert> {
     if user_pin.is_none() && open.feature_pinpad_verify() {
@@ -1070,9 +1082,16 @@ fn get_cert(
         );
     }
 
-    make_cert(open, key_sig, key_dec, key_aut, user_pin, prompt, &|| {
-        println!("Touch confirmation needed for signing")
-    })
+    make_cert(
+        open,
+        key_sig,
+        key_dec,
+        key_aut,
+        user_pin,
+        prompt,
+        &|| println!("Touch confirmation needed for signing"),
+        &user_ids,
+    )
 }
 
 fn generate_keys(
@@ -1083,6 +1102,7 @@ fn generate_keys(
     decrypt: bool,
     auth: bool,
     algo: Option<String>,
+    user_ids: Vec<String>,
 ) -> Result<()> {
     // 1) Interpret the user's choice of algorithm.
     //
@@ -1124,9 +1144,15 @@ fn generate_keys(
     // 3) Generate a Cert from the generated keys. For this, we
     // need "signing" access to the card (to make binding signatures within
     // the Cert).
-    let cert = get_cert(&mut open, key_sig, key_dec, key_aut, user_pin, &|| {
-        println!("Enter User PIN on card reader pinpad.")
-    })?;
+    let cert = get_cert(
+        &mut open,
+        key_sig,
+        key_dec,
+        key_aut,
+        user_pin,
+        &user_ids,
+        &|| println!("Enter User PIN on card reader pinpad."),
+    )?;
 
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
 

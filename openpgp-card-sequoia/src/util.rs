@@ -45,6 +45,7 @@ use crate::PublicKey;
 /// `prompt` notifies the user when a pinpad needs the user pin as input.
 ///
 /// FIXME: accept optional metadata for user_id(s)?
+#[allow(clippy::too_many_arguments)]
 pub fn make_cert<'app>(
     open: &mut Open<'app>,
     key_sig: PublicKey,
@@ -53,6 +54,7 @@ pub fn make_cert<'app>(
     pw1: Option<&[u8]>,
     pinpad_prompt: &dyn Fn(),
     touch_prompt: &(dyn Fn() + Send + Sync),
+    user_ids: &[String],
 ) -> Result<Cert> {
     let mut pp = vec![];
 
@@ -137,8 +139,12 @@ pub fn make_cert<'app>(
 
     // FIXME: accept user id/email as argument?!
 
-    if let Some(name) = cardholder.name() {
-        let uid: UserID = name.into();
+    for uid in user_ids
+        .iter()
+        .map(|uid| uid.as_bytes())
+        .chain(cardholder.name())
+    {
+        let uid: UserID = uid.into();
 
         pp.push(uid.clone().into());
 
@@ -161,7 +167,7 @@ pub fn make_cert<'app>(
 
             if let Some(mut sign) = open.signing_card() {
                 // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_public(key_sig, touch_prompt);
+                let mut card_signer = sign.signer_from_public(key_sig.clone(), touch_prompt);
 
                 // Temporary version of the cert
                 let cert = Cert::try_from(pp.clone())?;

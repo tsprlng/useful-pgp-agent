@@ -54,6 +54,10 @@ pub enum Command {
 
         #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
         user_pin: Option<PathBuf>,
+
+        /// User ID to add to the exported certificate representation
+        #[clap(name = "User ID", short = 'u', long = "user-id")]
+        user_id: Vec<String>,
     },
 
     /// Administer data on a card (including keys and metadata)
@@ -175,6 +179,10 @@ pub enum AdminCommand {
         /// Algorithm (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519)
         #[clap()]
         algo: Option<String>,
+
+        /// User ID to add to the exported certificate representation
+        #[clap(name = "User ID", short = 'u', long = "user-id")]
+        user_id: Vec<String>,
     },
 
     /// Set touch policy
