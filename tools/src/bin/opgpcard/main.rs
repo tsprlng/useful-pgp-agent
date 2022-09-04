@@ -1090,10 +1090,11 @@ fn get_cert(
         user_pin,
         prompt,
         &|| println!("Touch confirmation needed for signing"),
-        &user_ids,
+        user_ids,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn generate_keys(
     mut open: Open,
     admin_pin: Option<&[u8]>,
