@@ -137,8 +137,6 @@ pub fn make_cert<'app>(
     // 6) add user id from cardholder name (if a name is set)
     let cardholder = open.cardholder_related_data()?;
 
-    // FIXME: accept user id/email as argument?!
-
     for uid in user_ids
         .iter()
         .map(|uid| uid.as_bytes())
