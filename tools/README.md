@@ -185,7 +185,7 @@ In the process of exporting the key material on a card as a certificate (public 
 bound to the certificate:
 
 ```
-$ opgpcard pubkey -p <user-pin-file> --user-id "Alice Adams <alice@example.org>"
+$ opgpcard pubkey -p <user-pin-file> --userid "Alice Adams <alice@example.org>"
 ```
 
 
@@ -466,7 +466,7 @@ x3z8hDoRKAU=
 In the context of generating key material, one or more User IDs can be bound to the exported certificate:
 
 ```
-$ opgpcard admin --card ABCD:01234567 generate --user-id "Alice Adams <alice@example.org>" --output <output-cert-file> 25519
+$ opgpcard admin --card ABCD:01234567 generate --userid "Alice Adams <alice@example.org>" --output <output-cert-file> 25519
 ```
 
 

@@ -56,7 +56,7 @@ pub enum Command {
         user_pin: Option<PathBuf>,
 
         /// User ID to add to the exported certificate representation
-        #[clap(name = "User ID", short = 'u', long = "user-id")]
+        #[clap(name = "User ID", short = 'u', long = "userid")]
         user_id: Vec<String>,
     },
 
@@ -181,7 +181,7 @@ pub enum AdminCommand {
         algo: Option<String>,
 
         /// User ID to add to the exported certificate representation
-        #[clap(name = "User ID", short = 'u', long = "user-id")]
+        #[clap(name = "User ID", short = 'u', long = "userid")]
         user_id: Vec<String>,
     },
 
