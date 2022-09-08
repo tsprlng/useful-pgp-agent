@@ -142,6 +142,7 @@ pub fn make_cert<'app>(
         .iter()
         .map(|uid| uid.as_bytes())
         .chain(cardholder.name())
+        .filter(|uid| !uid.is_empty())
     {
         let uid: UserID = uid.into();
         pp.push(uid.clone().into());
