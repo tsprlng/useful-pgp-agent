@@ -62,6 +62,23 @@ pub fn make_cert<'app>(
     let pri = PrimaryRole::convert_key(key_sig.clone());
     pp.push(Packet::from(pri));
 
+    // 1a) add a direct key signature
+    // Allow signing on the card
+    if let Some(pw1) = pw1 {
+        open.verify_user_for_signing(pw1)?;
+    } else {
+        open.verify_user_for_signing_pinpad(pinpad_prompt)?;
+    }
+    if let Some(mut sign) = open.signing_card() {
+        // Card-backed signer for bindings
+        let mut card_signer = sign.signer_from_public(key_sig.clone(), touch_prompt);
+
+        let dks = SignatureBuilder::new(SignatureType::DirectKey)
+            .sign_direct_key(&mut card_signer, key_sig.role_as_primary())?;
+
+        pp.push(dks.into());
+    }
+
     if let Some(key_dec) = key_dec {
         // 2) add decryption key as subkey
         let sub_dec = SubordinateRole::convert_key(key_dec);
