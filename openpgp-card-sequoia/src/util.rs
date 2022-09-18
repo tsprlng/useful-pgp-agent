@@ -59,8 +59,6 @@ pub fn make_cert<'app>(
 ) -> Result<Cert> {
     let mut pp = vec![];
 
-    let cardholder = open.cardholder_related_data()?;
-
     // helper: use the card to perform a signing operation
     let mut sign_on_card =
         |op: &mut dyn Fn(&mut dyn sequoia_openpgp::crypto::Signer) -> Result<Signature>| {
@@ -136,14 +134,8 @@ pub fn make_cert<'app>(
         pp.push(s.into());
     }
 
-    // 6) add user id from cardholder name (if a name is set on the card), plus any User IDs that
-    // were explicitly passed as a parameter.
-    for uid in user_ids
-        .iter()
-        .map(|uid| uid.as_bytes())
-        .chain(cardholder.name())
-        .filter(|uid| !uid.is_empty())
-    {
+    // 6) add `user_ids`.
+    for uid in user_ids.iter().map(|uid| uid.as_bytes()) {
         let uid: UserID = uid.into();
         pp.push(uid.clone().into());
 
