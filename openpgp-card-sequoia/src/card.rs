@@ -266,6 +266,25 @@ impl<'a> Open<'a> {
         self.opt.cardholder_related_data()
     }
 
+    /// Get cardholder name as a String (this also normalizes the "<" and "<<" filler chars)
+    pub fn cardholder_name(&mut self) -> Result<String, Error> {
+        let crd = self.opt.cardholder_related_data()?;
+        if let Some(name) = crd.name() {
+            let name = String::from_utf8_lossy(name).to_string();
+
+            // re-format name ("last<<first")
+            let name: Vec<_> = name.split("<<").collect();
+            let name = name.iter().cloned().rev().collect::<Vec<_>>().join(" ");
+
+            // replace item separators with spaces
+            let name = name.replace('<', " ");
+
+            Ok(name)
+        } else {
+            Ok("".to_string())
+        }
+    }
+
     // --- security support template (7a) ---
     pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate, Error> {
         self.opt.security_support_template()
