@@ -87,6 +87,10 @@ pub fn make_cert<'app>(
     // 1a) add a direct key signature
     let s = sign_on_card(&mut |signer| {
         SignatureBuilder::new(SignatureType::DirectKey)
+            .set_key_flags(
+                // Flags for primary key
+                KeyFlags::empty().set_signing().set_certification(),
+            )?
             .sign_direct_key(signer, key_sig.role_as_primary())
     })?;
     pp.push(s.into());
@@ -147,7 +151,10 @@ pub fn make_cert<'app>(
             uid.bind(
                 signer,
                 &cert,
-                SignatureBuilder::new(SignatureType::PositiveCertification),
+                SignatureBuilder::new(SignatureType::PositiveCertification).set_key_flags(
+                    // Flags for primary key
+                    KeyFlags::empty().set_signing().set_certification(),
+                )?,
             )
         })?;
         pp.push(s.into());
