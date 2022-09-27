@@ -23,13 +23,18 @@ use crate::{
 ///
 /// Users of this crate can keep a long lived OpenPgp object. All operations must be performed on
 /// a short lived `OpenPgpTransaction`.
-pub struct OpenPgp<'a> {
-    card: &'a mut (dyn CardBackend + Send + Sync),
+pub struct OpenPgp {
+    card: Box<dyn CardBackend + Send + Sync>,
 }
 
-impl<'a> OpenPgp<'a> {
-    pub fn new(card: &'a mut (dyn CardBackend + Send + Sync)) -> Self {
-        Self { card }
+impl OpenPgp {
+    pub fn new<B>(backend: B) -> Self
+    where
+        B: Into<Box<dyn CardBackend + Send + Sync>>,
+    {
+        Self {
+            card: backend.into(),
+        }
     }
 
     /// Get an OpenPgpTransaction object. This starts a transaction on the underlying

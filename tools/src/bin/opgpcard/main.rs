@@ -89,9 +89,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cli::Command::Attestation { cmd } => match cmd {
             cli::AttCommand::Cert { ident } => {
-                let mut card = pick_card_for_reading(ident)?;
+                let card = pick_card_for_reading(ident)?;
 
-                let mut pgp = OpenPgp::new(&mut *card);
+                let mut pgp = OpenPgp::new(card);
                 let mut open = Open::new(pgp.transaction()?)?;
 
                 if let Ok(ac) = open.attestation_certificate() {
@@ -104,8 +104,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 key,
                 user_pin,
             } => {
-                let mut card = util::open_card(&ident)?;
-                let mut pgp = OpenPgp::new(&mut card);
+                let card = util::open_card(&ident)?;
+                let mut pgp = OpenPgp::new(Box::new(card));
 
                 let mut open = Open::new(pgp.transaction()?)?;
                 let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
@@ -125,9 +125,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })?;
             }
             cli::AttCommand::Statement { ident, key } => {
-                let mut card = pick_card_for_reading(ident)?;
+                let card = pick_card_for_reading(ident)?;
 
-                let mut pgp = OpenPgp::new(&mut *card);
+                let mut pgp = OpenPgp::new(card);
                 let mut open = Open::new(pgp.transaction()?)?;
 
                 // Get cardholder certificate from card.
@@ -174,8 +174,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             admin_pin,
             cmd,
         } => {
-            let mut card = util::open_card(&ident)?;
-            let mut pgp = OpenPgp::new(&mut card);
+            let card = util::open_card(&ident)?;
+            let mut pgp = OpenPgp::new(Box::new(card));
 
             let mut open = Open::new(pgp.transaction()?)?;
             let admin_pin = util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN);
@@ -347,8 +347,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         cli::Command::Pin { ident, cmd } => {
-            let mut card = util::open_card(&ident)?;
-            let mut pgp = OpenPgp::new(&mut card);
+            let card = util::open_card(&ident)?;
+            let mut pgp = OpenPgp::new(Box::new(card));
             let pgpt = pgp.transaction()?;
 
             let pinpad_modify = pgpt.feature_pinpad_modify();
@@ -561,8 +561,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn list_cards() -> Result<()> {
     let cards = util::cards()?;
     if !cards.is_empty() {
-        for mut card in cards {
-            let mut pgp = OpenPgp::new(&mut card);
+        for card in cards {
+            let mut pgp = OpenPgp::new(Box::new(card));
             let open = Open::new(pgp.transaction()?)?;
             println!(" {}", open.application_identifier()?.ident());
         }
@@ -573,8 +573,8 @@ fn list_cards() -> Result<()> {
 }
 
 fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
-    let mut card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(&mut card);
+    let card = util::open_card(ident)?;
+    let mut pgp = OpenPgp::new(Box::new(card));
 
     let mut pgpt = pgp.transaction()?;
     pgpt.set_identity(id)?;
@@ -607,9 +607,9 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
 }
 
 fn print_status(ident: Option<String>, verbose: bool, pkm: bool) -> Result<()> {
-    let mut card = pick_card_for_reading(ident)?;
+    let card = pick_card_for_reading(ident)?;
 
-    let mut pgp = OpenPgp::new(&mut *card);
+    let mut pgp = OpenPgp::new(card);
     let mut pgpt = pgp.transaction()?;
 
     let ard = pgpt.application_related_data()?;
@@ -828,9 +828,9 @@ fn print_status(ident: Option<String>, verbose: bool, pkm: bool) -> Result<()> {
 
 /// print metadata information about a card
 fn print_info(ident: Option<String>) -> Result<()> {
-    let mut card = pick_card_for_reading(ident)?;
+    let card = pick_card_for_reading(ident)?;
 
-    let mut pgp = OpenPgp::new(&mut *card);
+    let mut pgp = OpenPgp::new(card);
     let mut open = Open::new(pgp.transaction()?)?;
 
     let ai = open.application_identifier()?;
@@ -880,9 +880,9 @@ fn print_info(ident: Option<String>) -> Result<()> {
 }
 
 fn print_ssh(ident: Option<String>) -> Result<()> {
-    let mut card = pick_card_for_reading(ident)?;
+    let card = pick_card_for_reading(ident)?;
 
-    let mut pgp = OpenPgp::new(&mut *card);
+    let mut pgp = OpenPgp::new(card);
     let mut open = Open::new(pgp.transaction()?)?;
 
     let ident = open.application_identifier()?.ident();
@@ -913,9 +913,9 @@ fn print_pubkey(
     user_pin: Option<PathBuf>,
     user_ids: Vec<String>,
 ) -> Result<()> {
-    let mut card = pick_card_for_reading(ident)?;
+    let card = pick_card_for_reading(ident)?;
 
-    let mut pgp = OpenPgp::new(&mut *card);
+    let mut pgp = OpenPgp::new(card);
     let mut open = Open::new(pgp.transaction()?)?;
 
     let ident = open.application_identifier()?.ident();
@@ -985,8 +985,8 @@ fn decrypt(
 
     let input = util::open_or_stdin(input)?;
 
-    let mut card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(&mut card);
+    let card = util::open_card(ident)?;
+    let mut pgp = OpenPgp::new(Box::new(card));
 
     let mut open = Open::new(pgp.transaction()?)?;
 
@@ -1010,8 +1010,8 @@ fn sign_detached(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = util::open_or_stdin(input)?;
 
-    let mut card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(&mut card);
+    let card = util::open_card(ident)?;
+    let mut pgp = OpenPgp::new(Box::new(card));
 
     let mut open = Open::new(pgp.transaction()?)?;
 
@@ -1031,8 +1031,8 @@ fn sign_detached(
 
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
-    let mut card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(&mut card);
+    let card = util::open_card(ident)?;
+    let mut pgp = OpenPgp::new(Box::new(card));
 
     let mut open = Open::new(pgp.transaction()?)?;
     open.factory_reset().map_err(|e| anyhow!(e))

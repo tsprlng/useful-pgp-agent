@@ -17,8 +17,8 @@
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! for mut card in PcscBackend::cards(None)? {
-//!     let mut pgp = OpenPgp::new(&mut card);
+//! for card in PcscBackend::cards(None)? {
+//!     let mut pgp = OpenPgp::new(Box::new(card));
 //!     let mut open = Open::new(pgp.transaction()?)?;
 //!     println!("Found OpenPGP card with ident '{}'",
 //!              open.application_identifier()?.ident());
@@ -35,8 +35,8 @@
 //! use openpgp_card_sequoia::card::Open;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let mut card = PcscBackend::open_by_ident("abcd:12345678", None)?;
-//! let mut pgp = OpenPgp::new(&mut card);
+//! let card = PcscBackend::open_by_ident("abcd:12345678", None)?;
+//! let mut pgp = OpenPgp::new(Box::new(card));
 //! let mut open = Open::new(pgp.transaction()?)?;
 //! # Ok(())
 //! # }
@@ -59,8 +59,8 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut card = PcscBackend::open_by_ident("abcd:12345678", None)?;
-//! let mut pgp = OpenPgp::new(&mut card);
+//! let card = PcscBackend::open_by_ident("abcd:12345678", None)?;
+//! let mut pgp = OpenPgp::new(Box::new(card));
 //! let mut open = Open::new(pgp.transaction()?)?;
 //!
 //! // Get authorization for user access to the card with password
@@ -97,8 +97,8 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let mut card = PcscBackend::open_by_ident("abcd:12345678", None)?;
-//! let mut pgp = OpenPgp::new(&mut card);
+//! let card = PcscBackend::open_by_ident("abcd:12345678", None)?;
+//! let mut pgp = OpenPgp::new(Box::new(card));
 //! let mut open = Open::new(pgp.transaction()?)?;
 //!
 //! // Get authorization for signing access to the card with password
@@ -124,8 +124,8 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
-//! let mut card = PcscBackend::open_by_ident("abcd:12345678", None)?;
-//! let mut pgp = OpenPgp::new(&mut card);
+//! let card = PcscBackend::open_by_ident("abcd:12345678", None)?;
+//! let mut pgp = OpenPgp::new(Box::new(card));
 //! let mut open = Open::new(pgp.transaction()?)?;
 //!
 //! // Get authorization for admin access to the card with password

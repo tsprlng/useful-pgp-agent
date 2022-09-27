@@ -13,7 +13,7 @@ documentation = "https://docs.rs/crate/openpgp-card-tools"
 
 [dependencies]
 sequoia-openpgp = "1.3"
-openpgp-card = { path = "../openpgp-card", version = "0.2.6" }
+openpgp-card = { path = "../openpgp-card", version = "0.3" }
 openpgp-card-pcsc = { path = "../pcsc", version = "0.2" }
 openpgp-card-sequoia = { path = "../openpgp-card-sequoia", version = "0.0.18" }
 sshkeys = "0.3.2"

@@ -20,8 +20,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let card_ident = &args[0];
     let pin_file = &args[1];
 
-    let mut card = PcscBackend::open_by_ident(card_ident, None)?;
-    let mut pgp = OpenPgp::new(&mut card);
+    let card = PcscBackend::open_by_ident(card_ident, None)?;
+    let mut pgp = OpenPgp::new(Box::new(card));
 
     let mut open = Open::new(pgp.transaction()?)?;
 

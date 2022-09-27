@@ -36,6 +36,13 @@ pub struct PcscBackend {
     reader_caps: HashMap<u8, Tlv>,
 }
 
+/// Boxing helper (for easier consumption of PcscBackend in openpgp_card and openpgp_card_sequoia)
+impl From<PcscBackend> for Box<dyn CardBackend + Sync + Send> {
+    fn from(backend: PcscBackend) -> Box<dyn CardBackend + Sync + Send> {
+        Box::new(backend)
+    }
+}
+
 /// An implementation of the CardTransaction trait that uses the PCSC lite
 /// middleware to access the OpenPGP card application on smart cards, via a
 /// PCSC "transaction".
