@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Perform operations on a card. Different states of a card are modeled by
-//! different types, such as `Open`, `User`, `Sign`, `Admin`.
+//! different types, such as `Card`, `Open`, `User`, `Sign`, `Admin`.
 
 use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
@@ -15,7 +15,7 @@ use openpgp_card::card_do::{
     SecuritySupportTemplate, Sex, TouchPolicy,
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
-use openpgp_card::{Error, KeySet, KeyType, OpenPgpTransaction};
+use openpgp_card::{CardBackend, Error, KeySet, KeyType, OpenPgp, OpenPgpTransaction};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
@@ -24,6 +24,30 @@ use crate::PublicKey;
 
 /// Representation of an opened OpenPGP card in its base state (i.e. no
 /// passwords have been verified, default authorization applies).
+/// No transaction has been started.
+pub struct Card {
+    pgp: OpenPgp,
+}
+
+impl Card {
+    pub fn new<B>(backend: B) -> Self
+    where
+        B: Into<Box<dyn CardBackend + Send + Sync>>,
+    {
+        let pgp = OpenPgp::new(backend.into());
+
+        Self { pgp }
+    }
+
+    pub fn transaction(&mut self) -> Result<Open, Error> {
+        let t = self.pgp.transaction()?;
+        Open::new(t)
+    }
+}
+
+/// Representation of an opened OpenPGP card in its base state (i.e. no
+/// passwords have been verified, default authorization applies).
+/// A transaction has been started.
 pub struct Open<'a> {
     opt: OpenPgpTransaction<'a>,
 
