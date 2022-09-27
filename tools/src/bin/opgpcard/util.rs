@@ -10,12 +10,12 @@ use openpgp_card::{CardBackend, Error, StatusBytes};
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
 
-pub(crate) fn cards() -> Result<Vec<impl CardBackend>, Error> {
-    PcscBackend::cards(None).map(|cards| cards.into_iter().collect())
+pub(crate) fn cards() -> Result<Vec<Box<dyn CardBackend + Send + Sync>>, Error> {
+    PcscBackend::cards(None).map(|cards| cards.into_iter().map(|c| c.into()).collect())
 }
 
-pub(crate) fn open_card(ident: &str) -> Result<impl CardBackend, Error> {
-    PcscBackend::open_by_ident(ident, None)
+pub(crate) fn open_card(ident: &str) -> Result<Box<dyn CardBackend + Send + Sync>, Error> {
+    Ok(PcscBackend::open_by_ident(ident, None)?.into())
 }
 
 /// Get pin from file. Or via user input, if no file and no pinpad is available.

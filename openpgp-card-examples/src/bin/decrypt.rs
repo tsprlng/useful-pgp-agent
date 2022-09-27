@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Wiktor Kwapisiewicz <wiktor@metacode.biz>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use openpgp_card::OpenPgp;
 use openpgp_card_pcsc::PcscBackend;
-use openpgp_card_sequoia::card::Open;
+use openpgp_card_sequoia::card::Card;
 
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
 use openpgp::policy::StandardPolicy;
@@ -20,10 +19,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let card_ident = &args[0];
     let pin_file = &args[1];
 
-    let card = PcscBackend::open_by_ident(card_ident, None)?;
-    let mut pgp = OpenPgp::new(Box::new(card));
+    let card_backend = PcscBackend::open_by_ident(card_ident, None)?;
 
-    let mut open = Open::new(pgp.transaction()?)?;
+    let mut card = Card::new(card_backend);
+    let mut open = card.transaction()?;
 
     let pin = std::fs::read(pin_file)?;
 

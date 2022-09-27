@@ -18,7 +18,7 @@ use sequoia_openpgp::Cert;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{Sex, TouchPolicy};
 use openpgp_card::{CardBackend, KeyType, OpenPgp};
-use openpgp_card_sequoia::card::{Admin, Open};
+use openpgp_card_sequoia::card::{Admin, Card, Open};
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
@@ -105,7 +105,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 user_pin,
             } => {
                 let card = util::open_card(&ident)?;
-                let mut pgp = OpenPgp::new(Box::new(card));
+                let mut pgp = OpenPgp::new(card);
 
                 let mut open = Open::new(pgp.transaction()?)?;
                 let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
@@ -175,7 +175,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cmd,
         } => {
             let card = util::open_card(&ident)?;
-            let mut pgp = OpenPgp::new(Box::new(card));
+            let mut pgp = OpenPgp::new(card);
 
             let mut open = Open::new(pgp.transaction()?)?;
             let admin_pin = util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN);
@@ -348,7 +348,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cli::Command::Pin { ident, cmd } => {
             let card = util::open_card(&ident)?;
-            let mut pgp = OpenPgp::new(Box::new(card));
+            let mut pgp = OpenPgp::new(card);
             let pgpt = pgp.transaction()?;
 
             let pinpad_modify = pgpt.feature_pinpad_modify();
@@ -562,7 +562,7 @@ fn list_cards() -> Result<()> {
     let cards = util::cards()?;
     if !cards.is_empty() {
         for card in cards {
-            let mut pgp = OpenPgp::new(Box::new(card));
+            let mut pgp = OpenPgp::new(card);
             let open = Open::new(pgp.transaction()?)?;
             println!(" {}", open.application_identifier()?.ident());
         }
@@ -574,7 +574,7 @@ fn list_cards() -> Result<()> {
 
 fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
     let card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(Box::new(card));
+    let mut pgp = OpenPgp::new(card);
 
     let mut pgpt = pgp.transaction()?;
     pgpt.set_identity(id)?;
@@ -586,11 +586,11 @@ fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
 /// is plugged in, that card is returned. (We don't This
 fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + Send + Sync>> {
     if let Some(ident) = ident {
-        Ok(Box::new(util::open_card(&ident)?))
+        Ok(util::open_card(&ident)?)
     } else {
         let mut cards = util::cards()?;
         if cards.len() == 1 {
-            Ok(Box::new(cards.pop().unwrap()))
+            Ok(cards.pop().unwrap())
         } else if cards.is_empty() {
             Err(anyhow::anyhow!("No cards found"))
         } else {
@@ -986,7 +986,7 @@ fn decrypt(
     let input = util::open_or_stdin(input)?;
 
     let card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(Box::new(card));
+    let mut pgp = OpenPgp::new(card);
 
     let mut open = Open::new(pgp.transaction()?)?;
 
@@ -1011,7 +1011,7 @@ fn sign_detached(
     let mut input = util::open_or_stdin(input)?;
 
     let card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(Box::new(card));
+    let mut pgp = OpenPgp::new(card);
 
     let mut open = Open::new(pgp.transaction()?)?;
 
@@ -1032,9 +1032,9 @@ fn sign_detached(
 fn factory_reset(ident: &str) -> Result<()> {
     println!("Resetting Card {}", ident);
     let card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(Box::new(card));
+    let mut card = Card::new(card);
 
-    let mut open = Open::new(pgp.transaction()?)?;
+    let mut open = card.transaction()?;
     open.factory_reset().map_err(|e| anyhow!(e))
 }
 

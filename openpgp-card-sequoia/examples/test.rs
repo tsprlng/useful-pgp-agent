@@ -35,8 +35,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let test_card_ident = env::var("TEST_CARD_IDENT");
 
     if let Ok(test_card_ident) = test_card_ident {
-        let card = PcscBackend::open_by_ident(&test_card_ident, None)?;
-        let mut pgp = OpenPgp::new(Box::new(card));
+        let backend = PcscBackend::open_by_ident(&test_card_ident, None)?;
+        let mut pgp = OpenPgp::new(backend);
 
         let mut open = Open::new(pgp.transaction()?)?;
 
@@ -140,8 +140,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for decrypt
         // -----------------------------
-        let card = PcscBackend::open_by_ident(&test_card_ident, None)?;
-        let mut pgp = OpenPgp::new(Box::new(card));
+        let backend = PcscBackend::open_by_ident(&test_card_ident, None)?;
+        let mut pgp = OpenPgp::new(backend);
 
         let mut open = Open::new(pgp.transaction()?)?;
 
@@ -180,8 +180,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let card = PcscBackend::open_by_ident(&test_card_ident, None)?;
-        let mut pgp = OpenPgp::new(Box::new(card));
+        let backend = PcscBackend::open_by_ident(&test_card_ident, None)?;
+        let mut pgp = OpenPgp::new(backend);
 
         let mut open = Open::new(pgp.transaction()?)?;
 
@@ -212,8 +212,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!("The following OpenPGP cards are connected to your system:");
 
-        for card in PcscBackend::cards(None)? {
-            let mut pgp = OpenPgp::new(Box::new(card));
+        for backend in PcscBackend::cards(None)? {
+            let mut pgp = OpenPgp::new(backend);
 
             let open = Open::new(pgp.transaction()?)?;
 
