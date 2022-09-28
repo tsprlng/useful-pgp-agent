@@ -149,7 +149,7 @@ impl<'a> OpenPgpTransaction<'a> {
     /// authentication, where specific non-OpenPGP-certificates are needed, for S-MIME and
     /// other x.509 related functions.
     ///
-    /// (See https://support.nitrokey.com/t/nitrokey-pro-and-pkcs-11-support-on-linux/160/4
+    /// (See <https://support.nitrokey.com/t/nitrokey-pro-and-pkcs-11-support-on-linux/160/4>
     /// for some discussion of the `cardholder certificate` OpenPGP card feature)
     #[allow(dead_code)]
     pub fn cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
