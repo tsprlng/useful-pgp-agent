@@ -349,6 +349,16 @@ impl<'a> Open<'a> {
         self.opt.algorithm_information()
     }
 
+    /// "MANAGE SECURITY ENVIRONMENT"
+    /// Make `key_ref` usable for the operation normally done by the key designated by `for_operation`
+    pub fn manage_security_environment(
+        &mut self,
+        for_operation: KeyType,
+        key_ref: KeyType,
+    ) -> Result<(), Error> {
+        self.opt.manage_security_environment(for_operation, key_ref)
+    }
+
     /// Get "Attestation Certificate (Yubico)"
     pub fn attestation_certificate(&mut self) -> Result<Vec<u8>, Error> {
         self.opt.attestation_certificate()
