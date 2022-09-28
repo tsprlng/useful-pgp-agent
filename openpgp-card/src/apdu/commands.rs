@@ -4,7 +4,7 @@
 //! Pre-defined `Command` values for the OpenPGP card application
 
 use crate::apdu::command::Command;
-use crate::{ShortTag, Tags};
+use crate::{KeyType, ShortTag, Tags};
 
 /// 7.2.1 SELECT
 /// (select the OpenPGP application on the card)
@@ -240,4 +240,20 @@ pub(crate) fn terminate_df() -> Command {
 /// 7.2.17 ACTIVATE FILE
 pub(crate) fn activate_file() -> Command {
     Command::new(0x00, 0x44, 0x00, 0x00, vec![])
+}
+
+/// 7.2.18 MANAGE SECURITY ENVIRONMENT
+pub(crate) fn manage_security_environment(for_operation: KeyType, key_ref: KeyType) -> Command {
+    let p2 = match for_operation {
+        KeyType::Authentication => 0xA4,
+        KeyType::Decryption => 0xB8,
+        _ => unreachable!(), //FIXME
+    };
+    let data = match key_ref {
+        KeyType::Decryption => vec![0x83, 0x01, 0x02],
+        KeyType::Authentication => vec![0x83, 0x01, 0x03],
+        _ => unreachable!(),
+    };
+
+    Command::new(0, 0x22, 0x41, p2, data)
 }

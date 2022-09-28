@@ -588,6 +588,40 @@ impl<'a> OpenPgpTransaction<'a> {
         Ok(resp.data().map(|d| d.to_vec())?)
     }
 
+    /// Set the key to be used for the pso_decipher and the internal_authenticate commands.
+    ///
+    /// Valid until next reset of of the card or the next call to `select`
+    /// The only keys that can be configured by this command are the `Decryption` and `Authentication` keys.
+    ///
+    /// The following first sets the *Authentication* key to be used for [pso_decipher](OpenPgpTransaction::pso_decipher)
+    /// and then sets the *Decryption* key to be used for [internal_authenticate](OpenPgpTransaction::internal_authenticate).
+    ///
+    /// ```no_run
+    /// # use openpgp_card::{KeyType, OpenPgpTransaction};
+    /// # let mut tx: OpenPgpTransaction<'static> = panic!();
+    /// tx.manage_security_environment(KeyType::Decryption, KeyType::Authentication)?;
+    /// tx.manage_security_environment(KeyType::Authentication, KeyType::Decryption)?;
+    /// # Result::<(), openpgp_card::Error>::Ok(())
+    /// ```
+    pub fn manage_security_environment(
+        &mut self,
+        for_operation: KeyType,
+        key_ref: KeyType,
+    ) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: manage_security_environment");
+
+        if !matches!(for_operation, KeyType::Authentication | KeyType::Decryption)
+            || !matches!(key_ref, KeyType::Authentication | KeyType::Decryption)
+        {
+            return Err(Error::UnsupportedAlgo("Only Decryption and Authentication keys can be manipulated by manage_security_environment".to_string()));
+        }
+
+        let cmd = commands::manage_security_environment(for_operation, key_ref);
+        let resp = apdu::send_command(self.tx(), cmd, false)?;
+        resp.check_ok()?;
+        Ok(())
+    }
+
     // --- sign ---
 
     /// Sign `hash`, on the card.
