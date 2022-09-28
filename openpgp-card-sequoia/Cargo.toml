@@ -21,8 +21,8 @@ thiserror = "1"
 log = "0.4"
 
 [dev-dependencies]
-openpgp-card-pcsc = { path = "../pcsc", version = "0.2" }
-#openpgp-card-scdc = { path = "../scdc", version = "0.2" }
+openpgp-card-pcsc = { path = "../pcsc", version = "0.2.2" }
+#openpgp-card-scdc = { path = "../scdc", version = "0.2.2" }
 env_logger = "0.9"
 
 [[example]]
