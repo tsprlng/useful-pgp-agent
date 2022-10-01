@@ -5,7 +5,7 @@
 name = "openpgp-card-sequoia"
 description = "Wrapper of openpgp-card for use with Sequoia PGP"
 license = "MIT OR Apache-2.0"
-version = "0.0.19"
+version = "0.0.20"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 edition = "2018"
 repository = "https://gitlab.com/openpgp-card/openpgp-card"
@@ -21,8 +21,8 @@ thiserror = "1"
 log = "0.4"
 
 [dev-dependencies]
-openpgp-card-pcsc = { path = "../pcsc", version = "0.2.2" }
-#openpgp-card-scdc = { path = "../scdc", version = "0.2.2" }
+openpgp-card-pcsc = { path = "../pcsc", version = "0.3" }
+#openpgp-card-scdc = { path = "../scdc", version = "0.3" }
 env_logger = "0.9"
 
 [[example]]
