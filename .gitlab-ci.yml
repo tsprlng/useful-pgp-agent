@@ -130,6 +130,24 @@ run_cardtest_smartpgp:
     # (the base image of run_cardtest uses bookworm)
     key: "bookworm"
 
+run_cardtest_opcard_rs:
+  stage: virtual-test
+  image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-builddeps
+  script:
+    - sh /start.sh
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
+    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
+  variables:
+    CONFIG: "card-functionality/ci/virt-opcard-rs.toml"
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    # (the base image of run_cardtest uses bookworm)
+    key: "bookworm"
+
 run_cardtest_ykneo:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/ykneo-builddeps

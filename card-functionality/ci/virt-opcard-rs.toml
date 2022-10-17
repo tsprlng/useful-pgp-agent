@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2022 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
+[card.opcard-rs]
+backend.pcsc = "0000:00000000"
+config.keygen = [
+    "NIST256", "Curve25519"
+]
+config.import = [
+    "card-functionality/data/nist256.sec",
+    "card-functionality/data/25519.sec",
+]
