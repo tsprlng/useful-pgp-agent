@@ -128,7 +128,12 @@ impl<'a> OpenPgpTransaction<'a> {
 
         if let Value::S(data) = res {
             let mut data = data.to_vec();
-            assert_eq!(data.len(), 3);
+            if data.len() != 3 {
+                return Err(Error::ParseError(format!(
+                    "Unexpected length {} for 'Digital signature counter' DO",
+                    data.len()
+                )));
+            }
 
             data.insert(0, 0); // prepend a zero
             let data: [u8; 4] = data.try_into().unwrap();
