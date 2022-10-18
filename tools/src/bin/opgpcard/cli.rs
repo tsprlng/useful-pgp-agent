@@ -4,6 +4,12 @@
 use clap::{AppSettings, Parser};
 use std::path::PathBuf;
 
+use crate::{OutputFormat, OutputVersion};
+
+pub const DEFAULT_OUTPUT_VERSION: &str = "1.0.0";
+pub const OUTPUT_VERSIONS: &[OutputVersion] =
+    &[OutputVersion::new(0, 0, 0), OutputVersion::new(1, 0, 0)];
+
 #[derive(Parser, Debug)]
 #[clap(
     name = "opgpcard",
@@ -13,12 +19,24 @@ use std::path::PathBuf;
     about = "A tool for inspecting and configuring OpenPGP cards."
 )]
 pub struct Cli {
+    /// Produce output in the chosen format.
+    #[clap(long, value_enum, default_value = "text")]
+    pub output_format: OutputFormat,
+
+    /// Pick output version to use, for non-textual formats.
+    #[clap(long, default_value = DEFAULT_OUTPUT_VERSION)]
+    pub output_version: OutputVersion,
+
     #[clap(subcommand)]
     pub cmd: Command,
 }
 
 #[derive(Parser, Debug)]
 pub enum Command {
+    /// Show all output versions that are supported. Mark the
+    /// currently chosen one with a star.
+    OutputVersions {},
+
     /// Enumerate available OpenPGP cards
     List {},
 
