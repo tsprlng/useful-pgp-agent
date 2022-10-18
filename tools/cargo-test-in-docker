@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# Run this to run opgpcard (tools directory) test suite inside a
+# Docker container with a virtual smartcard running. The test suite
+# contains tests that run the opgpcard binary and rely on a virtual
+# smart card to be available.
+#
+# SPDX-FileCopyrightText: 2022 Lars Wirzenius <liw@liw.fi>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+set -euo pipefail
+
+docker run --rm -it \
+	-v root:/root \
+	-v cargo:/cargo \
+	-v $(pwd):/src \
+	registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps sh -c '
+sed -i "s/timeout=20/timeout=60/" /home/jcardsim/run-card.sh &&
+/etc/init.d/pcscd start &&
+su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim &&
+cd /src/tools &&
+if ! [ -e virtual-card-available ]; then rm -f tests/opgpcard.rs; fi &&
+CARGO_TARGET_DIR=/cargo/ cargo test'

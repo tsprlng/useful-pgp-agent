@@ -6,9 +6,8 @@ use std::path::PathBuf;
 
 use crate::{OutputFormat, OutputVersion};
 
-pub const DEFAULT_OUTPUT_VERSION: &str = "1.0.0";
-pub const OUTPUT_VERSIONS: &[OutputVersion] =
-    &[OutputVersion::new(0, 0, 0), OutputVersion::new(1, 0, 0)];
+pub const DEFAULT_OUTPUT_VERSION: &str = "0.9.0";
+pub const OUTPUT_VERSIONS: &[OutputVersion] = &[OutputVersion::new(0, 9, 0)];
 
 #[derive(Parser, Debug)]
 #[clap(
