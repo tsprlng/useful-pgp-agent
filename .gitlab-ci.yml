@@ -115,8 +115,7 @@ run_cardtest_smartpgp:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
   script:
-    - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
+    - sh /start.sh
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
@@ -152,8 +151,7 @@ run_cardtest_ykneo:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/ykneo-builddeps
   script:
-    - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
+    - sh /start.sh
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
@@ -171,8 +169,7 @@ run_cardtest_fluffypgp:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/fluffypgp-builddeps
   script:
-    - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh > /dev/null" jcardsim
+    - sh /start.sh
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
