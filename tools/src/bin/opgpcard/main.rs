@@ -16,7 +16,7 @@ use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 
 use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::card_do::{Sex, TouchPolicy};
+use openpgp_card::card_do::TouchPolicy;
 use openpgp_card::{CardBackend, KeyType, OpenPgp};
 use openpgp_card_sequoia::card::{Admin, Card, Open};
 use openpgp_card_sequoia::util::{
@@ -28,7 +28,12 @@ use crate::util::{load_pin, print_gnuk_note};
 use std::io::Write;
 
 mod cli;
+mod output;
 mod util;
+mod versioned_output;
+
+use cli::OUTPUT_VERSIONS;
+use versioned_output::{OutputBuilder, OutputFormat, OutputVariant, OutputVersion};
 
 const ENTER_USER_PIN: &str = "Enter User PIN:";
 const ENTER_ADMIN_PIN: &str = "Enter Admin PIN:";
@@ -39,29 +44,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = cli::Cli::parse();
 
     match cli.cmd {
+        cli::Command::OutputVersions {} => {
+            output_versions(cli.output_version);
+        }
         cli::Command::List {} => {
-            println!("Available OpenPGP cards:");
-            list_cards()?;
+            list_cards(cli.output_format, cli.output_version)?;
         }
         cli::Command::Status {
             ident,
             verbose,
             pkm,
         } => {
-            print_status(ident, verbose, pkm)?;
+            print_status(cli.output_format, cli.output_version, ident, verbose, pkm)?;
         }
         cli::Command::Info { ident } => {
-            print_info(ident)?;
+            print_info(cli.output_format, cli.output_version, ident)?;
         }
         cli::Command::Ssh { ident } => {
-            print_ssh(ident)?;
+            print_ssh(cli.output_format, cli.output_version, ident)?;
         }
         cli::Command::Pubkey {
             ident,
             user_pin,
             user_id,
         } => {
-            print_pubkey(ident, user_pin, user_id)?;
+            print_pubkey(
+                cli.output_format,
+                cli.output_version,
+                ident,
+                user_pin,
+                user_id,
+            )?;
         }
         cli::Command::SetIdentity { ident, id } => {
             set_identity(&ident, id)?;
@@ -89,15 +102,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         cli::Command::Attestation { cmd } => match cmd {
             cli::AttCommand::Cert { ident } => {
+                let mut output = output::AttestationCert::default();
+
                 let card = pick_card_for_reading(ident)?;
 
                 let mut pgp = OpenPgp::new(card);
                 let mut open = Open::new(pgp.transaction()?)?;
+                output.ident(open.application_identifier()?.ident());
 
                 if let Ok(ac) = open.attestation_certificate() {
                     let pem = util::pem_encode(ac);
-                    println!("{}", pem);
+                    output.attestation_cert(pem);
                 }
+
+                println!("{}", output.print(cli.output_format, cli.output_version)?);
             }
             cli::AttCommand::Generate {
                 ident,
@@ -309,6 +327,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
 
                     generate_keys(
+                        cli.output_format,
+                        cli.output_version,
                         open,
                         admin_pin.as_deref(),
                         user_pin.as_deref(),
@@ -558,17 +578,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn list_cards() -> Result<()> {
+fn output_versions(chosen: OutputVersion) {
+    for v in OUTPUT_VERSIONS.iter() {
+        if v == &chosen {
+            println!("* {}", v);
+        } else {
+            println!("  {}", v);
+        }
+    }
+}
+
+fn list_cards(format: OutputFormat, output_version: OutputVersion) -> Result<()> {
     let cards = util::cards()?;
+    let mut output = output::List::default();
     if !cards.is_empty() {
         for card in cards {
             let mut pgp = OpenPgp::new(card);
             let open = Open::new(pgp.transaction()?)?;
-            println!(" {}", open.application_identifier()?.ident());
+            output.push(open.application_identifier()?.ident());
         }
-    } else {
-        println!("No OpenPGP cards found.");
     }
+    println!("{}", output.print(format, output_version)?);
     Ok(())
 }
 
@@ -595,7 +625,7 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             Err(anyhow::anyhow!("No cards found"))
         } else {
             println!("Found {} cards:", cards.len());
-            list_cards()?;
+            list_cards(OutputFormat::Text, OutputVersion::new(1, 0, 0))?;
 
             println!();
             println!("Specify which card to use with '--card <card ident>'");
@@ -606,7 +636,16 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
     }
 }
 
-fn print_status(ident: Option<String>, verbose: bool, pkm: bool) -> Result<()> {
+fn print_status(
+    format: OutputFormat,
+    output_version: OutputVersion,
+    ident: Option<String>,
+    verbose: bool,
+    pkm: bool,
+) -> Result<()> {
+    let mut output = output::Status::default();
+    output.verbose(verbose);
+
     let card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(card);
@@ -615,61 +654,44 @@ fn print_status(ident: Option<String>, verbose: bool, pkm: bool) -> Result<()> {
     let ard = pgpt.application_related_data()?;
 
     let mut open = Open::new(pgpt)?;
-
-    print!("OpenPGP card {}", open.application_identifier()?.ident());
+    output.ident(open.application_identifier()?.ident());
 
     let ai = open.application_identifier()?;
     let version = ai.version().to_be_bytes();
-    println!(" (card version {}.{})\n", version[0], version[1]);
+    output.card_version(format!("{}.{}", version[0], version[1]));
 
     // card / cardholder metadata
     let crd = open.cardholder_related_data()?;
-
-    // Remember if any cardholder information is printed (if so, we print a newline later)
-    let mut card_holder_output = false;
 
     if let Some(name) = crd.name() {
         // FIXME: decoding as utf8 is wrong (the spec defines this field as latin1 encoded)
         let name = String::from_utf8_lossy(name).to_string();
 
-        print!("Cardholder: ");
-
-        // This field is silly, maybe ignore it?!
-        if let Some(sex) = crd.sex() {
-            if sex == Sex::Male {
-                print!("Mr. ");
-            } else if sex == Sex::Female {
-                print!("Mrs. ");
-            }
-        }
+        // // This field is silly, maybe ignore it?!
+        // if let Some(sex) = crd.sex() {
+        //     if sex == Sex::Male {
+        //         print!("Mr. ");
+        //     } else if sex == Sex::Female {
+        //         print!("Mrs. ");
+        //     }
+        // }
 
         // re-format name ("last<<first")
         let name: Vec<_> = name.split("<<").collect();
         let name = name.iter().cloned().rev().collect::<Vec<_>>().join(" ");
 
-        println!("{}", name);
-
-        card_holder_output = true;
+        output.card_holder(name);
     }
 
     let url = open.url()?;
     if !url.is_empty() {
-        println!("URL: {}", url);
-        card_holder_output = true;
+        output.url(url);
     }
 
     if let Some(lang) = crd.lang() {
-        let l = lang
-            .iter()
-            .map(|l| format!("{}", l))
-            .collect::<Vec<_>>()
-            .join(", ");
-        println!("Language preferences: '{}'", l);
-        card_holder_output = true;
-    }
-
-    if card_holder_output {
-        println!();
+        for lang in lang {
+            output.language_preference(format!("{}", lang));
+        }
     }
 
     // key information (imported vs. generated on card)
@@ -682,152 +704,131 @@ fn print_status(ident: Option<String>, verbose: bool, pkm: bool) -> Result<()> {
     let fps = open.fingerprints()?;
     let kgt = open.key_generation_times()?;
 
-    println!("Signature key");
+    let mut signature_key = output::KeySlotInfo::default();
     if let Some(fp) = fps.signature() {
-        println!("  Fingerprint: {}", fp.to_spaced_hex());
+        signature_key.fingerprint(fp.to_spaced_hex());
     }
-    println! {"  Algorithm: {}", open.algorithm_attributes(KeyType::Signing)?};
+    signature_key.algorithm(format!("{}", open.algorithm_attributes(KeyType::Signing)?));
     if let Some(kgt) = kgt.signature() {
-        println! {"  Created: {}", kgt.to_datetime()};
+        signature_key.created(format!("{}", kgt.to_datetime()));
     }
-    if verbose {
-        if let Some(uif) = ard.uif_pso_cds()? {
-            println!(
-                "  Touch policy: {} [Features: {}]",
-                uif.touch_policy(),
-                uif.features()
-            );
-        }
-        if let Some(ks) = ki.as_ref().map(|ki| ki.sig_status()) {
-            println!("  Key Status: {}", ks);
-        }
+    if let Some(uif) = ard.uif_pso_cds()? {
+        signature_key.touch_policy(format!("{}", uif.touch_policy()));
+        signature_key.touch_features(format!("{}", uif.features()));
+    }
+    if let Some(ks) = ki.as_ref().map(|ki| ki.sig_status()) {
+        signature_key.status(format!("{}", ks));
     }
 
-    if verbose {
-        if pws.pw1_cds_valid_once() {
-            println!("  User PIN presentation valid for one signature");
-        } else {
-            println!("  User PIN presentation valid for unlimited signatures");
-        }
+    if pws.pw1_cds_valid_once() {
+        signature_key.pin_valid_once();
     }
-
-    let sst = open.security_support_template()?;
-    println!("  Signatures made: {}", sst.signature_count());
 
     if pkm {
         if let Ok(pkm) = open.public_key(KeyType::Signing) {
-            println! {"  Public key material: {}", pkm};
+            signature_key.public_key_material(pkm.to_string());
         }
     }
 
-    println!();
-    println!("Decryption key");
+    output.signature_key(signature_key);
+
+    let sst = open.security_support_template()?;
+    output.signature_count(sst.signature_count());
+
+    let mut decryption_key = output::KeySlotInfo::default();
     if let Some(fp) = fps.decryption() {
-        println!("  Fingerprint: {}", fp.to_spaced_hex());
+        decryption_key.fingerprint(fp.to_spaced_hex());
     }
-    println! {"  Algorithm: {}", open.algorithm_attributes(KeyType::Decryption)?};
+    decryption_key.algorithm(format!(
+        "{}",
+        open.algorithm_attributes(KeyType::Decryption)?
+    ));
     if let Some(kgt) = kgt.decryption() {
-        println! {"  Created: {}", kgt.to_datetime()};
+        decryption_key.created(format!("{}", kgt.to_datetime()));
     }
-    if verbose {
-        if let Some(uif) = ard.uif_pso_dec()? {
-            println!(
-                "  Touch policy: {} [Features: {}]",
-                uif.touch_policy(),
-                uif.features()
-            );
-        }
-        if let Some(ks) = ki.as_ref().map(|ki| ki.dec_status()) {
-            println!("  Key Status: {}", ks);
-        }
+    if let Some(uif) = ard.uif_pso_dec()? {
+        decryption_key.touch_policy(format!("{}", uif.touch_policy()));
+        decryption_key.touch_features(format!("{}", uif.features()));
+    }
+    if let Some(ks) = ki.as_ref().map(|ki| ki.dec_status()) {
+        decryption_key.status(format!("{}", ks));
     }
     if pkm {
         if let Ok(pkm) = open.public_key(KeyType::Decryption) {
-            println! {"  Public key material: {}", pkm};
+            decryption_key.public_key_material(pkm.to_string());
         }
     }
+    output.decryption_key(decryption_key);
 
-    println!();
-    println!("Authentication key");
+    let mut authentication_key = output::KeySlotInfo::default();
     if let Some(fp) = fps.authentication() {
-        println!("  Fingerprint: {}", fp.to_spaced_hex());
+        authentication_key.fingerprint(fp.to_spaced_hex());
     }
-    println! {"  Algorithm: {}", open.algorithm_attributes(KeyType::Authentication)?};
+    authentication_key.algorithm(format!(
+        "{}",
+        open.algorithm_attributes(KeyType::Authentication)?
+    ));
     if let Some(kgt) = kgt.authentication() {
-        println! {"  Created: {}", kgt.to_datetime()};
+        authentication_key.created(format!("{}", kgt.to_datetime()));
     }
-    if verbose {
-        if let Some(uif) = ard.uif_pso_aut()? {
-            println!(
-                "  Touch policy: {} [Features: {}]",
-                uif.touch_policy(),
-                uif.features()
-            );
-        }
-        if let Some(ks) = ki.as_ref().map(|ki| ki.aut_status()) {
-            println!("  Key Status: {}", ks);
-        }
+    if let Some(uif) = ard.uif_pso_aut()? {
+        authentication_key.touch_policy(format!("{}", uif.touch_policy()));
+        authentication_key.touch_features(format!("{}", uif.features()));
+    }
+    if let Some(ks) = ki.as_ref().map(|ki| ki.aut_status()) {
+        authentication_key.status(format!("{}", ks));
     }
     if pkm {
         if let Ok(pkm) = open.public_key(KeyType::Authentication) {
-            println! {"  public key material: {}", pkm};
+            authentication_key.public_key_material(pkm.to_string());
         }
     }
+    output.authentication_key(authentication_key);
 
     // technical details about the card's state
 
-    println!();
+    output.user_pin_remaining_attempts(pws.err_count_pw1());
+    output.admin_pin_remaining_attempts(pws.err_count_pw3());
+    output.reset_code_remaining_attempts(pws.err_count_rc());
 
-    println!(
-        "Remaining PIN attempts: User: {}, Admin: {}, Reset Code: {}",
-        pws.err_count_pw1(),
-        pws.err_count_pw3(),
-        pws.err_count_rc(),
-    );
+    // FIXME: Handle attestation key information as a separate
+    // KeySlotInfo! Attestation touch information should go into its
+    // own `Option<KeySlotInfo>`, and (if any information about the
+    // attestation key exists at all, which is not the case for most
+    // cards) it should be printed as a fourth KeySlot block.
+    if let Some(uif) = ard.uif_attestation()? {
+        output.card_touch_policy(uif.touch_policy().to_string());
+        output.card_touch_features(uif.features().to_string());
+    }
 
-    if verbose {
-        println!();
-
-        if let Some(uif) = ard.uif_attestation()? {
-            println!(
-                "Touch policy attestation: {} [Features: {}]",
-                uif.touch_policy(),
-                uif.features()
-            );
-            println!();
+    if let Some(ki) = ki {
+        let num = ki.num_additional();
+        for i in 0..num {
+            output.key_status(ki.additional_ref(i), ki.additional_status(i).to_string());
         }
+    }
 
-        if let Some(ki) = ki {
-            let num = ki.num_additional();
-            for i in 0..num {
-                println!(
-                    "Key Status (#{}): {}",
-                    ki.additional_ref(i),
-                    ki.additional_status(i)
-                );
-            }
-
-            if num > 0 {
-                println!();
-            }
-        }
-
-        if let Ok(fps) = ard.ca_fingerprints() {
-            for (num, fp) in fps.iter().enumerate() {
-                if let Some(fp) = fp {
-                    println!("CA fingerprint {}: {:x?}", num + 1, fp);
-                }
-            }
+    if let Ok(fps) = ard.ca_fingerprints() {
+        for fp in fps.iter().flatten() {
+            output.ca_fingerprint(fp.to_string());
         }
     }
 
     // FIXME: print "Login Data"
 
+    println!("{}", output.print(format, output_version)?);
+
     Ok(())
 }
 
 /// print metadata information about a card
-fn print_info(ident: Option<String>) -> Result<()> {
+fn print_info(
+    format: OutputFormat,
+    output_version: OutputVersion,
+    ident: Option<String>,
+) -> Result<()> {
+    let mut output = output::Info::default();
+
     let card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(card);
@@ -835,36 +836,44 @@ fn print_info(ident: Option<String>) -> Result<()> {
 
     let ai = open.application_identifier()?;
 
-    print!("OpenPGP card {}", ai.ident());
+    output.ident(ai.ident());
 
     let version = ai.version().to_be_bytes();
-    println!(" (card version {}.{})\n", version[0], version[1]);
+    output.card_version(format!("{}.{}", version[0], version[1]));
 
-    println!("Application Identifier: {}", ai);
-    println!(
-        "Manufacturer [{:04X}]: {}\n",
-        ai.manufacturer(),
-        ai.manufacturer_name()
-    );
+    output.application_id(ai.to_string());
+    output.manufacturer_id(format!("{:04X}", ai.manufacturer()));
+    output.manufacturer_name(ai.manufacturer_name().to_string());
 
     if let Some(cc) = open.historical_bytes()?.card_capabilities() {
-        println!("Card Capabilities:\n{}", cc);
+        for line in cc.to_string().lines() {
+            let line = line.strip_prefix("- ").unwrap_or(line);
+            output.card_capability(line.to_string());
+        }
     }
     if let Some(csd) = open.historical_bytes()?.card_service_data() {
-        println!("Card service data:\n{}", csd);
+        output.card_service_data(csd.to_string());
     }
 
     if let Some(eli) = open.extended_length_information()? {
-        println!("Extended Length Info:\n{}", eli);
+        for line in eli.to_string().lines() {
+            let line = line.strip_prefix("- ").unwrap_or(line);
+            output.extended_length_info(line.to_string());
+        }
     }
 
     let ec = open.extended_capabilities()?;
-    println!("Extended Capabilities:\n{}", ec);
+    for line in ec.to_string().lines() {
+        let line = line.strip_prefix("- ").unwrap_or(line);
+        output.extended_capability(line.to_string());
+    }
 
     // Algorithm information (list of supported algorithms)
     if let Ok(Some(ai)) = open.algorithm_information() {
-        println!("Supported algorithms:");
-        println!("{}", ai);
+        for line in ai.to_string().lines() {
+            let line = line.strip_prefix("- ").unwrap_or(line);
+            output.algorithm(line.to_string());
+        }
     }
 
     // FIXME: print KDF info
@@ -872,55 +881,63 @@ fn print_info(ident: Option<String>) -> Result<()> {
     // YubiKey specific (?) firmware version
     if let Ok(ver) = open.firmware_version() {
         let ver = ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
-
-        println!("Firmware Version: {}\n", ver);
+        output.firmware_version(ver);
     }
+
+    println!("{}", output.print(format, output_version)?);
 
     Ok(())
 }
 
-fn print_ssh(ident: Option<String>) -> Result<()> {
+fn print_ssh(
+    format: OutputFormat,
+    output_version: OutputVersion,
+    ident: Option<String>,
+) -> Result<()> {
+    let mut output = output::Ssh::default();
+
     let card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(card);
     let mut open = Open::new(pgp.transaction()?)?;
 
     let ident = open.application_identifier()?.ident();
-
-    println!("OpenPGP card {}", ident);
+    output.ident(ident.clone());
 
     // Print fingerprint of authentication subkey
     let fps = open.fingerprints()?;
 
-    println!();
     if let Some(fp) = fps.authentication() {
-        println!("Authentication key fingerprint:\n{}", fp);
+        output.authentication_key_fingerprint(fp.to_string());
     }
 
     // Show authentication subkey as openssh public key string
     if let Ok(pkm) = open.public_key(KeyType::Authentication) {
         if let Ok(ssh) = util::get_ssh_pubkey_string(&pkm, ident) {
-            println!();
-            println!("SSH public key:\n{}", ssh);
+            output.ssh_public_key(ssh);
         }
     }
 
+    println!("{}", output.print(format, output_version)?);
     Ok(())
 }
 
 fn print_pubkey(
+    format: OutputFormat,
+    output_version: OutputVersion,
     ident: Option<String>,
     user_pin: Option<PathBuf>,
     user_ids: Vec<String>,
 ) -> Result<()> {
+    let mut output = output::PublicKey::default();
+
     let card = pick_card_for_reading(ident)?;
 
     let mut pgp = OpenPgp::new(card);
     let mut open = Open::new(pgp.transaction()?)?;
 
     let ident = open.application_identifier()?.ident();
-
-    println!("OpenPGP card {}", ident);
+    output.ident(ident);
 
     let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
 
@@ -971,8 +988,9 @@ fn print_pubkey(
     )?;
 
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
-    println!("{}", armored);
+    output.public_key(armored);
 
+    println!("{}", output.print(format, output_version)?);
     Ok(())
 }
 
@@ -1096,15 +1114,20 @@ fn get_cert(
 
 #[allow(clippy::too_many_arguments)]
 fn generate_keys(
+    format: OutputFormat,
+    version: OutputVersion,
     mut open: Open,
     admin_pin: Option<&[u8]>,
     user_pin: Option<&[u8]>,
-    output: Option<PathBuf>,
+    output_file: Option<PathBuf>,
     decrypt: bool,
     auth: bool,
     algo: Option<String>,
     user_ids: Vec<String>,
 ) -> Result<()> {
+    let mut output = output::AdminGenerate::default();
+    output.ident(open.application_identifier()?.ident());
+
     // 1) Interpret the user's choice of algorithm.
     //
     // Unset (None) means that the algorithm that is specified on the card
@@ -1131,6 +1154,7 @@ fn generate_keys(
     };
 
     log::info!(" Key generation will be attempted with algo: {:?}", a);
+    output.algorithm(format!("{:?}", a));
 
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
@@ -1156,10 +1180,12 @@ fn generate_keys(
     )?;
 
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
+    output.public_key(armored);
 
     // Write armored certificate to the output file (or stdout)
-    let mut output = util::open_or_stdout(output.as_deref())?;
-    output.write_all(armored.as_bytes())?;
+    let mut handle = util::open_or_stdout(output_file.as_deref())?;
+    handle.write_all(output.print(format, version)?.as_bytes())?;
+    let _ = handle.write(b"\n")?;
 
     Ok(())
 }
