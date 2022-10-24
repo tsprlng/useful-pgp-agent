@@ -579,13 +579,12 @@ fn list_cards(format: OutputFormat, output_version: OutputVersion) -> Result<()>
     Ok(())
 }
 
-fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
+fn set_identity(ident: &str, id: cli::SetIdentityId) -> Result<(), Box<dyn std::error::Error>> {
     let backend = util::open_card(ident)?;
     let mut card = Card::new(backend);
     let mut open = card.transaction()?;
 
-    open.set_identity(id)?;
-
+    open.set_identity(u8::from(id))?;
     Ok(())
 }
 

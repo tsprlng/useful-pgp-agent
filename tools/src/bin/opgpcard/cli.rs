@@ -146,8 +146,8 @@ pub enum Command {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
 
-        #[clap(name = "identity")]
-        id: u8,
+        #[clap(name = "identity", value_enum)]
+        id: SetIdentityId,
     },
 }
 
@@ -355,6 +355,26 @@ impl From<TouchPolicy> for openpgp_card_sequoia::types::TouchPolicy {
             TouchPolicy::Fixed => OCTouchPolicy::Fixed,
             TouchPolicy::Cached => OCTouchPolicy::Cached,
             TouchPolicy::CachedFixed => OCTouchPolicy::CachedFixed,
+        }
+    }
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+pub enum SetIdentityId {
+    #[clap(name = "0")]
+    Zero,
+    #[clap(name = "1")]
+    One,
+    #[clap(name = "2")]
+    Two,
+}
+
+impl From<SetIdentityId> for u8 {
+    fn from(id: SetIdentityId) -> Self {
+        match id {
+            SetIdentityId::Zero => 0,
+            SetIdentityId::One => 1,
+            SetIdentityId::Two => 2,
         }
     }
 }
