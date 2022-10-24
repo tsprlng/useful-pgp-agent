@@ -313,8 +313,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 cli::AdminCommand::Generate {
                     user_pin,
                     output,
-                    no_decrypt,
-                    no_auth,
+                    decrypt,
+                    auth,
                     algo,
                     user_id,
                 } => {
@@ -327,8 +327,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         admin_pin.as_deref(),
                         user_pin.as_deref(),
                         output,
-                        !no_decrypt,
-                        !no_auth,
+                        decrypt,
+                        auth,
                         algo,
                         user_id,
                     )?;

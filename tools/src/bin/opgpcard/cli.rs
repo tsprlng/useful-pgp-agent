@@ -188,11 +188,11 @@ pub enum AdminCommand {
         #[clap(name = "output", long = "output", short = 'o')]
         output: Option<PathBuf>,
 
-        #[clap(long = "no-decrypt")]
-        no_decrypt: bool,
+        #[clap(long = "no-decrypt", action = clap::ArgAction::SetFalse)]
+        decrypt: bool,
 
-        #[clap(long = "no-auth")]
-        no_auth: bool,
+        #[clap(long = "no-auth", action = clap::ArgAction::SetFalse)]
+        auth: bool,
 
         /// Algorithm (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519)
         #[clap()]
