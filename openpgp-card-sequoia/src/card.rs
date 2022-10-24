@@ -12,7 +12,7 @@ use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
     ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
-    SecuritySupportTemplate, Sex, TouchPolicy,
+    SecuritySupportTemplate, Sex, TouchPolicy, UIF,
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
 use openpgp_card::{CardBackend, Error, KeySet, KeyType, OpenPgp, OpenPgpTransaction};
@@ -255,24 +255,20 @@ impl<'a> Open<'a> {
         unimplemented!()
     }
 
-    #[allow(dead_code)]
-    fn uif_pso_cds() {
-        unimplemented!()
+    pub fn uif_signing(&self) -> Result<Option<UIF>, Error> {
+        self.ard.uif_pso_cds()
     }
 
-    #[allow(dead_code)]
-    fn uif_pso_dec() {
-        unimplemented!()
+    pub fn uif_decryption(&self) -> Result<Option<UIF>, Error> {
+        self.ard.uif_pso_dec()
     }
 
-    #[allow(dead_code)]
-    fn uif_pso_aut() {
-        unimplemented!()
+    pub fn uif_authentication(&self) -> Result<Option<UIF>, Error> {
+        self.ard.uif_pso_aut()
     }
 
-    #[allow(dead_code)]
-    fn uif_attestation() {
-        unimplemented!()
+    pub fn uif_attestation(&self) -> Result<Option<UIF>, Error> {
+        self.ard.uif_attestation()
     }
 
     // --- optional private DOs (0101 - 0104) ---
