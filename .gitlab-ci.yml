@@ -58,6 +58,7 @@ cargo-clippy:
     - apt clean
   script:
     - rustup component add clippy
+    - rm tools/tests/opgpcard.rs # otherwise build fails
     - cargo clippy --verbose --tests -- -D warnings
   cache:
     # inherit all general cache settings
@@ -76,18 +77,22 @@ udeps:
     - curl --location --output /tmp/cargo-udeps.tar.gz https://github.com/est31/cargo-udeps/releases/download/v0.1.26/cargo-udeps-v0.1.26-x86_64-unknown-linux-gnu.tar.gz
     - tar --extract --verbose --gzip --file /tmp/cargo-udeps.tar.gz --directory /usr/local/bin/ --strip-components=2 ./cargo-udeps-v0.1.26-x86_64-unknown-linux-gnu/cargo-udeps
   script:
+    - rm tools/tests/opgpcard.rs # otherwise build fails
     - cargo udeps --workspace --all-features --all-targets
   cache: [ ]
 
 cargo-test:
   stage: test
-  image: rust:latest
+  image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
   before_script:
     - mkdir -p /run/user/$UID
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
+    - /etc/init.d/pcscd start
+    - su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim
   script:
+    - touch tools/virtual-card-available
     - cargo test
   cache:
     # inherit all general cache settings
@@ -97,13 +102,16 @@ cargo-test:
 
 cargo-test-debian-bookworm:
   stage: test
-  image: debian:bookworm-slim
+  image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
   before_script:
     - mkdir -p /run/user/$UID
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git rustc cargo clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
+    - /etc/init.d/pcscd start
+    - su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim
   script:
+    - touch tools/virtual-card-available
     - cargo test
   cache:
     # inherit all general cache settings

@@ -23,3 +23,18 @@ anyhow = "1"
 clap = { version = "3", features = ["derive"] }
 env_logger = "0.9"
 log = "0.4"
+serde_json = "1.0.86"
+serde = { version = "1.0.145", features = ["derive"] }
+semver = "1.0.14"
+serde_yaml = "0.9.13"
+thiserror = "1.0.37"
+
+[build-dependencies]
+subplot-build = "0.5.0"
+
+[dev-dependencies]
+fehler = "1.0.0"
+subplotlib = "0.5.0"
+
+[package.metadata.cargo-udeps.ignore]
+development = ["fehler", "subplotlib"]
