@@ -11,8 +11,8 @@ use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
-    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
-    SecuritySupportTemplate, Sex, TouchPolicy, UIF,
+    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, KeyInformation, Lang,
+    PWStatusBytes, SecuritySupportTemplate, Sex, TouchPolicy, UIF,
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
 use openpgp_card::{CardBackend, Error, KeySet, KeyType, OpenPgp, OpenPgpTransaction};
@@ -249,9 +249,8 @@ impl<'a> Open<'a> {
         self.ard.key_generation_times()
     }
 
-    #[allow(dead_code)]
-    fn key_information() {
-        unimplemented!()
+    pub fn key_information(&self) -> Result<Option<KeyInformation>, Error> {
+        self.ard.key_information()
     }
 
     pub fn uif_signing(&self) -> Result<Option<UIF>, Error> {
