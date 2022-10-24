@@ -241,9 +241,8 @@ impl<'a> Open<'a> {
         self.ard.fingerprints()
     }
 
-    #[allow(dead_code)]
-    fn ca_fingerprints(&self) {
-        unimplemented!()
+    pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
+        self.ard.ca_fingerprints()
     }
 
     pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
