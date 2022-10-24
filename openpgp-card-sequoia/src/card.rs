@@ -359,6 +359,8 @@ impl<'a> Open<'a> {
         self.opt.manage_security_environment(for_operation, key_ref)
     }
 
+    // ----------
+
     /// Get "Attestation Certificate (Yubico)"
     pub fn attestation_certificate(&mut self) -> Result<Vec<u8>, Error> {
         self.opt.attestation_certificate()
@@ -367,6 +369,20 @@ impl<'a> Open<'a> {
     /// Firmware Version, YubiKey specific (?)
     pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
         self.opt.firmware_version()
+    }
+
+    /// Set "identity", Nitrokey Start specific (possible values: 0, 1, 2).
+    /// <https://docs.nitrokey.com/start/windows/multiple-identities.html>
+    ///
+    /// A Nitrokey Start can present as 3 different virtual OpenPGP cards.
+    /// This command enables one of those virtual cards.
+    ///
+    /// Each virtual card identity behaves like a separate, independent OpenPGP card.
+    pub fn set_identity(&mut self, id: u8) -> Result<(), Error> {
+        // FIXME: what is in the returned data - is it ever useful?
+        let _ = self.opt.set_identity(id)?;
+
+        Ok(())
     }
 
     // ----------
