@@ -15,10 +15,8 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 
-use openpgp_card::algorithm::AlgoSimple;
-use openpgp_card::card_do::TouchPolicy;
-use openpgp_card::{CardBackend, KeyType, OpenPgp};
 use openpgp_card_sequoia::card::{Admin, Card, Open};
+use openpgp_card_sequoia::types::{AlgoSimple, CardBackend, KeyType, TouchPolicy};
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
@@ -104,10 +102,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cli::AttCommand::Cert { ident } => {
                 let mut output = output::AttestationCert::default();
 
-                let card = pick_card_for_reading(ident)?;
+                let backend = pick_card_for_reading(ident)?;
+                let mut card = Card::new(backend);
+                let mut open = card.transaction()?;
 
-                let mut pgp = OpenPgp::new(card);
-                let mut open = Open::new(pgp.transaction()?)?;
                 output.ident(open.application_identifier()?.ident());
 
                 if let Ok(ac) = open.attestation_certificate() {
@@ -122,10 +120,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 key,
                 user_pin,
             } => {
-                let card = util::open_card(&ident)?;
-                let mut pgp = OpenPgp::new(card);
+                let backend = util::open_card(&ident)?;
+                let mut card = Card::new(backend);
+                let mut open = card.transaction()?;
 
-                let mut open = Open::new(pgp.transaction()?)?;
                 let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
 
                 let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
@@ -143,10 +141,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })?;
             }
             cli::AttCommand::Statement { ident, key } => {
-                let card = pick_card_for_reading(ident)?;
-
-                let mut pgp = OpenPgp::new(card);
-                let mut open = Open::new(pgp.transaction()?)?;
+                let backend = pick_card_for_reading(ident)?;
+                let mut card = Card::new(backend);
+                let mut open = card.transaction()?;
 
                 // Get cardholder certificate from card.
 
@@ -192,10 +189,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             admin_pin,
             cmd,
         } => {
-            let card = util::open_card(&ident)?;
-            let mut pgp = OpenPgp::new(card);
+            let backend = util::open_card(&ident)?;
+            let mut card = Card::new(backend);
+            let mut open = card.transaction()?;
 
-            let mut open = Open::new(pgp.transaction()?)?;
             let admin_pin = util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN);
 
             match cmd {
@@ -367,13 +364,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         cli::Command::Pin { ident, cmd } => {
-            let card = util::open_card(&ident)?;
-            let mut pgp = OpenPgp::new(card);
-            let pgpt = pgp.transaction()?;
+            let backend = util::open_card(&ident)?;
+            let mut card = Card::new(backend);
+            let mut open = card.transaction()?;
 
-            let pinpad_modify = pgpt.feature_pinpad_modify();
-
-            let mut open = Open::new(pgpt)?;
+            let pinpad_modify = open.feature_pinpad_modify();
 
             match cmd {
                 cli::PinCommand::SetUser {
@@ -592,9 +587,10 @@ fn list_cards(format: OutputFormat, output_version: OutputVersion) -> Result<()>
     let cards = util::cards()?;
     let mut output = output::List::default();
     if !cards.is_empty() {
-        for card in cards {
-            let mut pgp = OpenPgp::new(card);
-            let open = Open::new(pgp.transaction()?)?;
+        for backend in cards {
+            let mut card = Card::new(backend);
+            let open = card.transaction()?;
+
             output.push(open.application_identifier()?.ident());
         }
     }
@@ -603,11 +599,11 @@ fn list_cards(format: OutputFormat, output_version: OutputVersion) -> Result<()>
 }
 
 fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
-    let card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(card);
+    let backend = util::open_card(ident)?;
+    let mut card = Card::new(backend);
+    let mut open = card.transaction()?;
 
-    let mut pgpt = pgp.transaction()?;
-    pgpt.set_identity(id)?;
+    open.set_identity(id)?;
 
     Ok(())
 }
@@ -646,14 +642,10 @@ fn print_status(
     let mut output = output::Status::default();
     output.verbose(verbose);
 
-    let card = pick_card_for_reading(ident)?;
+    let backend = pick_card_for_reading(ident)?;
+    let mut card = Card::new(backend);
+    let mut open = card.transaction()?;
 
-    let mut pgp = OpenPgp::new(card);
-    let mut pgpt = pgp.transaction()?;
-
-    let ard = pgpt.application_related_data()?;
-
-    let mut open = Open::new(pgpt)?;
     output.ident(open.application_identifier()?.ident());
 
     let ai = open.application_identifier()?;
@@ -695,7 +687,7 @@ fn print_status(
     }
 
     // key information (imported vs. generated on card)
-    let ki = ard.key_information().ok().flatten();
+    let ki = open.key_information().ok().flatten();
 
     let pws = open.pw_status_bytes()?;
 
@@ -712,7 +704,7 @@ fn print_status(
     if let Some(kgt) = kgt.signature() {
         signature_key.created(format!("{}", kgt.to_datetime()));
     }
-    if let Some(uif) = ard.uif_pso_cds()? {
+    if let Some(uif) = open.uif_signing()? {
         signature_key.touch_policy(format!("{}", uif.touch_policy()));
         signature_key.touch_features(format!("{}", uif.features()));
     }
@@ -746,7 +738,7 @@ fn print_status(
     if let Some(kgt) = kgt.decryption() {
         decryption_key.created(format!("{}", kgt.to_datetime()));
     }
-    if let Some(uif) = ard.uif_pso_dec()? {
+    if let Some(uif) = open.uif_decryption()? {
         decryption_key.touch_policy(format!("{}", uif.touch_policy()));
         decryption_key.touch_features(format!("{}", uif.features()));
     }
@@ -771,7 +763,7 @@ fn print_status(
     if let Some(kgt) = kgt.authentication() {
         authentication_key.created(format!("{}", kgt.to_datetime()));
     }
-    if let Some(uif) = ard.uif_pso_aut()? {
+    if let Some(uif) = open.uif_authentication()? {
         authentication_key.touch_policy(format!("{}", uif.touch_policy()));
         authentication_key.touch_features(format!("{}", uif.features()));
     }
@@ -796,7 +788,7 @@ fn print_status(
     // own `Option<KeySlotInfo>`, and (if any information about the
     // attestation key exists at all, which is not the case for most
     // cards) it should be printed as a fourth KeySlot block.
-    if let Some(uif) = ard.uif_attestation()? {
+    if let Some(uif) = open.uif_attestation()? {
         output.card_touch_policy(uif.touch_policy().to_string());
         output.card_touch_features(uif.features().to_string());
     }
@@ -808,7 +800,7 @@ fn print_status(
         }
     }
 
-    if let Ok(fps) = ard.ca_fingerprints() {
+    if let Ok(fps) = open.ca_fingerprints() {
         for fp in fps.iter().flatten() {
             output.ca_fingerprint(fp.to_string());
         }
@@ -829,10 +821,9 @@ fn print_info(
 ) -> Result<()> {
     let mut output = output::Info::default();
 
-    let card = pick_card_for_reading(ident)?;
-
-    let mut pgp = OpenPgp::new(card);
-    let mut open = Open::new(pgp.transaction()?)?;
+    let backend = pick_card_for_reading(ident)?;
+    let mut card = Card::new(backend);
+    let mut open = card.transaction()?;
 
     let ai = open.application_identifier()?;
 
@@ -899,10 +890,9 @@ fn print_ssh(
 ) -> Result<()> {
     let mut output = output::Ssh::default();
 
-    let card = pick_card_for_reading(ident)?;
-
-    let mut pgp = OpenPgp::new(card);
-    let mut open = Open::new(pgp.transaction()?)?;
+    let backend = pick_card_for_reading(ident)?;
+    let mut card = Card::new(backend);
+    let mut open = card.transaction()?;
 
     let ident = open.application_identifier()?.ident();
     output.ident(ident.clone());
@@ -934,10 +924,9 @@ fn print_pubkey(
 ) -> Result<()> {
     let mut output = output::PublicKey::default();
 
-    let card = pick_card_for_reading(ident)?;
-
-    let mut pgp = OpenPgp::new(card);
-    let mut open = Open::new(pgp.transaction()?)?;
+    let backend = pick_card_for_reading(ident)?;
+    let mut card = Card::new(backend);
+    let mut open = card.transaction()?;
 
     let ident = open.application_identifier()?.ident();
     output.ident(ident);
@@ -1006,10 +995,9 @@ fn decrypt(
 
     let input = util::open_or_stdin(input)?;
 
-    let card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(card);
-
-    let mut open = Open::new(pgp.transaction()?)?;
+    let backend = util::open_card(ident)?;
+    let mut card = Card::new(backend);
+    let mut open = card.transaction()?;
 
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 
@@ -1031,10 +1019,9 @@ fn sign_detached(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = util::open_or_stdin(input)?;
 
-    let card = util::open_card(ident)?;
-    let mut pgp = OpenPgp::new(card);
-
-    let mut open = Open::new(pgp.transaction()?)?;
+    let backend = util::open_card(ident)?;
+    let mut card = Card::new(backend);
+    let mut open = card.transaction()?;
 
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 

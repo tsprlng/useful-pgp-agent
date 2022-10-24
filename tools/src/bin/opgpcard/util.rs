@@ -4,11 +4,11 @@
 use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
 
-use openpgp_card::algorithm::{Algo, Curve};
-use openpgp_card::crypto_data::{EccType, PublicKeyMaterial};
-use openpgp_card::{CardBackend, Error, StatusBytes};
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
+use openpgp_card_sequoia::types::{
+    Algo, CardBackend, Curve, EccType, Error, PublicKeyMaterial, StatusBytes,
+};
 
 pub(crate) fn cards() -> Result<Vec<Box<dyn CardBackend + Send + Sync>>, Error> {
     PcscBackend::cards(None).map(|cards| cards.into_iter().map(|c| c.into()).collect())
