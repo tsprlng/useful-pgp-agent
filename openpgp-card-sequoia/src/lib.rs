@@ -142,6 +142,7 @@ mod decryptor;
 mod privkey;
 mod signer;
 pub mod sq_util;
+pub mod types;
 pub mod util;
 
 /// Shorthand for Sequoia public key data (a single public (sub)key)
