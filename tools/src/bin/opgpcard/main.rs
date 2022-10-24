@@ -3,6 +3,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use cli::BaseKeySlot;
 use std::path::{Path, PathBuf};
 
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
@@ -128,14 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
 
-                let kt = match key.as_str() {
-                    "SIG" => KeyType::Signing,
-                    "DEC" => KeyType::Decryption,
-                    "AUT" => KeyType::Authentication,
-                    _ => {
-                        return Err(anyhow!("Unexpected Key Type {}", key).into());
-                    }
-                };
+                let kt = KeyType::from(key);
                 sign.generate_attestation(kt, &|| {
                     println!("Touch confirmation needed to generate an attestation")
                 })?;
@@ -160,13 +154,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // Select cardholder certificate
-                match key.as_str() {
-                    "AUT" => open.select_data(0, &[0x7F, 0x21], select_data_workaround)?,
-                    "DEC" => open.select_data(1, &[0x7F, 0x21], select_data_workaround)?,
-                    "SIG" => open.select_data(2, &[0x7F, 0x21], select_data_workaround)?,
-
-                    _ => {
-                        return Err(anyhow!("Unexpected Key Type {}", key).into());
+                match key {
+                    BaseKeySlot::Aut => {
+                        open.select_data(0, &[0x7F, 0x21], select_data_workaround)?
+                    }
+                    BaseKeySlot::Dec => {
+                        open.select_data(1, &[0x7F, 0x21], select_data_workaround)?
+                    }
+                    BaseKeySlot::Sig => {
+                        open.select_data(2, &[0x7F, 0x21], select_data_workaround)?
                     }
                 };
 
@@ -337,15 +333,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     )?;
                 }
                 cli::AdminCommand::Touch { key, policy } => {
-                    let kt = match key.as_str() {
-                        "SIG" => KeyType::Signing,
-                        "DEC" => KeyType::Decryption,
-                        "AUT" => KeyType::Authentication,
-                        "ATT" => KeyType::Attestation,
-                        _ => {
-                            return Err(anyhow!("Unexpected Key Type {}", key).into());
-                        }
-                    };
+                    let kt = KeyType::from(key);
+
                     let pol = match policy.as_str() {
                         "Off" => TouchPolicy::Off,
                         "On" => TouchPolicy::On,

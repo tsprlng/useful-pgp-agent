@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use clap::{AppSettings, Parser};
+use clap::{AppSettings, Parser, ValueEnum};
 use std::path::PathBuf;
 
 use crate::{OutputFormat, OutputVersion};
@@ -204,8 +204,8 @@ pub enum AdminCommand {
 
     /// Set touch policy
     Touch {
-        #[clap(name = "Key slot (SIG|DEC|AUT|ATT)", short = 'k', long = "key")]
-        key: String,
+        #[clap(name = "Key slot", short = 'k', long = "key", value_enum)]
+        key: BasePlusAttKeySlot,
 
         #[clap(
             name = "Policy (Off|On|Fixed|Cached|Cached-Fixed)",
@@ -277,8 +277,8 @@ pub enum AttCommand {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: String,
 
-        #[clap(name = "Key slot (SIG|DEC|AUT)", short = 'k', long = "key")]
-        key: String,
+        #[clap(name = "Key slot", short = 'k', long = "key", value_enum)]
+        key: BaseKeySlot,
 
         #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
         user_pin: Option<PathBuf>,
@@ -290,7 +290,47 @@ pub enum AttCommand {
         #[clap(name = "card ident", short = 'c', long = "card")]
         ident: Option<String>,
 
-        #[clap(name = "Key slot (SIG|DEC|AUT)", short = 'k', long = "key")]
-        key: String,
+        #[clap(name = "Key slot", short = 'k', long = "key", value_enum)]
+        key: BaseKeySlot,
     },
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+#[clap(rename_all = "UPPER")]
+pub enum BaseKeySlot {
+    Sig,
+    Dec,
+    Aut,
+}
+
+impl From<BaseKeySlot> for openpgp_card_sequoia::types::KeyType {
+    fn from(ks: BaseKeySlot) -> Self {
+        use openpgp_card_sequoia::types::KeyType;
+        match ks {
+            BaseKeySlot::Sig => KeyType::Signing,
+            BaseKeySlot::Dec => KeyType::Decryption,
+            BaseKeySlot::Aut => KeyType::Authentication,
+        }
+    }
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+#[clap(rename_all = "UPPER")]
+pub enum BasePlusAttKeySlot {
+    Sig,
+    Dec,
+    Aut,
+    Att,
+}
+
+impl From<BasePlusAttKeySlot> for openpgp_card_sequoia::types::KeyType {
+    fn from(ks: BasePlusAttKeySlot) -> Self {
+        use openpgp_card_sequoia::types::KeyType;
+        match ks {
+            BasePlusAttKeySlot::Sig => KeyType::Signing,
+            BasePlusAttKeySlot::Dec => KeyType::Decryption,
+            BasePlusAttKeySlot::Aut => KeyType::Authentication,
+            BasePlusAttKeySlot::Att => KeyType::Attestation,
+        }
+    }
 }
