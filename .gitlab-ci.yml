@@ -198,6 +198,9 @@ hardware-builddeps:
     - docker push $IMAGE_SHA
     - docker push $IMAGE_LATEST
   only:
+    variables:
+      # Forks of this project do not have access to cookiejar's hardware tokens
+      - $CI_PROJECT_NAMESPACE == "openpgp-card"
     changes:
       - card-functionality/docker/Dockerfile.hardware-builddeps
       - .gitlab-ci.yml
@@ -209,6 +212,10 @@ hardware-builddeps:
 
 .hw-test-template:
   image: registry.gitlab.com/openpgp-card/openpgp-card/hardware-builddeps
+  only:
+    variables:
+      # Forks of this project do not have access to cookiejar's hardware tokens
+      - $CI_PROJECT_NAMESPACE == "openpgp-card"
   tags:
     - card
   parallel:
