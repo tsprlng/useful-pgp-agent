@@ -207,12 +207,8 @@ pub enum AdminCommand {
         #[clap(name = "Key slot", short = 'k', long = "key", value_enum)]
         key: BasePlusAttKeySlot,
 
-        #[clap(
-            name = "Policy (Off|On|Fixed|Cached|Cached-Fixed)",
-            short = 'p',
-            long = "policy"
-        )]
-        policy: String,
+        #[clap(name = "Policy", short = 'p', long = "policy", value_enum)]
+        policy: TouchPolicy,
     },
 }
 
@@ -331,6 +327,33 @@ impl From<BasePlusAttKeySlot> for openpgp_card_sequoia::types::KeyType {
             BasePlusAttKeySlot::Dec => KeyType::Decryption,
             BasePlusAttKeySlot::Aut => KeyType::Authentication,
             BasePlusAttKeySlot::Att => KeyType::Attestation,
+        }
+    }
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+pub enum TouchPolicy {
+    #[clap(name = "Off")]
+    Off,
+    #[clap(name = "On")]
+    On,
+    #[clap(name = "Fixed")]
+    Fixed,
+    #[clap(name = "Cached")]
+    Cached,
+    #[clap(name = "Cached-Fixed")]
+    CachedFixed,
+}
+
+impl From<TouchPolicy> for openpgp_card_sequoia::types::TouchPolicy {
+    fn from(tp: TouchPolicy) -> Self {
+        use openpgp_card_sequoia::types::TouchPolicy as OCTouchPolicy;
+        match tp {
+            TouchPolicy::On => OCTouchPolicy::On,
+            TouchPolicy::Off => OCTouchPolicy::Off,
+            TouchPolicy::Fixed => OCTouchPolicy::Fixed,
+            TouchPolicy::Cached => OCTouchPolicy::Cached,
+            TouchPolicy::CachedFixed => OCTouchPolicy::CachedFixed,
         }
     }
 }

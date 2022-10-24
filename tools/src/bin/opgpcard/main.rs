@@ -335,16 +335,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 cli::AdminCommand::Touch { key, policy } => {
                     let kt = KeyType::from(key);
 
-                    let pol = match policy.as_str() {
-                        "Off" => TouchPolicy::Off,
-                        "On" => TouchPolicy::On,
-                        "Fixed" => TouchPolicy::Fixed,
-                        "Cached" => TouchPolicy::Cached,
-                        "Cached-Fixed" => TouchPolicy::CachedFixed,
-                        _ => {
-                            return Err(anyhow!("Unexpected Policy {}", policy).into());
-                        }
-                    };
+                    let pol = TouchPolicy::from(policy);
 
                     let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
