@@ -600,15 +600,12 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
         } else if cards.is_empty() {
             Err(anyhow::anyhow!("No cards found"))
         } else {
-            println!("Found {} cards:", cards.len());
             // The output version for OutputFormat::Text doesn't matter (it's ignored).
             list_cards(OutputFormat::Text, OutputVersion::new(0, 0, 0))?;
 
-            println!();
-            println!("Specify which card to use with '--card <card ident>'");
-            println!();
+            println!("Specify which card to use with '--card <card ident>'\n");
 
-            Err(anyhow::anyhow!("Specify card"))
+            Err(anyhow::anyhow!("Found more than one card"))
         }
     }
 }
