@@ -979,6 +979,10 @@ fn decrypt(
     let mut card = Card::new(backend);
     let mut open = card.transaction()?;
 
+    if open.fingerprints()?.decryption().is_none() {
+        return Err(anyhow!("Can't decrypt: this card has no key in the decryption slot.").into());
+    }
+
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 
     let mut user = util::verify_to_user(&mut open, user_pin.as_deref())?;
@@ -1002,6 +1006,10 @@ fn sign_detached(
     let backend = util::open_card(ident)?;
     let mut card = Card::new(backend);
     let mut open = card.transaction()?;
+
+    if open.fingerprints()?.signature().is_none() {
+        return Err(anyhow!("Can't sign: this card has no key in the signing slot.").into());
+    }
 
     let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
 
