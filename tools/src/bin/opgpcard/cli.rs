@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use crate::{OutputFormat, OutputVersion};
 
-pub const DEFAULT_OUTPUT_VERSION: &str = "0.9.0";
 pub const OUTPUT_VERSIONS: &[OutputVersion] = &[OutputVersion::new(0, 9, 0)];
+pub const DEFAULT_OUTPUT_VERSION: OutputVersion = OutputVersion::new(0, 9, 0);
 
 #[derive(Parser, Debug)]
 #[clap(
@@ -20,11 +20,11 @@ pub const OUTPUT_VERSIONS: &[OutputVersion] = &[OutputVersion::new(0, 9, 0)];
 )]
 pub struct Cli {
     /// Produce output in the chosen format.
-    #[clap(long, value_enum, default_value = "text")]
+    #[clap(long, value_enum, default_value_t = OutputFormat::Text)]
     pub output_format: OutputFormat,
 
     /// Pick output version to use, for non-textual formats.
-    #[clap(long, default_value = DEFAULT_OUTPUT_VERSION)]
+    #[clap(long, default_value_t = DEFAULT_OUTPUT_VERSION)]
     pub output_version: OutputVersion,
 
     #[clap(subcommand)]
