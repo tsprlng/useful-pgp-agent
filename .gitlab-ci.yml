@@ -83,16 +83,15 @@ udeps:
 
 cargo-test:
   stage: test
-  image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
+  image: rust:latest
   before_script:
     - mkdir -p /run/user/$UID
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
-    - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim
   script:
-    - touch tools/virtual-card-available
+    # there is no virtual card in this image, so subplot does not generate tests
+    # that would require one.
     - cargo test
   cache:
     # inherit all general cache settings
@@ -102,22 +101,42 @@ cargo-test:
 
 cargo-test-debian-bookworm:
   stage: test
-  image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
+  image: debian:bookworm-slim
   before_script:
     - mkdir -p /run/user/$UID
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git rustc cargo clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
-    - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim
   script:
-    - touch tools/virtual-card-available
+    # there is no virtual card in this image, so subplot does not generate tests
+    # that would require one.
     - cargo test
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
     # override the key
     key: "bookworm"
+
+subplot:
+  stage: virtual-test
+  image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
+  before_script:
+    - mkdir -p /run/user/$UID
+    - apt update -y -qq
+    - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
+    - apt clean
+    - /etc/init.d/pcscd start
+    - su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim
+  script:
+    # make sure a virtual card is available, so that the subplot tests are
+    # generated
+    - touch tools/virtual-card-available
+    - cargo test
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    key: "rust-latest"
 
 run_cardtest_smartpgp:
   stage: virtual-test
