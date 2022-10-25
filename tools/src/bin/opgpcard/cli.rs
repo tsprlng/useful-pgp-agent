@@ -194,9 +194,9 @@ pub enum AdminCommand {
         #[clap(long = "no-auth", action = clap::ArgAction::SetFalse)]
         auth: bool,
 
-        /// Algorithm (rsa2048|rsa3072|rsa4096|nistp256|nistp384|nistp521|25519)
-        #[clap()]
-        algo: Option<String>,
+        /// Algorithm
+        #[clap(value_enum)]
+        algo: Option<AdminGenerateAlgo>,
 
         /// User ID to add to the exported certificate representation
         #[clap(name = "User ID", short = 'u', long = "userid")]
@@ -375,6 +375,34 @@ impl From<SetIdentityId> for u8 {
             SetIdentityId::Zero => 0,
             SetIdentityId::One => 1,
             SetIdentityId::Two => 2,
+        }
+    }
+}
+
+#[derive(ValueEnum, Debug, Clone)]
+#[clap(rename_all = "lower")]
+pub enum AdminGenerateAlgo {
+    Rsa2048,
+    Rsa3072,
+    Rsa4096,
+    Nistp256,
+    Nistp384,
+    Nistp521,
+    Curve25519,
+}
+
+impl From<AdminGenerateAlgo> for openpgp_card_sequoia::types::AlgoSimple {
+    fn from(aga: AdminGenerateAlgo) -> Self {
+        use openpgp_card_sequoia::types::AlgoSimple;
+
+        match aga {
+            AdminGenerateAlgo::Rsa2048 => AlgoSimple::RSA2k,
+            AdminGenerateAlgo::Rsa3072 => AlgoSimple::RSA3k,
+            AdminGenerateAlgo::Rsa4096 => AlgoSimple::RSA4k,
+            AdminGenerateAlgo::Nistp256 => AlgoSimple::NIST256,
+            AdminGenerateAlgo::Nistp384 => AlgoSimple::NIST384,
+            AdminGenerateAlgo::Nistp521 => AlgoSimple::NIST521,
+            AdminGenerateAlgo::Curve25519 => AlgoSimple::Curve25519,
         }
     }
 }

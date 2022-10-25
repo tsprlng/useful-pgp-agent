@@ -329,7 +329,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         output,
                         decrypt,
                         auth,
-                        algo,
+                        algo.map(AlgoSimple::from),
                         user_id,
                     )?;
                 }
@@ -1092,7 +1092,7 @@ fn generate_keys(
     output_file: Option<PathBuf>,
     decrypt: bool,
     auth: bool,
-    algo: Option<String>,
+    algo: Option<AlgoSimple>,
     user_ids: Vec<String>,
 ) -> Result<()> {
     let mut output = output::AdminGenerate::default();
@@ -1111,26 +1111,14 @@ fn generate_keys(
     // Because of this, for generation of RSA keys, here we take the approach
     // of first trying one variant, and then if that fails, try the other.
 
-    let a = match algo.as_deref() {
-        None => None,
-        Some("rsa2048") => Some(AlgoSimple::RSA2k),
-        Some("rsa3072") => Some(AlgoSimple::RSA3k),
-        Some("rsa4096") => Some(AlgoSimple::RSA4k),
-        Some("nistp256") => Some(AlgoSimple::NIST256),
-        Some("nistp384") => Some(AlgoSimple::NIST384),
-        Some("nistp521") => Some(AlgoSimple::NIST521),
-        Some("25519") => Some(AlgoSimple::Curve25519),
-        _ => return Err(anyhow!("Unexpected algorithm")),
-    };
-
-    log::info!(" Key generation will be attempted with algo: {:?}", a);
-    output.algorithm(format!("{:?}", a));
+    log::info!(" Key generation will be attempted with algo: {:?}", algo);
+    output.algorithm(format!("{:?}", algo));
 
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
     let (key_sig, key_dec, key_aut) = {
         if let Ok(mut admin) = util::verify_to_admin(&mut open, admin_pin) {
-            gen_subkeys(&mut admin, decrypt, auth, a)?
+            gen_subkeys(&mut admin, decrypt, auth, algo)?
         } else {
             return Err(anyhow!("Failed to open card in admin mode."));
         }
