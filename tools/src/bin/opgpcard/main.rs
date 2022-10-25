@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2022 Nora Widdecke <mail@nora.pink>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
+use cli::BaseKeySlot;
 use std::path::{Path, PathBuf};
 
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
@@ -128,14 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
 
-                let kt = match key.as_str() {
-                    "SIG" => KeyType::Signing,
-                    "DEC" => KeyType::Decryption,
-                    "AUT" => KeyType::Authentication,
-                    _ => {
-                        return Err(anyhow!("Unexpected Key Type {}", key).into());
-                    }
-                };
+                let kt = KeyType::from(key);
                 sign.generate_attestation(kt, &|| {
                     println!("Touch confirmation needed to generate an attestation")
                 })?;
@@ -160,13 +155,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // Select cardholder certificate
-                match key.as_str() {
-                    "AUT" => open.select_data(0, &[0x7F, 0x21], select_data_workaround)?,
-                    "DEC" => open.select_data(1, &[0x7F, 0x21], select_data_workaround)?,
-                    "SIG" => open.select_data(2, &[0x7F, 0x21], select_data_workaround)?,
-
-                    _ => {
-                        return Err(anyhow!("Unexpected Key Type {}", key).into());
+                match key {
+                    BaseKeySlot::Aut => {
+                        open.select_data(0, &[0x7F, 0x21], select_data_workaround)?
+                    }
+                    BaseKeySlot::Dec => {
+                        open.select_data(1, &[0x7F, 0x21], select_data_workaround)?
+                    }
+                    BaseKeySlot::Sig => {
+                        open.select_data(2, &[0x7F, 0x21], select_data_workaround)?
                     }
                 };
 
@@ -316,8 +313,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 cli::AdminCommand::Generate {
                     user_pin,
                     output,
-                    no_decrypt,
-                    no_auth,
+                    decrypt,
+                    auth,
                     algo,
                     user_id,
                 } => {
@@ -330,32 +327,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         admin_pin.as_deref(),
                         user_pin.as_deref(),
                         output,
-                        !no_decrypt,
-                        !no_auth,
-                        algo,
+                        decrypt,
+                        auth,
+                        algo.map(AlgoSimple::from),
                         user_id,
                     )?;
                 }
                 cli::AdminCommand::Touch { key, policy } => {
-                    let kt = match key.as_str() {
-                        "SIG" => KeyType::Signing,
-                        "DEC" => KeyType::Decryption,
-                        "AUT" => KeyType::Authentication,
-                        "ATT" => KeyType::Attestation,
-                        _ => {
-                            return Err(anyhow!("Unexpected Key Type {}", key).into());
-                        }
-                    };
-                    let pol = match policy.as_str() {
-                        "Off" => TouchPolicy::Off,
-                        "On" => TouchPolicy::On,
-                        "Fixed" => TouchPolicy::Fixed,
-                        "Cached" => TouchPolicy::Cached,
-                        "Cached-Fixed" => TouchPolicy::CachedFixed,
-                        _ => {
-                            return Err(anyhow!("Unexpected Policy {}", policy).into());
-                        }
-                    };
+                    let kt = KeyType::from(key);
+
+                    let pol = TouchPolicy::from(policy);
 
                     let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
 
@@ -598,13 +579,12 @@ fn list_cards(format: OutputFormat, output_version: OutputVersion) -> Result<()>
     Ok(())
 }
 
-fn set_identity(ident: &str, id: u8) -> Result<(), Box<dyn std::error::Error>> {
+fn set_identity(ident: &str, id: cli::SetIdentityId) -> Result<(), Box<dyn std::error::Error>> {
     let backend = util::open_card(ident)?;
     let mut card = Card::new(backend);
     let mut open = card.transaction()?;
 
-    open.set_identity(id)?;
-
+    open.set_identity(u8::from(id))?;
     Ok(())
 }
 
@@ -1112,7 +1092,7 @@ fn generate_keys(
     output_file: Option<PathBuf>,
     decrypt: bool,
     auth: bool,
-    algo: Option<String>,
+    algo: Option<AlgoSimple>,
     user_ids: Vec<String>,
 ) -> Result<()> {
     let mut output = output::AdminGenerate::default();
@@ -1131,26 +1111,14 @@ fn generate_keys(
     // Because of this, for generation of RSA keys, here we take the approach
     // of first trying one variant, and then if that fails, try the other.
 
-    let a = match algo.as_deref() {
-        None => None,
-        Some("rsa2048") => Some(AlgoSimple::RSA2k),
-        Some("rsa3072") => Some(AlgoSimple::RSA3k),
-        Some("rsa4096") => Some(AlgoSimple::RSA4k),
-        Some("nistp256") => Some(AlgoSimple::NIST256),
-        Some("nistp384") => Some(AlgoSimple::NIST384),
-        Some("nistp521") => Some(AlgoSimple::NIST521),
-        Some("25519") => Some(AlgoSimple::Curve25519),
-        _ => return Err(anyhow!("Unexpected algorithm")),
-    };
-
-    log::info!(" Key generation will be attempted with algo: {:?}", a);
-    output.algorithm(format!("{:?}", a));
+    log::info!(" Key generation will be attempted with algo: {:?}", algo);
+    output.algorithm(format!("{:?}", algo));
 
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
     let (key_sig, key_dec, key_aut) = {
         if let Ok(mut admin) = util::verify_to_admin(&mut open, admin_pin) {
-            gen_subkeys(&mut admin, decrypt, auth, a)?
+            gen_subkeys(&mut admin, decrypt, auth, algo)?
         } else {
             return Err(anyhow!("Failed to open card in admin mode."));
         }
