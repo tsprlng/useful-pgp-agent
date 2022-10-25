@@ -144,8 +144,10 @@ subplot:
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
-    # override the key
-    key: "rust-latest"
+    # subplot uses tests/virtual-card-available to indicate that tests which use
+    # virtual cards should be created. The cache with this file should not be
+    # shared.
+    key: "subplot"
 
 run_cardtest_smartpgp:
   stage: virtual-test
