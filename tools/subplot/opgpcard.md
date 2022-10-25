@@ -108,7 +108,7 @@ then stdout, as JSON, matches embedded file info.json
   "application_id": "D276000124 01 01 0200 AFAF 00001234 0000",
   "manufacturer_id": "AFAF",
   "manufacturer_name": "Unknown",
-  "card_service_data": "",
+  "card_service_data": [],
   "ident": "AFAF:00001234"
 }
 ~~~

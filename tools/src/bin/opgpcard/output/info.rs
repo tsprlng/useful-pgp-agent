@@ -14,7 +14,7 @@ pub struct Info {
     manufacturer_id: String,
     manufacturer_name: String,
     card_capabilities: Vec<String>,
-    card_service_data: String,
+    card_service_data: Vec<String>,
     extended_length_info: Vec<String>,
     extended_capabilities: Vec<String>,
     algorithms: Option<Vec<String>>,
@@ -47,7 +47,7 @@ impl Info {
     }
 
     pub fn card_service_data(&mut self, data: String) {
-        self.card_service_data = data;
+        self.card_service_data.push(data);
     }
 
     pub fn extended_length_info(&mut self, info: String) {
@@ -91,7 +91,10 @@ impl Info {
         }
 
         if !self.card_service_data.is_empty() {
-            s.push_str(&format!("Card service data: {}\n", self.card_service_data));
+            s.push_str("Card service data:\n");
+            for c in self.card_service_data.iter() {
+                s.push_str(&format!("- {}\n", c));
+            }
             s.push('\n');
         }
 
@@ -177,7 +180,7 @@ struct InfoV0 {
     manufacturer_id: String,
     manufacturer_name: String,
     card_capabilities: Vec<String>,
-    card_service_data: String,
+    card_service_data: Vec<String>,
     extended_length_info: Vec<String>,
     extended_capabilities: Vec<String>,
     algorithms: Option<Vec<String>>,

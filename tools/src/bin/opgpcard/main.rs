@@ -852,7 +852,10 @@ fn print_info(
         }
     }
     if let Some(csd) = open.historical_bytes()?.card_service_data() {
-        output.card_service_data(csd.to_string());
+        for line in csd.to_string().lines() {
+            let line = line.strip_prefix("- ").unwrap_or(line);
+            output.card_service_data(line.to_string());
+        }
     }
 
     if let Some(eli) = open.extended_length_information()? {
