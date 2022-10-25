@@ -21,6 +21,10 @@ cache: &general_cache_config
     - target/
     - $CARGO_HOME
 
+.report-rust: &report-rust
+  - cargo --version
+  - rustc --version
+
 reuse:
   stage: lint
   image:
@@ -34,8 +38,10 @@ reuse:
 cargo-fmt:
   stage: lint
   image: rust:latest
-  script:
+  before_script:
     - rustup component add rustfmt
+    - *report-rust
+  script:
     - cargo fmt -- --check
   cache: [ ]
 
@@ -44,6 +50,7 @@ cargo-deny:
   image: rust:latest
   before_script:
     - cargo install --locked cargo-deny
+    - *report-rust
   script:
     - cargo deny check
   cache: [ ]
@@ -56,6 +63,7 @@ cargo-clippy:
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
+    - *report-rust
   script:
     - rustup component add clippy
     - rm tools/tests/opgpcard.rs # otherwise build fails
@@ -89,6 +97,7 @@ cargo-test:
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
+    - *report-rust
   script:
     # there is no virtual card in this image, so subplot does not generate tests
     # that would require one.
@@ -107,6 +116,7 @@ cargo-test-debian-bookworm:
     - apt update -y -qq
     - apt install -y -qq --no-install-recommends git rustc cargo clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
+    - *report-rust
   script:
     # there is no virtual card in this image, so subplot does not generate tests
     # that would require one.
@@ -127,6 +137,7 @@ subplot:
     - apt clean
     - /etc/init.d/pcscd start
     - su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim
+    - *report-rust
   script:
     # make sure a virtual card is available, so that the subplot tests are
     # generated
@@ -141,6 +152,8 @@ subplot:
 run_cardtest_smartpgp:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
+  before_script:
+    - *report-rust
   script:
     - sh /start.sh
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
@@ -159,6 +172,8 @@ run_cardtest_smartpgp:
 run_cardtest_opcard_rs:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-builddeps
+  before_script:
+    - *report-rust
   script:
     - sh /start.sh
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
@@ -177,6 +192,8 @@ run_cardtest_opcard_rs:
 run_cardtest_ykneo:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/ykneo-builddeps
+  before_script:
+    - *report-rust
   script:
     - sh /start.sh
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
@@ -195,6 +212,8 @@ run_cardtest_ykneo:
 run_cardtest_fluffypgp:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/fluffypgp-builddeps
+  before_script:
+    - *report-rust
   script:
     - sh /start.sh
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
@@ -252,6 +271,8 @@ hardware-builddeps:
           - "card-functionality/ci/nitro-pro1.toml"
           - "card-functionality/ci/nitro-pro2.toml"
           - "card-functionality/ci/nitro-start.toml"
+  before_script:
+    - *report-rust
   script:
     - RUST_BACKTRACE=1 RUST_LOG=debug cargo run --bin $ARG -- $CONFIG
   cache:
