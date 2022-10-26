@@ -2,25 +2,15 @@
 // SPDX-FileCopyrightText: 2022 Nora Widdecke <mail@nora.pink>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::Parser;
-use std::path::PathBuf;
 
-use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
-use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
-use sequoia_openpgp::packet::Key;
-use sequoia_openpgp::parse::Parse;
-use sequoia_openpgp::policy::{Policy, StandardPolicy};
-use sequoia_openpgp::serialize::SerializeInto;
-use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 
-use openpgp_card_sequoia::card::{Admin, Card, Open};
-use openpgp_card_sequoia::types::{AlgoSimple, CardBackend, KeyType, TouchPolicy};
-use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
-use openpgp_card_sequoia::{sq_util, PublicKey};
-
-use std::io::Write;
+use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::types::CardBackend;
+use openpgp_card_sequoia::util::make_cert;
+use openpgp_card_sequoia::PublicKey;
 
 mod cli;
 mod commands;
@@ -73,168 +63,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::FactoryReset(cmd) => {
             commands::factory_reset::factory_reset(cmd)?;
         }
-        cli::Command::Admin {
-            ident,
-            admin_pin,
-            cmd,
-        } => {
-            let backend = util::open_card(&ident)?;
-            let mut card = Card::new(backend);
-            let mut open = card.transaction()?;
-
-            let admin_pin = util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN);
-
-            match cmd {
-                cli::AdminCommand::Name { name } => {
-                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
-
-                    admin.set_name(&name)?;
-                }
-                cli::AdminCommand::Url { url } => {
-                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
-
-                    admin.set_url(&url)?;
-                }
-                cli::AdminCommand::Import {
-                    keyfile,
-                    sig_fp,
-                    dec_fp,
-                    auth_fp,
-                } => {
-                    let key = Cert::from_file(keyfile)?;
-
-                    let p = StandardPolicy::new();
-
-                    // select the (sub)keys to upload
-                    let [sig, dec, auth] = match (&sig_fp, &dec_fp, &auth_fp) {
-                        // No fingerprint has been provided, try to autoselect keys
-                        // (this fails if there is more than one (sub)key for any keytype).
-                        (&None, &None, &None) => keys_pick_yolo(&key, &p)?,
-
-                        _ => keys_pick_explicit(&key, &p, sig_fp, dec_fp, auth_fp)?,
-                    };
-
-                    let mut pws: Vec<String> = vec![];
-
-                    // helper: true, if `pw` decrypts `key`
-                    let pw_ok = |key: &Key<SecretParts, UnspecifiedRole>, pw: &str| {
-                        key.clone()
-                            .decrypt_secret(&sequoia_openpgp::crypto::Password::from(pw))
-                            .is_ok()
-                    };
-
-                    // helper: if any password in `pws` decrypts `key`, return that password
-                    let find_pw = |key: &Key<SecretParts, UnspecifiedRole>, pws: &[String]| {
-                        pws.iter().find(|pw| pw_ok(key, pw)).cloned()
-                    };
-
-                    // helper: check if we have the right password for `key` in `pws`,
-                    // if so return it. otherwise ask the user for the password,
-                    // add it to `pws` and return it.
-                    let mut get_pw_for_key =
-                        |key: &Option<ValidErasedKeyAmalgamation<SecretParts>>,
-                         key_type: &str|
-                         -> Result<Option<String>> {
-                            if let Some(k) = key {
-                                if !k.has_secret() {
-                                    // key has no secret key material, it can't be imported
-                                    return Err(anyhow!(
-                                        "(Sub)Key {} contains no private key material",
-                                        k.fingerprint()
-                                    ));
-                                }
-
-                                if k.has_unencrypted_secret() {
-                                    // key is unencrypted, we need no password
-                                    return Ok(None);
-                                }
-
-                                // key is encrypted, we need the password
-
-                                // do we already have the right password?
-                                if let Some(pw) = find_pw(k, &pws) {
-                                    return Ok(Some(pw));
-                                }
-
-                                // no, we need to get the password from user
-                                let pw = rpassword::prompt_password(format!(
-                                    "Enter password for {} (sub)key {}:",
-                                    key_type,
-                                    k.fingerprint()
-                                ))?;
-
-                                if pw_ok(k, &pw) {
-                                    // remember pw for next subkeys
-                                    pws.push(pw.clone());
-
-                                    Ok(Some(pw))
-                                } else {
-                                    // this password doesn't work, error out
-                                    Err(anyhow!(
-                                        "Password not valid for (Sub)Key {}",
-                                        k.fingerprint()
-                                    ))
-                                }
-                            } else {
-                                // we have no key for this slot, so we don't need a password
-                                Ok(None)
-                            }
-                        };
-
-                    // get passwords, if encrypted (try previous pw before asking for user input)
-                    let sig_p = get_pw_for_key(&sig, "signing")?;
-                    let dec_p = get_pw_for_key(&dec, "decryption")?;
-                    let auth_p = get_pw_for_key(&auth, "authentication")?;
-
-                    // upload keys to card
-                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
-
-                    if let Some(sig) = sig {
-                        println!("Uploading {} as signing key", sig.fingerprint());
-                        admin.upload_key(sig, KeyType::Signing, sig_p)?;
-                    }
-                    if let Some(dec) = dec {
-                        println!("Uploading {} as decryption key", dec.fingerprint());
-                        admin.upload_key(dec, KeyType::Decryption, dec_p)?;
-                    }
-                    if let Some(auth) = auth {
-                        println!("Uploading {} as authentication key", auth.fingerprint());
-                        admin.upload_key(auth, KeyType::Authentication, auth_p)?;
-                    }
-                }
-                cli::AdminCommand::Generate {
-                    user_pin,
-                    output,
-                    decrypt,
-                    auth,
-                    algo,
-                    user_id,
-                } => {
-                    let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
-
-                    generate_keys(
-                        cli.output_format,
-                        cli.output_version,
-                        open,
-                        admin_pin.as_deref(),
-                        user_pin.as_deref(),
-                        output,
-                        decrypt,
-                        auth,
-                        algo.map(AlgoSimple::from),
-                        user_id,
-                    )?;
-                }
-                cli::AdminCommand::Touch { key, policy } => {
-                    let kt = KeyType::from(key);
-
-                    let pol = TouchPolicy::from(policy);
-
-                    let mut admin = util::verify_to_admin(&mut open, admin_pin.as_deref())?;
-
-                    admin.set_uif(kt, pol)?;
-                }
-            }
+        cli::Command::Admin(cmd) => {
+            commands::admin::admin(cli.output_format, cli.output_version, cmd)?;
         }
         cli::Command::Pin(cmd) => {
             commands::pin::pin(&cmd.ident, cmd.cmd)?;
@@ -291,34 +121,6 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
     }
 }
 
-fn keys_pick_yolo<'a>(
-    key: &'a Cert,
-    policy: &'a dyn Policy,
-) -> Result<[Option<ValidErasedKeyAmalgamation<'a, SecretParts>>; 3]> {
-    let key_by_type = |kt| sq_util::subkey_by_type(key, policy, kt);
-
-    Ok([
-        key_by_type(KeyType::Signing)?,
-        key_by_type(KeyType::Decryption)?,
-        key_by_type(KeyType::Authentication)?,
-    ])
-}
-
-fn keys_pick_explicit<'a>(
-    key: &'a Cert,
-    policy: &'a dyn Policy,
-    sig_fp: Option<String>,
-    dec_fp: Option<String>,
-    auth_fp: Option<String>,
-) -> Result<[Option<ValidErasedKeyAmalgamation<'a, SecretParts>>; 3]> {
-    let key_by_fp = |fp: Option<String>| match fp {
-        Some(fp) => sq_util::private_subkey_by_fingerprint(key, policy, &fp),
-        None => Ok(None),
-    };
-
-    Ok([key_by_fp(sig_fp)?, key_by_fp(dec_fp)?, key_by_fp(auth_fp)?])
-}
-
 fn get_cert(
     open: &mut Open,
     key_sig: PublicKey,
@@ -345,117 +147,4 @@ fn get_cert(
         &|| println!("Touch confirmation needed for signing"),
         user_ids,
     )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn generate_keys(
-    format: OutputFormat,
-    version: OutputVersion,
-    mut open: Open,
-    admin_pin: Option<&[u8]>,
-    user_pin: Option<&[u8]>,
-    output_file: Option<PathBuf>,
-    decrypt: bool,
-    auth: bool,
-    algo: Option<AlgoSimple>,
-    user_ids: Vec<String>,
-) -> Result<()> {
-    let mut output = output::AdminGenerate::default();
-    output.ident(open.application_identifier()?.ident());
-
-    // 1) Interpret the user's choice of algorithm.
-    //
-    // Unset (None) means that the algorithm that is specified on the card
-    // should remain unchanged.
-    //
-    // For RSA, different cards use different exact algorithm
-    // specifications. In particular, the length of the value `e` differs
-    // between cards. Some devices use 32 bit length for e, others use 17 bit.
-    // In some cases, it's possible to get this information from the card,
-    // but I believe this information is not obtainable in all cases.
-    // Because of this, for generation of RSA keys, here we take the approach
-    // of first trying one variant, and then if that fails, try the other.
-
-    log::info!(" Key generation will be attempted with algo: {:?}", algo);
-    output.algorithm(format!("{:?}", algo));
-
-    // 2) Then, generate keys on the card.
-    // We need "admin" access to the card for this).
-    let (key_sig, key_dec, key_aut) = {
-        if let Ok(mut admin) = util::verify_to_admin(&mut open, admin_pin) {
-            gen_subkeys(&mut admin, decrypt, auth, algo)?
-        } else {
-            return Err(anyhow!("Failed to open card in admin mode."));
-        }
-    };
-
-    // 3) Generate a Cert from the generated keys. For this, we
-    // need "signing" access to the card (to make binding signatures within
-    // the Cert).
-    let cert = get_cert(
-        &mut open,
-        key_sig,
-        key_dec,
-        key_aut,
-        user_pin,
-        &user_ids,
-        &|| println!("Enter User PIN on card reader pinpad."),
-    )?;
-
-    let armored = String::from_utf8(cert.armored().to_vec()?)?;
-    output.public_key(armored);
-
-    // Write armored certificate to the output file (or stdout)
-    let mut handle = util::open_or_stdout(output_file.as_deref())?;
-    handle.write_all(output.print(format, version)?.as_bytes())?;
-    let _ = handle.write(b"\n")?;
-
-    Ok(())
-}
-
-fn gen_subkeys(
-    admin: &mut Admin,
-    decrypt: bool,
-    auth: bool,
-    algo: Option<AlgoSimple>,
-) -> Result<(PublicKey, Option<PublicKey>, Option<PublicKey>)> {
-    // We begin by generating the signing subkey, which is mandatory.
-    println!(" Generate subkey for Signing");
-    let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, algo)?;
-    let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, &ts, None, None)?;
-
-    // make decryption subkey (unless disabled), with the same algorithm as
-    // the sig key
-    let key_dec = if decrypt {
-        println!(" Generate subkey for Decryption");
-        let (pkm, ts) = admin.generate_key_simple(KeyType::Decryption, algo)?;
-        Some(public_key_material_to_key(
-            &pkm,
-            KeyType::Decryption,
-            &ts,
-            Some(HashAlgorithm::SHA256),      // FIXME
-            Some(SymmetricAlgorithm::AES128), // FIXME
-        )?)
-    } else {
-        None
-    };
-
-    // make authentication subkey (unless disabled), with the same
-    // algorithm as the sig key
-    let key_aut = if auth {
-        println!(" Generate subkey for Authentication");
-        let (pkm, ts) = admin.generate_key_simple(KeyType::Authentication, algo)?;
-
-        Some(public_key_material_to_key(
-            &pkm,
-            KeyType::Authentication,
-            &ts,
-            None,
-            None,
-        )?)
-    } else {
-        None
-    };
-
-    Ok((key_sig, key_dec, key_aut))
 }
