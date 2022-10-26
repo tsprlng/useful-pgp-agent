@@ -48,10 +48,7 @@ pub enum Command {
     Info(commands::info::InfoCommand),
 
     /// Display a card's authentication key as an SSH public key
-    Ssh {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: Option<String>,
-    },
+    Ssh(commands::ssh::SshCommand),
 
     /// Export the key data on a card as an OpenPGP public key
     Pubkey {

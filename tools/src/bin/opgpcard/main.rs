@@ -57,8 +57,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Info(cmd) => {
             commands::info::print_info(cli.output_format, cli.output_version, cmd)?;
         }
-        cli::Command::Ssh { ident } => {
-            print_ssh(cli.output_format, cli.output_version, ident)?;
+        cli::Command::Ssh(cmd) => {
+            commands::ssh::print_ssh(cli.output_format, cli.output_version, cmd)?;
         }
         cli::Command::Pubkey {
             ident,
@@ -605,38 +605,6 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             Err(anyhow::anyhow!("Found more than one card"))
         }
     }
-}
-
-fn print_ssh(
-    format: OutputFormat,
-    output_version: OutputVersion,
-    ident: Option<String>,
-) -> Result<()> {
-    let mut output = output::Ssh::default();
-
-    let backend = pick_card_for_reading(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
-
-    let ident = open.application_identifier()?.ident();
-    output.ident(ident.clone());
-
-    // Print fingerprint of authentication subkey
-    let fps = open.fingerprints()?;
-
-    if let Some(fp) = fps.authentication() {
-        output.authentication_key_fingerprint(fp.to_string());
-    }
-
-    // Show authentication subkey as openssh public key string
-    if let Ok(pkm) = open.public_key(KeyType::Authentication) {
-        if let Ok(ssh) = util::get_ssh_pubkey_string(&pkm, ident) {
-            output.ssh_public_key(ssh);
-        }
-    }
-
-    println!("{}", output.print(format, output_version)?);
-    Ok(())
 }
 
 fn print_pubkey(

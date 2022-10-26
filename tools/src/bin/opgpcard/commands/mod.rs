@@ -3,4 +3,5 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 pub mod info;
+pub mod ssh;
 pub mod status;
