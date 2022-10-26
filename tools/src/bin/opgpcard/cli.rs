@@ -51,17 +51,7 @@ pub enum Command {
     Ssh(commands::ssh::SshCommand),
 
     /// Export the key data on a card as an OpenPGP public key
-    Pubkey {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: Option<String>,
-
-        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
-        user_pin: Option<PathBuf>,
-
-        /// User ID to add to the exported certificate representation
-        #[clap(name = "User ID", short = 'u', long = "userid")]
-        user_id: Vec<String>,
-    },
+    Pubkey(commands::pubkey::PubkeyCommand),
 
     /// Administer data on a card (including keys and metadata)
     Admin {

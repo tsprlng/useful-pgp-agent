@@ -19,9 +19,7 @@ use sequoia_openpgp::Cert;
 
 use openpgp_card_sequoia::card::{Admin, Card, Open};
 use openpgp_card_sequoia::types::{AlgoSimple, CardBackend, KeyType, TouchPolicy};
-use openpgp_card_sequoia::util::{
-    make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
-};
+use openpgp_card_sequoia::util::{make_cert, public_key_material_to_key};
 use openpgp_card_sequoia::{sq_util, PublicKey};
 
 use crate::util::{load_pin, print_gnuk_note};
@@ -60,18 +58,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Ssh(cmd) => {
             commands::ssh::print_ssh(cli.output_format, cli.output_version, cmd)?;
         }
-        cli::Command::Pubkey {
-            ident,
-            user_pin,
-            user_id,
-        } => {
-            print_pubkey(
-                cli.output_format,
-                cli.output_version,
-                ident,
-                user_pin,
-                user_id,
-            )?;
+        cli::Command::Pubkey(cmd) => {
+            commands::pubkey::print_pubkey(cli.output_format, cli.output_version, cmd)?;
         }
         cli::Command::SetIdentity { ident, id } => {
             set_identity(&ident, id)?;
@@ -605,77 +593,6 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             Err(anyhow::anyhow!("Found more than one card"))
         }
     }
-}
-
-fn print_pubkey(
-    format: OutputFormat,
-    output_version: OutputVersion,
-    ident: Option<String>,
-    user_pin: Option<PathBuf>,
-    user_ids: Vec<String>,
-) -> Result<()> {
-    let mut output = output::PublicKey::default();
-
-    let backend = pick_card_for_reading(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
-
-    let ident = open.application_identifier()?.ident();
-    output.ident(ident);
-
-    let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
-
-    let pkm = open.public_key(KeyType::Signing)?;
-    let times = open.key_generation_times()?;
-    let fps = open.fingerprints()?;
-
-    let key_sig = public_key_material_and_fp_to_key(
-        &pkm,
-        KeyType::Signing,
-        times.signature().expect("Signature time is unset"),
-        fps.signature().expect("Signature fingerprint is unset"),
-    )?;
-
-    let mut key_dec = None;
-    if let Ok(pkm) = open.public_key(KeyType::Decryption) {
-        if let Some(ts) = times.decryption() {
-            key_dec = Some(public_key_material_and_fp_to_key(
-                &pkm,
-                KeyType::Decryption,
-                ts,
-                fps.decryption().expect("Decryption fingerprint is unset"),
-            )?);
-        }
-    }
-
-    let mut key_aut = None;
-    if let Ok(pkm) = open.public_key(KeyType::Authentication) {
-        if let Some(ts) = times.authentication() {
-            key_aut = Some(public_key_material_and_fp_to_key(
-                &pkm,
-                KeyType::Authentication,
-                ts,
-                fps.authentication()
-                    .expect("Authentication fingerprint is unset"),
-            )?);
-        }
-    }
-
-    let cert = get_cert(
-        &mut open,
-        key_sig,
-        key_dec,
-        key_aut,
-        user_pin.as_deref(),
-        &user_ids,
-        &|| println!("Enter User PIN on card reader pinpad."),
-    )?;
-
-    let armored = String::from_utf8(cert.armored().to_vec()?)?;
-    output.public_key(armored);
-
-    println!("{}", output.print(format, output_version)?);
-    Ok(())
 }
 
 fn decrypt(
