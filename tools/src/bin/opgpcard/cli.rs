@@ -78,21 +78,7 @@ pub enum Command {
     Decrypt(commands::decrypt::DecryptCommand),
 
     /// Sign data using a card
-    Sign {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: String,
-
-        /// User PIN file
-        #[clap(short = 'p', long = "user-pin")]
-        user_pin: Option<PathBuf>,
-
-        #[clap(name = "detached", short = 'd', long = "detached")]
-        detached: bool,
-
-        /// Input file (stdin if unset)
-        #[clap(name = "input")]
-        input: Option<PathBuf>,
-    },
+    Sign(commands::sign::SignCommand),
 
     /// Attestation management (Yubico)
     Attestation {

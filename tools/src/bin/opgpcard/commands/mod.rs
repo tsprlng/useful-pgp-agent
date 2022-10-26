@@ -5,5 +5,6 @@
 pub mod decrypt;
 pub mod info;
 pub mod pubkey;
+pub mod sign;
 pub mod ssh;
 pub mod status;

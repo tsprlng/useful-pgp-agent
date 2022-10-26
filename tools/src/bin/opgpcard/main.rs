@@ -5,14 +5,13 @@
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use cli::BaseKeySlot;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
 use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::{Policy, StandardPolicy};
-use sequoia_openpgp::serialize::stream::{Armorer, Message, Signer};
 use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
@@ -67,19 +66,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Decrypt(cmd) => {
             commands::decrypt::decrypt(cmd)?;
         }
-        cli::Command::Sign {
-            ident,
-            user_pin,
-            detached,
-            input,
-        } => {
-            if detached {
-                sign_detached(&ident, user_pin, input.as_deref())?;
-            } else {
-                return Err(
-                    anyhow::anyhow!("Only detached signatures are supported for now").into(),
-                );
-            }
+        cli::Command::Sign(cmd) => {
+            commands::sign::sign(cmd)?;
         }
         cli::Command::Attestation { cmd } => match cmd {
             cli::AttCommand::Cert { ident } => {
@@ -589,35 +577,6 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             Err(anyhow::anyhow!("Found more than one card"))
         }
     }
-}
-
-fn sign_detached(
-    ident: &str,
-    pin_file: Option<PathBuf>,
-    input: Option<&Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut input = util::open_or_stdin(input)?;
-
-    let backend = util::open_card(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
-
-    if open.fingerprints()?.signature().is_none() {
-        return Err(anyhow!("Can't sign: this card has no key in the signing slot.").into());
-    }
-
-    let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
-
-    let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
-    let s = sign.signer(&|| println!("Touch confirmation needed for signing"))?;
-
-    let message = Armorer::new(Message::new(std::io::stdout())).build()?;
-    let mut signer = Signer::new(message, s).detached().build()?;
-
-    std::io::copy(&mut input, &mut signer)?;
-    signer.finalize()?;
-
-    Ok(())
 }
 
 fn factory_reset(ident: &str) -> Result<()> {
