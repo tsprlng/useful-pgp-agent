@@ -4,7 +4,6 @@
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use cli::BaseKeySlot;
 use std::path::PathBuf;
 
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
@@ -68,84 +67,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Sign(cmd) => {
             commands::sign::sign(cmd)?;
         }
-        cli::Command::Attestation { cmd } => match cmd {
-            cli::AttCommand::Cert { ident } => {
-                let mut output = output::AttestationCert::default();
-
-                let backend = pick_card_for_reading(ident)?;
-                let mut card = Card::new(backend);
-                let mut open = card.transaction()?;
-
-                output.ident(open.application_identifier()?.ident());
-
-                if let Ok(ac) = open.attestation_certificate() {
-                    let pem = util::pem_encode(ac);
-                    output.attestation_cert(pem);
-                }
-
-                println!("{}", output.print(cli.output_format, cli.output_version)?);
-            }
-            cli::AttCommand::Generate {
-                ident,
-                key,
-                user_pin,
-            } => {
-                let backend = util::open_card(&ident)?;
-                let mut card = Card::new(backend);
-                let mut open = card.transaction()?;
-
-                let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
-
-                let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
-
-                let kt = KeyType::from(key);
-                sign.generate_attestation(kt, &|| {
-                    println!("Touch confirmation needed to generate an attestation")
-                })?;
-            }
-            cli::AttCommand::Statement { ident, key } => {
-                let backend = pick_card_for_reading(ident)?;
-                let mut card = Card::new(backend);
-                let mut open = card.transaction()?;
-
-                // Get cardholder certificate from card.
-
-                let mut select_data_workaround = false;
-                // Use "select data" workaround if the card reports a
-                // yk firmware version number >= 5 and <= 5.4.3
-                if let Ok(version) = open.firmware_version() {
-                    if version.len() == 3
-                        && version[0] == 5
-                        && (version[1] < 4 || (version[1] == 4 && version[2] <= 3))
-                    {
-                        select_data_workaround = true;
-                    }
-                }
-
-                // Select cardholder certificate
-                match key {
-                    BaseKeySlot::Aut => {
-                        open.select_data(0, &[0x7F, 0x21], select_data_workaround)?
-                    }
-                    BaseKeySlot::Dec => {
-                        open.select_data(1, &[0x7F, 0x21], select_data_workaround)?
-                    }
-                    BaseKeySlot::Sig => {
-                        open.select_data(2, &[0x7F, 0x21], select_data_workaround)?
-                    }
-                };
-
-                // Get DO "cardholder certificate" (returns the slot that was previously selected)
-                let cert = open.cardholder_certificate()?;
-
-                if !cert.is_empty() {
-                    let pem = util::pem_encode(cert);
-                    println!("{}", pem);
-                } else {
-                    println!("Cardholder certificate slot is empty");
-                }
-            }
-        },
+        cli::Command::Attestation(cmd) => {
+            commands::attestation::attestation(cli.output_format, cli.output_version, cmd)?;
+        }
         cli::Command::FactoryReset(cmd) => {
             commands::factory_reset::factory_reset(cmd)?;
         }

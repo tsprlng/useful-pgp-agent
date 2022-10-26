@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2022 Nora Widdecke <mail@nora.pink>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+pub mod attestation;
 pub mod decrypt;
 pub mod factory_reset;
 pub mod info;

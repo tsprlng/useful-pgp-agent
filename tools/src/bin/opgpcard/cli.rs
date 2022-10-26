@@ -75,10 +75,7 @@ pub enum Command {
     Sign(commands::sign::SignCommand),
 
     /// Attestation management (Yubico)
-    Attestation {
-        #[clap(subcommand)]
-        cmd: AttCommand,
-    },
+    Attestation(commands::attestation::AttestationCommand),
 
     /// Completely reset a card (deletes all data, including the keys on the card!)
     FactoryReset(commands::factory_reset::FactoryResetCommand),
@@ -147,56 +144,6 @@ pub enum AdminCommand {
         #[clap(name = "Policy", short = 'p', long = "policy", value_enum)]
         policy: TouchPolicy,
     },
-}
-
-#[derive(Parser, Debug)]
-pub enum AttCommand {
-    /// Print the card's "Attestation Certificate"
-    Cert {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: Option<String>,
-    },
-
-    /// Generate "Attestation Statement" for one of the key slots on the card
-    Generate {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: String,
-
-        #[clap(name = "Key slot", short = 'k', long = "key", value_enum)]
-        key: BaseKeySlot,
-
-        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
-        user_pin: Option<PathBuf>,
-    },
-
-    /// Print a "cardholder certificate" from the card.
-    /// This shows the "Attestation Statement", if one has been generated.
-    Statement {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: Option<String>,
-
-        #[clap(name = "Key slot", short = 'k', long = "key", value_enum)]
-        key: BaseKeySlot,
-    },
-}
-
-#[derive(ValueEnum, Debug, Clone)]
-#[clap(rename_all = "UPPER")]
-pub enum BaseKeySlot {
-    Sig,
-    Dec,
-    Aut,
-}
-
-impl From<BaseKeySlot> for openpgp_card_sequoia::types::KeyType {
-    fn from(ks: BaseKeySlot) -> Self {
-        use openpgp_card_sequoia::types::KeyType;
-        match ks {
-            BaseKeySlot::Sig => KeyType::Signing,
-            BaseKeySlot::Dec => KeyType::Decryption,
-            BaseKeySlot::Aut => KeyType::Authentication,
-        }
-    }
 }
 
 #[derive(ValueEnum, Debug, Clone)]
