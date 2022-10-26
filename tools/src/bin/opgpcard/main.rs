@@ -54,8 +54,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Status(cmd) => {
             commands::status::print_status(cli.output_format, cli.output_version, cmd)?;
         }
-        cli::Command::Info { ident } => {
-            print_info(cli.output_format, cli.output_version, ident)?;
+        cli::Command::Info(cmd) => {
+            commands::info::print_info(cli.output_format, cli.output_version, cmd)?;
         }
         cli::Command::Ssh { ident } => {
             print_ssh(cli.output_format, cli.output_version, ident)?;
@@ -605,76 +605,6 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             Err(anyhow::anyhow!("Found more than one card"))
         }
     }
-}
-
-/// print metadata information about a card
-fn print_info(
-    format: OutputFormat,
-    output_version: OutputVersion,
-    ident: Option<String>,
-) -> Result<()> {
-    let mut output = output::Info::default();
-
-    let backend = pick_card_for_reading(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
-
-    let ai = open.application_identifier()?;
-
-    output.ident(ai.ident());
-
-    let version = ai.version().to_be_bytes();
-    output.card_version(format!("{}.{}", version[0], version[1]));
-
-    output.application_id(ai.to_string());
-    output.manufacturer_id(format!("{:04X}", ai.manufacturer()));
-    output.manufacturer_name(ai.manufacturer_name().to_string());
-
-    if let Some(cc) = open.historical_bytes()?.card_capabilities() {
-        for line in cc.to_string().lines() {
-            let line = line.strip_prefix("- ").unwrap_or(line);
-            output.card_capability(line.to_string());
-        }
-    }
-    if let Some(csd) = open.historical_bytes()?.card_service_data() {
-        for line in csd.to_string().lines() {
-            let line = line.strip_prefix("- ").unwrap_or(line);
-            output.card_service_data(line.to_string());
-        }
-    }
-
-    if let Some(eli) = open.extended_length_information()? {
-        for line in eli.to_string().lines() {
-            let line = line.strip_prefix("- ").unwrap_or(line);
-            output.extended_length_info(line.to_string());
-        }
-    }
-
-    let ec = open.extended_capabilities()?;
-    for line in ec.to_string().lines() {
-        let line = line.strip_prefix("- ").unwrap_or(line);
-        output.extended_capability(line.to_string());
-    }
-
-    // Algorithm information (list of supported algorithms)
-    if let Ok(Some(ai)) = open.algorithm_information() {
-        for line in ai.to_string().lines() {
-            let line = line.strip_prefix("- ").unwrap_or(line);
-            output.algorithm(line.to_string());
-        }
-    }
-
-    // FIXME: print KDF info
-
-    // YubiKey specific (?) firmware version
-    if let Ok(ver) = open.firmware_version() {
-        let ver = ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
-        output.firmware_version(ver);
-    }
-
-    println!("{}", output.print(format, output_version)?);
-
-    Ok(())
 }
 
 fn print_ssh(

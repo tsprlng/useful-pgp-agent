@@ -45,10 +45,7 @@ pub enum Command {
     Status(commands::status::StatusCommand),
 
     /// Show technical details about a card
-    Info {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: Option<String>,
-    },
+    Info(commands::info::InfoCommand),
 
     /// Display a card's authentication key as an SSH public key
     Ssh {
