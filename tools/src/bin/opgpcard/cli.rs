@@ -5,6 +5,7 @@
 use clap::{AppSettings, Parser, ValueEnum};
 use std::path::PathBuf;
 
+use crate::commands;
 use crate::{OutputFormat, OutputVersion};
 
 pub const OUTPUT_VERSIONS: &[OutputVersion] = &[OutputVersion::new(0, 9, 0)];
@@ -41,17 +42,7 @@ pub enum Command {
     List {},
 
     /// Show information about the data on a card
-    Status {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: Option<String>,
-
-        #[clap(name = "verbose", short = 'v', long = "verbose")]
-        verbose: bool,
-
-        /// Print public key material for each key slot
-        #[clap(name = "pkm", short = 'K', long = "public-key-material")]
-        pkm: bool,
-    },
+    Status(commands::status::StatusCommand),
 
     /// Show technical details about a card
     Info {
