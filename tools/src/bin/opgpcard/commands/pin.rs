@@ -77,37 +77,35 @@ pub fn pin(ident: &str, cmd: PinSubCommand) -> Result<()> {
 
     let pinpad_modify = open.feature_pinpad_modify();
 
-    // TODO de-complicate return, remove question marks
     match cmd {
         PinSubCommand::SetUser {
             user_pin_old,
             user_pin_new,
-        } => set_user(user_pin_old, user_pin_new, pinpad_modify, open)?,
+        } => set_user(user_pin_old, user_pin_new, pinpad_modify, open),
 
         PinSubCommand::SetAdmin {
             admin_pin_old,
             admin_pin_new,
-        } => set_admin(admin_pin_old, admin_pin_new, pinpad_modify, open)?,
+        } => set_admin(admin_pin_old, admin_pin_new, pinpad_modify, open),
 
         // TODO: this doesn't use pinpad_modify, maybe don't compute it before this?
         PinSubCommand::ResetUser {
             admin_pin,
             user_pin_new,
-        } => reset_user(admin_pin, user_pin_new, open)?,
+        } => reset_user(admin_pin, user_pin_new, open),
 
         // TODO: this doesn't use pinpad_modify, maybe don't compute it before this?
         PinSubCommand::SetReset {
             admin_pin,
             reset_code,
-        } => set_reset(admin_pin, reset_code, open)?,
+        } => set_reset(admin_pin, reset_code, open),
 
         // TODO: this doesn't use pinpad_modify, maybe don't compute it before this?
         PinSubCommand::ResetUserRc {
             reset_code,
             user_pin_new,
-        } => reset_user_rc(reset_code, user_pin_new, open)?,
+        } => reset_user_rc(reset_code, user_pin_new, open),
     }
-    Ok(())
 }
 
 fn set_user(
@@ -142,15 +140,13 @@ fn set_user(
         })
     };
 
-    if res.is_err() {
-        println!("\nFailed to change the User PIN!");
-        println!("{:?}", res);
-
-        if let Err(err) = res {
+    match res {
+        Err(err) => {
+            println!("\nFailed to change the User PIN!");
+            println!("{:?}", err);
             print_gnuk_note(err, &open)?;
         }
-    } else {
-        println!("\nUser PIN has been set.");
+        Ok(_) => println!("\nUser PIN has been set."),
     }
     Ok(())
 }
@@ -220,16 +216,15 @@ fn reset_user(
     let res = if let Some(mut admin) = open.admin_card() {
         admin.reset_user_pin(&pin)
     } else {
-        return Err(anyhow::anyhow!("Failed to use card in admin-mode.").into());
+        return Err(anyhow::anyhow!("Failed to use card in admin-mode."));
     };
 
-    if res.is_err() {
-        println!("\nFailed to change the User PIN!");
-        if let Err(err) = res {
+    match res {
+        Err(err) => {
+            println!("\nFailed to change the User PIN!");
             print_gnuk_note(err, &open)?;
         }
-    } else {
-        println!("\nUser PIN has been set.");
+        Ok(_) => println!("\nUser PIN has been set."),
     }
     Ok(())
 }
@@ -265,7 +260,7 @@ fn set_reset(
         println!("\nResetting code has been set.");
         Ok(())
     } else {
-        Err(anyhow::anyhow!("Failed to use card in admin-mode.").into())
+        Err(anyhow::anyhow!("Failed to use card in admin-mode."))
     }
 }
 
@@ -296,9 +291,11 @@ fn reset_user_rc(
     match open.reset_user_pin(&rst, &pin) {
         Err(err) => {
             println!("\nFailed to change the User PIN!");
-            print_gnuk_note(err, &open)?;
+            print_gnuk_note(err, &open)
         }
-        Ok(_) => println!("\nUser PIN has been set."),
+        Ok(_) => {
+            println!("\nUser PIN has been set.");
+            Ok(())
+        }
     }
-    Ok(())
 }
