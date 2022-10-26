@@ -60,8 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::Pubkey(cmd) => {
             commands::pubkey::print_pubkey(cli.output_format, cli.output_version, cmd)?;
         }
-        cli::Command::SetIdentity { ident, id } => {
-            set_identity(&ident, id)?;
+        cli::Command::SetIdentity(cmd) => {
+            commands::set_identity::set_identity(cmd)?;
         }
         cli::Command::Decrypt(cmd) => {
             commands::decrypt::decrypt(cmd)?;
@@ -545,15 +545,6 @@ fn list_cards(format: OutputFormat, output_version: OutputVersion) -> Result<()>
         }
     }
     println!("{}", output.print(format, output_version)?);
-    Ok(())
-}
-
-fn set_identity(ident: &str, id: cli::SetIdentityId) -> Result<(), Box<dyn std::error::Error>> {
-    let backend = util::open_card(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
-
-    open.set_identity(u8::from(id))?;
     Ok(())
 }
 
