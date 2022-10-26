@@ -87,10 +87,7 @@ pub enum Command {
     },
 
     /// Completely reset a card (deletes all data, including the keys on the card!)
-    FactoryReset {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: String,
-    },
+    FactoryReset(commands::factory_reset::FactoryResetCommand),
 
     /// Change identity (applies only to Nitrokey Start)
     SetIdentity {

@@ -147,8 +147,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         },
-        cli::Command::FactoryReset { ident } => {
-            factory_reset(&ident)?;
+        cli::Command::FactoryReset(cmd) => {
+            commands::factory_reset::factory_reset(cmd)?;
         }
         cli::Command::Admin {
             ident,
@@ -577,15 +577,6 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             Err(anyhow::anyhow!("Found more than one card"))
         }
     }
-}
-
-fn factory_reset(ident: &str) -> Result<()> {
-    println!("Resetting Card {}", ident);
-    let card = util::open_card(ident)?;
-    let mut card = Card::new(card);
-
-    let mut open = card.transaction()?;
-    open.factory_reset().map_err(|e| anyhow!(e))
 }
 
 fn keys_pick_yolo<'a>(
