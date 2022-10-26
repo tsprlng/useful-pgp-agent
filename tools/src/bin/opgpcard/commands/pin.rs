@@ -73,34 +73,29 @@ pub enum PinSubCommand {
 pub fn pin(ident: &str, cmd: PinSubCommand) -> Result<()> {
     let backend = util::open_card(ident)?;
     let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
-
-    let pinpad_modify = open.feature_pinpad_modify();
+    let open = card.transaction()?;
 
     match cmd {
         PinSubCommand::SetUser {
             user_pin_old,
             user_pin_new,
-        } => set_user(user_pin_old, user_pin_new, pinpad_modify, open),
+        } => set_user(user_pin_old, user_pin_new, open),
 
         PinSubCommand::SetAdmin {
             admin_pin_old,
             admin_pin_new,
-        } => set_admin(admin_pin_old, admin_pin_new, pinpad_modify, open),
+        } => set_admin(admin_pin_old, admin_pin_new, open),
 
-        // TODO: this doesn't use pinpad_modify, maybe don't compute it before this?
         PinSubCommand::ResetUser {
             admin_pin,
             user_pin_new,
         } => reset_user(admin_pin, user_pin_new, open),
 
-        // TODO: this doesn't use pinpad_modify, maybe don't compute it before this?
         PinSubCommand::SetReset {
             admin_pin,
             reset_code,
         } => set_reset(admin_pin, reset_code, open),
 
-        // TODO: this doesn't use pinpad_modify, maybe don't compute it before this?
         PinSubCommand::ResetUserRc {
             reset_code,
             user_pin_new,
@@ -111,9 +106,10 @@ pub fn pin(ident: &str, cmd: PinSubCommand) -> Result<()> {
 fn set_user(
     user_pin_old: Option<PathBuf>,
     user_pin_new: Option<PathBuf>,
-    pinpad_modify: bool,
     mut open: Open,
 ) -> Result<()> {
+    let pinpad_modify = open.feature_pinpad_modify();
+
     let res = if !pinpad_modify {
         // get current user pin
         let user_pin1 = util::get_pin(&mut open, user_pin_old, ENTER_USER_PIN)
@@ -154,9 +150,10 @@ fn set_user(
 fn set_admin(
     admin_pin_old: Option<PathBuf>,
     admin_pin_new: Option<PathBuf>,
-    pinpad_modify: bool,
     mut open: Open,
 ) -> Result<()> {
+    let pinpad_modify = open.feature_pinpad_modify();
+
     if !pinpad_modify {
         // get current admin pin
         let admin_pin1 = util::get_pin(&mut open, admin_pin_old, ENTER_ADMIN_PIN)
