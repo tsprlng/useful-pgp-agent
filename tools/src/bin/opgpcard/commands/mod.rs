@@ -5,6 +5,7 @@
 pub mod decrypt;
 pub mod factory_reset;
 pub mod info;
+pub mod pin;
 pub mod pubkey;
 pub mod set_identity;
 pub mod sign;

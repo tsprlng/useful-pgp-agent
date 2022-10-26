@@ -66,13 +66,7 @@ pub enum Command {
     },
 
     /// PIN management (change PINs, reset blocked PINs)
-    Pin {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: String,
-
-        #[clap(subcommand)]
-        cmd: PinCommand,
-    },
+    Pin(commands::pin::PinCommand),
 
     /// Decrypt data using a card
     Decrypt(commands::decrypt::DecryptCommand),
@@ -152,54 +146,6 @@ pub enum AdminCommand {
 
         #[clap(name = "Policy", short = 'p', long = "policy", value_enum)]
         policy: TouchPolicy,
-    },
-}
-
-#[derive(Parser, Debug)]
-pub enum PinCommand {
-    /// Set User PIN
-    SetUser {
-        #[clap(name = "User PIN file old", short = 'p', long = "user-pin-old")]
-        user_pin_old: Option<PathBuf>,
-
-        #[clap(name = "User PIN file new", short = 'q', long = "user-pin-new")]
-        user_pin_new: Option<PathBuf>,
-    },
-
-    /// Set Admin PIN
-    SetAdmin {
-        #[clap(name = "Admin PIN file old", short = 'P', long = "admin-pin-old")]
-        admin_pin_old: Option<PathBuf>,
-
-        #[clap(name = "Admin PIN file new", short = 'Q', long = "admin-pin-new")]
-        admin_pin_new: Option<PathBuf>,
-    },
-
-    /// Reset User PIN with Admin PIN
-    ResetUser {
-        #[clap(name = "Admin PIN file", short = 'P', long = "admin-pin")]
-        admin_pin: Option<PathBuf>,
-
-        #[clap(name = "User PIN file new", short = 'p', long = "user-pin-new")]
-        user_pin_new: Option<PathBuf>,
-    },
-
-    /// Set Resetting Code
-    SetReset {
-        #[clap(name = "Admin PIN file", short = 'P', long = "admin-pin")]
-        admin_pin: Option<PathBuf>,
-
-        #[clap(name = "Resetting code file", short = 'r', long = "reset-code")]
-        reset_code: Option<PathBuf>,
-    },
-
-    /// Reset User PIN with 'Resetting Code'
-    ResetUserRc {
-        #[clap(name = "Resetting Code file", short = 'r', long = "reset-code")]
-        reset_code: Option<PathBuf>,
-
-        #[clap(name = "User PIN file new", short = 'p', long = "user-pin-new")]
-        user_pin_new: Option<PathBuf>,
     },
 }
 
