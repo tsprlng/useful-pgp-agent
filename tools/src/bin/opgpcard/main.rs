@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
 use sequoia_openpgp::packet::Key;
-use sequoia_openpgp::parse::{stream::DecryptorBuilder, Parse};
+use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::{Policy, StandardPolicy};
 use sequoia_openpgp::serialize::stream::{Armorer, Message, Signer};
 use sequoia_openpgp::serialize::SerializeInto;
@@ -64,12 +64,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli::Command::SetIdentity { ident, id } => {
             set_identity(&ident, id)?;
         }
-        cli::Command::Decrypt {
-            ident,
-            user_pin,
-            input,
-        } => {
-            decrypt(&ident, user_pin, input.as_deref())?;
+        cli::Command::Decrypt(cmd) => {
+            commands::decrypt::decrypt(cmd)?;
         }
         cli::Command::Sign {
             ident,
@@ -593,36 +589,6 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
             Err(anyhow::anyhow!("Found more than one card"))
         }
     }
-}
-
-fn decrypt(
-    ident: &str,
-    pin_file: Option<PathBuf>,
-    input: Option<&Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let p = StandardPolicy::new();
-
-    let input = util::open_or_stdin(input)?;
-
-    let backend = util::open_card(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
-
-    if open.fingerprints()?.decryption().is_none() {
-        return Err(anyhow!("Can't decrypt: this card has no key in the decryption slot.").into());
-    }
-
-    let user_pin = util::get_pin(&mut open, pin_file, ENTER_USER_PIN);
-
-    let mut user = util::verify_to_user(&mut open, user_pin.as_deref())?;
-    let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
-
-    let db = DecryptorBuilder::from_reader(input)?;
-    let mut decryptor = db.with_policy(&p, None, d)?;
-
-    std::io::copy(&mut decryptor, &mut std::io::stdout())?;
-
-    Ok(())
 }
 
 fn sign_detached(

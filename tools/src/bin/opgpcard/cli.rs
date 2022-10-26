@@ -75,17 +75,7 @@ pub enum Command {
     },
 
     /// Decrypt data using a card
-    Decrypt {
-        #[clap(name = "card ident", short = 'c', long = "card")]
-        ident: String,
-
-        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
-        user_pin: Option<PathBuf>,
-
-        /// Input file (stdin if unset)
-        #[clap(name = "input")]
-        input: Option<PathBuf>,
-    },
+    Decrypt(commands::decrypt::DecryptCommand),
 
     /// Sign data using a card
     Sign {
