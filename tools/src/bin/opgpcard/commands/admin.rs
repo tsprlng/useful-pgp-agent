@@ -69,28 +69,7 @@ pub enum AdminSubCommand {
     ///
     /// A signing key is always created, decryption and authentication keys
     /// are optional.
-    Generate {
-        #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
-        user_pin: Option<PathBuf>,
-
-        /// Output file (stdout if unset)
-        #[clap(name = "output", long = "output", short = 'o')]
-        output: Option<PathBuf>,
-
-        #[clap(long = "no-decrypt", action = clap::ArgAction::SetFalse)]
-        decrypt: bool,
-
-        #[clap(long = "no-auth", action = clap::ArgAction::SetFalse)]
-        auth: bool,
-
-        /// Algorithm
-        #[clap(value_enum)]
-        algo: Option<Algo>,
-
-        /// User ID to add to the exported certificate representation
-        #[clap(name = "User ID", short = 'u', long = "userid")]
-        user_id: Vec<String>,
-    },
+    Generate(AdminGenerateCommand),
 
     /// Set touch policy
     Touch {
@@ -100,6 +79,30 @@ pub enum AdminSubCommand {
         #[clap(name = "Policy", short = 'p', long = "policy", value_enum)]
         policy: TouchPolicy,
     },
+}
+
+#[derive(Parser, Debug)]
+pub struct AdminGenerateCommand {
+    #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
+    user_pin: Option<PathBuf>,
+
+    /// Output file (stdout if unset)
+    #[clap(name = "output", long = "output", short = 'o')]
+    output_file: Option<PathBuf>,
+
+    #[clap(long = "no-decrypt", action = clap::ArgAction::SetFalse)]
+    decrypt: bool,
+
+    #[clap(long = "no-auth", action = clap::ArgAction::SetFalse)]
+    auth: bool,
+
+    /// Algorithm
+    #[clap(value_enum)]
+    algo: Option<Algo>,
+
+    /// User ID to add to the exported certificate representation
+    #[clap(name = "User ID", short = 'u', long = "userid")]
+    user_ids: Vec<String>,
 }
 
 #[derive(ValueEnum, Debug, Clone)]
@@ -201,26 +204,8 @@ pub fn admin(
         } => {
             import_command(keyfile, sig_fp, dec_fp, auth_fp, open, admin_pin.as_deref())?;
         }
-        AdminSubCommand::Generate {
-            user_pin,
-            output,
-            decrypt,
-            auth,
-            algo,
-            user_id,
-        } => {
-            generate_command(
-                output_format,
-                output_version,
-                open,
-                admin_pin.as_deref(),
-                user_pin,
-                output,
-                decrypt,
-                auth,
-                algo,
-                user_id,
-            )?;
+        AdminSubCommand::Generate(cmd) => {
+            generate_command(output_format, output_version, open, admin_pin.as_deref(), cmd)?;
         }
         AdminSubCommand::Touch { key, policy } => {
             touch_command(open, admin_pin.as_deref(), key, policy)?;
@@ -255,72 +240,6 @@ fn keys_pick_explicit<'a>(
     };
 
     Ok([key_by_fp(sig_fp)?, key_by_fp(dec_fp)?, key_by_fp(auth_fp)?])
-}
-
-#[allow(clippy::too_many_arguments)]
-fn generate_keys(
-    format: OutputFormat,
-    version: OutputVersion,
-    mut open: Open,
-    admin_pin: Option<&[u8]>,
-    user_pin: Option<&[u8]>,
-    output_file: Option<PathBuf>,
-    decrypt: bool,
-    auth: bool,
-    algo: Option<AlgoSimple>,
-    user_ids: Vec<String>,
-) -> Result<()> {
-    let mut output = output::AdminGenerate::default();
-    output.ident(open.application_identifier()?.ident());
-
-    // 1) Interpret the user's choice of algorithm.
-    //
-    // Unset (None) means that the algorithm that is specified on the card
-    // should remain unchanged.
-    //
-    // For RSA, different cards use different exact algorithm
-    // specifications. In particular, the length of the value `e` differs
-    // between cards. Some devices use 32 bit length for e, others use 17 bit.
-    // In some cases, it's possible to get this information from the card,
-    // but I believe this information is not obtainable in all cases.
-    // Because of this, for generation of RSA keys, here we take the approach
-    // of first trying one variant, and then if that fails, try the other.
-
-    log::info!(" Key generation will be attempted with algo: {:?}", algo);
-    output.algorithm(format!("{:?}", algo));
-
-    // 2) Then, generate keys on the card.
-    // We need "admin" access to the card for this).
-    let (key_sig, key_dec, key_aut) = {
-        if let Ok(mut admin) = util::verify_to_admin(&mut open, admin_pin) {
-            gen_subkeys(&mut admin, decrypt, auth, algo)?
-        } else {
-            return Err(anyhow!("Failed to open card in admin mode."));
-        }
-    };
-
-    // 3) Generate a Cert from the generated keys. For this, we
-    // need "signing" access to the card (to make binding signatures within
-    // the Cert).
-    let cert = crate::get_cert(
-        &mut open,
-        key_sig,
-        key_dec,
-        key_aut,
-        user_pin,
-        &user_ids,
-        &|| println!("Enter User PIN on card reader pinpad."),
-    )?;
-
-    let armored = String::from_utf8(cert.armored().to_vec()?)?;
-    output.public_key(armored);
-
-    // Write armored certificate to the output file (or stdout)
-    let mut handle = util::open_or_stdout(output_file.as_deref())?;
-    handle.write_all(output.print(format, version)?.as_bytes())?;
-    let _ = handle.write(b"\n")?;
-
-    Ok(())
 }
 
 fn gen_subkeys(
@@ -509,27 +428,62 @@ fn generate_command(
 
     admin_pin: Option<&[u8]>,
 
-    user_pin: Option<PathBuf>,
-    output: Option<PathBuf>,
-    decrypt: bool,
-    auth: bool,
-    algo: Option<Algo>,
-    user_id: Vec<String>,
+    cmd: AdminGenerateCommand,
 ) -> Result<()> {
-    let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut open, cmd.user_pin, ENTER_USER_PIN);
 
-    generate_keys(
-        output_format,
-        output_version,
-        open,
-        admin_pin.as_deref(),
+    let mut output = output::AdminGenerate::default();
+    output.ident(open.application_identifier()?.ident());
+
+    // 1) Interpret the user's choice of algorithm.
+    //
+    // Unset (None) means that the algorithm that is specified on the card
+    // should remain unchanged.
+    //
+    // For RSA, different cards use different exact algorithm
+    // specifications. In particular, the length of the value `e` differs
+    // between cards. Some devices use 32 bit length for e, others use 17 bit.
+    // In some cases, it's possible to get this information from the card,
+    // but I believe this information is not obtainable in all cases.
+    // Because of this, for generation of RSA keys, here we take the approach
+    // of first trying one variant, and then if that fails, try the other.
+
+    let algo = cmd.algo.map(AlgoSimple::from);
+    log::info!(" Key generation will be attempted with algo: {:?}", algo);
+    output.algorithm(format!("{:?}", algo));
+
+    // 2) Then, generate keys on the card.
+    // We need "admin" access to the card for this).
+    let (key_sig, key_dec, key_aut) = {
+        if let Ok(mut admin) = util::verify_to_admin(&mut open, admin_pin) {
+            gen_subkeys(&mut admin, cmd.decrypt, cmd.auth, algo)?
+        } else {
+            return Err(anyhow!("Failed to open card in admin mode."));
+        }
+    };
+
+    // 3) Generate a Cert from the generated keys. For this, we
+    // need "signing" access to the card (to make binding signatures within
+    // the Cert).
+    let cert = crate::get_cert(
+        &mut open,
+        key_sig,
+        key_dec,
+        key_aut,
         user_pin.as_deref(),
-        output,
-        decrypt,
-        auth,
-        algo.map(AlgoSimple::from),
-        user_id,
-    )
+        &cmd.user_ids,
+        &|| println!("Enter User PIN on card reader pinpad."),
+    )?;
+
+    let armored = String::from_utf8(cert.armored().to_vec()?)?;
+    output.public_key(armored);
+
+    // Write armored certificate to the output file (or stdout)
+    let mut handle = util::open_or_stdout(cmd.output_file.as_deref())?;
+    handle.write_all(output.print(output_format, output_version)?.as_bytes())?;
+    let _ = handle.write(b"\n")?;
+
+    Ok(())
 }
 
 fn touch_command(
