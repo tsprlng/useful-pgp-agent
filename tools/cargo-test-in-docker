@@ -23,4 +23,4 @@ su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim &&
 cd /src/tools &&
 CARGO_TARGET_DIR=/cargo/ cargo update &&
 CARGO_TARGET_DIR=/cargo/ cargo build -vv &&
-CARGO_TARGET_DIR=/cargo/ cargo test'
+CARGO_TARGET_DIR=/cargo/ cargo test -- --test-threads 1'

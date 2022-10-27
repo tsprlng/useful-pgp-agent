@@ -149,7 +149,7 @@ subplot:
   script:
     # make sure a virtual card is available, so that the subplot tests are
     # generated
-    - CARD_BASED_TESTS=true cargo test
+    - CARD_BASED_TESTS=true cargo test -- --test-threads 1
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
