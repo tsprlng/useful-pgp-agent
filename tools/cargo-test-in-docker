@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Run this to run opgpcard (tools directory) test suite inside a
 # Docker container with a virtual smartcard running. The test suite
