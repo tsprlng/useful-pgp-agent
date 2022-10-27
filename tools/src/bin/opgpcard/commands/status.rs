@@ -100,10 +100,6 @@ pub fn print_status(
         signature_key.status(format!("{}", ks));
     }
 
-    if pws.pw1_cds_valid_once() {
-        signature_key.pin_valid_once();
-    }
-
     if command.pkm {
         if let Ok(pkm) = card.public_key(KeyType::Signing) {
             signature_key.public_key_material(pkm.to_string());
@@ -195,6 +191,8 @@ pub fn print_status(
     output.attestation_key(attestation_key);
 
     // technical details about the card's state
+    output.user_pin_valid_for_only_one_signature(pws.pw1_cds_valid_once());
+
     output.user_pin_remaining_attempts(pws.err_count_pw1());
     output.admin_pin_remaining_attempts(pws.err_count_pw3());
     output.reset_code_remaining_attempts(pws.err_count_rc());

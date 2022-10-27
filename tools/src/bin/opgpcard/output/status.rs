@@ -19,6 +19,7 @@ pub struct Status {
     decryption_key: KeySlotInfo,
     authentication_key: KeySlotInfo,
     attestation_key: Option<KeySlotInfo>,
+    user_pin_valid_for_only_one_signature: bool,
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
@@ -69,6 +70,10 @@ impl Status {
 
     pub fn attestation_key(&mut self, key: KeySlotInfo) {
         self.attestation_key = Some(key);
+    }
+
+    pub fn user_pin_valid_for_only_one_signature(&mut self, sign_pin_valid_once: bool) {
+        self.user_pin_valid_for_only_one_signature = sign_pin_valid_once;
     }
 
     pub fn user_pin_remaining_attempts(&mut self, count: u8) {
@@ -130,6 +135,13 @@ impl Status {
         for line in self.signature_key.format(self.verbose) {
             s.push_str(&format!("  {}\n", line));
         }
+        if self.verbose {
+            if self.user_pin_valid_for_only_one_signature {
+                s.push_str("  User PIN presentation valid for one signature\n");
+            } else {
+                s.push_str("  User PIN presentation valid for unlimited signatures\n");
+            }
+        }
         s.push_str(&format!("  Signatures made: {}\n", self.signature_count));
         s.push('\n');
 
@@ -186,6 +198,7 @@ impl Status {
             decryption_key: self.decryption_key.clone(),
             authentication_key: self.authentication_key.clone(),
             attestation_key: self.attestation_key.clone(),
+            user_pin_valid_for_only_one_signature: self.user_pin_valid_for_only_one_signature,
             user_pin_remaining_attempts: self.user_pin_remaining_attempts,
             admin_pin_remaining_attempts: self.admin_pin_remaining_attempts,
             reset_code_remaining_attempts: self.reset_code_remaining_attempts,
@@ -234,6 +247,7 @@ pub struct StatusV0 {
     decryption_key: KeySlotInfo,
     authentication_key: KeySlotInfo,
     attestation_key: Option<KeySlotInfo>,
+    user_pin_valid_for_only_one_signature: bool,
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
@@ -253,7 +267,6 @@ pub struct KeySlotInfo {
     touch_policy: Option<String>,
     touch_features: Option<String>,
     status: Option<String>,
-    pin_valid_once: bool,
     public_key_material: Option<String>,
 }
 
@@ -282,10 +295,6 @@ impl KeySlotInfo {
         self.status = Some(status);
     }
 
-    pub fn pin_valid_once(&mut self) {
-        self.pin_valid_once = true;
-    }
-
     pub fn public_key_material(&mut self, material: String) {
         self.public_key_material = Some(material);
     }
@@ -311,11 +320,6 @@ impl KeySlotInfo {
             }
             if let Some(status) = &self.status {
                 lines.push(format!("Key Status: {}", status));
-            }
-            if self.pin_valid_once {
-                lines.push("User PIN presentation valid for one signature".into());
-            } else {
-                lines.push("User PIN presentation valid for unlimited signatures".into());
             }
         }
         if let Some(material) = &self.public_key_material {
