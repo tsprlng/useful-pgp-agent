@@ -61,8 +61,8 @@ pub enum AdminSubCommand {
         #[clap(name = "Decryption key fingerprint", short = 'd', long = "dec-fp")]
         dec_fp: Option<String>,
 
-        #[clap(name = "Authentication key fingerprint", short = 'a', long = "auth-fp")]
-        auth_fp: Option<String>,
+        #[clap(name = "Authentication key fingerprint", short = 'a', long = "aut-fp")]
+        aut_fp: Option<String>,
     },
 
     /// Generate a Key.
@@ -200,9 +200,9 @@ pub fn admin(
             keyfile,
             sig_fp,
             dec_fp,
-            auth_fp,
+            aut_fp,
         } => {
-            import_command(keyfile, sig_fp, dec_fp, auth_fp, card, admin_pin.as_deref())?;
+            import_command(keyfile, sig_fp, dec_fp, aut_fp, card, admin_pin.as_deref())?;
         }
         AdminSubCommand::Generate(cmd) => {
             generate_command(
@@ -238,14 +238,14 @@ fn keys_pick_explicit<'a>(
     policy: &'a dyn Policy,
     sig_fp: Option<String>,
     dec_fp: Option<String>,
-    auth_fp: Option<String>,
+    aut_fp: Option<String>,
 ) -> Result<[Option<ValidErasedKeyAmalgamation<'a, SecretParts>>; 3]> {
     let key_by_fp = |fp: Option<String>| match fp {
         Some(fp) => sq_util::private_subkey_by_fingerprint(key, policy, &fp),
         None => Ok(None),
     };
 
-    Ok([key_by_fp(sig_fp)?, key_by_fp(dec_fp)?, key_by_fp(auth_fp)?])
+    Ok([key_by_fp(sig_fp)?, key_by_fp(dec_fp)?, key_by_fp(aut_fp)?])
 }
 
 fn gen_subkeys(
@@ -321,7 +321,7 @@ fn import_command(
     keyfile: PathBuf,
     sig_fp: Option<String>,
     dec_fp: Option<String>,
-    auth_fp: Option<String>,
+    aut_fp: Option<String>,
     mut card: Card<Transaction>,
     admin_pin: Option<&[u8]>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -330,12 +330,12 @@ fn import_command(
     let p = StandardPolicy::new();
 
     // select the (sub)keys to upload
-    let [sig, dec, auth] = match (&sig_fp, &dec_fp, &auth_fp) {
+    let [sig, dec, auth] = match (&sig_fp, &dec_fp, &aut_fp) {
         // No fingerprint has been provided, try to autoselect keys
         // (this fails if there is more than one (sub)key for any keytype).
         (&None, &None, &None) => keys_pick_yolo(&key, &p)?,
 
-        _ => keys_pick_explicit(&key, &p, sig_fp, dec_fp, auth_fp)?,
+        _ => keys_pick_explicit(&key, &p, sig_fp, dec_fp, aut_fp)?,
     };
 
     let mut pws: Vec<String> = vec![];
