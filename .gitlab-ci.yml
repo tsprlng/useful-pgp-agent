@@ -49,11 +49,17 @@ cargo-deny:
   stage: lint
   image: rust:latest
   before_script:
-    - cargo install --locked cargo-deny
+    # The cargo deny binary is cached, so installing it errors if it was
+    # restored from cache. Ignore that error.
+    # Clear the cache to force a rebuild.
+    - cargo install --locked cargo-deny || true
     - *report-rust
   script:
     - cargo deny check
-  cache: [ ]
+  cache:
+    paths:
+      - cargo/bin/cargo-deny
+    key: "deny"
 
 cargo-clippy:
   stage: lint
