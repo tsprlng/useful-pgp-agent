@@ -16,7 +16,7 @@ use sequoia_openpgp::Cert;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{Error, KeyType, OpenPgp, OpenPgpTransaction, StatusBytes};
-use openpgp_card_sequoia::card::Open;
+use openpgp_card_sequoia::card::{Card, Transaction};
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
@@ -67,9 +67,9 @@ pub fn test_decrypt(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, Tes
 
     let p = StandardPolicy::new();
 
-    let mut open = Open::new(pgpt)?;
+    let mut transaction = Card::<Transaction>::new(pgpt)?;
 
-    let mut user = open.user_card().unwrap();
+    let mut user = transaction.user_card().unwrap();
     let d = user.decryptor(&|| {})?;
 
     let res = openpgp_card_sequoia::util::decrypt(d, msg.into_bytes(), &p)?;
@@ -90,9 +90,9 @@ pub fn test_sign(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestEr
 
     let cert = Cert::from_str(param[0])?;
 
-    let mut open = Open::new(pgpt)?;
+    let mut transaction = Card::<Transaction>::new(pgpt)?;
 
-    let mut sign = open.signing_card().unwrap();
+    let mut sign = transaction.signing_card().unwrap();
     let s = sign.signer(&|| {})?;
 
     let msg = "Hello world, I am signed.";
@@ -216,9 +216,9 @@ pub fn test_upload_keys(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput,
 pub fn test_keygen(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestError> {
     let pgpt = pgp.transaction()?;
 
-    let mut open = Open::new(pgpt)?;
-    open.verify_admin(b"12345678")?;
-    let mut admin = open.admin_card().expect("Couldn't get Admin card");
+    let mut transaction = Card::<Transaction>::new(pgpt)?;
+    transaction.verify_admin(b"12345678")?;
+    let mut admin = transaction.admin_card().expect("Couldn't get Admin card");
 
     // Generate all three subkeys on card
     let algo = param[0];
@@ -245,7 +245,7 @@ pub fn test_keygen(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, Test
 
     // Generate a Cert for this set of generated keys
     let cert = make_cert(
-        &mut open,
+        &mut transaction,
         key_sig,
         Some(key_dec),
         Some(key_aut),

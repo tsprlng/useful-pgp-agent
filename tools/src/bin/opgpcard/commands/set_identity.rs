@@ -4,8 +4,7 @@
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-
-use openpgp_card_sequoia::card::Card;
+use openpgp_card_sequoia::card::{Card, Open};
 
 use crate::util;
 
@@ -40,9 +39,9 @@ impl From<SetIdentityId> for u8 {
 
 pub fn set_identity(command: SetIdentityCommand) -> Result<(), Box<dyn std::error::Error>> {
     let backend = util::open_card(&command.ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    open.set_identity(u8::from(command.id))?;
+    card.set_identity(u8::from(command.id))?;
     Ok(())
 }

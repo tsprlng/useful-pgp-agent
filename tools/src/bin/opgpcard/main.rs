@@ -8,7 +8,7 @@ use clap::Parser;
 
 use sequoia_openpgp::Cert;
 
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::card::{Card, Open, Transaction};
 use openpgp_card_sequoia::types::CardBackend;
 use openpgp_card_sequoia::util::make_cert;
 use openpgp_card_sequoia::PublicKey;
@@ -90,10 +90,9 @@ fn list_cards(format: OutputFormat, output_version: OutputVersion) -> Result<()>
     let mut output = output::List::default();
     if !cards.is_empty() {
         for backend in cards {
-            let mut card = Card::new(backend);
-            let open = card.transaction()?;
+            let mut open: Card<Open> = backend.into();
 
-            output.push(open.application_identifier()?.ident());
+            output.push(open.transaction()?.application_identifier()?.ident());
         }
     }
     println!("{}", output.print(format, output_version)?);
@@ -123,7 +122,7 @@ fn pick_card_for_reading(ident: Option<String>) -> Result<Box<dyn CardBackend + 
 }
 
 fn get_cert(
-    open: &mut Open,
+    card: &mut Card<Transaction>,
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
@@ -131,7 +130,7 @@ fn get_cert(
     user_ids: &[String],
     prompt: &dyn Fn(),
 ) -> Result<Cert> {
-    if user_pin.is_none() && open.feature_pinpad_verify() {
+    if user_pin.is_none() && card.feature_pinpad_verify() {
         println!(
             "The public cert will now be generated.\n\n\
              You will need to enter your User PIN multiple times during this process.\n\n"
@@ -139,7 +138,7 @@ fn get_cert(
     }
 
     make_cert(
-        open,
+        card,
         key_sig,
         key_dec,
         key_aut,

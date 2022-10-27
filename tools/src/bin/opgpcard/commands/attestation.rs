@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
+use openpgp_card_sequoia::card::{Card, Open};
 
-use openpgp_card_sequoia::card::Card;
 use openpgp_card_sequoia::types::KeyType;
 
 use crate::versioned_output::{OutputBuilder, OutputFormat, OutputVersion};
@@ -60,7 +60,7 @@ pub enum BaseKeySlot {
     Aut,
 }
 
-impl From<BaseKeySlot> for openpgp_card_sequoia::types::KeyType {
+impl From<BaseKeySlot> for KeyType {
     fn from(ks: BaseKeySlot) -> Self {
         match ks {
             BaseKeySlot::Sig => KeyType::Signing,
@@ -94,12 +94,12 @@ fn cert(
     let mut output = output::AttestationCert::default();
 
     let backend = pick_card_for_reading(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    output.ident(open.application_identifier()?.ident());
+    output.ident(card.application_identifier()?.ident());
 
-    if let Ok(ac) = open.attestation_certificate() {
+    if let Ok(ac) = card.attestation_certificate() {
         let pem = util::pem_encode(ac);
         output.attestation_cert(pem);
     }
@@ -114,12 +114,12 @@ fn generate(
     user_pin: Option<PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let backend = util::open_card(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    let user_pin = util::get_pin(&mut open, user_pin, ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, user_pin, ENTER_USER_PIN);
 
-    let mut sign = util::verify_to_sign(&mut open, user_pin.as_deref())?;
+    let mut sign = util::verify_to_sign(&mut card, user_pin.as_deref())?;
 
     let kt = KeyType::from(key);
     sign.generate_attestation(kt, &|| {
@@ -130,15 +130,15 @@ fn generate(
 
 fn statement(ident: Option<String>, key: BaseKeySlot) -> Result<(), Box<dyn std::error::Error>> {
     let backend = pick_card_for_reading(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
     // Get cardholder certificate from card.
 
     let mut select_data_workaround = false;
     // Use "select data" workaround if the card reports a
     // yk firmware version number >= 5 and <= 5.4.3
-    if let Ok(version) = open.firmware_version() {
+    if let Ok(version) = card.firmware_version() {
         if version.len() == 3
             && version[0] == 5
             && (version[1] < 4 || (version[1] == 4 && version[2] <= 3))
@@ -149,13 +149,13 @@ fn statement(ident: Option<String>, key: BaseKeySlot) -> Result<(), Box<dyn std:
 
     // Select cardholder certificate
     match key {
-        BaseKeySlot::Aut => open.select_data(0, &[0x7F, 0x21], select_data_workaround)?,
-        BaseKeySlot::Dec => open.select_data(1, &[0x7F, 0x21], select_data_workaround)?,
-        BaseKeySlot::Sig => open.select_data(2, &[0x7F, 0x21], select_data_workaround)?,
+        BaseKeySlot::Aut => card.select_data(0, &[0x7F, 0x21], select_data_workaround)?,
+        BaseKeySlot::Dec => card.select_data(1, &[0x7F, 0x21], select_data_workaround)?,
+        BaseKeySlot::Sig => card.select_data(2, &[0x7F, 0x21], select_data_workaround)?,
     };
 
     // Get DO "cardholder certificate" (returns the slot that was previously selected)
-    let cert = open.cardholder_certificate()?;
+    let cert = card.cardholder_certificate()?;
 
     if !cert.is_empty() {
         let pem = util::pem_encode(cert);

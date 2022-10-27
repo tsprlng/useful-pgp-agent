@@ -5,8 +5,8 @@
 
 use anyhow::Result;
 use clap::Parser;
+use openpgp_card_sequoia::card::{Card, Open};
 
-use openpgp_card_sequoia::card::Card;
 use openpgp_card_sequoia::types::KeyType;
 
 use crate::output;
@@ -30,21 +30,21 @@ pub fn print_ssh(
     let ident = command.ident;
 
     let backend = pick_card_for_reading(ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    let ident = open.application_identifier()?.ident();
+    let ident = card.application_identifier()?.ident();
     output.ident(ident.clone());
 
     // Print fingerprint of authentication subkey
-    let fps = open.fingerprints()?;
+    let fps = card.fingerprints()?;
 
     if let Some(fp) = fps.authentication() {
         output.authentication_key_fingerprint(fp.to_string());
     }
 
     // Show authentication subkey as openssh public key string
-    if let Ok(pkm) = open.public_key(KeyType::Authentication) {
+    if let Ok(pkm) = card.public_key(KeyType::Authentication) {
         if let Ok(ssh) = util::get_ssh_pubkey_string(&pkm, ident) {
             output.ssh_public_key(ssh);
         }

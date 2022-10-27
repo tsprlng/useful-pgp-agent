@@ -5,8 +5,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-
-use openpgp_card_sequoia::card::Card;
+use openpgp_card_sequoia::card::{Card, Open};
 
 use crate::output;
 use crate::pick_card_for_reading;
@@ -27,10 +26,10 @@ pub fn print_info(
     let mut output = output::Info::default();
 
     let backend = pick_card_for_reading(command.ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    let ai = open.application_identifier()?;
+    let ai = card.application_identifier()?;
 
     output.ident(ai.ident());
 
@@ -41,34 +40,34 @@ pub fn print_info(
     output.manufacturer_id(format!("{:04X}", ai.manufacturer()));
     output.manufacturer_name(ai.manufacturer_name().to_string());
 
-    if let Some(cc) = open.historical_bytes()?.card_capabilities() {
+    if let Some(cc) = card.historical_bytes()?.card_capabilities() {
         for line in cc.to_string().lines() {
             let line = line.strip_prefix("- ").unwrap_or(line);
             output.card_capability(line.to_string());
         }
     }
-    if let Some(csd) = open.historical_bytes()?.card_service_data() {
+    if let Some(csd) = card.historical_bytes()?.card_service_data() {
         for line in csd.to_string().lines() {
             let line = line.strip_prefix("- ").unwrap_or(line);
             output.card_service_data(line.to_string());
         }
     }
 
-    if let Some(eli) = open.extended_length_information()? {
+    if let Some(eli) = card.extended_length_information()? {
         for line in eli.to_string().lines() {
             let line = line.strip_prefix("- ").unwrap_or(line);
             output.extended_length_info(line.to_string());
         }
     }
 
-    let ec = open.extended_capabilities()?;
+    let ec = card.extended_capabilities()?;
     for line in ec.to_string().lines() {
         let line = line.strip_prefix("- ").unwrap_or(line);
         output.extended_capability(line.to_string());
     }
 
     // Algorithm information (list of supported algorithms)
-    if let Ok(Some(ai)) = open.algorithm_information() {
+    if let Ok(Some(ai)) = card.algorithm_information() {
         for line in ai.to_string().lines() {
             let line = line.strip_prefix("- ").unwrap_or(line);
             output.algorithm(line.to_string());
@@ -78,7 +77,7 @@ pub fn print_info(
     // FIXME: print KDF info
 
     // YubiKey specific (?) firmware version
-    if let Ok(ver) = open.firmware_version() {
+    if let Ok(ver) = card.firmware_version() {
         let ver = ver.iter().map(u8::to_string).collect::<Vec<_>>().join(".");
         output.firmware_version(ver);
     }

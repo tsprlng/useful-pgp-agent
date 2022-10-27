@@ -5,8 +5,8 @@
 
 use anyhow::Result;
 use clap::Parser;
+use openpgp_card_sequoia::card::{Card, Open};
 
-use openpgp_card_sequoia::card::Card;
 use openpgp_card_sequoia::types::KeyType;
 
 use crate::output;
@@ -35,17 +35,17 @@ pub fn print_status(
     output.verbose(command.verbose);
 
     let backend = pick_card_for_reading(command.ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    output.ident(open.application_identifier()?.ident());
+    output.ident(card.application_identifier()?.ident());
 
-    let ai = open.application_identifier()?;
+    let ai = card.application_identifier()?;
     let version = ai.version().to_be_bytes();
     output.card_version(format!("{}.{}", version[0], version[1]));
 
     // card / cardholder metadata
-    let crd = open.cardholder_related_data()?;
+    let crd = card.cardholder_related_data()?;
 
     if let Some(name) = crd.name() {
         // FIXME: decoding as utf8 is wrong (the spec defines this field as latin1 encoded)
@@ -67,7 +67,7 @@ pub fn print_status(
         output.card_holder(name);
     }
 
-    let url = open.url()?;
+    let url = card.url()?;
     if !url.is_empty() {
         output.url(url);
     }
@@ -79,24 +79,24 @@ pub fn print_status(
     }
 
     // key information (imported vs. generated on card)
-    let ki = open.key_information().ok().flatten();
+    let ki = card.key_information().ok().flatten();
 
-    let pws = open.pw_status_bytes()?;
+    let pws = card.pw_status_bytes()?;
 
     // information about subkeys
 
-    let fps = open.fingerprints()?;
-    let kgt = open.key_generation_times()?;
+    let fps = card.fingerprints()?;
+    let kgt = card.key_generation_times()?;
 
     let mut signature_key = output::KeySlotInfo::default();
     if let Some(fp) = fps.signature() {
         signature_key.fingerprint(fp.to_spaced_hex());
     }
-    signature_key.algorithm(format!("{}", open.algorithm_attributes(KeyType::Signing)?));
+    signature_key.algorithm(format!("{}", card.algorithm_attributes(KeyType::Signing)?));
     if let Some(kgt) = kgt.signature() {
         signature_key.created(format!("{}", kgt.to_datetime()));
     }
-    if let Some(uif) = open.uif_signing()? {
+    if let Some(uif) = card.uif_signing()? {
         signature_key.touch_policy(format!("{}", uif.touch_policy()));
         signature_key.touch_features(format!("{}", uif.features()));
     }
@@ -109,14 +109,14 @@ pub fn print_status(
     }
 
     if command.pkm {
-        if let Ok(pkm) = open.public_key(KeyType::Signing) {
+        if let Ok(pkm) = card.public_key(KeyType::Signing) {
             signature_key.public_key_material(pkm.to_string());
         }
     }
 
     output.signature_key(signature_key);
 
-    let sst = open.security_support_template()?;
+    let sst = card.security_support_template()?;
     output.signature_count(sst.signature_count());
 
     let mut decryption_key = output::KeySlotInfo::default();
@@ -125,12 +125,12 @@ pub fn print_status(
     }
     decryption_key.algorithm(format!(
         "{}",
-        open.algorithm_attributes(KeyType::Decryption)?
+        card.algorithm_attributes(KeyType::Decryption)?
     ));
     if let Some(kgt) = kgt.decryption() {
         decryption_key.created(format!("{}", kgt.to_datetime()));
     }
-    if let Some(uif) = open.uif_decryption()? {
+    if let Some(uif) = card.uif_decryption()? {
         decryption_key.touch_policy(format!("{}", uif.touch_policy()));
         decryption_key.touch_features(format!("{}", uif.features()));
     }
@@ -138,7 +138,7 @@ pub fn print_status(
         decryption_key.status(format!("{}", ks));
     }
     if command.pkm {
-        if let Ok(pkm) = open.public_key(KeyType::Decryption) {
+        if let Ok(pkm) = card.public_key(KeyType::Decryption) {
             decryption_key.public_key_material(pkm.to_string());
         }
     }
@@ -150,12 +150,12 @@ pub fn print_status(
     }
     authentication_key.algorithm(format!(
         "{}",
-        open.algorithm_attributes(KeyType::Authentication)?
+        card.algorithm_attributes(KeyType::Authentication)?
     ));
     if let Some(kgt) = kgt.authentication() {
         authentication_key.created(format!("{}", kgt.to_datetime()));
     }
-    if let Some(uif) = open.uif_authentication()? {
+    if let Some(uif) = card.uif_authentication()? {
         authentication_key.touch_policy(format!("{}", uif.touch_policy()));
         authentication_key.touch_features(format!("{}", uif.features()));
     }
@@ -163,7 +163,7 @@ pub fn print_status(
         authentication_key.status(format!("{}", ks));
     }
     if command.pkm {
-        if let Ok(pkm) = open.public_key(KeyType::Authentication) {
+        if let Ok(pkm) = card.public_key(KeyType::Authentication) {
             authentication_key.public_key_material(pkm.to_string());
         }
     }
@@ -180,7 +180,7 @@ pub fn print_status(
     // own `Option<KeySlotInfo>`, and (if any information about the
     // attestation key exists at all, which is not the case for most
     // cards) it should be printed as a fourth KeySlot block.
-    if let Some(uif) = open.uif_attestation()? {
+    if let Some(uif) = card.uif_attestation()? {
         output.card_touch_policy(uif.touch_policy().to_string());
         output.card_touch_features(uif.features().to_string());
     }
@@ -192,7 +192,7 @@ pub fn print_status(
         }
     }
 
-    if let Ok(fps) = open.ca_fingerprints() {
+    if let Ok(fps) = card.ca_fingerprints() {
         for fp in fps.iter().flatten() {
             output.ca_fingerprint(fp.to_string());
         }

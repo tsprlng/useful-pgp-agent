@@ -5,7 +5,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::{Parser, ValueEnum};
-use openpgp_card_sequoia::card::{Admin, Open};
+use openpgp_card_sequoia::card::{Admin, Open, Transaction};
 use openpgp_card_sequoia::util::public_key_material_to_key;
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 
@@ -114,7 +114,7 @@ pub enum BasePlusAttKeySlot {
     Att,
 }
 
-impl From<BasePlusAttKeySlot> for openpgp_card_sequoia::types::KeyType {
+impl From<BasePlusAttKeySlot> for KeyType {
     fn from(ks: BasePlusAttKeySlot) -> Self {
         match ks {
             BasePlusAttKeySlot::Sig => KeyType::Signing,
@@ -164,7 +164,7 @@ pub enum Algo {
     Curve25519,
 }
 
-impl From<Algo> for openpgp_card_sequoia::types::AlgoSimple {
+impl From<Algo> for AlgoSimple {
     fn from(a: Algo) -> Self {
         match a {
             Algo::Rsa2048 => AlgoSimple::RSA2k,
@@ -184,17 +184,17 @@ pub fn admin(
     command: AdminCommand,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let backend = util::open_card(&command.ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    let admin_pin = util::get_pin(&mut open, command.admin_pin, ENTER_ADMIN_PIN);
+    let admin_pin = util::get_pin(&mut card, command.admin_pin, ENTER_ADMIN_PIN);
 
     match command.cmd {
         AdminSubCommand::Name { name } => {
-            name_command(&name, open, admin_pin.as_deref())?;
+            name_command(&name, card, admin_pin.as_deref())?;
         }
         AdminSubCommand::Url { url } => {
-            url_command(&url, open, admin_pin.as_deref())?;
+            url_command(&url, card, admin_pin.as_deref())?;
         }
         AdminSubCommand::Import {
             keyfile,
@@ -202,19 +202,19 @@ pub fn admin(
             dec_fp,
             auth_fp,
         } => {
-            import_command(keyfile, sig_fp, dec_fp, auth_fp, open, admin_pin.as_deref())?;
+            import_command(keyfile, sig_fp, dec_fp, auth_fp, card, admin_pin.as_deref())?;
         }
         AdminSubCommand::Generate(cmd) => {
             generate_command(
                 output_format,
                 output_version,
-                open,
+                card,
                 admin_pin.as_deref(),
                 cmd,
             )?;
         }
         AdminSubCommand::Touch { key, policy } => {
-            touch_command(open, admin_pin.as_deref(), key, policy)?;
+            touch_command(card, admin_pin.as_deref(), key, policy)?;
         }
     }
     Ok(())
@@ -249,7 +249,7 @@ fn keys_pick_explicit<'a>(
 }
 
 fn gen_subkeys(
-    admin: &mut Admin,
+    admin: &mut Card<Admin>,
     decrypt: bool,
     auth: bool,
     algo: Option<AlgoSimple>,
@@ -297,10 +297,10 @@ fn gen_subkeys(
 
 fn name_command(
     name: &str,
-    mut open: Open,
+    mut card: Card<Transaction>,
     admin_pin: Option<&[u8]>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
+    let mut admin = util::verify_to_admin(&mut card, admin_pin)?;
 
     admin.set_name(name)?;
     Ok(())
@@ -308,10 +308,10 @@ fn name_command(
 
 fn url_command(
     url: &str,
-    mut open: Open,
+    mut card: Card<Transaction>,
     admin_pin: Option<&[u8]>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
+    let mut admin = util::verify_to_admin(&mut card, admin_pin)?;
 
     admin.set_url(url)?;
     Ok(())
@@ -322,7 +322,7 @@ fn import_command(
     sig_fp: Option<String>,
     dec_fp: Option<String>,
     auth_fp: Option<String>,
-    mut open: Open,
+    mut card: Card<Transaction>,
     admin_pin: Option<&[u8]>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let key = Cert::from_file(keyfile)?;
@@ -410,7 +410,7 @@ fn import_command(
     let auth_p = get_pw_for_key(&auth, "authentication")?;
 
     // upload keys to card
-    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
+    let mut admin = util::verify_to_admin(&mut card, admin_pin)?;
 
     if let Some(sig) = sig {
         println!("Uploading {} as signing key", sig.fingerprint());
@@ -430,16 +430,16 @@ fn import_command(
 fn generate_command(
     output_format: OutputFormat,
     output_version: OutputVersion,
-    mut open: Open,
+    mut card: Card<Transaction>,
 
     admin_pin: Option<&[u8]>,
 
     cmd: AdminGenerateCommand,
 ) -> Result<()> {
-    let user_pin = util::get_pin(&mut open, cmd.user_pin, ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, cmd.user_pin, ENTER_USER_PIN);
 
     let mut output = output::AdminGenerate::default();
-    output.ident(open.application_identifier()?.ident());
+    output.ident(card.application_identifier()?.ident());
 
     // 1) Interpret the user's choice of algorithm.
     //
@@ -461,7 +461,7 @@ fn generate_command(
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
     let (key_sig, key_dec, key_aut) = {
-        if let Ok(mut admin) = util::verify_to_admin(&mut open, admin_pin) {
+        if let Ok(mut admin) = util::verify_to_admin(&mut card, admin_pin) {
             gen_subkeys(&mut admin, cmd.decrypt, cmd.auth, algo)?
         } else {
             return Err(anyhow!("Failed to open card in admin mode."));
@@ -472,7 +472,7 @@ fn generate_command(
     // need "signing" access to the card (to make binding signatures within
     // the Cert).
     let cert = crate::get_cert(
-        &mut open,
+        &mut card,
         key_sig,
         key_dec,
         key_aut,
@@ -493,7 +493,7 @@ fn generate_command(
 }
 
 fn touch_command(
-    mut open: Open,
+    mut card: Card<Transaction>,
     admin_pin: Option<&[u8]>,
     key: BasePlusAttKeySlot,
     policy: TouchPolicy,
@@ -502,7 +502,7 @@ fn touch_command(
 
     let pol = openpgp_card_sequoia::types::TouchPolicy::from(policy);
 
-    let mut admin = util::verify_to_admin(&mut open, admin_pin)?;
+    let mut admin = util::verify_to_admin(&mut card, admin_pin)?;
 
     admin.set_uif(kt, pol)?;
     Ok(())

@@ -8,9 +8,9 @@ use clap::Parser;
 
 use std::path::PathBuf;
 
+use openpgp_card_sequoia::card::{Card, Open};
 use sequoia_openpgp::serialize::SerializeInto;
 
-use openpgp_card_sequoia::card::Card;
 use openpgp_card_sequoia::types::KeyType;
 use openpgp_card_sequoia::util::public_key_material_and_fp_to_key;
 
@@ -40,17 +40,17 @@ pub fn print_pubkey(
     let mut output = output::PublicKey::default();
 
     let backend = pick_card_for_reading(command.ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    let ident = open.application_identifier()?.ident();
+    let ident = card.application_identifier()?.ident();
     output.ident(ident);
 
-    let user_pin = util::get_pin(&mut open, command.user_pin, crate::ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, command.user_pin, crate::ENTER_USER_PIN);
 
-    let pkm = open.public_key(KeyType::Signing)?;
-    let times = open.key_generation_times()?;
-    let fps = open.fingerprints()?;
+    let pkm = card.public_key(KeyType::Signing)?;
+    let times = card.key_generation_times()?;
+    let fps = card.fingerprints()?;
 
     let key_sig = public_key_material_and_fp_to_key(
         &pkm,
@@ -60,7 +60,7 @@ pub fn print_pubkey(
     )?;
 
     let mut key_dec = None;
-    if let Ok(pkm) = open.public_key(KeyType::Decryption) {
+    if let Ok(pkm) = card.public_key(KeyType::Decryption) {
         if let Some(ts) = times.decryption() {
             key_dec = Some(public_key_material_and_fp_to_key(
                 &pkm,
@@ -72,7 +72,7 @@ pub fn print_pubkey(
     }
 
     let mut key_aut = None;
-    if let Ok(pkm) = open.public_key(KeyType::Authentication) {
+    if let Ok(pkm) = card.public_key(KeyType::Authentication) {
         if let Some(ts) = times.authentication() {
             key_aut = Some(public_key_material_and_fp_to_key(
                 &pkm,
@@ -85,7 +85,7 @@ pub fn print_pubkey(
     }
 
     let cert = crate::get_cert(
-        &mut open,
+        &mut card,
         key_sig,
         key_dec,
         key_aut,
