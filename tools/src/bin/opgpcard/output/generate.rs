@@ -27,10 +27,8 @@ impl AdminGenerate {
     }
 
     fn text(&self) -> Result<String, OpgpCardError> {
-        Ok(format!(
-            "OpenPGP card {}\n\n{}\n",
-            self.ident, self.public_key,
-        ))
+        // Do not print ident, as the file with the public_key must not contain anything else
+        Ok(self.public_key.to_string())
     }
 
     fn v1(&self) -> Result<AdminGenerateV0, OpgpCardError> {

@@ -86,9 +86,9 @@ pub struct AdminGenerateCommand {
     #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
     user_pin: Option<PathBuf>,
 
-    /// Output file (stdout if unset)
+    /// Output file
     #[clap(name = "output", long = "output", short = 'o')]
-    output_file: Option<PathBuf>,
+    output_file: PathBuf,
 
     #[clap(long = "no-decrypt", action = clap::ArgAction::SetFalse)]
     decrypt: bool,
@@ -484,8 +484,8 @@ fn generate_command(
     let armored = String::from_utf8(cert.armored().to_vec()?)?;
     output.public_key(armored);
 
-    // Write armored certificate to the output file (or stdout)
-    let mut handle = util::open_or_stdout(cmd.output_file.as_deref())?;
+    // Write armored certificate to the output file
+    let mut handle = util::open_or_stdout(Some(&cmd.output_file))?;
     handle.write_all(output.print(output_format, output_version)?.as_bytes())?;
     let _ = handle.write(b"\n")?;
 
