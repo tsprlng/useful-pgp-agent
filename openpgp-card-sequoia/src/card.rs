@@ -419,6 +419,18 @@ impl<'a> Card<Transaction<'a>> {
         self.state.opt.attestation_certificate()
     }
 
+    pub fn attestation_key_fingerprint(&mut self) -> Result<Option<Fingerprint>, Error> {
+        self.state.ard.attestation_key_fingerprint()
+    }
+
+    pub fn attestation_key_algorithm_attributes(&mut self) -> Result<Option<Algo>, Error> {
+        self.state.ard.attestation_key_algorithm_attributes()
+    }
+
+    pub fn attestation_key_generation_time(&mut self) -> Result<Option<KeyGenerationTime>, Error> {
+        self.state.ard.attestation_key_generation_time()
+    }
+
     /// Firmware Version, YubiKey specific (?)
     pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
         self.state.opt.firmware_version()
