@@ -20,4 +20,6 @@ sed -i "s/timeout=20/timeout=60/" /home/jcardsim/run-card.sh &&
 su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim &&
 cd /src/tools &&
 if ! [ -e virtual-card-available ]; then rm -f tests/opgpcard.rs; fi &&
+CARGO_TARGET_DIR=/cargo/ cargo update &&
+CARGO_TARGET_DIR=/cargo/ cargo build -vv &&
 CARGO_TARGET_DIR=/cargo/ cargo test'
