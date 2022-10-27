@@ -20,7 +20,7 @@ sshkeys = "0.3.2"
 pem = "1"
 rpassword = "6"
 anyhow = "1"
-clap = { version = "3", features = ["derive"] }
+clap = { version = "3", features = ["derive", "wrap_help"] }
 env_logger = "0.9"
 log = "0.4"
 serde_json = "1.0.86"
