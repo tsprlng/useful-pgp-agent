@@ -10,7 +10,12 @@ use crate::util;
 
 #[derive(Parser, Debug)]
 pub struct FactoryResetCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     ident: String,
 }
 
