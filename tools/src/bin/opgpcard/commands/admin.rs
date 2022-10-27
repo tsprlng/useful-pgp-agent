@@ -205,7 +205,13 @@ pub fn admin(
             import_command(keyfile, sig_fp, dec_fp, auth_fp, open, admin_pin.as_deref())?;
         }
         AdminSubCommand::Generate(cmd) => {
-            generate_command(output_format, output_version, open, admin_pin.as_deref(), cmd)?;
+            generate_command(
+                output_format,
+                output_version,
+                open,
+                admin_pin.as_deref(),
+                cmd,
+            )?;
         }
         AdminSubCommand::Touch { key, policy } => {
             touch_command(open, admin_pin.as_deref(), key, policy)?;
