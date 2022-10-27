@@ -161,7 +161,7 @@ pub enum Algo {
     Nistp256,
     Nistp384,
     Nistp521,
-    Curve25519,
+    Cv25519,
 }
 
 impl From<Algo> for AlgoSimple {
@@ -173,7 +173,7 @@ impl From<Algo> for AlgoSimple {
             Algo::Nistp256 => AlgoSimple::NIST256,
             Algo::Nistp384 => AlgoSimple::NIST384,
             Algo::Nistp521 => AlgoSimple::NIST521,
-            Algo::Curve25519 => AlgoSimple::Curve25519,
+            Algo::Cv25519 => AlgoSimple::Curve25519,
         }
     }
 }
