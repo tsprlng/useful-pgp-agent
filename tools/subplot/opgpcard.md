@@ -17,9 +17,9 @@ The verification scenarios in this document assume the availability of
 a virtual smart card. Specifically one described in
 <https://gitlab.com/openpgp-card/virtual-cards>. The
 `openpgp-card/tools` crate is set up to generate tests only if the
-file `tools/virtual-card-available` exists, and the `openpgp-card`
-repository `.gitlab-ci.yml` file is set up to create that file when
-the repository is tested in GitLab CI.
+environment variable `CARD_BASED_TESTS` is set (to any value),
+and the `openpgp-card` repository `.gitlab-ci.yml` file is set up to
+set that environment variable when the repository is tested in GitLab CI.
 
 This means that if you run `cargo test`, no test code is normally
 generated from this document. To run the tests locally, outside of

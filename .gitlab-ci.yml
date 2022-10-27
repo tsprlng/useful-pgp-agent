@@ -145,8 +145,7 @@ subplot:
   script:
     # make sure a virtual card is available, so that the subplot tests are
     # generated
-    - touch tools/virtual-card-available
-    - cargo test
+    - CARD_BASED_TESTS=true cargo test
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
