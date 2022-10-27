@@ -336,11 +336,16 @@ impl<'a> Card<Transaction<'a>> {
         self.state.opt.cardholder_related_data()
     }
 
+    // Unicode codepoints are a superset of iso-8859-1 characters
+    fn latin1_to_string(s: &[u8]) -> String {
+        s.iter().map(|&c| c as char).collect()
+    }
+
     /// Get cardholder name as a String (this also normalizes the "<" and "<<" filler chars)
-    pub fn cardholder_name(&mut self) -> Result<String, Error> {
+    pub fn cardholder_name(&mut self) -> Result<Option<String>, Error> {
         let crd = self.state.opt.cardholder_related_data()?;
         if let Some(name) = crd.name() {
-            let name = String::from_utf8_lossy(name).to_string();
+            let name = Self::latin1_to_string(name);
 
             // re-format name ("last<<first")
             let name: Vec<_> = name.split("<<").collect();
@@ -349,9 +354,9 @@ impl<'a> Card<Transaction<'a>> {
             // replace item separators with spaces
             let name = name.replace('<', " ");
 
-            Ok(name)
+            Ok(Some(name))
         } else {
-            Ok("".to_string())
+            Ok(None)
         }
     }
 
@@ -555,14 +560,16 @@ impl<'app, 'open> Card<Admin<'app, 'open>> {
 
 impl Card<Admin<'_, '_>> {
     pub fn set_name(&mut self, name: &str) -> Result<(), Error> {
-        if name.len() >= 40 {
-            return Err(Error::InternalError("name too long".into()));
-        }
-
         // All chars must be in ASCII7
         if name.chars().any(|c| !c.is_ascii()) {
             return Err(Error::InternalError("Invalid char in name".into()));
         };
+
+        // FIXME: encode spaces and do ordering
+
+        if name.len() >= 40 {
+            return Err(Error::InternalError("name too long".into()));
+        }
 
         self.card().set_name(name.as_bytes())
     }

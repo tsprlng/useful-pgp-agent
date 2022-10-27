@@ -54,35 +54,21 @@ pub fn print_status(
     let version = ai.version().to_be_bytes();
     output.card_version(format!("{}.{}", version[0], version[1]));
 
-    // card / cardholder metadata
-    let crd = card.cardholder_related_data()?;
-
-    if let Some(name) = crd.name() {
-        // FIXME: decoding as utf8 is wrong (the spec defines this field as latin1 encoded)
-        let name = String::from_utf8_lossy(name).to_string();
-
-        // // This field is silly, maybe ignore it?!
-        // if let Some(sex) = crd.sex() {
-        //     if sex == Sex::Male {
-        //         print!("Mr. ");
-        //     } else if sex == Sex::Female {
-        //         print!("Mrs. ");
-        //     }
-        // }
-
-        // re-format name ("last<<first")
-        let name: Vec<_> = name.split("<<").collect();
-        let name = name.iter().cloned().rev().collect::<Vec<_>>().join(" ");
-
+    // Cardholder Name
+    if let Some(name) = card.cardholder_name()? {
         output.card_holder(name);
     }
 
+    // We ignore the Cardholder "Sex" field, because it's silly and mostly unhelpful
+
+    // Certificate URL
     let url = card.url()?;
     if !url.is_empty() {
         output.url(url);
     }
 
-    if let Some(lang) = crd.lang() {
+    // Language Preference
+    if let Some(lang) = card.cardholder_related_data()?.lang() {
         for lang in lang {
             output.language_preference(format!("{}", lang));
         }
