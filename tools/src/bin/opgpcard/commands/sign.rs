@@ -41,11 +41,20 @@ pub struct SignCommand {
     /// Input file (stdin if unset)
     #[clap(name = "input")]
     pub input: Option<PathBuf>,
+
+    /// Output file (stdout if unset)
+    #[clap(name = "output", long = "output", short = 'o')]
+    pub output: Option<PathBuf>,
 }
 
 pub fn sign(command: SignCommand) -> Result<(), Box<dyn std::error::Error>> {
     if command.detached {
-        sign_detached(&command.ident, command.user_pin, command.input.as_deref())
+        sign_detached(
+            &command.ident,
+            command.user_pin,
+            command.input.as_deref(),
+            command.output.as_deref(),
+        )
     } else {
         Err(anyhow::anyhow!("Only detached signatures are supported for now").into())
     }
@@ -55,6 +64,7 @@ pub fn sign_detached(
     ident: &str,
     pin_file: Option<PathBuf>,
     input: Option<&Path>,
+    output: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input = util::open_or_stdin(input)?;
 
@@ -71,7 +81,9 @@ pub fn sign_detached(
     let mut sign = util::verify_to_sign(&mut card, user_pin.as_deref())?;
     let s = sign.signer(&|| println!("Touch confirmation needed for signing"))?;
 
-    let message = Armorer::new(Message::new(std::io::stdout())).build()?;
+    let sink = util::open_or_stdout(output)?;
+
+    let message = Armorer::new(Message::new(sink)).build()?;
     let mut signer = Signer::new(message, s).detached().build()?;
 
     std::io::copy(&mut input, &mut signer)?;
