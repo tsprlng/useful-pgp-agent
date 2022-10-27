@@ -4,8 +4,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-
-use openpgp_card_sequoia::card::Card;
+use openpgp_card_sequoia::card::{Card, Open};
 
 use crate::util;
 
@@ -17,9 +16,9 @@ pub struct FactoryResetCommand {
 
 pub fn factory_reset(command: FactoryResetCommand) -> Result<()> {
     println!("Resetting Card {}", command.ident);
-    let card = util::open_card(&command.ident)?;
-    let mut card = Card::new(card);
+    let backend = util::open_card(&command.ident)?;
+    let mut open: Card<Open> = backend.into();
 
-    let mut open = card.transaction()?;
-    open.factory_reset().map_err(|e| anyhow!(e))
+    let mut card = open.transaction()?;
+    card.factory_reset().map_err(|e| anyhow!(e))
 }

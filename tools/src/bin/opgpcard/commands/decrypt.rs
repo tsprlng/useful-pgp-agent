@@ -7,12 +7,11 @@ use clap::Parser;
 
 use std::path::PathBuf;
 
+use openpgp_card_sequoia::card::{Card, Open};
 use sequoia_openpgp::{
     parse::{stream::DecryptorBuilder, Parse},
     policy::StandardPolicy,
 };
-
-use openpgp_card_sequoia::card::Card;
 
 use crate::util;
 
@@ -35,16 +34,16 @@ pub fn decrypt(command: DecryptCommand) -> Result<(), Box<dyn std::error::Error>
     let input = util::open_or_stdin(command.input.as_deref())?;
 
     let backend = util::open_card(&command.ident)?;
-    let mut card = Card::new(backend);
-    let mut open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let mut card = open.transaction()?;
 
-    if open.fingerprints()?.decryption().is_none() {
+    if card.fingerprints()?.decryption().is_none() {
         return Err(anyhow!("Can't decrypt: this card has no key in the decryption slot.").into());
     }
 
-    let user_pin = util::get_pin(&mut open, command.pin_file, crate::ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, command.pin_file, crate::ENTER_USER_PIN);
 
-    let mut user = util::verify_to_user(&mut open, user_pin.as_deref())?;
+    let mut user = util::verify_to_user(&mut card, user_pin.as_deref())?;
     let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
 
     let db = DecryptorBuilder::from_reader(input)?;

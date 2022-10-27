@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::card::{Card, Open, Transaction};
 
 use crate::util;
 use crate::util::{load_pin, print_gnuk_note};
@@ -72,51 +72,51 @@ pub enum PinSubCommand {
 
 pub fn pin(ident: &str, cmd: PinSubCommand) -> Result<()> {
     let backend = util::open_card(ident)?;
-    let mut card = Card::new(backend);
-    let open = card.transaction()?;
+    let mut open: Card<Open> = backend.into();
+    let card = open.transaction()?;
 
     match cmd {
         PinSubCommand::SetUser {
             user_pin_old,
             user_pin_new,
-        } => set_user(user_pin_old, user_pin_new, open),
+        } => set_user(user_pin_old, user_pin_new, card),
 
         PinSubCommand::SetAdmin {
             admin_pin_old,
             admin_pin_new,
-        } => set_admin(admin_pin_old, admin_pin_new, open),
+        } => set_admin(admin_pin_old, admin_pin_new, card),
 
         PinSubCommand::ResetUser {
             admin_pin,
             user_pin_new,
-        } => reset_user(admin_pin, user_pin_new, open),
+        } => reset_user(admin_pin, user_pin_new, card),
 
         PinSubCommand::SetReset {
             admin_pin,
             reset_code,
-        } => set_reset(admin_pin, reset_code, open),
+        } => set_reset(admin_pin, reset_code, card),
 
         PinSubCommand::ResetUserRc {
             reset_code,
             user_pin_new,
-        } => reset_user_rc(reset_code, user_pin_new, open),
+        } => reset_user_rc(reset_code, user_pin_new, card),
     }
 }
 
 fn set_user(
     user_pin_old: Option<PathBuf>,
     user_pin_new: Option<PathBuf>,
-    mut open: Open,
+    mut card: Card<Transaction>,
 ) -> Result<()> {
-    let pinpad_modify = open.feature_pinpad_modify();
+    let pinpad_modify = card.feature_pinpad_modify();
 
     let res = if !pinpad_modify {
         // get current user pin
-        let user_pin1 = util::get_pin(&mut open, user_pin_old, ENTER_USER_PIN)
+        let user_pin1 = util::get_pin(&mut card, user_pin_old, ENTER_USER_PIN)
             .expect("this should never be None");
 
         // verify pin
-        open.verify_user(&user_pin1)?;
+        card.verify_user(&user_pin1)?;
         println!("PIN was accepted by the card.\n");
 
         let pin_new = match user_pin_new {
@@ -128,10 +128,10 @@ fn set_user(
         };
 
         // set new user pin
-        open.change_user_pin(&user_pin1, &pin_new)
+        card.change_user_pin(&user_pin1, &pin_new)
     } else {
         // set new user pin via pinpad
-        open.change_user_pin_pinpad(&|| {
+        card.change_user_pin_pinpad(&|| {
             println!("Enter old User PIN on card reader pinpad, then new User PIN (twice).")
         })
     };
@@ -140,7 +140,7 @@ fn set_user(
         Err(err) => {
             println!("\nFailed to change the User PIN!");
             println!("{:?}", err);
-            print_gnuk_note(err, &open)?;
+            print_gnuk_note(err, &card)?;
         }
         Ok(_) => println!("\nUser PIN has been set."),
     }
@@ -150,17 +150,17 @@ fn set_user(
 fn set_admin(
     admin_pin_old: Option<PathBuf>,
     admin_pin_new: Option<PathBuf>,
-    mut open: Open,
+    mut card: Card<Transaction>,
 ) -> Result<()> {
-    let pinpad_modify = open.feature_pinpad_modify();
+    let pinpad_modify = card.feature_pinpad_modify();
 
     if !pinpad_modify {
         // get current admin pin
-        let admin_pin1 = util::get_pin(&mut open, admin_pin_old, ENTER_ADMIN_PIN)
+        let admin_pin1 = util::get_pin(&mut card, admin_pin_old, ENTER_ADMIN_PIN)
             .expect("this should never be None");
 
         // verify pin
-        open.verify_admin(&admin_pin1)?;
+        card.verify_admin(&admin_pin1)?;
         // (Verifying the PIN here fixes this class of problems:
         // https://developers.yubico.com/PGP/PGP_PIN_Change_Behavior.html
         // It is also just generally more user friendly than failing later)
@@ -175,10 +175,10 @@ fn set_admin(
         };
 
         // set new admin pin
-        open.change_admin_pin(&admin_pin1, &pin_new)?;
+        card.change_admin_pin(&admin_pin1, &pin_new)?;
     } else {
         // set new admin pin via pinpad
-        open.change_admin_pin_pinpad(&|| {
+        card.change_admin_pin_pinpad(&|| {
             println!("Enter old Admin PIN on card reader pinpad, then new Admin PIN (twice).")
         })?;
     };
@@ -190,16 +190,16 @@ fn set_admin(
 fn reset_user(
     admin_pin: Option<PathBuf>,
     user_pin_new: Option<PathBuf>,
-    mut open: Open,
+    mut card: Card<Transaction>,
 ) -> Result<()> {
     // verify admin pin
-    match util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN) {
+    match util::get_pin(&mut card, admin_pin, ENTER_ADMIN_PIN) {
         Some(admin_pin) => {
             // verify pin
-            open.verify_admin(&admin_pin)?;
+            card.verify_admin(&admin_pin)?;
         }
         None => {
-            open.verify_admin_pinpad(&|| println!("Enter Admin PIN on pinpad."))?;
+            card.verify_admin_pinpad(&|| println!("Enter Admin PIN on pinpad."))?;
         }
     }
     println!("PIN was accepted by the card.\n");
@@ -210,7 +210,7 @@ fn reset_user(
         Some(path) => load_pin(&path)?,
     };
 
-    let res = if let Some(mut admin) = open.admin_card() {
+    let res = if let Some(mut admin) = card.admin_card() {
         admin.reset_user_pin(&pin)
     } else {
         return Err(anyhow::anyhow!("Failed to use card in admin-mode."));
@@ -219,7 +219,7 @@ fn reset_user(
     match res {
         Err(err) => {
             println!("\nFailed to change the User PIN!");
-            print_gnuk_note(err, &open)?;
+            print_gnuk_note(err, &card)?;
         }
         Ok(_) => println!("\nUser PIN has been set."),
     }
@@ -229,16 +229,16 @@ fn reset_user(
 fn set_reset(
     admin_pin: Option<PathBuf>,
     reset_code: Option<PathBuf>,
-    mut open: Open,
+    mut card: Card<Transaction>,
 ) -> Result<()> {
     // verify admin pin
-    match util::get_pin(&mut open, admin_pin, ENTER_ADMIN_PIN) {
+    match util::get_pin(&mut card, admin_pin, ENTER_ADMIN_PIN) {
         Some(admin_pin) => {
             // verify pin
-            open.verify_admin(&admin_pin)?;
+            card.verify_admin(&admin_pin)?;
         }
         None => {
-            open.verify_admin_pinpad(&|| println!("Enter Admin PIN on pinpad."))?;
+            card.verify_admin_pinpad(&|| println!("Enter Admin PIN on pinpad."))?;
         }
     }
     println!("PIN was accepted by the card.\n");
@@ -252,7 +252,7 @@ fn set_reset(
         Some(path) => load_pin(&path)?,
     };
 
-    if let Some(mut admin) = open.admin_card() {
+    if let Some(mut admin) = card.admin_card() {
         admin.set_resetting_code(&code)?;
         println!("\nResetting code has been set.");
         Ok(())
@@ -264,7 +264,7 @@ fn set_reset(
 fn reset_user_rc(
     reset_code: Option<PathBuf>,
     user_pin_new: Option<PathBuf>,
-    mut open: Open,
+    mut card: Card<Transaction>,
 ) -> Result<()> {
     // reset by presenting resetting code
 
@@ -285,10 +285,10 @@ fn reset_user_rc(
     };
 
     // reset to new user pin
-    match open.reset_user_pin(&rst, &pin) {
+    match card.reset_user_pin(&rst, &pin) {
         Err(err) => {
             println!("\nFailed to change the User PIN!");
-            print_gnuk_note(err, &open)
+            print_gnuk_note(err, &card)
         }
         Ok(_) => {
             println!("\nUser PIN has been set.");

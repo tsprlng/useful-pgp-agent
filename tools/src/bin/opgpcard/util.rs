@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
 
 use openpgp_card_pcsc::PcscBackend;
-use openpgp_card_sequoia::card::{Admin, Open, Sign, User};
+use openpgp_card_sequoia::card::{Admin, Card, Sign, Transaction, User};
 use openpgp_card_sequoia::types::{
     Algo, CardBackend, Curve, EccType, Error, PublicKeyMaterial, StatusBytes,
 };
@@ -23,11 +23,15 @@ pub(crate) fn open_card(ident: &str) -> Result<Box<dyn CardBackend + Send + Sync
 /// If a pinpad is available, return Null (the pinpad will be used to get access to the card).
 ///
 /// `msg` is the message to show when asking the user to enter a PIN.
-pub(crate) fn get_pin(open: &mut Open, pin_file: Option<PathBuf>, msg: &str) -> Option<Vec<u8>> {
+pub(crate) fn get_pin(
+    card: &mut Card<Transaction<'_>>,
+    pin_file: Option<PathBuf>,
+    msg: &str,
+) -> Option<Vec<u8>> {
     if let Some(path) = pin_file {
         // we have a pin file
         Some(load_pin(&path).ok()?)
-    } else if !open.feature_pinpad_verify() {
+    } else if !card.feature_pinpad_verify() {
         // we have no pin file and no pinpad
         let pin = rpassword::prompt_password(msg).ok()?;
         Some(pin.into_bytes())
@@ -51,53 +55,53 @@ pub(crate) fn input_pin_twice(msg1: &str, msg2: &str) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn verify_to_user<'app, 'open>(
-    open: &'open mut Open<'app>,
+    card: &'open mut Card<Transaction<'app>>,
     pin: Option<&[u8]>,
-) -> Result<User<'app, 'open>, Box<dyn std::error::Error>> {
+) -> Result<Card<User<'app, 'open>>, Box<dyn std::error::Error>> {
     if let Some(pin) = pin {
-        open.verify_user(pin)?;
+        card.verify_user(pin)?;
     } else {
-        if !open.feature_pinpad_verify() {
+        if !card.feature_pinpad_verify() {
             return Err(anyhow!("No user PIN file provided, and no pinpad found").into());
         };
 
-        open.verify_user_pinpad(&|| println!("Enter user PIN on card reader pinpad."))?;
+        card.verify_user_pinpad(&|| println!("Enter user PIN on card reader pinpad."))?;
     }
 
-    open.user_card()
+    card.user_card()
         .ok_or_else(|| anyhow!("Couldn't get user access").into())
 }
 
 pub(crate) fn verify_to_sign<'app, 'open>(
-    open: &'open mut Open<'app>,
+    card: &'open mut Card<Transaction<'app>>,
     pin: Option<&[u8]>,
-) -> Result<Sign<'app, 'open>, Box<dyn std::error::Error>> {
+) -> Result<Card<Sign<'app, 'open>>, Box<dyn std::error::Error>> {
     if let Some(pin) = pin {
-        open.verify_user_for_signing(pin)?;
+        card.verify_user_for_signing(pin)?;
     } else {
-        if !open.feature_pinpad_verify() {
+        if !card.feature_pinpad_verify() {
             return Err(anyhow!("No user PIN file provided, and no pinpad found").into());
         }
-        open.verify_user_for_signing_pinpad(&|| println!("Enter user PIN on card reader pinpad."))?;
+        card.verify_user_for_signing_pinpad(&|| println!("Enter user PIN on card reader pinpad."))?;
     }
-    open.signing_card()
+    card.signing_card()
         .ok_or_else(|| anyhow!("Couldn't get sign access").into())
 }
 
 pub(crate) fn verify_to_admin<'app, 'open>(
-    open: &'open mut Open<'app>,
+    card: &'open mut Card<Transaction<'app>>,
     pin: Option<&[u8]>,
-) -> Result<Admin<'app, 'open>, Box<dyn std::error::Error>> {
+) -> Result<Card<Admin<'app, 'open>>, Box<dyn std::error::Error>> {
     if let Some(pin) = pin {
-        open.verify_admin(pin)?;
+        card.verify_admin(pin)?;
     } else {
-        if !open.feature_pinpad_verify() {
+        if !card.feature_pinpad_verify() {
             return Err(anyhow!("No admin PIN file provided, and no pinpad found").into());
         }
 
-        open.verify_admin_pinpad(&|| println!("Enter admin PIN on card reader pinpad."))?;
+        card.verify_admin_pinpad(&|| println!("Enter admin PIN on card reader pinpad."))?;
     }
-    open.admin_card()
+    card.admin_card()
         .ok_or_else(|| anyhow!("Couldn't get admin access").into())
 }
 
@@ -215,7 +219,7 @@ pub(crate) fn get_ssh_pubkey_string(pkm: &PublicKeyMaterial, ident: String) -> R
 /// This fn checks for Gnuk's Status code and the case that no keys exist
 /// on the card, and prints a note to the user, pointing out that the
 /// absence of keys on the card might be the reason for the error they get.
-pub(crate) fn print_gnuk_note(err: Error, card: &Open) -> Result<()> {
+pub(crate) fn print_gnuk_note(err: Error, card: &Card<Transaction>) -> Result<()> {
     if matches!(
         err,
         Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied)
