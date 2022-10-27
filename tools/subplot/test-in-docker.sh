@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Run "cargo test" inside a Docker container with virtual cards
 # installed and running. This will allow at least rudimentary testing
