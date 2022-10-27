@@ -168,7 +168,7 @@ impl ApplicationRelatedData {
     }
 
     /// Generation dates/times of key pairs
-    pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, crate::Error> {
+    pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
         let kg = self.0.find(Tags::GenerationTimes);
 
         if let Some(kg) = kg {
@@ -216,6 +216,47 @@ impl ApplicationRelatedData {
         match uif {
             None => Ok(None),
             Some(v) => Ok(Some(v.serialize().try_into()?)),
+        }
+    }
+
+    /// Get Attestation key fingerprint.
+    pub fn attestation_key_fingerprint(&self) -> Result<Option<Fingerprint>, Error> {
+        match self.0.find(Tags::FingerprintAttestation) {
+            None => Ok(None),
+            Some(data) => {
+                // FIXME: move conversion logic to Fingerprint
+                if data.serialize().iter().any(|&b| b != 0) {
+                    Ok(Some(Fingerprint::try_from(data.serialize().as_slice())?))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
+
+    /// Get Attestation key algorithm attributes.
+    pub fn attestation_key_algorithm_attributes(&mut self) -> Result<Option<Algo>, Error> {
+        match self.0.find(Tags::AlgorithmAttributesAttestation) {
+            None => Ok(None),
+            Some(data) => Ok(Some(Algo::try_from(data.serialize().as_slice())?)),
+        }
+    }
+
+    /// Get Attestation key generation time.
+    pub fn attestation_key_generation_time(&mut self) -> Result<Option<KeyGenerationTime>, Error> {
+        match self.0.find(Tags::GenerationTimeAttestation) {
+            None => Ok(None),
+            Some(data) => {
+                // FIXME: move conversion logic to KeyGenerationTime
+
+                // Generation time of key, binary. 4 bytes, Big Endian.
+                // Value shall be seconds since Jan 1, 1970. Default value is 00000000 (not specified).
+                assert_eq!(data.serialize().len(), 4);
+                match u32::from_be_bytes(data.serialize().try_into().unwrap()) {
+                    0 => Ok(None),
+                    kgt => Ok(Some(kgt.into())),
+                }
+            }
         }
     }
 
