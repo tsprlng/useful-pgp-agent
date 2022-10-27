@@ -32,7 +32,7 @@ use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
 use openpgp_card::{Error, KeyType};
 
-use crate::card::Open;
+use crate::card::{Card, Transaction};
 use crate::decryptor::CardDecryptor;
 use crate::privkey::SequoiaKey;
 use crate::signer::CardSigner;
@@ -48,7 +48,7 @@ use crate::PublicKey;
 /// FIXME: accept optional metadata for user_id(s)?
 #[allow(clippy::too_many_arguments)]
 pub fn make_cert<'app>(
-    open: &mut Open<'app>,
+    open: &mut Card<Transaction<'app>>,
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
@@ -226,7 +226,7 @@ pub fn public_key_material_and_fp_to_key(
 }
 
 /// Get a PublicKey representation for a key slot on the card
-pub fn key_slot(open: &mut Open, kt: KeyType) -> Result<Option<PublicKey>, Error> {
+pub fn key_slot(open: &mut Card<Transaction>, kt: KeyType) -> Result<Option<PublicKey>, Error> {
     // FIXME: only read these once, if multiple subkeys are retrieved from the card
     let times = open.key_generation_times()?;
     let fps = open.fingerprints()?;
