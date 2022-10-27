@@ -17,10 +17,20 @@ use crate::util;
 
 #[derive(Parser, Debug)]
 pub struct DecryptCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     ident: String,
 
-    #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
+    #[clap(
+        name = "User PIN file",
+        short = 'p',
+        long = "user-pin",
+        help = "Optionally, get User PIN from a file"
+    )]
     pin_file: Option<PathBuf>,
 
     /// Input file (stdin if unset)

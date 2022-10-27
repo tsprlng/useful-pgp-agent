@@ -15,10 +15,20 @@ use crate::versioned_output::{OutputBuilder, OutputFormat, OutputVersion};
 
 #[derive(Parser, Debug)]
 pub struct StatusCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     pub ident: Option<String>,
 
-    #[clap(name = "verbose", short = 'v', long = "verbose")]
+    #[clap(
+        name = "verbose",
+        short = 'v',
+        long = "verbose",
+        help = "Use verbose output"
+    )]
     pub verbose: bool,
 
     /// Print public key material for each key slot

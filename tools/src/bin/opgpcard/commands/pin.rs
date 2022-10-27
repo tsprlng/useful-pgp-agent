@@ -15,7 +15,12 @@ use crate::{ENTER_ADMIN_PIN, ENTER_USER_PIN};
 
 #[derive(Parser, Debug)]
 pub struct PinCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     pub ident: String,
 
     #[clap(subcommand)]
@@ -25,48 +30,110 @@ pub struct PinCommand {
 #[derive(Parser, Debug)]
 pub enum PinSubCommand {
     /// Set User PIN
+    ///
+    /// Set a new User PIN by providing the current User PIN.
     SetUser {
-        #[clap(name = "User PIN file old", short = 'p', long = "user-pin-old")]
+        #[clap(
+            name = "User PIN file old",
+            short = 'p',
+            long = "user-pin-old",
+            help = "Optionally, get old User PIN from a file"
+        )]
         user_pin_old: Option<PathBuf>,
 
-        #[clap(name = "User PIN file new", short = 'q', long = "user-pin-new")]
+        #[clap(
+            name = "User PIN file new",
+            short = 'q',
+            long = "user-pin-new",
+            help = "Optionally, get new User PIN from a file"
+        )]
         user_pin_new: Option<PathBuf>,
     },
 
     /// Set Admin PIN
+    ///
+    /// Set a new Admin PIN by providing the current Admin PIN.
     SetAdmin {
-        #[clap(name = "Admin PIN file old", short = 'P', long = "admin-pin-old")]
+        #[clap(
+            name = "Admin PIN file old",
+            short = 'P',
+            long = "admin-pin-old",
+            help = "Optionally, get old Admin PIN from a file"
+        )]
         admin_pin_old: Option<PathBuf>,
 
-        #[clap(name = "Admin PIN file new", short = 'Q', long = "admin-pin-new")]
+        #[clap(
+            name = "Admin PIN file new",
+            short = 'Q',
+            long = "admin-pin-new",
+            help = "Optionally, get new Admin PIN from a file"
+        )]
         admin_pin_new: Option<PathBuf>,
     },
 
     /// Reset User PIN with Admin PIN
+    ///
+    /// Set a new User PIN by providing the Admin PIN. This can also be used if the User PIN has
+    /// been blocked.
     ResetUser {
-        #[clap(name = "Admin PIN file", short = 'P', long = "admin-pin")]
+        #[clap(
+            name = "Admin PIN file",
+            short = 'P',
+            long = "admin-pin",
+            help = "Optionally, get Admin PIN from a file"
+        )]
         admin_pin: Option<PathBuf>,
 
-        #[clap(name = "User PIN file new", short = 'p', long = "user-pin-new")]
+        #[clap(
+            name = "User PIN file new",
+            short = 'p',
+            long = "user-pin-new",
+            help = "Optionally, get new User PIN from a file"
+        )]
+        user_pin_new: Option<PathBuf>,
+    },
+
+    /// Reset User PIN with Resetting Code
+    ///
+    /// Set a new User PIN by providing the Resetting Code. This can also be used if the User PIN
+    /// has been blocked.
+    ResetUserRc {
+        #[clap(
+            name = "Resetting Code file",
+            short = 'r',
+            long = "reset-code",
+            help = "Optionally, get the Resetting Code from a file"
+        )]
+        reset_code: Option<PathBuf>,
+
+        #[clap(
+            name = "User PIN file new",
+            short = 'p',
+            long = "user-pin-new",
+            help = "Optionally, get new User PIN from a file"
+        )]
         user_pin_new: Option<PathBuf>,
     },
 
     /// Set Resetting Code
+    ///
+    /// Set a Resetting Code by providing the Admin PIN.
     SetReset {
-        #[clap(name = "Admin PIN file", short = 'P', long = "admin-pin")]
+        #[clap(
+            name = "Admin PIN file",
+            short = 'P',
+            long = "admin-pin",
+            help = "Optionally, get Admin PIN from a file"
+        )]
         admin_pin: Option<PathBuf>,
 
-        #[clap(name = "Resetting code file", short = 'r', long = "reset-code")]
+        #[clap(
+            name = "Resetting Code file",
+            short = 'r',
+            long = "reset-code",
+            help = "Optionally, get the Resetting Code from a file"
+        )]
         reset_code: Option<PathBuf>,
-    },
-
-    /// Reset User PIN with 'Resetting Code'
-    ResetUserRc {
-        #[clap(name = "Resetting Code file", short = 'r', long = "reset-code")]
-        reset_code: Option<PathBuf>,
-
-        #[clap(name = "User PIN file new", short = 'p', long = "user-pin-new")]
-        user_pin_new: Option<PathBuf>,
     },
 }
 

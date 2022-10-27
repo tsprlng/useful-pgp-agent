@@ -13,7 +13,12 @@ use crate::versioned_output::{OutputBuilder, OutputFormat, OutputVersion};
 
 #[derive(Parser, Debug)]
 pub struct InfoCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     pub ident: Option<String>,
 }
 

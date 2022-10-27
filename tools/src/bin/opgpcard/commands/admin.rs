@@ -30,10 +30,20 @@ use crate::{output, util, ENTER_ADMIN_PIN, ENTER_USER_PIN};
 
 #[derive(Parser, Debug)]
 pub struct AdminCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     pub ident: String,
 
-    #[clap(name = "Admin PIN file", short = 'P', long = "admin-pin")]
+    #[clap(
+        name = "Admin PIN file",
+        short = 'P',
+        long = "admin-pin",
+        help = "Optionally, get Admin PIN from a file"
+    )]
     pub admin_pin: Option<PathBuf>,
 
     #[clap(subcommand)]
@@ -43,66 +53,118 @@ pub struct AdminCommand {
 #[derive(Parser, Debug)]
 pub enum AdminSubCommand {
     /// Set cardholder name
-    Name { name: String },
+    Name {
+        #[clap(help = "cardholder name to set on the card")]
+        name: String,
+    },
 
-    /// Set cardholder URL
-    Url { url: String },
+    /// Set certificate URL
+    Url {
+        #[clap(help = "URL that provides the certificate for the key material on this card")]
+        url: String,
+    },
 
-    /// Import a Key.
+    /// Import a Key onto the card.
     ///
-    /// If no fingerprint is provided, the key will only be imported if
-    /// there are zero or one (sub)keys for each key slot on the card.
+    /// Most keys can be imported without specifying subkey fingerprints. However, if the key
+    /// contins more than one signing, decryption or authentication capable subkey, subkeys must be
+    /// explicitly selected.
+    ///
+    /// If any of the options is given, only the selected subkeys are imported into the selected
+    /// slots.
+    ///
+    /// Subkey capabilities must match the slot the key is imported into. The DEC slot can
+    /// only be used for encryption capable subkeys. The SIG and AUT slots can be used for signing,
+    /// certification and authentication capable subkeys.
     Import {
+        #[clap(help = "File that contains the PGP private key")]
         keyfile: PathBuf,
 
-        #[clap(name = "Signature key fingerprint", short = 's', long = "sig-fp")]
+        /// Optionally, select the subkey to import in the SIG slot
+        #[clap(name = "SIG subkey fingerprint", short = 's', long = "sig-fp")]
         sig_fp: Option<String>,
 
-        #[clap(name = "Decryption key fingerprint", short = 'd', long = "dec-fp")]
+        /// Optionally, select the subkey to import in the DEC slot
+        #[clap(name = "DEC subkey fingerprint", short = 'd', long = "dec-fp")]
         dec_fp: Option<String>,
 
-        #[clap(name = "Authentication key fingerprint", short = 'a', long = "aut-fp")]
+        /// Optionally, select the subkey to import in the AUT slot
+        #[clap(name = "AUT subkey fingerprint", short = 'a', long = "aut-fp")]
         aut_fp: Option<String>,
     },
 
-    /// Generate a Key.
+    /// Generate a Key on the card.
     ///
     /// A signing key is always created, decryption and authentication keys
     /// are optional.
     Generate(AdminGenerateCommand),
 
-    /// Set touch policy
+    /// Set the card's touch policy (if supported)
+    ///
+    /// A touch policy defines if cryptographic operations on the card require user interaction
+    /// with the card, for example by touching a button on the card.
+    ///
+    /// Only some cards support this feature at all, not all cards support all policies.
+    ///
+    /// Caution: Setting the ATT slot to Fixed or Cached-Fixed is permanent. Even a factory reset does
+    /// not undo this setting.
     Touch {
+        /// Key slot to set the touch policy for
         #[clap(name = "Key slot", short = 'k', long = "key", value_enum)]
         key: BasePlusAttKeySlot,
 
-        #[clap(name = "Policy", short = 'p', long = "policy", value_enum)]
+        /// Touch policy to set on this key slot
+        #[clap(
+            name = "Policy",
+            short = 'p',
+            long = "policy",
+            value_enum,
+            long_help = "Touch policy to set on this key slot
+
+Off: No touch confirmation required.
+On: Touch confirmation required for each operation.
+Fixed: Like 'On', but the policy can only be changed by a reset.
+Cached: Like 'On', but touch confirmation is valid for 15 seconds.
+Cached-Fixed: Combines 'Cached' and 'Fixed'."
+        )]
         policy: TouchPolicy,
     },
 }
 
 #[derive(Parser, Debug)]
 pub struct AdminGenerateCommand {
-    #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
-    user_pin: Option<PathBuf>,
-
     /// Output file
     #[clap(name = "output", long = "output", short = 'o')]
     output_file: PathBuf,
 
-    #[clap(long = "no-decrypt", action = clap::ArgAction::SetFalse)]
+    /// Do not create a key in the DEC slot
+    #[clap(long = "no-dec", action = clap::ArgAction::SetFalse)]
     decrypt: bool,
 
-    #[clap(long = "no-auth", action = clap::ArgAction::SetFalse)]
+    /// Do not create a key in the AUT slot
+    #[clap(long = "no-aut", action = clap::ArgAction::SetFalse)]
     auth: bool,
 
-    /// Algorithm
-    #[clap(value_enum)]
+    /// Choose the algorithm for the key material to generate on the card.
+    ///
+    /// If the parameter is not given, use the algorithm currently set on the card.
+    ///
+    /// Specific cards support a set of algorithms that can differ between models. On modern cards,
+    /// use 'opgpcard info' to see the list of supported algorithms.
+    #[clap(name = "algorithm", value_enum)]
     algo: Option<Algo>,
 
     /// User ID to add to the exported certificate representation
     #[clap(name = "User ID", short = 'u', long = "userid")]
     user_ids: Vec<String>,
+
+    #[clap(
+        name = "User PIN file",
+        short = 'p',
+        long = "user-pin",
+        help = "Optionally, get User PIN from a file"
+    )]
+    user_pin: Option<PathBuf>,
 }
 
 #[derive(ValueEnum, Debug, Clone)]

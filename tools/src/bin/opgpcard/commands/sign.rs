@@ -14,14 +14,28 @@ use crate::util;
 
 #[derive(Parser, Debug)]
 pub struct SignCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     pub ident: String,
 
-    /// User PIN file
-    #[clap(short = 'p', long = "user-pin")]
+    #[clap(
+        name = "User PIN file",
+        short = 'p',
+        long = "user-pin",
+        help = "Optionally, get User PIN from a file"
+    )]
     pub user_pin: Option<PathBuf>,
 
-    #[clap(name = "detached", short = 'd', long = "detached")]
+    #[clap(
+        name = "detached",
+        short = 'd',
+        long = "detached",
+        help = "Create a detached signature"
+    )]
     pub detached: bool,
 
     /// Input file (stdin if unset)

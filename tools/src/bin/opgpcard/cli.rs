@@ -33,10 +33,6 @@ pub struct Cli {
 
 #[derive(Parser, Debug)]
 pub enum Command {
-    /// Show all output versions that are supported. Mark the
-    /// currently chosen one with a star.
-    OutputVersions {},
-
     /// Enumerate available OpenPGP cards
     List {},
 
@@ -46,7 +42,7 @@ pub enum Command {
     /// Show technical details about a card
     Info(commands::info::InfoCommand),
 
-    /// Display a card's authentication key as an SSH public key
+    /// Show a card's authentication key as an SSH public key
     Ssh(commands::ssh::SshCommand),
 
     /// Export the key data on a card as an OpenPGP public key
@@ -56,20 +52,60 @@ pub enum Command {
     Admin(commands::admin::AdminCommand),
 
     /// PIN management (change PINs, reset blocked PINs)
+    #[clap(
+        long_about = indoc::indoc! { "
+            PIN management (change PINs, reset blocked PINs)
+
+            OpenPGP cards use PINs (numerical passwords) to verify that a user is allowed to \
+            perform an operation. There are two PINs for regular operation, User PIN and Admin \
+            PIN, and one optional Resetting Code.
+
+            The User PIN is required to use cryptographic operations on a card (such as \
+            decryption or signing).
+            The Admin PIN is needed to configure a card (for example to import an OpenPGP key \
+            into the card) or to unblock the User PIN.
+            The Resetting Code only allows unblocking the User PIN. This is useful if the user \
+            doesn't have access to the Admin PIN.
+
+            By default, on unconfigured (or factory reset) cards, the User PIN is typically set to
+            123456, and the Admin PIN is set to 12345678."
+        },
+    )]
     Pin(commands::pin::PinCommand),
 
     /// Decrypt data using a card
     Decrypt(commands::decrypt::DecryptCommand),
 
     /// Sign data using a card
+    ///
+    /// Currently, only detached signatures are supported.
     Sign(commands::sign::SignCommand),
 
-    /// Attestation management (Yubico)
+    /// Attestation management (Yubico only)
+    ///
+    /// Yubico implements a proprietary extension to the OpenPGP card standard to
+    /// cryptographically certify that a certain asymmetric key has been generated on device, and
+    /// not imported.
+    ///
+    /// This feature is available on YubiKey 5 devices with firmware version 5.2 or newer.
     Attestation(commands::attestation::AttestationCommand),
 
-    /// Completely reset a card (deletes all data, including the keys on the card!)
+    /// Completely reset a card (deletes all data including keys!)
     FactoryReset(commands::factory_reset::FactoryResetCommand),
 
-    /// Change identity (applies only to Nitrokey Start)
+    /// Change identity (Nitrokey Start only)
+    ///
+    /// A Nitrokey Start device contains three distinct virtual OpenPGP cards, select the identity
+    /// of the virtual card to activate.
     SetIdentity(commands::set_identity::SetIdentityCommand),
+
+    /// Show supported output format versions
+    #[clap(
+        long_about = indoc::indoc! { "
+        Show supported output format versions for JSON and YAML output.
+
+        Mark the currently chosen one with a star."
+        }
+    )]
+    OutputVersions {},
 }

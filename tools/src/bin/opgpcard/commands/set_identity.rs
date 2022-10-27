@@ -10,9 +10,15 @@ use crate::util;
 
 #[derive(Parser, Debug)]
 pub struct SetIdentityCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     ident: String,
 
+    /// Identity of the virtual card to activate
     #[clap(name = "identity", value_enum)]
     id: SetIdentityId,
 }

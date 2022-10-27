@@ -21,10 +21,20 @@ use crate::versioned_output::{OutputBuilder, OutputFormat, OutputVersion};
 
 #[derive(Parser, Debug)]
 pub struct PubkeyCommand {
-    #[clap(name = "card ident", short = 'c', long = "card")]
+    #[clap(
+        name = "card ident",
+        short = 'c',
+        long = "card",
+        help = "Identifier of the card to use"
+    )]
     ident: Option<String>,
 
-    #[clap(name = "User PIN file", short = 'p', long = "user-pin")]
+    #[clap(
+        name = "User PIN file",
+        short = 'p',
+        long = "user-pin",
+        help = "Optionally, get User PIN from a file"
+    )]
     user_pin: Option<PathBuf>,
 
     /// User ID to add to the exported certificate representation
