@@ -249,7 +249,7 @@ pub fn admin(
     let mut open: Card<Open> = backend.into();
     let mut card = open.transaction()?;
 
-    let admin_pin = util::get_pin(&mut card, command.admin_pin, ENTER_ADMIN_PIN);
+    let admin_pin = util::get_pin(&mut card, command.admin_pin, ENTER_ADMIN_PIN)?;
 
     match command.cmd {
         AdminSubCommand::Name { name } => {
@@ -498,7 +498,7 @@ fn generate_command(
 
     cmd: AdminGenerateCommand,
 ) -> Result<()> {
-    let user_pin = util::get_pin(&mut card, cmd.user_pin, ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, cmd.user_pin, ENTER_USER_PIN)?;
 
     let mut output = output::AdminGenerate::default();
     output.ident(card.application_identifier()?.ident());
