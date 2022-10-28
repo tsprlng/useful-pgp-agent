@@ -7,7 +7,7 @@ use clap::Parser;
 
 use std::path::PathBuf;
 
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 use sequoia_openpgp::{
     parse::{stream::DecryptorBuilder, Parse},
     policy::StandardPolicy,

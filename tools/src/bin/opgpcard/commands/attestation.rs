@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 
 use openpgp_card_sequoia::types::KeyType;
 

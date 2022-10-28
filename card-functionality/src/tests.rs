@@ -16,10 +16,11 @@ use sequoia_openpgp::Cert;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{Error, KeyType, OpenPgp, OpenPgpTransaction, StatusBytes};
-use openpgp_card_sequoia::card::{Card, Transaction};
+use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
+use openpgp_card_sequoia::{state::Transaction, Card};
 
 use crate::cards::TestCardData;
 use crate::util;
@@ -72,7 +73,7 @@ pub fn test_decrypt(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, Tes
     let mut user = transaction.user_card().unwrap();
     let d = user.decryptor(&|| {})?;
 
-    let res = openpgp_card_sequoia::util::decrypt(d, msg.into_bytes(), &p)?;
+    let res = sq_util::decrypt(d, msg.into_bytes(), &p)?;
     let plain = String::from_utf8_lossy(&res);
 
     assert_eq!(plain, "Hello world!\n");
@@ -96,7 +97,7 @@ pub fn test_sign(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestEr
     let s = sign.signer(&|| {})?;
 
     let msg = "Hello world, I am signed.";
-    let sig = openpgp_card_sequoia::util::sign(s, &mut msg.as_bytes())?;
+    let sig = sq_util::sign(s, &mut msg.as_bytes())?;
 
     // validate sig
     assert!(util::verify_sig(&cert, msg.as_bytes(), sig.as_bytes())?);

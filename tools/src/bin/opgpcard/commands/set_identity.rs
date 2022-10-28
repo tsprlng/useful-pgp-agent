@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 
 use crate::util;
 

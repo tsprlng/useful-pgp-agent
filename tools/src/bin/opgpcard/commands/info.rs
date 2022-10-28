@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 
 use crate::output;
 use crate::pick_card_for_reading;

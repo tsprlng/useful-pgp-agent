@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 
-use openpgp_card_sequoia::card::{Card, Open, Transaction};
+use openpgp_card_sequoia::{state::Open, state::Transaction, Card};
 
 use crate::util;
 use crate::util::{load_pin, print_gnuk_note};

@@ -8,7 +8,7 @@ use clap::Parser;
 
 use std::path::PathBuf;
 
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 use sequoia_openpgp::serialize::SerializeInto;
 
 use openpgp_card_sequoia::types::KeyType;
@@ -58,7 +58,7 @@ pub fn print_pubkey(
 
     let user_pin = util::get_pin(&mut card, command.user_pin, crate::ENTER_USER_PIN)?;
 
-    let pkm = card.public_key(KeyType::Signing)?;
+    let pkm = card.public_key_material(KeyType::Signing)?;
     let times = card.key_generation_times()?;
     let fps = card.fingerprints()?;
 
@@ -70,7 +70,7 @@ pub fn print_pubkey(
     )?;
 
     let mut key_dec = None;
-    if let Ok(pkm) = card.public_key(KeyType::Decryption) {
+    if let Ok(pkm) = card.public_key_material(KeyType::Decryption) {
         if let Some(ts) = times.decryption() {
             key_dec = Some(public_key_material_and_fp_to_key(
                 &pkm,
@@ -82,7 +82,7 @@ pub fn print_pubkey(
     }
 
     let mut key_aut = None;
-    if let Ok(pkm) = card.public_key(KeyType::Authentication) {
+    if let Ok(pkm) = card.public_key_material(KeyType::Authentication) {
         if let Some(ts) = times.authentication() {
             key_aut = Some(public_key_material_and_fp_to_key(
                 &pkm,
