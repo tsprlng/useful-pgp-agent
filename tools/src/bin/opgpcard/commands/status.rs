@@ -165,21 +165,39 @@ pub fn print_status(
     }
     output.authentication_key(authentication_key);
 
-    // technical details about the card's state
+    let mut attestation_key = output::KeySlotInfo::default();
+    if let Ok(Some(fp)) = card.attestation_key_fingerprint() {
+        attestation_key.fingerprint(fp.to_spaced_hex());
+    }
+    if let Ok(Some(algo)) = card.attestation_key_algorithm_attributes() {
+        attestation_key.algorithm(format!("{}", algo));
+    }
+    if let Ok(Some(kgt)) = card.attestation_key_generation_time() {
+        attestation_key.created(format!("{}", kgt.to_datetime()));
+    }
+    if let Some(uif) = card.uif_attestation()? {
+        attestation_key.touch_policy(format!("{}", uif.touch_policy()));
+        attestation_key.touch_features(format!("{}", uif.features()));
+    }
 
+    // TODO: get public key data for the attestation key from the card
+    // if command.pkm {
+    //     if let Ok(pkm) = card.public_key(KeyType::Attestation) {
+    //         attestation_key.public_key_material(pkm.to_string());
+    //     }
+    // }
+
+    // TODO: clarify how to reliably map `card.key_information()` output into this field (see below)
+    // if let Some(ks) = ki.as_ref().map(|ki| ki.aut_status()) {
+    //     attestation_key.status(format!("{}", ks));
+    // }
+
+    output.attestation_key(attestation_key);
+
+    // technical details about the card's state
     output.user_pin_remaining_attempts(pws.err_count_pw1());
     output.admin_pin_remaining_attempts(pws.err_count_pw3());
     output.reset_code_remaining_attempts(pws.err_count_rc());
-
-    // FIXME: Handle attestation key information as a separate
-    // KeySlotInfo! Attestation touch information should go into its
-    // own `Option<KeySlotInfo>`, and (if any information about the
-    // attestation key exists at all, which is not the case for most
-    // cards) it should be printed as a fourth KeySlot block.
-    if let Some(uif) = card.uif_attestation()? {
-        output.card_touch_policy(uif.touch_policy().to_string());
-        output.card_touch_features(uif.features().to_string());
-    }
 
     if let Some(ki) = ki {
         let num = ki.num_additional();

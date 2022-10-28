@@ -18,11 +18,10 @@ pub struct Status {
     signature_count: u32,
     decryption_key: KeySlotInfo,
     authentication_key: KeySlotInfo,
+    attestation_key: Option<KeySlotInfo>,
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
-    card_touch_policy: String,
-    card_touch_features: String,
     key_statuses: Vec<(u8, String)>,
     ca_fingerprints: Vec<String>,
 }
@@ -68,6 +67,10 @@ impl Status {
         self.authentication_key = key;
     }
 
+    pub fn attestation_key(&mut self, key: KeySlotInfo) {
+        self.attestation_key = Some(key);
+    }
+
     pub fn user_pin_remaining_attempts(&mut self, count: u8) {
         self.user_pin_remaining_attempts = count;
     }
@@ -78,14 +81,6 @@ impl Status {
 
     pub fn reset_code_remaining_attempts(&mut self, count: u8) {
         self.reset_code_remaining_attempts = count;
-    }
-
-    pub fn card_touch_policy(&mut self, policy: String) {
-        self.card_touch_policy = policy;
-    }
-
-    pub fn card_touch_features(&mut self, features: String) {
-        self.card_touch_features = features;
     }
 
     pub fn key_status(&mut self, keyref: u8, status: String) {
@@ -150,6 +145,18 @@ impl Status {
         }
         s.push('\n');
 
+        if self.verbose {
+            if let Some(attestation_key) = &self.attestation_key {
+                if attestation_key.touch_policy.is_some() || attestation_key.algorithm.is_some() {
+                    s.push_str("Attestation key:\n");
+                    for line in attestation_key.format(self.verbose) {
+                        s.push_str(&format!("  {}\n", line));
+                    }
+                    s.push('\n');
+                }
+            }
+        }
+
         s.push_str(&format!(
             "Remaining PIN attempts: User: {}, Admin: {}, Reset Code: {}\n",
             self.user_pin_remaining_attempts,
@@ -158,11 +165,6 @@ impl Status {
         ));
 
         if self.verbose {
-            s.push_str(&format!(
-                "Touch policy attestation: {}\n",
-                self.card_touch_policy
-            ));
-
             for (keyref, status) in self.key_statuses.iter() {
                 s.push_str(&format!("Key status (#{}): {}\n", keyref, status));
             }
@@ -183,11 +185,10 @@ impl Status {
             signature_count: self.signature_count,
             decryption_key: self.decryption_key.clone(),
             authentication_key: self.authentication_key.clone(),
+            attestation_key: self.attestation_key.clone(),
             user_pin_remaining_attempts: self.user_pin_remaining_attempts,
             admin_pin_remaining_attempts: self.admin_pin_remaining_attempts,
             reset_code_remaining_attempts: self.reset_code_remaining_attempts,
-            card_touch_policy: self.card_touch_policy.clone(),
-            card_touch_features: self.card_touch_features.clone(),
             key_statuses: self.key_statuses.clone(),
             ca_fingerprints: self.ca_fingerprints.clone(),
         })
@@ -232,11 +233,10 @@ pub struct StatusV0 {
     signature_count: u32,
     decryption_key: KeySlotInfo,
     authentication_key: KeySlotInfo,
+    attestation_key: Option<KeySlotInfo>,
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
-    card_touch_policy: String,
-    card_touch_features: String,
     key_statuses: Vec<(u8, String)>,
     ca_fingerprints: Vec<String>,
 }
