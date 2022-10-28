@@ -4,7 +4,7 @@
 use anyhow::Result;
 
 use openpgp_card_pcsc::PcscBackend;
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 
 fn main() -> Result<()> {
     println!("The following OpenPGP cards are connected to your system:");

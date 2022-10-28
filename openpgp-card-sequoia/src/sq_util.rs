@@ -21,6 +21,7 @@ use openpgp::serialize::stream::{Message, Signer};
 use openpgp::{Cert, Fingerprint};
 use sequoia_openpgp as openpgp;
 
+use crate::{CardDecryptor, CardSigner};
 use openpgp_card::{Error, KeyType};
 
 /// Retrieve a (sub)key from a Cert, for a given KeyType.
@@ -133,6 +134,40 @@ pub fn decryption_helper<D>(d: D, msg: Vec<u8>, p: &dyn Policy) -> Result<Vec<u8
 where
     D: VerificationHelper + DecryptionHelper,
 {
+    let mut decrypted = Vec::new();
+    {
+        let reader = io::BufReader::new(&msg[..]);
+
+        let db = DecryptorBuilder::from_reader(reader)?;
+        let mut decryptor = db.with_policy(p, None, d)?;
+
+        // Read all data from decryptor and store in decrypted
+        io::copy(&mut decryptor, &mut decrypted)?;
+    }
+
+    Ok(decrypted)
+}
+
+/// Wrapper to easily perform a sign operation
+pub fn sign(s: CardSigner, input: &mut dyn io::Read) -> Result<String> {
+    let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
+    {
+        let message = Message::new(&mut armorer);
+        let mut message = Signer::new(message, s).detached().build()?;
+
+        // Process input data, via message
+        io::copy(input, &mut message)?;
+
+        message.finalize()?;
+    }
+
+    let buffer = armorer.finalize()?;
+
+    String::from_utf8(buffer).context("Failed to convert signature to utf8")
+}
+
+/// Wrapper to easily perform a decrypt operation
+pub fn decrypt(d: CardDecryptor, msg: Vec<u8>, p: &dyn Policy) -> Result<Vec<u8>> {
     let mut decrypted = Vec::new();
     {
         let reader = io::BufReader::new(&msg[..]);

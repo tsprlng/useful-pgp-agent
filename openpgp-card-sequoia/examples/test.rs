@@ -13,8 +13,8 @@ use openpgp_card::card_do::Sex;
 use openpgp_card::KeyType;
 use openpgp_card_pcsc::PcscBackend;
 
-use openpgp_card_sequoia::card::{Card, Open};
 use openpgp_card_sequoia::sq_util;
+use openpgp_card_sequoia::{state::Open, Card};
 
 // Filename of test key and test message to use
 

@@ -5,11 +5,9 @@
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use std::io;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 
-use openpgp::armor;
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use openpgp::crypto::mpi;
 use openpgp::packet::Signature;
@@ -18,9 +16,6 @@ use openpgp::packet::{
     signature::SignatureBuilder,
     Key, UserID,
 };
-use openpgp::parse::{stream::DecryptorBuilder, Parse};
-use openpgp::policy::Policy;
-use openpgp::serialize::stream::{Message, Signer};
 use openpgp::types::{
     HashAlgorithm, KeyFlags, PublicKeyAlgorithm, SignatureType, SymmetricAlgorithm, Timestamp,
 };
@@ -32,11 +27,9 @@ use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
 use openpgp_card::{Error, KeyType};
 
-use crate::card::{Card, Transaction};
-use crate::decryptor::CardDecryptor;
 use crate::privkey::SequoiaKey;
-use crate::signer::CardSigner;
-use crate::PublicKey;
+use crate::state::Transaction;
+use crate::{Card, PublicKey};
 
 /// Create a Cert from the three subkeys on a card.
 /// (Calling this multiple times will result in different Certs!)
@@ -225,57 +218,6 @@ pub fn public_key_material_and_fp_to_key(
     ))
 }
 
-/// Get a PublicKey representation for a key slot on the card
-pub fn key_slot(open: &mut Card<Transaction>, kt: KeyType) -> Result<Option<PublicKey>, Error> {
-    // FIXME: only read these once, if multiple subkeys are retrieved from the card
-    let times = open.key_generation_times()?;
-    let fps = open.fingerprints()?;
-
-    match kt {
-        KeyType::Signing => {
-            if let Ok(pkm) = open.public_key(KeyType::Signing) {
-                if let Some(ts) = times.signature() {
-                    return Ok(Some(public_key_material_and_fp_to_key(
-                        &pkm,
-                        KeyType::Signing,
-                        ts,
-                        fps.signature().expect("Signature fingerprint is unset"),
-                    )?));
-                }
-            }
-            Ok(None)
-        }
-        KeyType::Decryption => {
-            if let Ok(pkm) = open.public_key(KeyType::Decryption) {
-                if let Some(ts) = times.decryption() {
-                    return Ok(Some(public_key_material_and_fp_to_key(
-                        &pkm,
-                        KeyType::Decryption,
-                        ts,
-                        fps.decryption().expect("Decryption fingerprint is unset"),
-                    )?));
-                }
-            }
-            Ok(None)
-        }
-        KeyType::Authentication => {
-            if let Ok(pkm) = open.public_key(KeyType::Authentication) {
-                if let Some(ts) = times.authentication() {
-                    return Ok(Some(public_key_material_and_fp_to_key(
-                        &pkm,
-                        KeyType::Authentication,
-                        ts,
-                        fps.authentication()
-                            .expect("Authentication fingerprint is unset"),
-                    )?));
-                }
-            }
-            Ok(None)
-        }
-        _ => unimplemented!(),
-    }
-}
-
 /// Helper fn: get a Sequoia PublicKey from an openpgp-card PublicKeyMaterial.
 ///
 /// For ECC decryption keys, `hash` and `sym` can be optionally specified.
@@ -411,36 +353,4 @@ pub fn vka_as_uploadable_key(
 ) -> Box<dyn CardUploadableKey> {
     let sqk = SequoiaKey::new(vka, password);
     Box::new(sqk)
-}
-
-pub fn sign(s: CardSigner, input: &mut dyn io::Read) -> Result<String> {
-    let mut armorer = armor::Writer::new(vec![], armor::Kind::Signature)?;
-    {
-        let message = Message::new(&mut armorer);
-        let mut message = Signer::new(message, s).detached().build()?;
-
-        // Process input data, via message
-        io::copy(input, &mut message)?;
-
-        message.finalize()?;
-    }
-
-    let buffer = armorer.finalize()?;
-
-    String::from_utf8(buffer).context("Failed to convert signature to utf8")
-}
-
-pub fn decrypt(d: CardDecryptor, msg: Vec<u8>, p: &dyn Policy) -> Result<Vec<u8>> {
-    let mut decrypted = Vec::new();
-    {
-        let reader = io::BufReader::new(&msg[..]);
-
-        let db = DecryptorBuilder::from_reader(reader)?;
-        let mut decryptor = db.with_policy(p, None, d)?;
-
-        // Read all data from decryptor and store in decrypted
-        io::copy(&mut decryptor, &mut decrypted)?;
-    }
-
-    Ok(decrypted)
 }

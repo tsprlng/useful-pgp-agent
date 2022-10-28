@@ -5,7 +5,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::{Parser, ValueEnum};
-use openpgp_card_sequoia::card::{Admin, Open, Transaction};
+use openpgp_card_sequoia::state::{Admin, Open, Transaction};
 use openpgp_card_sequoia::util::public_key_material_to_key;
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 
@@ -23,7 +23,7 @@ use sequoia_openpgp::serialize::SerializeInto;
 use sequoia_openpgp::Cert;
 
 use openpgp_card_sequoia::types::AlgoSimple;
-use openpgp_card_sequoia::{card::Card, types::KeyType};
+use openpgp_card_sequoia::{types::KeyType, Card};
 
 use crate::versioned_output::{OutputBuilder, OutputFormat, OutputVersion};
 use crate::{output, util, ENTER_ADMIN_PIN, ENTER_USER_PIN};

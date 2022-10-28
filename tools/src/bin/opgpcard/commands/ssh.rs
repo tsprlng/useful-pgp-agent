@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 
 use openpgp_card_sequoia::types::KeyType;
 
@@ -49,7 +49,7 @@ pub fn print_ssh(
     }
 
     // Show authentication subkey as openssh public key string
-    if let Ok(pkm) = card.public_key(KeyType::Authentication) {
+    if let Ok(pkm) = card.public_key_material(KeyType::Authentication) {
         if let Ok(ssh) = util::get_ssh_pubkey_string(&pkm, ident) {
             output.ssh_public_key(ssh);
         }

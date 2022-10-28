@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use openpgp_card_sequoia::card::{Card, Open};
+use openpgp_card_sequoia::{state::Open, Card};
 
 use openpgp_card_sequoia::types::KeyType;
 
@@ -101,7 +101,7 @@ pub fn print_status(
     }
 
     if command.pkm {
-        if let Ok(pkm) = card.public_key(KeyType::Signing) {
+        if let Ok(pkm) = card.public_key_material(KeyType::Signing) {
             signature_key.public_key_material(pkm.to_string());
         }
     }
@@ -130,7 +130,7 @@ pub fn print_status(
         decryption_key.status(format!("{}", ks));
     }
     if command.pkm {
-        if let Ok(pkm) = card.public_key(KeyType::Decryption) {
+        if let Ok(pkm) = card.public_key_material(KeyType::Decryption) {
             decryption_key.public_key_material(pkm.to_string());
         }
     }
@@ -155,7 +155,7 @@ pub fn print_status(
         authentication_key.status(format!("{}", ks));
     }
     if command.pkm {
-        if let Ok(pkm) = card.public_key(KeyType::Authentication) {
+        if let Ok(pkm) = card.public_key_material(KeyType::Authentication) {
             authentication_key.public_key_material(pkm.to_string());
         }
     }
