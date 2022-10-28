@@ -112,3 +112,127 @@ then stdout, as JSON, matches embedded file info.json
   "ident": "AFAF:00001234"
 }
 ~~~
+
+## Key generation: `opgpcard generate` and `opgpcard decrypt`
+
+_Requirement: The tool is able to generate keys and use them for decryption._
+
+This is not at all a thorough test, but it exercises the simple happy
+paths of the subcommand.
+
+~~~scenario
+given an installed opgpcard
+given file admin.pin
+given file user.pin
+when I run opgpcard admin --card AFAF:00001234  --admin-pin admin.pin generate --user-pin user.pin --output certfile
+then file certfile contains "-----BEGIN PGP PUBLIC KEY BLOCK-----"
+then file certfile contains "-----END PGP PUBLIC KEY BLOCK-----"
+
+given file message
+when I run sq encrypt message --recipient-cert certfile --output message.enc
+and I run opgpcard decrypt  --card AFAF:00001234 --user-pin user.pin message.enc --output message.dec
+then files message and message.dec match
+~~~
+
+~~~{#admin.pin .file}
+12345678
+~~~
+
+~~~{#user.pin .file}
+123456
+~~~
+
+~~~{#message .file}
+Hello World!
+~~~
+
+## Key generation: `opgpcard generate` and `opgpcard sign`
+
+_Requirement: The tool is able to generate keys and use them for signing._
+
+This is not at all a thorough test, but it exercises the simple happy
+paths of the subcommand.
+
+~~~scenario
+given an installed opgpcard
+given file admin.pin
+given file user.pin
+when I run opgpcard admin --card AFAF:00001234 --admin-pin admin.pin generate --user-pin user.pin --output certfile
+then file certfile contains "-----BEGIN PGP PUBLIC KEY BLOCK-----"
+then file certfile contains "-----END PGP PUBLIC KEY BLOCK-----"
+
+given file message
+when I run opgpcard sign message --card AFAF:00001234 --user-pin user.pin --detached --output message.sig
+when I run sq verify message --detached message.sig --signer-cert certfile
+then stderr contains "1 good signature."
+~~~
+
+## Key import: `opgpcard import` and `opgpcard decrypt`
+
+_Requirement: The tool is able to import keys and use them for decryption._
+
+This is not at all a thorough test, but it exercises the simple happy
+paths of the subcommand.
+
+~~~scenario
+given an installed opgpcard
+given file admin.pin
+given file user.pin
+given file nist256key
+when I run opgpcard admin --card AFAF:00001234 --admin-pin admin.pin import nist256key
+then stdout contains "CCCFFFAAC77C9F9D3BB2D2CA3C93515DA813C03F"
+then stdout contains "360EC3C59A7D8E51DCE9FA1171858B15EE7F4BCA"
+then stdout contains "6D186AC7C6761FC22BE07557D2BE4918C44C74D9"
+
+given file message
+when I run sq encrypt message --recipient-cert nist256key --output message.enc
+and I run opgpcard decrypt  --card AFAF:00001234 --user-pin user.pin message.enc --output message.dec
+then files message and message.dec match
+~~~
+
+## Key import: `opgpcard import` and `opgpcard sign`
+
+_Requirement: The tool is able to import keys and use them for signing._
+
+This is not at all a thorough test, but it exercises the simple happy
+paths of the subcommand.
+
+~~~scenario
+given an installed opgpcard
+given file admin.pin
+given file nist256key
+when I run opgpcard admin --card AFAF:00001234 --admin-pin admin.pin import nist256key
+then stdout contains "CCCFFFAAC77C9F9D3BB2D2CA3C93515DA813C03F"
+then stdout contains "360EC3C59A7D8E51DCE9FA1171858B15EE7F4BCA"
+then stdout contains "6D186AC7C6761FC22BE07557D2BE4918C44C74D9"
+
+given file user.pin
+given file message
+when I run opgpcard sign message --card AFAF:00001234 --user-pin user.pin --detached --output message.sig
+when I run sq verify message --detached message.sig --signer-cert nist256key
+then stderr contains "1 good signature."
+~~~
+
+~~~{#nist256key .file}
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+
+lHcEYPP/JxMIKoZIzj0DAQcCAwT5a9JIM6BX1zxvFkNr2LMGLyTw72+iXsUZlA8X
+w3Bn91jVRpSSIITjibHKliS2e2kZlaoHOZvlXmZ3nqOANjV+AAEAzCPG24MzHigZ
+qyoaNr+7o6u/D8DndXHhsrERqm9cCgcOybQfTklTVCBQMjU2IDxuaXN0MjU2QGV4
+YW1wbGUub3JnPoiQBBMTCAA4FiEEzM//qsd8n507stLKPJNRXagTwD8FAmDz/ycC
+GwMFCwkIBwIGFQoJCAsCBBYCAwECHgECF4AACgkQPJNRXagTwD+bZAD/fu4NjabH
+GKHB1dIpqX+opDt8E3RFes58P+p4wh8W+xEBAMcPs6HLYvcLLkqtpV06wKYngPY+
+Ln/wcpQOagwO+EgfnHsEYPP/JxIIKoZIzj0DAQcCAwTtyP4rOGNlU+Tzpa7UYv5h
+jR/T9DzMVUntaFhb3Cm0ung7IEGNAOcbgpCx/fdm7BPL+9MJB+qwpsz8bQa4DfnE
+AwEIBwABALvh9XLpqe1MqwPodYlWKgw4me/tR2FNKmLXPC1gl3g7EAeIeAQYEwgA
+IBYhBMzP/6rHfJ+dO7LSyjyTUV2oE8A/BQJg8/8nAhsMAAoJEDyTUV2oE8A/SMMA
+/3DuQU8hb+U9U2nX93bHwpTBQfAONsEn/vUeZ6u4NdX4AP9ABH//08SFfFttiWHm
+TTAR9e57Rw0DhI/wb6qqWABIyZx3BGDz/zkTCCqGSM49AwEHAgMEJz+bbG6RHQag
+BoULLuklPRUtQauVTxM9WZZG3PEAnIZuu4LKkHn/JPAN04iSV+K3lBWN+HALVZSV
+kFweNSOX6gAA/RD5JKvdwS3CofhQY+czewkb8feXGLQIaPS9rIWP7QX4En2IeAQY
+EwgAIBYhBMzP/6rHfJ+dO7LSyjyTUV2oE8A/BQJg8/85AhsgAAoJEDyTUV2oE8A/
+CSkA/2WnUoIwtv4ZBhuCpJY/GIFqRJEPgQ7DW1bXTrYsoTehAQD1wDkG0vD6Jnfu
+QIPHexNllmYakW7WNqu1gobPuNEQyw==
+=E2Hb
+-----END PGP PRIVATE KEY BLOCK-----
+~~~

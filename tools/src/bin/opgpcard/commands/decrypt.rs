@@ -36,6 +36,10 @@ pub struct DecryptCommand {
     /// Input file (stdin if unset)
     #[clap(name = "input")]
     input: Option<PathBuf>,
+
+    /// Output file (stdout if unset)
+    #[clap(name = "output", long = "output", short = 'o')]
+    pub output: Option<PathBuf>,
 }
 
 pub fn decrypt(command: DecryptCommand) -> Result<(), Box<dyn std::error::Error>> {
@@ -59,7 +63,8 @@ pub fn decrypt(command: DecryptCommand) -> Result<(), Box<dyn std::error::Error>
     let db = DecryptorBuilder::from_reader(input)?;
     let mut decryptor = db.with_policy(&p, None, d)?;
 
-    std::io::copy(&mut decryptor, &mut std::io::stdout())?;
+    let mut sink = util::open_or_stdout(command.output.as_deref())?;
+    std::io::copy(&mut decryptor, &mut sink)?;
 
     Ok(())
 }
