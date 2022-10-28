@@ -56,7 +56,7 @@ pub fn print_pubkey(
     let ident = card.application_identifier()?.ident();
     output.ident(ident);
 
-    let user_pin = util::get_pin(&mut card, command.user_pin, crate::ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, command.user_pin, crate::ENTER_USER_PIN)?;
 
     let pkm = card.public_key(KeyType::Signing)?;
     let times = card.key_generation_times()?;

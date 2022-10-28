@@ -55,7 +55,7 @@ pub fn decrypt(command: DecryptCommand) -> Result<(), Box<dyn std::error::Error>
         return Err(anyhow!("Can't decrypt: this card has no key in the decryption slot.").into());
     }
 
-    let user_pin = util::get_pin(&mut card, command.pin_file, crate::ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, command.pin_file, crate::ENTER_USER_PIN)?;
 
     let mut user = util::verify_to_user(&mut card, user_pin.as_deref())?;
     let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;

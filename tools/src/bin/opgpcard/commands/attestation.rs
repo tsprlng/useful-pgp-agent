@@ -146,7 +146,7 @@ fn generate(
     let mut open: Card<Open> = backend.into();
     let mut card = open.transaction()?;
 
-    let user_pin = util::get_pin(&mut card, user_pin, ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, user_pin, ENTER_USER_PIN)?;
 
     let mut sign = util::verify_to_sign(&mut card, user_pin.as_deref())?;
 

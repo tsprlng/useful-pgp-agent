@@ -179,7 +179,7 @@ fn set_user(
 
     let res = if !pinpad_modify {
         // get current user pin
-        let user_pin1 = util::get_pin(&mut card, user_pin_old, ENTER_USER_PIN)
+        let user_pin1 = util::get_pin(&mut card, user_pin_old, ENTER_USER_PIN)?
             .expect("this should never be None");
 
         // verify pin
@@ -223,7 +223,7 @@ fn set_admin(
 
     if !pinpad_modify {
         // get current admin pin
-        let admin_pin1 = util::get_pin(&mut card, admin_pin_old, ENTER_ADMIN_PIN)
+        let admin_pin1 = util::get_pin(&mut card, admin_pin_old, ENTER_ADMIN_PIN)?
             .expect("this should never be None");
 
         // verify pin
@@ -260,7 +260,7 @@ fn reset_user(
     mut card: Card<Transaction>,
 ) -> Result<()> {
     // verify admin pin
-    match util::get_pin(&mut card, admin_pin, ENTER_ADMIN_PIN) {
+    match util::get_pin(&mut card, admin_pin, ENTER_ADMIN_PIN)? {
         Some(admin_pin) => {
             // verify pin
             card.verify_admin(&admin_pin)?;
@@ -299,7 +299,7 @@ fn set_reset(
     mut card: Card<Transaction>,
 ) -> Result<()> {
     // verify admin pin
-    match util::get_pin(&mut card, admin_pin, ENTER_ADMIN_PIN) {
+    match util::get_pin(&mut card, admin_pin, ENTER_ADMIN_PIN)? {
         Some(admin_pin) => {
             // verify pin
             card.verify_admin(&admin_pin)?;

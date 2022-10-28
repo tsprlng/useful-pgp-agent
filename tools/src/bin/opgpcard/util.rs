@@ -27,17 +27,20 @@ pub(crate) fn get_pin(
     card: &mut Card<Transaction<'_>>,
     pin_file: Option<PathBuf>,
     msg: &str,
-) -> Option<Vec<u8>> {
+) -> Result<Option<Vec<u8>>> {
     if let Some(path) = pin_file {
         // we have a pin file
-        Some(load_pin(&path).ok()?)
+        Ok(Some(load_pin(&path).context(format!(
+            "Failed to read PIN file {}",
+            path.display()
+        ))?))
     } else if !card.feature_pinpad_verify() {
         // we have no pin file and no pinpad
-        let pin = rpassword::prompt_password(msg).ok()?;
-        Some(pin.into_bytes())
+        let pin = rpassword::prompt_password(msg).context("Failed to read PIN")?;
+        Ok(Some(pin.into_bytes()))
     } else {
         // we have a pinpad
-        None
+        Ok(None)
     }
 }
 

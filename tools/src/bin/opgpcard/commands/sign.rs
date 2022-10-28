@@ -76,7 +76,7 @@ pub fn sign_detached(
         return Err(anyhow!("Can't sign: this card has no key in the signing slot.").into());
     }
 
-    let user_pin = util::get_pin(&mut card, pin_file, crate::ENTER_USER_PIN);
+    let user_pin = util::get_pin(&mut card, pin_file, crate::ENTER_USER_PIN)?;
 
     let mut sign = util::verify_to_sign(&mut card, user_pin.as_deref())?;
     let s = sign.signer(&|| println!("Touch confirmation needed for signing"))?;
