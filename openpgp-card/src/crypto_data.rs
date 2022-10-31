@@ -128,7 +128,12 @@ impl std::fmt::Display for PublicKeyMaterial {
                 )
             }
             Self::E(ecc) => {
-                write!(f, "ECC, data: {:02X}", ecc.data.plain_hex(false))
+                write!(
+                    f,
+                    "ECC [{}], data: {:02X}",
+                    ecc.algo(),
+                    ecc.data.plain_hex(false)
+                )
             }
         }
     }
