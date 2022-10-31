@@ -24,7 +24,7 @@ pub struct Status {
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
-    key_statuses: Vec<(u8, String)>,
+    additional_key_statuses: Vec<(u8, String)>,
     ca_fingerprints: Vec<String>,
 }
 
@@ -93,8 +93,8 @@ impl Status {
         self.reset_code_remaining_attempts = count;
     }
 
-    pub fn key_status(&mut self, keyref: u8, status: String) {
-        self.key_statuses.push((keyref, status));
+    pub fn additional_key_status(&mut self, keyref: u8, status: String) {
+        self.additional_key_statuses.push((keyref, status));
     }
 
     pub fn ca_fingerprint(&mut self, fingerprint: String) {
@@ -182,8 +182,11 @@ impl Status {
         ));
 
         if self.verbose {
-            for (keyref, status) in self.key_statuses.iter() {
-                s.push_str(&format!("Key status (#{}): {}\n", keyref, status));
+            for (keyref, status) in self.additional_key_statuses.iter() {
+                s.push_str(&format!(
+                    "Additional key status (#{}): {}\n",
+                    keyref, status
+                ));
             }
         }
 
@@ -207,7 +210,7 @@ impl Status {
             user_pin_remaining_attempts: self.user_pin_remaining_attempts,
             admin_pin_remaining_attempts: self.admin_pin_remaining_attempts,
             reset_code_remaining_attempts: self.reset_code_remaining_attempts,
-            // key_statuses: self.key_statuses.clone(),
+            additional_key_statuses: self.additional_key_statuses.clone(),
             // ca_fingerprints: self.ca_fingerprints.clone(),
         })
     }
@@ -256,7 +259,7 @@ pub struct StatusV0 {
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
-    // key_statuses: Vec<(u8, String)>, // TODO: add to JSON output after clarifying the content
+    additional_key_statuses: Vec<(u8, String)>,
     // ca_fingerprints: Vec<String>, // TODO: add to JSON output after clarifying the content
 }
 

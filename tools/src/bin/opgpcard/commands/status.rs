@@ -199,7 +199,10 @@ pub fn print_status(
         for i in 0..num {
             // 0x81 is the Yubico attestation key, it has already been used above -> skip here
             if ki.additional_ref(i) != 0x81 {
-                output.key_status(ki.additional_ref(i), ki.additional_status(i).to_string());
+                output.additional_key_status(
+                    ki.additional_ref(i),
+                    ki.additional_status(i).to_string(),
+                );
             }
         }
     }
