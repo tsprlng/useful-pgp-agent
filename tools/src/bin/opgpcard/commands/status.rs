@@ -43,6 +43,7 @@ pub fn print_status(
 ) -> Result<()> {
     let mut output = output::Status::default();
     output.verbose(command.verbose);
+    output.pkm(command.pkm);
 
     let backend = pick_card_for_reading(command.ident)?;
     let mut open: Card<Open> = backend.into();
@@ -100,10 +101,8 @@ pub fn print_status(
         signature_key.status(format!("{}", ks));
     }
 
-    if command.pkm {
-        if let Ok(pkm) = card.public_key_material(KeyType::Signing) {
-            signature_key.public_key_material(pkm.to_string());
-        }
+    if let Ok(pkm) = card.public_key_material(KeyType::Signing) {
+        signature_key.public_key_material(pkm.to_string());
     }
 
     output.signature_key(signature_key);
@@ -129,10 +128,8 @@ pub fn print_status(
     if let Some(ks) = ki.as_ref().map(|ki| ki.dec_status()) {
         decryption_key.status(format!("{}", ks));
     }
-    if command.pkm {
-        if let Ok(pkm) = card.public_key_material(KeyType::Decryption) {
-            decryption_key.public_key_material(pkm.to_string());
-        }
+    if let Ok(pkm) = card.public_key_material(KeyType::Decryption) {
+        decryption_key.public_key_material(pkm.to_string());
     }
     output.decryption_key(decryption_key);
 
@@ -154,10 +151,8 @@ pub fn print_status(
     if let Some(ks) = ki.as_ref().map(|ki| ki.aut_status()) {
         authentication_key.status(format!("{}", ks));
     }
-    if command.pkm {
-        if let Ok(pkm) = card.public_key_material(KeyType::Authentication) {
-            authentication_key.public_key_material(pkm.to_string());
-        }
+    if let Ok(pkm) = card.public_key_material(KeyType::Authentication) {
+        authentication_key.public_key_material(pkm.to_string());
     }
     output.authentication_key(authentication_key);
 
@@ -177,10 +172,8 @@ pub fn print_status(
     }
 
     // TODO: get public key data for the attestation key from the card
-    // if command.pkm {
-    //     if let Ok(pkm) = card.public_key(KeyType::Attestation) {
-    //         attestation_key.public_key_material(pkm.to_string());
-    //     }
+    // if let Ok(pkm) = card.public_key(KeyType::Attestation) {
+    //     attestation_key.public_key_material(pkm.to_string());
     // }
 
     // TODO: clarify how to reliably map `card.key_information()` output into this field (see below)

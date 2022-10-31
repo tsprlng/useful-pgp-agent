@@ -8,7 +8,8 @@ use crate::{OutputBuilder, OutputFormat, OutputVariant, OutputVersion};
 
 #[derive(Debug, Default, Serialize)]
 pub struct Status {
-    verbose: bool,
+    verbose: bool, // show verbose text output?
+    pkm: bool,     // include public key material in text output?
     ident: String,
     card_version: String,
     cardholder_name: Option<String>,
@@ -30,6 +31,10 @@ pub struct Status {
 impl Status {
     pub fn verbose(&mut self, verbose: bool) {
         self.verbose = verbose;
+    }
+
+    pub fn pkm(&mut self, pkm: bool) {
+        self.pkm = pkm;
     }
 
     pub fn ident(&mut self, ident: String) {
@@ -132,7 +137,7 @@ impl Status {
         }
 
         s.push_str("Signature key:\n");
-        for line in self.signature_key.format(self.verbose) {
+        for line in self.signature_key.format(self.verbose, self.pkm) {
             s.push_str(&format!("  {}\n", line));
         }
         if self.verbose {
@@ -146,13 +151,13 @@ impl Status {
         s.push('\n');
 
         s.push_str("Decryption key:\n");
-        for line in self.decryption_key.format(self.verbose) {
+        for line in self.decryption_key.format(self.verbose, self.pkm) {
             s.push_str(&format!("  {}\n", line));
         }
         s.push('\n');
 
         s.push_str("Authentication key:\n");
-        for line in self.authentication_key.format(self.verbose) {
+        for line in self.authentication_key.format(self.verbose, self.pkm) {
             s.push_str(&format!("  {}\n", line));
         }
         s.push('\n');
@@ -161,7 +166,7 @@ impl Status {
             if let Some(attestation_key) = &self.attestation_key {
                 if attestation_key.touch_policy.is_some() || attestation_key.algorithm.is_some() {
                     s.push_str("Attestation key:\n");
-                    for line in attestation_key.format(self.verbose) {
+                    for line in attestation_key.format(self.verbose, self.pkm) {
                         s.push_str(&format!("  {}\n", line));
                     }
                     s.push('\n');
@@ -322,8 +327,10 @@ impl KeySlotInfo {
                 lines.push(format!("Key Status: {}", status));
             }
         }
-        if let Some(material) = &self.public_key_material {
-            lines.push(format!("Public key material: {}", material));
+        if pkm {
+            if let Some(material) = &self.public_key_material {
+                lines.push(format!("Public key material: {}", material));
+            }
         }
 
         lines
