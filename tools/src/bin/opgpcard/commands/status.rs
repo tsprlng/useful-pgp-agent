@@ -56,7 +56,7 @@ pub fn print_status(
 
     // Cardholder Name
     if let Some(name) = card.cardholder_name()? {
-        output.card_holder(name);
+        output.cardholder_name(name);
     }
 
     // We ignore the Cardholder "Sex" field, because it's silly and mostly unhelpful
@@ -64,7 +64,7 @@ pub fn print_status(
     // Certificate URL
     let url = card.url()?;
     if !url.is_empty() {
-        output.url(url);
+        output.certificate_url(url);
     }
 
     // Language Preference
@@ -90,7 +90,7 @@ pub fn print_status(
     }
     signature_key.algorithm(format!("{}", card.algorithm_attributes(KeyType::Signing)?));
     if let Some(kgt) = kgt.signature() {
-        signature_key.created(format!("{}", kgt.to_datetime()));
+        signature_key.creation_time(format!("{}", kgt.to_datetime()));
     }
     if let Some(uif) = card.uif_signing()? {
         signature_key.touch_policy(format!("{}", uif.touch_policy()));
@@ -120,7 +120,7 @@ pub fn print_status(
         card.algorithm_attributes(KeyType::Decryption)?
     ));
     if let Some(kgt) = kgt.decryption() {
-        decryption_key.created(format!("{}", kgt.to_datetime()));
+        decryption_key.creation_time(format!("{}", kgt.to_datetime()));
     }
     if let Some(uif) = card.uif_decryption()? {
         decryption_key.touch_policy(format!("{}", uif.touch_policy()));
@@ -145,7 +145,7 @@ pub fn print_status(
         card.algorithm_attributes(KeyType::Authentication)?
     ));
     if let Some(kgt) = kgt.authentication() {
-        authentication_key.created(format!("{}", kgt.to_datetime()));
+        authentication_key.creation_time(format!("{}", kgt.to_datetime()));
     }
     if let Some(uif) = card.uif_authentication()? {
         authentication_key.touch_policy(format!("{}", uif.touch_policy()));
@@ -169,7 +169,7 @@ pub fn print_status(
         attestation_key.algorithm(format!("{}", algo));
     }
     if let Ok(Some(kgt)) = card.attestation_key_generation_time() {
-        attestation_key.created(format!("{}", kgt.to_datetime()));
+        attestation_key.creation_time(format!("{}", kgt.to_datetime()));
     }
     if let Some(uif) = card.uif_attestation()? {
         attestation_key.touch_policy(format!("{}", uif.touch_policy()));

@@ -11,15 +11,15 @@ pub struct Status {
     verbose: bool,
     ident: String,
     card_version: String,
-    card_holder: Option<String>,
-    url: Option<String>,
+    cardholder_name: Option<String>,
     language_preferences: Vec<String>,
+    certificate_url: Option<String>,
     signature_key: KeySlotInfo,
     signature_count: u32,
+    user_pin_valid_for_only_one_signature: bool,
     decryption_key: KeySlotInfo,
     authentication_key: KeySlotInfo,
     attestation_key: Option<KeySlotInfo>,
-    user_pin_valid_for_only_one_signature: bool,
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
@@ -40,16 +40,16 @@ impl Status {
         self.card_version = card_version;
     }
 
-    pub fn card_holder(&mut self, card_holder: String) {
-        self.card_holder = Some(card_holder);
-    }
-
-    pub fn url(&mut self, url: String) {
-        self.url = Some(url);
+    pub fn cardholder_name(&mut self, card_holder: String) {
+        self.cardholder_name = Some(card_holder);
     }
 
     pub fn language_preference(&mut self, pref: String) {
         self.language_preferences.push(pref);
+    }
+
+    pub fn certificate_url(&mut self, url: String) {
+        self.certificate_url = Some(url);
     }
 
     pub fn signature_key(&mut self, key: KeySlotInfo) {
@@ -58,6 +58,10 @@ impl Status {
 
     pub fn signature_count(&mut self, count: u32) {
         self.signature_count = count;
+    }
+
+    pub fn user_pin_valid_for_only_one_signature(&mut self, sign_pin_valid_once: bool) {
+        self.user_pin_valid_for_only_one_signature = sign_pin_valid_once;
     }
 
     pub fn decryption_key(&mut self, key: KeySlotInfo) {
@@ -70,10 +74,6 @@ impl Status {
 
     pub fn attestation_key(&mut self, key: KeySlotInfo) {
         self.attestation_key = Some(key);
-    }
-
-    pub fn user_pin_valid_for_only_one_signature(&mut self, sign_pin_valid_once: bool) {
-        self.user_pin_valid_for_only_one_signature = sign_pin_valid_once;
     }
 
     pub fn user_pin_remaining_attempts(&mut self, count: u8) {
@@ -105,16 +105,16 @@ impl Status {
         ));
 
         let mut nl = false;
-        if let Some(name) = &self.card_holder {
+        if let Some(name) = &self.cardholder_name {
             if !name.is_empty() {
                 s.push_str(&format!("Cardholder: {}\n", name));
                 nl = true;
             }
         }
 
-        if let Some(url) = &self.url {
+        if let Some(url) = &self.certificate_url {
             if !url.is_empty() {
-                s.push_str(&format!("URL: {}\n", url));
+                s.push_str(&format!("Certificate URL: {}\n", url));
                 nl = true;
             }
         }
@@ -190,9 +190,9 @@ impl Status {
             schema_version: StatusV0::VERSION,
             ident: self.ident.clone(),
             card_version: self.card_version.clone(),
-            card_holder: self.card_holder.clone(),
-            url: self.url.clone(),
+            cardholder_name: self.cardholder_name.clone(),
             language_preferences: self.language_preferences.clone(),
+            certificate_url: self.certificate_url.clone(),
             signature_key: self.signature_key.clone(),
             signature_count: self.signature_count,
             decryption_key: self.decryption_key.clone(),
@@ -202,8 +202,8 @@ impl Status {
             user_pin_remaining_attempts: self.user_pin_remaining_attempts,
             admin_pin_remaining_attempts: self.admin_pin_remaining_attempts,
             reset_code_remaining_attempts: self.reset_code_remaining_attempts,
-            key_statuses: self.key_statuses.clone(),
-            ca_fingerprints: self.ca_fingerprints.clone(),
+            // key_statuses: self.key_statuses.clone(),
+            // ca_fingerprints: self.ca_fingerprints.clone(),
         })
     }
 }
@@ -239,20 +239,20 @@ pub struct StatusV0 {
     schema_version: OutputVersion,
     ident: String,
     card_version: String,
-    card_holder: Option<String>,
-    url: Option<String>,
+    cardholder_name: Option<String>,
     language_preferences: Vec<String>,
+    certificate_url: Option<String>,
     signature_key: KeySlotInfo,
     signature_count: u32,
+    user_pin_valid_for_only_one_signature: bool,
     decryption_key: KeySlotInfo,
     authentication_key: KeySlotInfo,
     attestation_key: Option<KeySlotInfo>,
-    user_pin_valid_for_only_one_signature: bool,
     user_pin_remaining_attempts: u8,
     admin_pin_remaining_attempts: u8,
     reset_code_remaining_attempts: u8,
-    key_statuses: Vec<(u8, String)>,
-    ca_fingerprints: Vec<String>,
+    // key_statuses: Vec<(u8, String)>, // TODO: add to JSON output after clarifying the content
+    // ca_fingerprints: Vec<String>, // TODO: add to JSON output after clarifying the content
 }
 
 impl OutputVariant for StatusV0 {
@@ -262,8 +262,8 @@ impl OutputVariant for StatusV0 {
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct KeySlotInfo {
     fingerprint: Option<String>,
+    creation_time: Option<String>,
     algorithm: Option<String>,
-    created: Option<String>,
     touch_policy: Option<String>,
     touch_features: Option<String>,
     status: Option<String>,
@@ -279,8 +279,8 @@ impl KeySlotInfo {
         self.algorithm = Some(algorithm);
     }
 
-    pub fn created(&mut self, created: String) {
-        self.created = Some(created);
+    pub fn creation_time(&mut self, created: String) {
+        self.creation_time = Some(created);
     }
 
     pub fn touch_policy(&mut self, policy: String) {
@@ -299,7 +299,7 @@ impl KeySlotInfo {
         self.public_key_material = Some(material);
     }
 
-    fn format(&self, verbose: bool) -> Vec<String> {
+    fn format(&self, verbose: bool, pkm: bool) -> Vec<String> {
         let mut lines = vec![];
 
         if let Some(fp) = &self.fingerprint {
@@ -308,7 +308,7 @@ impl KeySlotInfo {
         if let Some(a) = &self.algorithm {
             lines.push(format!("Algorithm: {}", a));
         }
-        if let Some(ts) = &self.created {
+        if let Some(ts) = &self.creation_time {
             lines.push(format!("Created: {}", ts));
         }
 
