@@ -176,10 +176,14 @@ pub fn print_status(
     //     attestation_key.public_key_material(pkm.to_string());
     // }
 
-    // TODO: clarify how to reliably map `card.key_information()` output into this field (see below)
-    // if let Some(ks) = ki.as_ref().map(|ki| ki.aut_status()) {
-    //     attestation_key.status(format!("{}", ks));
-    // }
+    // "Key-Ref = 0x81 is reserved for the Attestation key of Yubico"
+    // (see OpenPGP card spec 3.4.1 pg.43)
+    if let Some(ki) = ki.as_ref() {
+        if let Some(n) = (0..ki.num_additional()).find(|&n| ki.additional_ref(n) == 0x81) {
+            let ks = ki.additional_status(n);
+            attestation_key.status(format!("{}", ks));
+        }
+    };
 
     output.attestation_key(attestation_key);
 
@@ -193,7 +197,10 @@ pub fn print_status(
     if let Some(ki) = ki {
         let num = ki.num_additional();
         for i in 0..num {
-            output.key_status(ki.additional_ref(i), ki.additional_status(i).to_string());
+            // 0x81 is the Yubico attestation key, it has already been used above -> skip here
+            if ki.additional_ref(i) != 0x81 {
+                output.key_status(ki.additional_ref(i), ki.additional_status(i).to_string());
+            }
         }
     }
 
