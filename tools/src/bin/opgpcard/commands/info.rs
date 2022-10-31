@@ -72,9 +72,14 @@ pub fn print_info(
     }
 
     // Algorithm information (list of supported algorithms)
+    //
+    // FIXME: this should be output in a more structured shape
+    // Algorithms should be grouped by key slot, and the format of the algorithm name should
+    // probably have a human readable, and an alternate machine readable format.
+    // Both formats should be output for machine readable formats.
     if let Ok(Some(ai)) = card.algorithm_information() {
         for line in ai.to_string().lines() {
-            let line = line.strip_prefix("- ").unwrap_or(line);
+            let line = line.strip_prefix("- ").unwrap_or_else(|| line.trim());
             output.algorithm(line.to_string());
         }
     }

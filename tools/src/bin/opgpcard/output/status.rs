@@ -142,9 +142,9 @@ impl Status {
         }
         if self.verbose {
             if self.user_pin_valid_for_only_one_signature {
-                s.push_str("  User PIN presentation valid for one signature\n");
+                s.push_str("  User PIN presentation is valid for only one signature\n");
             } else {
-                s.push_str("  User PIN presentation valid for unlimited signatures\n");
+                s.push_str("  User PIN presentation is valid for unlimited signatures\n");
             }
         }
         s.push_str(&format!("  Signatures made: {}\n", self.signature_count));
