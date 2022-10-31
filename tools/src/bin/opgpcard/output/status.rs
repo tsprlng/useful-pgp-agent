@@ -310,11 +310,11 @@ impl KeySlotInfo {
         if let Some(fp) = &self.fingerprint {
             lines.push(format!("Fingerprint: {}", fp));
         }
+        if let Some(ts) = &self.creation_time {
+            lines.push(format!("Creation Time: {}", ts));
+        }
         if let Some(a) = &self.algorithm {
             lines.push(format!("Algorithm: {}", a));
-        }
-        if let Some(ts) = &self.creation_time {
-            lines.push(format!("Created: {}", ts));
         }
 
         if verbose {
