@@ -38,12 +38,14 @@ service is running, to be able to access your OpenPGP cards.
 
 ## opgpcard
 
-A tool to inspect, configure and use OpenPGP cards. All calls of this tool are
-usable in a non-interactive way (this tool is designed both for interactive use, and to be easily usable from
-shell-scripts).
+A tool to inspect, configure and use OpenPGP cards.
 
-Alternatively, PINs can be entered interactively on the host computer, or via a pinpad on the smartcard reader,
-if available.
+This tool is designed to be equally convenient for regular interactive use, as well as from scripts.
+To this end, all functionality of this tool is alternatively usable in a non-interactive manner (see below).
+
+When using the tool in interactive contexts, two methods of PIN entry are supported:
+in most cases, PINs can (and must) be entered via the host computer.
+When a pin pad is available on the smartcard reader, PIN entry will be requested via this pin pad.
 
 ### List cards
 
@@ -70,19 +72,19 @@ Language preferences: 'en'
 
 Signature key
   Fingerprint: 034B 348C EDA2 064C AA22  74E4 7563 E86F 5CAB C2A4
+  Creation Time: 2022-05-21 13:15:19 UTC
   Algorithm: Ed25519 (EdDSA)
-  Created: 2022-05-21 13:15:19 UTC
   Signatures made: 11
 
 Decryption key
   Fingerprint: 338B EE09 3950 D831 A76F  0EB9 13D6 2DF6 8C9E 5176
+  Creation Time: 2022-05-21 13:15:19 UTC
   Algorithm: Cv25519 (ECDH)
-  Created: 2022-05-21 13:15:19 UTC
 
 Authentication key
   Fingerprint: 4881 A22E 7EC6 26D1 1202  50B0 A7D7 F0D5 0C8D F719
+  Creation Time: 2022-05-21 13:15:19 UTC
   Algorithm: Ed25519 (EdDSA)
-  Created: 2022-05-21 13:15:19 UTC
 
 Remaining PIN attempts: User: 3, Admin: 3, Reset Code: 0
 ```
@@ -104,31 +106,32 @@ Language preferences: 'en'
 
 Signature key
   Fingerprint: 034B 348C EDA2 064C AA22  74E4 7563 E86F 5CAB C2A4
+  Creation Time: 2022-05-21 13:15:19 UTC
   Algorithm: Ed25519 (EdDSA)
-  Created: 2022-05-21 13:15:19 UTC
-  Touch policy: Cached [Features: Button]
+  Touch policy: Cached (features: Button)
   Key Status: generated
-  User PIN presentation valid for unlimited signatures
+  User PIN presentation is valid for unlimited signatures
   Signatures made: 11
 
 Decryption key
   Fingerprint: 338B EE09 3950 D831 A76F  0EB9 13D6 2DF6 8C9E 5176
+  Creation Time: 2022-05-21 13:15:19 UTC
   Algorithm: Cv25519 (ECDH)
-  Created: 2022-05-21 13:15:19 UTC
-  Touch policy: Off [Features: Button]
+  Touch policy: Off (features: Button)
   Key Status: generated
 
 Authentication key
   Fingerprint: 4881 A22E 7EC6 26D1 1202  50B0 A7D7 F0D5 0C8D F719
+  Creation Time: 2022-05-21 13:15:19 UTC
   Algorithm: Ed25519 (EdDSA)
-  Created: 2022-05-21 13:15:19 UTC
-  Touch policy: Off [Features: Button]
+  Touch policy: Off (features: Button)
   Key Status: generated
 
+Attestation key:
+  Algorithm: RSA 2048 [e 17]
+  Touch policy: Cached (features: Button)
+
 Remaining PIN attempts: User: 3, Admin: 3, Reset Code: 0
-
-Touch policy attestation: Cached [Features: Button]
-
 Key Status (#129): imported
 ```
 
@@ -175,17 +178,11 @@ You can query a specific card
 $ opgpcard pubkey --card ABCD:01234567
 ```
 
-And/or pass the User PIN as a file, for non-interactive use:
-
-```
-$ opgpcard pubkey -p <user-pin-file>
-```
-
 In the process of exporting the key material on a card as a certificate (public key), one or more User IDs can be
 bound to the certificate:
 
 ```
-$ opgpcard pubkey -p <user-pin-file> --userid "Alice Adams <alice@example.org>"
+$ opgpcard pubkey --userid "Alice Adams <alice@example.org>"
 ```
 
 
@@ -268,21 +265,21 @@ Extended Capabilities:
 - maximum response length: 256
 
 Supported algorithms:
-SIG: RSA 2048 [e 32]
-SIG: RSA 4096 [e 32]
-SIG: Secp256k1 (ECDSA)
-SIG: Ed25519 (EdDSA)
-SIG: Ed448 (EdDSA)
-DEC: RSA 2048 [e 32]
-DEC: RSA 4096 [e 32]
-DEC: Secp256k1 (ECDSA)
-DEC: Cv25519 (ECDH)
-DEC: X448 (ECDH)
-AUT: RSA 2048 [e 32]
-AUT: RSA 4096 [e 32]
-AUT: Secp256k1 (ECDSA)
-AUT: Ed25519 (EdDSA)
-AUT: Ed448 (EdDSA)
+- SIG: RSA 2048 [e 32]
+- SIG: RSA 4096 [e 32]
+- SIG: Secp256k1 (ECDSA)
+- SIG: Ed25519 (EdDSA)
+- SIG: Ed448 (EdDSA)
+- DEC: RSA 2048 [e 32]
+- DEC: RSA 4096 [e 32]
+- DEC: Secp256k1 (ECDSA)
+- DEC: Cv25519 (ECDH)
+- DEC: X448 (ECDH)
+- AUT: RSA 2048 [e 32]
+- AUT: RSA 4096 [e 32]
+- AUT: Secp256k1 (ECDSA)
+- AUT: Ed25519 (EdDSA)
+- AUT: Ed448 (EdDSA)
 ```
 
 Or to query a specific card:
@@ -294,10 +291,10 @@ $ opgpcard info --card ABCD:01234567
 ### Admin commands
 
 All `admin` commands need the Admin PIN. It can be provided as a file, with `-P <admin-pin-file>`,
-for non-interactive use.
+for non-interactive use (see below).
 
-Alternatively, the PIN can be entered interactively on the host computer, or via a pinpad if the OpenPGP card is
-used in a smartcard reader that has a pinpad.
+By default, the PIN must be entered interactively on the host computer, or via a pin pad if the OpenPGP card is
+used in a smart card reader that has a pin pad.
 
 #### Set touch policy
 
@@ -316,7 +313,7 @@ E.g., when the touch policy is set to `On` for the `SIG` key slot, then every si
 confirmation:
 
 ```
-opgpcard admin --card ABCD:01234567 touch --key SIG --policy On
+$ opgpcard admin --card ABCD:01234567 touch --key SIG --policy On
 ```
 
 Valid values for the key slot are: `SIG`, `DEC`, `AUT`, `ATT` (some cards only support the first three).
@@ -332,31 +329,22 @@ Some cards only support a subset of these.
 
 #### Set cardholder name
 
-Set cardholder name, with interactive PIN input
-(either on the host computer, or via a smartcard reader pinpad):
+Set the (informational) cardholder name:
 
 ```
 $ opgpcard admin --card ABCD:01234567 name "Alice Adams"
 ```
 
-Set cardholder name, with a pin file, non-interactively:
+#### Set certificate URL
 
-```
-$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> name "Alice Adams"
-```
+The URL field on OpenPGP cards is intended to point to the certificate (or "public key") the corresponds to the keys
+that are present on the card.
 
-#### Set cardholder URL
+It can be set like this:
 
 ```
 $ opgpcard admin --card ABCD:01234567 url "https://key.url.example"
 ```
-
-or non-interactively:
-
-```
-$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> url "https://key.url.example"
-```
-
 
 ##### Using `keys.openpgp.org` for the URL
 
@@ -370,9 +358,9 @@ as follows:
 $ opgpcard admin --card FFFE:12345678 url "https://keys.openpgp.org/vks/v1/by-fingerprint/0123456789ABCDEF0123456789ABCDEF01234567"
 ```
 
-##### Other URLs
+##### Other common options for certificate URLs
 
-You can use any URL that serves your public key, including a link to your certificate on:
+You can use any URL that serves your certificate ("public key"), including links to:
 
 - gitlab (`https://gitlab.com/<username>.gpg`) or github (`https://github.com/<username>.gpg`)
 - any other keyserver, such as https://keyserver.ubuntu.com/,
@@ -387,12 +375,6 @@ Import private key onto a card. This works if at most one (sub)key per role
 
 ```
 $ opgpcard admin --card ABCD:01234567 import key.priv
-```
-
-or non-interactively
-
-```
-$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> import key.priv
 ```
 
 Import private key onto a card while explicitly selecting subkeys. Explicitly
@@ -414,59 +396,38 @@ the password. If (sub)keys are encrypted with different passwords, the user will
 (Background: OpenPGP keys can be password protected when they are stored in files, but on an OpenPGP card
 the keys always exist in unencrypted form. Therefore, they need to be decrypted for import.)
 
+(NOTE: There is currently no mechanism to non-interactively provide passwords to import password protected
+OpenPGP keys)
 
 #### Generate Keys on the card
 
-Key generation needs both the Admin PIN and the User PIN (the User PIN is needed to export the new key as a public key).
-
-The User PIN can be provided with the `-p <user-pin-file>`, or interactively on the host computer or via the smartcard
-reader pinpad.
+This command generates new keys on an OpenPGP card. It creates the corresponding certificate ("public key")
+representation in an output file.
 
 ```
-$ opgpcard admin --card ABCD:01234567 generate --output <output-cert-file> 25519
+$ opgpcard admin --card ABCD:01234567 generate --output <output-cert-file> cv25519
 ```
 
-or non-interactively
-
-```
-$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> --output <output-cert-file> 25519
-```
+Note that key generation needs both the Admin PIN and the User PIN (the User PIN is needed to export the new key as
+a public key).
 
 Output will look like:
 
 ```
+Enter Admin PIN:
+Enter User PIN:
  Generate subkey for Signing
  Generate subkey for Decryption
  Generate subkey for Authentication
------BEGIN PGP PUBLIC KEY BLOCK-----
-Comment: 1FE2 E8F1 9FE8 7D0D 8AAF  5579 8CB7 58BA 502F 2458
-Comment: Foo Bar
-
-xjMEYj4i9RYJKwYBBAHaRw8BAQdATGNkaSqkISqpXPJf8x/V+UzKwXO/13yRjkQ/
-Cfqv4/XNB0ZvbyBCYXLCwAYEExYKAHgFgmI+IvUFiQAAAAAJEIy3WLpQLyRYRxQA
-AAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVvaWEtcGdwLm9yZ3soPdGvhvnI629W
-zuGvgJCQEuuFoH/+3FheWD4xNy16ApsDFiEEH+Lo8Z/ofQ2Kr1V5jLdYulAvJFgA
-AJlVAQDHvutZW5ExN5Tcx92mNhU9w1Gkzn2yQf0xrZENLQqhjQD/cKa27RlOVHt1
-psAhx/v0UcaYO5NABZorTsKrJWYzOAfOMwRiPiL1FgkrBgEEAdpHDwEBB0C/4eXr
-MQMuD0Mg4WMIK+260qYxjsNoN196ZdIqx6t0RMLABgQYFgoAeAWCYj4i9QWJAAAA
-AAkQjLdYulAvJFhHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMuc2VxdW9pYS1wZ3Au
-b3JnVNZH1uV5zflAPMPspQLrTaWf8uwaePLWl6nbuclDck8CmyAWIQQf4ujxn+h9
-DYqvVXmMt1i6UC8kWAAAIfEBAO0yXwlbrNymuwCsU22Yy95JA2QpUnMBsY7dizvP
-8Or+AP92UH8dwDElhynFgw9KkyR2ZU69k1Eeb1snnO5K8eA1Bc44BGI+IvUSCisG
-AQQBl1UBBQEBB0C5kgJ0MifYfV8kY5k333XJNqx5M84zKPW/avoXSkqHRQMBCgnC
-wAYEGBYKAHgFgmI+IvUFiQAAAAAJEIy3WLpQLyRYRxQAAAAAAB4AIHNhbHRAbm90
-YXRpb25zLnNlcXVvaWEtcGdwLm9yZ2fdVPQT78DqbSOmY8Rv6Bn/nDRsNW55yyt/
-RNxxCInzApsMFiEEH+Lo8Z/ofQ2Kr1V5jLdYulAvJFgAAOz6AQDijdln/VMFqG1t
-T+/zIUpoJ3YbpT0PTrC5wv/PRaTBGwD+KRiYeJS05fX5BPjMn3sVL8/EYF628BMZ
-x3z8hDoRKAU=
-=v95a
------END PGP PUBLIC KEY BLOCK-----
 ```
 
-In the context of generating key material, one or more User IDs can be bound to the exported certificate:
+The `<output-cert-file>` will contain the corresponding certificate ("public key").
+
+As part of the process of generating key material on a card, one or more User IDs can be included with the exported
+certificate:
 
 ```
-$ opgpcard admin --card ABCD:01234567 generate --userid "Alice Adams <alice@example.org>" --output <output-cert-file> 25519
+$ opgpcard admin --card ABCD:01234567 generate --userid "Alice Adams <alice@example.org>" --output <output-cert-file> cv25519
 ```
 
 
@@ -479,24 +440,12 @@ For now, this tool only supports creating detached signatures, like this
 $ opgpcard sign --detached --card ABCD:01234567 <input-file>
 ```
 
-or non-interactively
-
-```
-$ opgpcard sign --detached --card ABCD:01234567 -p <user-pin-file> <input-file>
-```
-
 ### Decrypting
 
 Decryption using a card (if no input file is set, stdin is read):
 
 ```
 $ opgpcard decrypt --card ABCD:01234567 <input-file>
-```
-
-or non-interactively
-
-```
-$ opgpcard decrypt --card ABCD:01234567 -p <user-pin-file> <input-file>
 ```
 
 ### PIN management
@@ -531,7 +480,7 @@ The Resetting Code mechanism is only useful in scenarios where a user doesn't ha
 the Admin PIN (e.g. in some corporate settings, users might not be given the Admin PIN for
 their cards. Instead, an admin may define a resetting code and give that code to the user).
 
-On unconfigured (or factory reset) cards, the Resetting Code is typically unset.
+On un-configured (or factory reset) cards, the Resetting Code is typically unset.
 
 
 #### Set a new User PIN
@@ -542,24 +491,12 @@ Setting a new User PIN requires the Admin PIN:
 $ opgpcard pin --card ABCD:01234567 set-user
 ```
 
-For non-interactive PIN change:
-
-```
-$ opgpcard pin --card ABCD:01234567 set-user -p <old-user-pin-file> -q <new-user-pin-file>
-```
-
 #### Set new Admin PIN
 
 This requires the (previous) Admin PIN.
 
 ```
 $ opgpcard pin --card ABCD:01234567 set-admin
-```
-
-For non-interactive PIN change:
-
-```
-$ opgpcard pin --card ABCD:01234567 set-admin -P <old-admin-pin-file> -Q <new-admin-pin-file>
 ```
 
 #### Reset User PIN with Admin PIN
@@ -572,12 +509,6 @@ and the card refuses to accept the User PIN anymore.
 $ opgpcard pin --card ABCD:01234567 reset-user
 ```
 
-For non-interactive PIN change:
-
-```
-$ opgpcard pin --card ABCD:01234567 reset-user -P <admin-pin-file> -p <new-user-pin-file>
-```
-
 #### Configuring the resetting code
 
 The resetting code is an alternative mechanism to recover from a lost or locked User PIN.
@@ -587,12 +518,6 @@ you can use that code to reset the User PIN without needing the Admin PIN.
 
 ```
 $ opgpcard pin --card ABCD:01234567 set-reset
-```
-
-To non-interactively set the resetting code:
-
-```
-$ opgpcard pin --card ABCD:01234567 set-reset -P <admin-pin-file> -r <resetting-code-file>
 ```
 
 #### Reset User PIN with the resetting code
@@ -608,15 +533,9 @@ Repeat the new User PIN:
 User PIN has been set.
 ```
 
-To non-interactively use the resetting code:
-
-```
-$ opgpcard pin --card ABCD:01234567 reset-user-rc -r <resetting-code-file> -p <new-user-pin-file>
-```
-
 ### Factory reset
 
-Factory reset:
+A factory reset erases all data on your card, including the private key material that the card stores.
 
 ```
 $ opgpcard factory-reset --card ABCD:01234567
@@ -624,7 +543,126 @@ $ opgpcard factory-reset --card ABCD:01234567
 
 NOTE: you do not need a PIN to reset a card!
 
-### Using file-descriptors for PINs
+### Directly entering PINs on card readers with pin pad
+
+If your OpenPGP card is inserted in a card reader with a pin pad, this tool 
+offers you the option to use the pin pad to enter the User- or Admin PINs.
+To do this, you can omit the `-p` and/or `-P` parameters. Then you will 
+be prompted to enter the user or Admin PINs where needed. 
+
+
+### Machine-readable Output (JSON, YAML)
+
+This tool is can optionally provide its output in JSON (or YAML) format.
+The functionality is intended for scripting use.
+
+For all commands that return relevant output, the parameter `--output-format json` chooses JSON as the output format.
+
+For example, with the `status` command:
+
+```
+$ opgpcard --output-format json status
+{
+  "schema_version": "0.9.0",
+  "ident": "ABCD:01234567",
+  "card_version": "3.4",
+  "cardholder_name": "Alice Adams",
+  "language_preferences": [],
+  "certificate_url": "http://alice.example/alice.pgp",
+  "signature_key": {
+    "fingerprint": "A393 4505 BC51 1177 2E0B  845A 142C C9AB 7126 5C00",
+    "creation_time": "2022-10-31 13:45:35 UTC",
+    "algorithm": "Ed25519 (EdDSA)",
+    "touch_policy": "Off",
+    "touch_features": "Button",
+    "status": "generated",
+    "public_key_material": "ECC [Ed25519 (EdDSA)], data: 3A2B88EF788FA59575E3C4DB89EE367DBD0D9E93B6CE26B7686D32E94958F32A"
+  },
+  "signature_count": 3,
+  "user_pin_valid_for_only_one_signature": false,
+  "decryption_key": {
+    "fingerprint": "0643 F2A9 6605 4158 CCFA  B11F C7D2 0DBA DA64 84E0",
+    "creation_time": "2022-10-31 13:45:35 UTC",
+    "algorithm": "Cv25519 (ECDH)",
+    "touch_policy": "Off",
+    "touch_features": "Button",
+    "status": "generated",
+    "public_key_material": "ECC [Cv25519 (ECDH)], data: AF97CA49B2D89998605985AEDAA19097A0CE7E5CC681B1ABD1C8610933FDB320"
+  },
+  "authentication_key": {
+    "fingerprint": "2BA3 3B42 90DE 337D 1DF8  54B3 2E20 E550 3ABC 57A9",
+    "creation_time": "2022-10-31 13:45:35 UTC",
+    "algorithm": "Ed25519 (EdDSA)",
+    "touch_policy": "Off",
+    "touch_features": "Button",
+    "status": "generated",
+    "public_key_material": "ECC [Ed25519 (EdDSA)], data: 80178ECE7F16ACDFDB0A645C81E72287761F03488CE3AE01F74279AA88A9018C"
+  },
+  "attestation_key": {
+    "fingerprint": null,
+    "creation_time": null,
+    "algorithm": "RSA 2048 [e 17]",
+    "touch_policy": "Off",
+    "touch_features": "Button",
+    "status": null,
+    "public_key_material": null
+  },
+  "user_pin_remaining_attempts": 3,
+  "admin_pin_remaining_attempts": 3,
+  "reset_code_remaining_attempts": 0
+}
+```
+
+
+### Non-interactive use
+
+All commands that require PIN entry can be used non-interactively by providing PINs via files
+(see the section "Using file-descriptors to provide PINs" for a variation on this).
+
+In almost all contexts, `-p` is used to provide the User PIN and `-P` to provide the Admin PIN
+(the exception is when changing a PIN on the card, then a different parameter is used to provide the new PIN).
+
+**Examples of non-interactive use**
+
+- Setting the cardholder name:
+
+`$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> name "Alice Adams"`
+
+- Importing a key to the card:
+
+`$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> import key.priv`
+
+- Generating key material on the card:
+
+`$ opgpcard admin --card ABCD:01234567 -P <admin-pin-file> generate -p <user-pin-file> --output <output-cert-file> cv25519`
+
+- Creating a detached signature:
+
+`$ opgpcard sign --detached --card ABCD:01234567 -p <user-pin-file> <input-file>`
+
+**Examples of non-interactive PIN management**
+
+- Setting a new User PIN:
+
+`$ opgpcard pin --card ABCD:01234567 set-user -p <old-user-pin-file> -q <new-user-pin-file>`
+
+- Setting a new Admin PIN:
+
+`$ opgpcard pin --card ABCD:01234567 set-admin -P <old-admin-pin-file> -Q <new-admin-pin-file>`
+
+- Setting a new User PIN based on the Admin PIN (and unblocking the card, if needed):
+
+`$ opgpcard pin --card ABCD:01234567 reset-user -P <admin-pin-file> -p <new-user-pin-file>`
+
+- Setting the resetting code:
+
+`$ opgpcard pin --card ABCD:01234567 set-reset -P <admin-pin-file> -r <resetting-code-file>`
+
+- Setting a new User ID based on the resetting code (and unblocking the card, if needed):
+
+`$ opgpcard pin --card ABCD:01234567 reset-user-rc -r <resetting-code-file> -p <new-user-pin-file>`
+
+#### Using file-descriptors to provide PINs
 
 When using a shell like
 [bash](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Here-Strings)
@@ -635,15 +673,8 @@ $ opgpcard sign --detached --card ABCD:01234567 -p /dev/fd/3 3<<<123456
 ```
 
 ```
-$ opgpcard admin --card ABCD:01234567 -P /dev/fd/3 generate -p /dev/fd/4 --output <output-cert-file> 25519 3<<<12345678 4<<<123456
+$ opgpcard admin --card ABCD:01234567 -P /dev/fd/3 generate -p /dev/fd/4 --output <output-cert-file> cv25519 3<<<12345678 4<<<123456
 ```
-
-### Directly entering PINs on card readers with pinpad
-
-If your OpenPGP card is inserted in a card reader with a pinpad, this tool 
-offers you the option to use the pinpad to enter the User- or Admin PINs.
-To do this, you can omit the `-p` and/or `-P` parameters. Then you will 
-be prompted to enter the user or Admin PINs where needed. 
 
 ### Attestation
 
