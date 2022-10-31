@@ -1,12 +1,17 @@
+<!--
+SPDX-FileCopyrightText: 2022 Lars Wirzenius <liw@liw.fi>
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # Scripting around opgpcard
 
 The `opgpcard` tool can manipulate an OpenPGP smart card (also known
-as hardware token). There are various manufacturers of these, but
-Yubikey by Yubico is well known. The tool is meant to work with any
-card that implements the OpenPGP smart card interface.
+as hardware token). There are various commercial as well as Free Software-implementations of the standard.
+Well known commercial products with OpenPGP card support include YubiKey and Nitrokey. This tool is meant to work with
+any card that implements the OpenPGP smart card interface.
 
 `opgpcard` supports structured output as JSON and YAML. The default is
-human readable text. The structured output it meant to be consumed by
+human-readable text. The structured output it meant to be consumed by
 other programs, and is versioned.
 
 For example, to list all the OpenPGP cards connected to a system:
@@ -16,7 +21,7 @@ $ opgpcard --output-format=json list
 {
   "schema_version": "1.0.0",
   "idents": [
-    "0006:11339805"
+    "ABCD:01234567"
   ]
 }
 $
@@ -24,7 +29,7 @@ $
 
 The structured output is versioned (text output is not), using the
 field name `schema_version`. The version numbering follows [semantic
-versionin](https://semver.org/):
+versioning](https://semver.org/):
 
 * if a field is added, the minor level is incremented, and patch level
   is set to zero
@@ -46,7 +51,7 @@ $ opgpcard --output-format=json list
   "schema_version": "1.1.0",
   "date": "Tue, 18 Oct 2022 18:07:41 +0300",
   "idents": [
-    "0006:11339805"
+    "ABCD:01234567"
   ]
 }
 $
@@ -54,9 +59,3 @@ $
 
 A new field means the minor level in the schema version is
 incremented.
-
-
-# Legalese
-
-SPDX-FileCopyrightText: 2022 Lars Wirzenius <liw@liw.fi>
-SPDX-License-Identifier: MIT OR Apache-2.0
