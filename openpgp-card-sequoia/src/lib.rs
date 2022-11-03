@@ -22,14 +22,16 @@
 //!
 //! ```no_run
 //! use openpgp_card_pcsc::PcscBackend;
-//! use openpgp_card_sequoia::{Card, state::Open};
+//! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! for backend in PcscBackend::cards(None)? {
 //!     let mut card: Card<Open> = backend.into();
 //!     let mut transaction = card.transaction()?;
-//!     println!("Found OpenPGP card with ident '{}'",
-//!              transaction.application_identifier()?.ident());
+//!     println!(
+//!         "Found OpenPGP card with ident '{}'",
+//!         transaction.application_identifier()?.ident()
+//!     );
 //! }
 //! # Ok(())
 //! # }
@@ -39,7 +41,7 @@
 //!
 //! ```no_run
 //! use openpgp_card_pcsc::PcscBackend;
-//! use openpgp_card_sequoia::{Card, state::Open};
+//! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let backend = PcscBackend::open_by_ident("abcd:01234567", None)?;
@@ -59,8 +61,7 @@
 //!
 //! ```no_run
 //! use openpgp_card_pcsc::PcscBackend;
-//! use openpgp_card_sequoia::{Card, state::Open};
-//!
+//! use openpgp_card_sequoia::{state::Open, Card};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
@@ -73,7 +74,7 @@
 //! let mut user = transaction.user_card().expect("This should not fail");
 //!
 //! // Get decryptor
-//! let decryptor = user.decryptor(&|| { println!("Touch confirmation needed for decryption") });
+//! let decryptor = user.decryptor(&|| println!("Touch confirmation needed for decryption"));
 //!
 //! // Perform decryption operation(s)
 //! // ..
@@ -95,7 +96,7 @@
 //!
 //! ```no_run
 //! use openpgp_card_pcsc::PcscBackend;
-//! use openpgp_card_sequoia::{Card, state::Open};
+//! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
@@ -121,7 +122,7 @@
 //!
 //! ```no_run
 //! use openpgp_card_pcsc::PcscBackend;
-//! use openpgp_card_sequoia::{Card, state::Open};
+//! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
