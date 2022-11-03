@@ -9,12 +9,12 @@
 //! [`AlgoSimple`] offers a shorthand for specifying an algorithm,
 //! specifically for key generation on the card.
 
+use std::convert::TryFrom;
+use std::fmt;
+
 use crate::card_do::ApplicationRelatedData;
 use crate::crypto_data::EccType;
 use crate::{keys, oid, Error, KeyType};
-
-use std::convert::TryFrom;
-use std::fmt;
 
 /// A shorthand way to specify algorithms (e.g. for key generation).
 #[derive(Clone, Copy, Debug)]

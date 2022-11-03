@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::{Error, StatusBytes};
 use std::convert::{TryFrom, TryInto};
+
+use crate::{Error, StatusBytes};
 
 /// Response from the card to a command.
 ///
@@ -114,8 +115,9 @@ impl TryFrom<Vec<u8>> for RawResponse {
 
 #[cfg(test)]
 mod tests {
-    use crate::apdu::response::RawResponse;
     use std::convert::TryFrom;
+
+    use crate::apdu::response::RawResponse;
 
     #[test]
     fn test_two_bytes_data_response() {

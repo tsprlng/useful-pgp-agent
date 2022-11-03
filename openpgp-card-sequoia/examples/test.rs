@@ -1,20 +1,18 @@
 // SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
 use std::env;
 use std::error::Error;
 
-use sequoia_openpgp::parse::Parse;
-use sequoia_openpgp::policy::StandardPolicy;
-use sequoia_openpgp::Cert;
-
+use anyhow::Result;
 use openpgp_card::card_do::Sex;
 use openpgp_card::KeyType;
 use openpgp_card_pcsc::PcscBackend;
-
 use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::{state::Open, Card};
+use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::policy::StandardPolicy;
+use sequoia_openpgp::Cert;
 
 // Filename of test key and test message to use
 

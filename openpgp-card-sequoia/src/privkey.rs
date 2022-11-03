@@ -12,11 +12,10 @@ use openpgp::packet::{
     Key,
 };
 use openpgp::types::Timestamp;
-use sequoia_openpgp as openpgp;
-
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey};
 use openpgp_card::Error;
+use sequoia_openpgp as openpgp;
 use sequoia_openpgp::types::Curve;
 
 /// A SequoiaKey represents the private cryptographic key material of an

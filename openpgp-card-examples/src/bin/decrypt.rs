@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: 2021 Wiktor Kwapisiewicz <wiktor@metacode.biz>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use openpgp_card_pcsc::PcscBackend;
-use openpgp_card_sequoia::{state::Open, Card};
-
 use openpgp::parse::{stream::DecryptorBuilder, Parse};
 use openpgp::policy::StandardPolicy;
+use openpgp_card_pcsc::PcscBackend;
+use openpgp_card_sequoia::{state::Open, Card};
 use sequoia_openpgp as openpgp;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

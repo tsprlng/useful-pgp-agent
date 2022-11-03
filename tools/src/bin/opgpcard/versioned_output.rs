@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2022 Lars Wirzenius <liw@liw.fi>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::str::FromStr;
+
 use clap::ValueEnum;
 use semver::Version;
 use serde::{Serialize, Serializer};
-use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, ValueEnum)]
 pub enum OutputFormat {

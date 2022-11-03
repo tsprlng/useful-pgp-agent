@@ -1,10 +1,14 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
 use std::io::Write;
 use std::time::SystemTime;
 
+use anyhow::Result;
+use openpgp_card::card_do::KeyGenerationTime;
+use openpgp_card::{KeyType, OpenPgpTransaction};
+use openpgp_card_sequoia::sq_util;
+use openpgp_card_sequoia::util::vka_as_uploadable_key;
 use sequoia_openpgp::parse::stream::{
     DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationHelper,
 };
@@ -12,11 +16,6 @@ use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::{Policy, StandardPolicy};
 use sequoia_openpgp::serialize::stream::{Armorer, Encryptor, LiteralWriter, Message};
 use sequoia_openpgp::Cert;
-
-use openpgp_card::card_do::KeyGenerationTime;
-use openpgp_card::{KeyType, OpenPgpTransaction};
-use openpgp_card_sequoia::sq_util;
-use openpgp_card_sequoia::util::vka_as_uploadable_key;
 
 pub const SP: &StandardPolicy = &StandardPolicy::new();
 

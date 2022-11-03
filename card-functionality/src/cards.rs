@@ -4,14 +4,14 @@
 //! Wrapping of cards for tests. Open a list of cards, based on a
 //! TestConfig configuration file
 
-use anyhow::Result;
-use pcsc::ShareMode;
-use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 
+use anyhow::Result;
 use openpgp_card::{CardBackend, Error};
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_scdc::ScdBackend;
+use pcsc::ShareMode;
+use serde_derive::Deserialize;
 
 const SHARE_MODE: Option<ShareMode> = Some(ShareMode::Shared);
 

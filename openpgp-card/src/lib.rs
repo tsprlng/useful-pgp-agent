@@ -38,14 +38,13 @@ mod oid;
 mod openpgp;
 mod tlv;
 
-pub use crate::errors::{Error, SmartcardError, StatusBytes};
-pub use crate::openpgp::{OpenPgp, OpenPgpTransaction};
-
 use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 
 use crate::apdu::commands;
 use crate::card_do::ApplicationRelatedData;
+pub use crate::errors::{Error, SmartcardError, StatusBytes};
+pub use crate::openpgp::{OpenPgp, OpenPgpTransaction};
 use crate::tlv::{tag::Tag, value::Value, Tlv};
 
 /// The CardBackend trait defines a connection with an OpenPGP card via a

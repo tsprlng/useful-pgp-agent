@@ -3,9 +3,10 @@
 
 //! PW status Bytes (see spec page 23)
 
+use std::convert::TryFrom;
+
 use crate::card_do::PWStatusBytes;
 use crate::Error;
-use std::convert::TryFrom;
 
 impl PWStatusBytes {
     /// PUT DO for PW Status Bytes accepts either 1 or 4 bytes of data.
@@ -75,8 +76,9 @@ impl TryFrom<&[u8]> for PWStatusBytes {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::convert::TryInto;
+
+    use super::*;
 
     #[test]
     fn test() {

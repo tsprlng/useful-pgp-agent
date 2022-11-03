@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
 
+use anyhow::{anyhow, Context, Result};
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::state::{Admin, Sign, Transaction, User};
 use openpgp_card_sequoia::types::{

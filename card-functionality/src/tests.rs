@@ -1,18 +1,11 @@
 // SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
-use thiserror;
 
-use sequoia_openpgp::parse::Parse;
-use sequoia_openpgp::policy::StandardPolicy;
-use sequoia_openpgp::serialize::SerializeInto;
-use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
-use sequoia_openpgp::Cert;
-
+use anyhow::Result;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{Error, KeyType, OpenPgp, OpenPgpTransaction, StatusBytes};
@@ -21,6 +14,12 @@ use openpgp_card_sequoia::util::{
     make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
 use openpgp_card_sequoia::{state::Transaction, Card};
+use sequoia_openpgp::parse::Parse;
+use sequoia_openpgp::policy::StandardPolicy;
+use sequoia_openpgp::serialize::SerializeInto;
+use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
+use sequoia_openpgp::Cert;
+use thiserror;
 
 use crate::cards::TestCardData;
 use crate::util;

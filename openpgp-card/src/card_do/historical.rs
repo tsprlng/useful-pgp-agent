@@ -3,9 +3,10 @@
 
 //! 6 Historical Bytes
 
+use std::convert::TryFrom;
+
 use crate::card_do::{CardCapabilities, CardServiceData, HistoricalBytes};
 use crate::Error;
-use std::convert::TryFrom;
 
 impl CardCapabilities {
     pub fn command_chaining(&self) -> bool {
@@ -199,8 +200,9 @@ impl TryFrom<&[u8]> for HistoricalBytes {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::convert::TryInto;
+
+    use super::*;
 
     #[test]
     fn test_split_tl() {

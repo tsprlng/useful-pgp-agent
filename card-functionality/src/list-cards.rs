@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
-
 use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::{state::Open, Card};
 

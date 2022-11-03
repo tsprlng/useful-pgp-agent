@@ -3,16 +3,15 @@
 // SPDX-FileCopyrightText: 2022 Nora Widdecke <mail@nora.pink>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::path::PathBuf;
+
 use anyhow::{anyhow, Result};
 use clap::{Parser, ValueEnum};
 use openpgp_card_sequoia::state::{Admin, Open, Transaction};
+use openpgp_card_sequoia::types::AlgoSimple;
 use openpgp_card_sequoia::util::public_key_material_to_key;
-use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
-
-use std::path::PathBuf;
-
 use openpgp_card_sequoia::{sq_util, PublicKey};
-
+use openpgp_card_sequoia::{types::KeyType, Card};
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::{SecretParts, UnspecifiedRole};
 use sequoia_openpgp::packet::Key;
@@ -20,10 +19,8 @@ use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::Policy;
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::SerializeInto;
+use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
-
-use openpgp_card_sequoia::types::AlgoSimple;
-use openpgp_card_sequoia::{types::KeyType, Card};
 
 use crate::versioned_output::{OutputBuilder, OutputFormat, OutputVersion};
 use crate::{output, util, ENTER_ADMIN_PIN, ENTER_USER_PIN};

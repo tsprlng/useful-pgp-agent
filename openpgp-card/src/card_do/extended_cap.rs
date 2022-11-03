@@ -122,9 +122,11 @@ impl TryFrom<(&[u8], u16)> for ExtendedCapabilities {
 
 #[cfg(test)]
 mod test {
-    use crate::card_do::extended_cap::ExtendedCapabilities;
-    use hex_literal::hex;
     use std::convert::TryFrom;
+
+    use hex_literal::hex;
+
+    use crate::card_do::extended_cap::ExtendedCapabilities;
 
     #[test]
     fn test_yk5() {

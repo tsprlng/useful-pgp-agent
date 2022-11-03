@@ -5,13 +5,11 @@
 
 use anyhow::Result;
 use clap::Parser;
-
-use sequoia_openpgp::Cert;
-
 use openpgp_card_sequoia::types::CardBackend;
 use openpgp_card_sequoia::util::make_cert;
 use openpgp_card_sequoia::PublicKey;
 use openpgp_card_sequoia::{state::Open, state::Transaction, Card};
+use sequoia_openpgp::Cert;
 
 mod cli;
 mod commands;

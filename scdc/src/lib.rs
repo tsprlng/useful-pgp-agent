@@ -7,14 +7,14 @@
 //!
 //! Note that (unlike `openpgp-card-pcsc`), this backend doesn't implement transaction guarantees.
 
+use std::sync::Mutex;
+
 use futures::StreamExt;
 use lazy_static::lazy_static;
+use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, PinType, SmartcardError};
 use sequoia_ipc::assuan::Response;
 use sequoia_ipc::gnupg::{Agent, Context};
-use std::sync::Mutex;
 use tokio::runtime::Runtime;
-
-use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, PinType, SmartcardError};
 
 lazy_static! {
     static ref RT: Mutex<Runtime> = Mutex::new(tokio::runtime::Runtime::new().unwrap());

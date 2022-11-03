@@ -2,11 +2,10 @@
 // SPDX-FileCopyrightText: 2022 Nora Widdecke <mail@nora.pink>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::{anyhow, Result};
-use clap::Parser;
-
 use std::path::{Path, PathBuf};
 
+use anyhow::{anyhow, Result};
+use clap::Parser;
 use openpgp_card_sequoia::{state::Open, Card};
 use sequoia_openpgp::serialize::stream::{Armorer, Message, Signer};
 

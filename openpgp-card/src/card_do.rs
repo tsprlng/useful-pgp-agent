@@ -3,10 +3,11 @@
 
 //! OpenPGP card data objects (DO)
 
-use chrono::{DateTime, Utc};
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter, Write};
 use std::time::{Duration, UNIX_EPOCH};
+
+use chrono::{DateTime, Utc};
 
 use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType, Tags};
 

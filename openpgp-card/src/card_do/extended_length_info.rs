@@ -4,10 +4,11 @@
 //! 4.1.3.1 Extended length information
 //! (Introduced in V3.0)
 
+use std::convert::TryFrom;
+
 use nom::{bytes::complete::tag, number::complete as number, sequence};
 
 use crate::card_do::{complete, ExtendedLengthInfo};
-use std::convert::TryFrom;
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
     let (input, (_, cmd, _, resp)) = nom::combinator::all_consuming(sequence::tuple((

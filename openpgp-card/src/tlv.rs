@@ -5,8 +5,9 @@ pub(crate) mod length;
 pub(crate) mod tag;
 pub(crate) mod value;
 
-use nom::{bytes::complete as bytes, combinator};
 use std::convert::TryFrom;
+
+use nom::{bytes::complete as bytes, combinator};
 
 use crate::card_do::complete;
 use crate::tlv::{length::tlv_encode_length, tag::Tag, value::Value};
@@ -81,8 +82,9 @@ impl TryFrom<&[u8]> for Tlv {
 
 #[cfg(test)]
 mod test {
-    use hex_literal::hex;
     use std::convert::TryFrom;
+
+    use hex_literal::hex;
 
     use super::{Tlv, Value};
     use crate::{Error, Tags};

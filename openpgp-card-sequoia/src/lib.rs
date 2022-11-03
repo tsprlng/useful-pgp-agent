@@ -141,12 +141,6 @@
 //! # }
 //! ```
 
-use crate::decryptor::CardDecryptor;
-use crate::signer::CardSigner;
-use crate::state::{Admin, Open, Sign, State, Transaction, User};
-use crate::util::{
-    public_key_material_and_fp_to_key, public_to_fingerprint, vka_as_uploadable_key,
-};
 use openpgp::packet::{key, Key};
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
@@ -160,6 +154,13 @@ use sequoia_openpgp as openpgp;
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
+
+use crate::decryptor::CardDecryptor;
+use crate::signer::CardSigner;
+use crate::state::{Admin, Open, Sign, State, Transaction, User};
+use crate::util::{
+    public_key_material_and_fp_to_key, public_to_fingerprint, vka_as_uploadable_key,
+};
 
 mod decryptor;
 mod privkey;

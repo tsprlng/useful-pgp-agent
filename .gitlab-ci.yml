@@ -39,10 +39,10 @@ cargo-fmt:
   stage: lint
   image: rust:latest
   before_script:
-    - rustup component add rustfmt
+    - rustup toolchain install nightly && rustup component add --toolchain nightly rustfmt
     - *report-rust
   script:
-    - cargo fmt -- --check
+    - cargo +nightly fmt -- --check
   cache: [ ]
 
 cargo-deny:

@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
 use std::str::FromStr;
 
-use sequoia_openpgp::Cert;
-
+use anyhow::Result;
 use card_functionality::cards::TestConfig;
 use card_functionality::tests::*;
 use card_functionality::util;
+use sequoia_openpgp::Cert;
 
 fn main() -> Result<()> {
     env_logger::init();

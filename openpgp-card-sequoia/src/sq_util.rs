@@ -5,9 +5,9 @@
 //!
 //! These helpers are (almost) entirely unrelated to OpenPGP card.
 
-use anyhow::{anyhow, Context, Result};
 use std::io;
 
+use anyhow::{anyhow, Context, Result};
 use openpgp::armor;
 use openpgp::cert::amalgamation::key::{ErasedKeyAmalgamation, ValidErasedKeyAmalgamation};
 use openpgp::crypto;
@@ -19,10 +19,10 @@ use openpgp::parse::{
 use openpgp::policy::Policy;
 use openpgp::serialize::stream::{Message, Signer};
 use openpgp::{Cert, Fingerprint};
+use openpgp_card::{Error, KeyType};
 use sequoia_openpgp as openpgp;
 
 use crate::{CardDecryptor, CardSigner};
-use openpgp_card::{Error, KeyType};
 
 /// Retrieve a (sub)key from a Cert, for a given KeyType.
 ///

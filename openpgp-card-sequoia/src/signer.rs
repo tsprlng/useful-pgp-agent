@@ -4,14 +4,12 @@
 use std::convert::TryInto;
 
 use anyhow::anyhow;
-
 use openpgp::crypto;
 use openpgp::crypto::mpi;
 use openpgp::types::{Curve, PublicKeyAlgorithm};
-use sequoia_openpgp as openpgp;
-
 use openpgp_card::crypto_data::Hash;
 use openpgp_card::OpenPgpTransaction;
+use sequoia_openpgp as openpgp;
 
 use crate::PublicKey;
 

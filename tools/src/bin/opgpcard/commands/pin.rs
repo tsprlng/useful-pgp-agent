@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-
 use openpgp_card_sequoia::{state::Open, state::Transaction, Card};
 
 use crate::util;

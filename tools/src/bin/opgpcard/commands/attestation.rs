@@ -7,9 +7,8 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
-use openpgp_card_sequoia::{state::Open, Card};
-
 use openpgp_card_sequoia::types::KeyType;
+use openpgp_card_sequoia::{state::Open, Card};
 
 use crate::versioned_output::{OutputBuilder, OutputFormat, OutputVersion};
 use crate::ENTER_USER_PIN;

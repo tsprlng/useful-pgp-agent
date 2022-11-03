@@ -7,7 +7,6 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use anyhow::{anyhow, Result};
-
 use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use openpgp::crypto::mpi;
 use openpgp::packet::Signature;
@@ -20,12 +19,11 @@ use openpgp::types::{
     HashAlgorithm, KeyFlags, PublicKeyAlgorithm, SignatureType, SymmetricAlgorithm, Timestamp,
 };
 use openpgp::{Cert, Packet};
-use sequoia_openpgp as openpgp;
-
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
 use openpgp_card::{Error, KeyType};
+use sequoia_openpgp as openpgp;
 
 use crate::privkey::SequoiaKey;
 use crate::state::Transaction;

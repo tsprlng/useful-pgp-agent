@@ -4,11 +4,11 @@
 //! 4.4.3.11 Algorithm Information
 
 use std::convert::TryFrom;
+use std::fmt;
 
 use nom::branch::alt;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
-use std::fmt;
 
 use crate::algorithm::{Algo, AlgoInfo};
 use crate::card_do::{algo_attrs, complete};

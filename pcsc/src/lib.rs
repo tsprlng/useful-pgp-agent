@@ -5,10 +5,10 @@
 //! `openpgp-card`. It uses the PCSC middleware to access the OpenPGP
 //! application on smart cards.
 
-use iso7816_tlv::simple::Tlv;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
+use iso7816_tlv::simple::Tlv;
 use openpgp_card::card_do::ApplicationRelatedData;
 use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, PinType, SmartcardError};
 

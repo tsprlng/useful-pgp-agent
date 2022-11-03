@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::anyhow;
-
 use openpgp::crypto;
 use openpgp::crypto::mpi;
 use openpgp::crypto::SessionKey;
 use openpgp::packet;
 use openpgp::parse::stream::{DecryptionHelper, MessageStructure, VerificationHelper};
 use openpgp::types::{Curve, SymmetricAlgorithm};
-use sequoia_openpgp as openpgp;
-
 use openpgp_card::crypto_data::Cryptogram;
 use openpgp_card::OpenPgpTransaction;
+use sequoia_openpgp as openpgp;
 
 use crate::PublicKey;
 

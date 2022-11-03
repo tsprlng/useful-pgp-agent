@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::Result;
-
 use card_functionality::cards::TestConfig;
 use card_functionality::tests::*;
 

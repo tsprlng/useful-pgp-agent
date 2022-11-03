@@ -3,16 +3,14 @@
 // SPDX-FileCopyrightText: 2022 Nora Widdecke <mail@nora.pink>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use anyhow::Result;
-use clap::Parser;
-
 use std::path::PathBuf;
 
-use openpgp_card_sequoia::{state::Open, Card};
-use sequoia_openpgp::serialize::SerializeInto;
-
+use anyhow::Result;
+use clap::Parser;
 use openpgp_card_sequoia::types::KeyType;
 use openpgp_card_sequoia::util::public_key_material_and_fp_to_key;
+use openpgp_card_sequoia::{state::Open, Card};
+use sequoia_openpgp::serialize::SerializeInto;
 
 use crate::output;
 use crate::pick_card_for_reading;

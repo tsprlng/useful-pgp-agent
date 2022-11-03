@@ -3,11 +3,13 @@
 
 //! Generation date/time of key pair (see spec pg. 24)
 
-use crate::card_do::{KeyGenerationTime, KeySet};
-use crate::Error;
+use std::convert::TryFrom;
+
 use chrono::{DateTime, NaiveDateTime, Utc};
 use nom::{combinator, number::complete as number, sequence};
-use std::convert::TryFrom;
+
+use crate::card_do::{KeyGenerationTime, KeySet};
+use crate::Error;
 
 impl From<KeyGenerationTime> for DateTime<Utc> {
     fn from(kg: KeyGenerationTime) -> Self {
@@ -73,8 +75,9 @@ impl TryFrom<&[u8]> for KeySet<KeyGenerationTime> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::convert::TryInto;
+
+    use super::*;
 
     #[test]
     fn test() {

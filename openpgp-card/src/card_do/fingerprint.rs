@@ -3,10 +3,11 @@
 
 //! Fingerprint for a single key slot
 
-use nom::{bytes::complete as bytes, combinator, sequence};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt;
+
+use nom::{bytes::complete as bytes, combinator, sequence};
 
 use crate::card_do::{Fingerprint, KeySet};
 use crate::Error;
