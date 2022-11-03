@@ -39,6 +39,7 @@ cargo-fmt:
   stage: lint
   image: rust:latest
   before_script:
+    - export CARGO_HOME="/usr/local/cargo" # HACK: set back to its default
     - rustup toolchain install nightly && rustup component add --toolchain nightly rustfmt
     - *report-rust
   script:
