@@ -8,19 +8,18 @@
 use std::io;
 
 use anyhow::{anyhow, Context, Result};
-use openpgp::armor;
-use openpgp::cert::amalgamation::key::{ErasedKeyAmalgamation, ValidErasedKeyAmalgamation};
-use openpgp::crypto;
-use openpgp::packet::key::{PublicParts, SecretParts};
-use openpgp::parse::{
+use openpgp_card::{Error, KeyType};
+use sequoia_openpgp::armor;
+use sequoia_openpgp::cert::amalgamation::key::{ErasedKeyAmalgamation, ValidErasedKeyAmalgamation};
+use sequoia_openpgp::crypto;
+use sequoia_openpgp::packet::key::{PublicParts, SecretParts};
+use sequoia_openpgp::parse::{
     stream::{DecryptionHelper, DecryptorBuilder, VerificationHelper},
     Parse,
 };
-use openpgp::policy::Policy;
-use openpgp::serialize::stream::{Message, Signer};
-use openpgp::{Cert, Fingerprint};
-use openpgp_card::{Error, KeyType};
-use sequoia_openpgp as openpgp;
+use sequoia_openpgp::policy::Policy;
+use sequoia_openpgp::serialize::stream::{Message, Signer};
+use sequoia_openpgp::{Cert, Fingerprint};
 
 use crate::{CardDecryptor, CardSigner};
 

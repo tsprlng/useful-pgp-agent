@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use anyhow::anyhow;
-use openpgp::crypto;
-use openpgp::crypto::mpi;
-use openpgp::crypto::SessionKey;
-use openpgp::packet;
-use openpgp::parse::stream::{DecryptionHelper, MessageStructure, VerificationHelper};
-use openpgp::types::{Curve, SymmetricAlgorithm};
 use openpgp_card::crypto_data::Cryptogram;
 use openpgp_card::OpenPgpTransaction;
-use sequoia_openpgp as openpgp;
+use sequoia_openpgp::crypto::mpi;
+use sequoia_openpgp::crypto::SessionKey;
+use sequoia_openpgp::packet;
+use sequoia_openpgp::parse::stream::{DecryptionHelper, MessageStructure, VerificationHelper};
+use sequoia_openpgp::types::{Curve, SymmetricAlgorithm};
+use sequoia_openpgp::{crypto, KeyHandle};
 
 use crate::PublicKey;
 
@@ -48,7 +47,7 @@ impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
         &mut self,
         ciphertext: &mpi::Ciphertext,
         _plaintext_len: Option<usize>,
-    ) -> openpgp::Result<crypto::SessionKey> {
+    ) -> sequoia_openpgp::Result<SessionKey> {
         // FIXME: use cached ARD value from caller?
         let ard = self.ca.application_related_data()?;
 
@@ -77,7 +76,7 @@ impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
 
                 let dec = self.ca.decipher(dm)?;
 
-                let sk = openpgp::crypto::SessionKey::from(&dec[..]);
+                let sk = SessionKey::from(&dec[..]);
                 Ok(sk)
             }
             (mpi::Ciphertext::ECDH { ref e, .. }, mpi::PublicKey::ECDH { ref curve, .. }) => {
@@ -113,7 +112,7 @@ impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
                 }
 
                 #[allow(non_snake_case)]
-                let S: openpgp::crypto::mem::Protected = dec.into();
+                let S: crypto::mem::Protected = dec.into();
 
                 Ok(crypto::ecdh::decrypt_unwrap(&self.public, &S, ciphertext)?)
             }
@@ -135,7 +134,7 @@ impl<'a, 'app> DecryptionHelper for CardDecryptor<'a, 'app> {
         _skesks: &[packet::SKESK],
         sym_algo: Option<SymmetricAlgorithm>,
         mut dec_fn: D,
-    ) -> openpgp::Result<Option<openpgp::Fingerprint>>
+    ) -> sequoia_openpgp::Result<Option<sequoia_openpgp::Fingerprint>>
     where
         D: FnMut(SymmetricAlgorithm, &SessionKey) -> bool,
     {
@@ -159,10 +158,13 @@ impl<'a, 'app> DecryptionHelper for CardDecryptor<'a, 'app> {
 }
 
 impl VerificationHelper for CardDecryptor<'_, '_> {
-    fn get_certs(&mut self, _ids: &[openpgp::KeyHandle]) -> openpgp::Result<Vec<openpgp::Cert>> {
+    fn get_certs(
+        &mut self,
+        _ids: &[KeyHandle],
+    ) -> sequoia_openpgp::Result<Vec<sequoia_openpgp::Cert>> {
         Ok(vec![])
     }
-    fn check(&mut self, _structure: MessageStructure) -> openpgp::Result<()> {
+    fn check(&mut self, _structure: MessageStructure) -> sequoia_openpgp::Result<()> {
         Ok(())
     }
 }

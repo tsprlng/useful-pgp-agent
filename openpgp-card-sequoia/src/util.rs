@@ -7,23 +7,22 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use anyhow::{anyhow, Result};
-use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
-use openpgp::crypto::mpi;
-use openpgp::packet::Signature;
-use openpgp::packet::{
-    key::{Key4, KeyRole, PrimaryRole, SecretParts, SubordinateRole},
-    signature::SignatureBuilder,
-    Key, UserID,
-};
-use openpgp::types::{
-    HashAlgorithm, KeyFlags, PublicKeyAlgorithm, SignatureType, SymmetricAlgorithm, Timestamp,
-};
-use openpgp::{Cert, Packet};
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
 use openpgp_card::{Error, KeyType};
-use sequoia_openpgp as openpgp;
+use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
+use sequoia_openpgp::crypto::mpi;
+use sequoia_openpgp::packet::Signature;
+use sequoia_openpgp::packet::{
+    key::{Key4, KeyRole, PrimaryRole, SecretParts, SubordinateRole},
+    signature::SignatureBuilder,
+    Key, UserID,
+};
+use sequoia_openpgp::types::{
+    HashAlgorithm, KeyFlags, PublicKeyAlgorithm, SignatureType, SymmetricAlgorithm, Timestamp,
+};
+use sequoia_openpgp::{Cert, Packet};
 
 use crate::privkey::SequoiaKey;
 use crate::state::Transaction;
@@ -240,11 +239,11 @@ pub fn public_key_material_to_key(
             let algo = ecc.algo().clone(); // FIXME?
             if let Algo::Ecc(algo_ecc) = algo {
                 let curve = match algo_ecc.curve() {
-                    Curve::NistP256r1 => openpgp::types::Curve::NistP256,
-                    Curve::NistP384r1 => openpgp::types::Curve::NistP384,
-                    Curve::NistP521r1 => openpgp::types::Curve::NistP521,
-                    Curve::Ed25519 => openpgp::types::Curve::Ed25519,
-                    Curve::Cv25519 => openpgp::types::Curve::Cv25519,
+                    Curve::NistP256r1 => sequoia_openpgp::types::Curve::NistP256,
+                    Curve::NistP384r1 => sequoia_openpgp::types::Curve::NistP384,
+                    Curve::NistP521r1 => sequoia_openpgp::types::Curve::NistP521,
+                    Curve::Ed25519 => sequoia_openpgp::types::Curve::Ed25519,
+                    Curve::Cv25519 => sequoia_openpgp::types::Curve::Cv25519,
                     c => unimplemented!("unhandled curve: {:?}", c),
                 };
 

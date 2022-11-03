@@ -4,19 +4,17 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
-use openpgp::crypto::{mpi, mpi::ProtectedMPI, mpi::MPI};
-use openpgp::packet::{
+use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
+use openpgp_card::crypto_data::{CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey};
+use openpgp_card::Error;
+use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
+use sequoia_openpgp::crypto::{mpi, mpi::ProtectedMPI, mpi::MPI};
+use sequoia_openpgp::packet::{
     key,
     key::{SecretParts, UnspecifiedRole},
     Key,
 };
-use openpgp::types::Timestamp;
-use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
-use openpgp_card::crypto_data::{CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey};
-use openpgp_card::Error;
-use sequoia_openpgp as openpgp;
-use sequoia_openpgp::types::Curve;
+use sequoia_openpgp::types::{Curve, Timestamp};
 
 /// A SequoiaKey represents the private cryptographic key material of an
 /// OpenPGP (sub)key to be uploaded to an OpenPGP card.
@@ -54,7 +52,7 @@ impl CardUploadableKey for SequoiaKey {
             Some(pw) => self
                 .key
                 .clone()
-                .decrypt_secret(&openpgp::crypto::Password::from(pw.as_str()))
+                .decrypt_secret(&sequoia_openpgp::crypto::Password::from(pw.as_str()))
                 .map_err(|e| Error::InternalError(format!("sequoia decrypt failed {:?}", e)))?,
         };
 

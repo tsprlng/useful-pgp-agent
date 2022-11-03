@@ -4,12 +4,11 @@
 use std::convert::TryInto;
 
 use anyhow::anyhow;
-use openpgp::crypto;
-use openpgp::crypto::mpi;
-use openpgp::types::{Curve, PublicKeyAlgorithm};
 use openpgp_card::crypto_data::Hash;
 use openpgp_card::OpenPgpTransaction;
-use sequoia_openpgp as openpgp;
+use sequoia_openpgp::crypto;
+use sequoia_openpgp::crypto::mpi;
+use sequoia_openpgp::types::{Curve, PublicKeyAlgorithm};
 
 use crate::PublicKey;
 
@@ -62,9 +61,9 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
 
     fn sign(
         &mut self,
-        hash_algo: openpgp::types::HashAlgorithm,
+        hash_algo: sequoia_openpgp::types::HashAlgorithm,
         digest: &[u8],
-    ) -> openpgp::Result<mpi::Signature> {
+    ) -> sequoia_openpgp::Result<mpi::Signature> {
         // FIXME: use cached ARD value from caller?
         let ard = self.ca.application_related_data()?;
 
@@ -103,17 +102,17 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
             (PublicKeyAlgorithm::RSASign, mpi::PublicKey::RSA { .. })
             | (PublicKeyAlgorithm::RSAEncryptSign, mpi::PublicKey::RSA { .. }) => {
                 let hash = match hash_algo {
-                    openpgp::types::HashAlgorithm::SHA256 => Hash::SHA256(
+                    sequoia_openpgp::types::HashAlgorithm::SHA256 => Hash::SHA256(
                         digest
                             .try_into()
                             .map_err(|_| anyhow!("invalid slice length"))?,
                     ),
-                    openpgp::types::HashAlgorithm::SHA384 => Hash::SHA384(
+                    sequoia_openpgp::types::HashAlgorithm::SHA384 => Hash::SHA384(
                         digest
                             .try_into()
                             .map_err(|_| anyhow!("invalid slice length"))?,
                     ),
-                    openpgp::types::HashAlgorithm::SHA512 => Hash::SHA512(
+                    sequoia_openpgp::types::HashAlgorithm::SHA512 => Hash::SHA512(
                         digest
                             .try_into()
                             .map_err(|_| anyhow!("invalid slice length"))?,

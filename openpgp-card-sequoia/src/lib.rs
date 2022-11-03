@@ -141,7 +141,6 @@
 //! # }
 //! ```
 
-use openpgp::packet::{key, Key};
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
@@ -150,9 +149,9 @@ use openpgp_card::card_do::{
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
 use openpgp_card::{CardBackend, Error, KeySet, KeyType, OpenPgp, OpenPgpTransaction};
-use sequoia_openpgp as openpgp;
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
+use sequoia_openpgp::packet::{key, Key};
 use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 
 use crate::decryptor::CardDecryptor;
