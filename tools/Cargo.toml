@@ -12,6 +12,10 @@ edition = "2018"
 repository = "https://gitlab.com/openpgp-card/openpgp-card"
 documentation = "https://docs.rs/crate/openpgp-card-tools"
 
+[[bin]]
+name = "opgpcard"
+path = "src/opgpcard.rs"
+
 [dependencies]
 sequoia-openpgp = "1.3"
 openpgp-card-pcsc = { path = "../pcsc", version = "0.3" }
