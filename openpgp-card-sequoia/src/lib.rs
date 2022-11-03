@@ -430,6 +430,10 @@ impl<'a> Card<Transaction<'a>> {
 
     // --- URL (5f50) ---
 
+    /// Get "hardholder" URL from the card.
+    ///
+    /// "The URL should contain a link to a set of public keys in OpenPGP format, related to
+    /// the card."
     pub fn url(&mut self) -> Result<String, Error> {
         Ok(String::from_utf8_lossy(&self.state.opt.url()?).to_string())
     }
@@ -763,6 +767,10 @@ impl Card<Admin<'_, '_>> {
         self.card().set_sex(sex)
     }
 
+    /// Set "hardholder" URL on the card.
+    ///
+    /// "The URL should contain a link to a set of public keys in OpenPGP format, related to
+    /// the card."
     pub fn set_url(&mut self, url: &str) -> Result<(), Error> {
         if url.chars().any(|c| !c.is_ascii()) {
             return Err(Error::InternalError("Invalid char in url".into()));
