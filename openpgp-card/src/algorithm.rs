@@ -201,7 +201,7 @@ impl Algo {
         let mut algo_attributes = vec![0x01];
 
         // Length of modulus n in bit
-        algo_attributes.extend(&algo_attrs.len_n().to_be_bytes());
+        algo_attributes.extend(algo_attrs.len_n().to_be_bytes());
 
         // Length of public exponent e in bit
         algo_attributes.push(0x00);

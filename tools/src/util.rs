@@ -230,7 +230,8 @@ pub(crate) fn print_gnuk_note(err: Error, card: &Card<Transaction>) -> Result<()
     ) {
         // check if no keys exist on the card
         let fps = card.fingerprints()?;
-        if fps.signature() == None && fps.decryption() == None && fps.authentication() == None {
+        if fps.signature().is_none() && fps.decryption().is_none() && fps.authentication().is_none()
+        {
             println!(
                 "\nNOTE: Some cards (e.g. Gnuk) don't allow \
                         User PIN change while no keys exist on the card."

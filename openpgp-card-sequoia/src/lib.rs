@@ -779,7 +779,8 @@ impl Card<Admin<'_, '_>> {
         // Check for max len
         let ec = self.state.tx.extended_capabilities()?;
 
-        if ec.max_len_special_do() == None || url.len() <= ec.max_len_special_do().unwrap() as usize
+        if ec.max_len_special_do().is_none()
+            || url.len() <= ec.max_len_special_do().unwrap() as usize
         {
             // If we don't know the max length for URL ("special DO"),
             // or if it's within the acceptable length:

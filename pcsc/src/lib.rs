@@ -302,7 +302,7 @@ impl CardTransaction for PcscTransaction<'_> {
         ];
 
         // 15 ulDataLength ULONG length of Data to be sent to the ICC
-        send.extend(&(ab_data.len() as u32).to_le_bytes());
+        send.extend((ab_data.len() as u32).to_le_bytes());
 
         // 19 abData BYTE[] Data to send to the ICC
         send.extend(ab_data);
@@ -405,7 +405,7 @@ impl CardTransaction for PcscTransaction<'_> {
         ];
 
         // 15 ulDataLength ULONG length of Data to be sent to the ICC
-        send.extend(&(ab_data.len() as u32).to_le_bytes());
+        send.extend((ab_data.len() as u32).to_le_bytes());
 
         // 19 abData BYTE[] Data to send to the ICC
         send.extend(ab_data);
