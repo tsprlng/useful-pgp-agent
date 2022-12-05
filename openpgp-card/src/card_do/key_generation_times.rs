@@ -13,7 +13,8 @@ use crate::Error;
 
 impl From<KeyGenerationTime> for DateTime<Utc> {
     fn from(kg: KeyGenerationTime) -> Self {
-        let naive_datetime = NaiveDateTime::from_timestamp(kg.0 as i64, 0);
+        let naive_datetime = NaiveDateTime::from_timestamp_opt(kg.0 as i64, 0)
+            .expect("invalid or out-of-range datetime");
 
         DateTime::from_utc(naive_datetime, Utc)
     }
