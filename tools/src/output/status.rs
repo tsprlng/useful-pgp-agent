@@ -312,6 +312,8 @@ impl KeySlotInfo {
 
         if let Some(fp) = &self.fingerprint {
             lines.push(format!("Fingerprint: {}", fp));
+        } else {
+            lines.push("Fingerprint: [unset]".to_string());
         }
         if let Some(ts) = &self.creation_time {
             lines.push(format!("Creation Time: {}", ts));
