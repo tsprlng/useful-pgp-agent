@@ -4,9 +4,12 @@
 [card.opcard-rs]
 backend.pcsc = "0000:00000000"
 config.keygen = [
+    "RSA2k", "RSA4k",
     "NIST256", "Curve25519"
 ]
 config.import = [
+    "card-functionality/data/rsa2k.sec",
+    "card-functionality/data/rsa4k.sec",
     "card-functionality/data/nist256.sec",
     "card-functionality/data/25519.sec",
 ]
