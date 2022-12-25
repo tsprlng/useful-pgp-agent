@@ -17,7 +17,8 @@ impl PWStatusBytes {
     pub(crate) fn serialize_for_put(&self, long: bool) -> Vec<u8> {
         let mut data = vec![];
 
-        data.push(if self.pw1_cds_valid_once { 0 } else { 1 });
+        // 0 if "valid once", 1 otherwise
+        data.push(u8::from(!self.pw1_cds_valid_once));
 
         if long {
             let mut b2 = self.pw1_len_format;

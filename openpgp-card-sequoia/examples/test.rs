@@ -103,17 +103,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         println!();
 
-        let res = admin.set_name("Bar<<Foo")?;
-        println!("set name {:x?}", res);
+        admin.set_name("Bar<<Foo")?;
+        println!("set name - ok");
 
-        let res = admin.set_sex(Sex::NotApplicable)?;
-        println!("set sex {:x?}", res);
+        admin.set_sex(Sex::NotApplicable)?;
+        println!("set sex - ok");
 
-        let res = admin.set_lang(&[['e', 'n'].into()])?;
-        println!("set lang {:x?}", res);
+        admin.set_lang(&[['e', 'n'].into()])?;
+        println!("set lang - ok");
 
-        let res = admin.set_url("https://keys.openpgp.org")?;
-        println!("set url {:x?}", res);
+        admin.set_url("https://keys.openpgp.org")?;
+        println!("set url - ok");
 
         let cert = Cert::from_file(TEST_KEY_PATH)?;
         let p = StandardPolicy::new();
