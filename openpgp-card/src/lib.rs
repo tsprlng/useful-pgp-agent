@@ -39,7 +39,6 @@ mod openpgp;
 mod tlv;
 
 use std::convert::TryInto;
-use std::ops::{Deref, DerefMut};
 
 use crate::apdu::commands;
 use crate::card_do::ApplicationRelatedData;
@@ -183,19 +182,6 @@ pub trait CardTransaction {
         self.init_card_caps(caps);
 
         Ok(())
-    }
-}
-
-impl<'a> Deref for dyn CardTransaction + Send + Sync + 'a {
-    type Target = dyn CardTransaction + 'a;
-
-    fn deref(&self) -> &Self::Target {
-        self
-    }
-}
-impl<'a> DerefMut for dyn CardTransaction + Send + Sync + 'a {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self
     }
 }
 

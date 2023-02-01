@@ -37,8 +37,8 @@ use crate::{Card, PublicKey};
 ///
 /// FIXME: accept optional metadata for user_id(s)?
 #[allow(clippy::too_many_arguments)]
-pub fn make_cert<'app>(
-    open: &mut Card<Transaction<'app>>,
+pub fn make_cert(
+    open: &mut Card<Transaction<'_>>,
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
