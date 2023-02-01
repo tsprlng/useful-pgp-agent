@@ -80,8 +80,7 @@ impl TryFrom<(&[u8], u16)> for ExtendedCapabilities {
 
             if i8 > 1 {
                 return Err(Error::ParseError(format!(
-                    "Illegal value '{}' for pin_block_2_format_support",
-                    i8
+                    "Illegal value '{i8}' for pin_block_2_format_support"
                 )));
             }
 
@@ -89,8 +88,7 @@ impl TryFrom<(&[u8], u16)> for ExtendedCapabilities {
 
             if i9 > 1 {
                 return Err(Error::ParseError(format!(
-                    "Illegal value '{}' for mse_command_support",
-                    i9
+                    "Illegal value '{i9}' for mse_command_support"
                 )));
             }
             mse_command_support = Some(i9 != 0);

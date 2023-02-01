@@ -114,15 +114,15 @@ fn check_key_upload_metadata(
     let card_fp = ard.fingerprints()?;
 
     let sig = card_fp.signature().expect("signature fingerprint");
-    assert_eq!(format!("{:X}", sig), meta[0].0);
+    assert_eq!(format!("{sig:X}"), meta[0].0);
 
     let dec = card_fp.decryption().expect("decryption fingerprint");
-    assert_eq!(format!("{:X}", dec), meta[1].0);
+    assert_eq!(format!("{dec:X}"), meta[1].0);
 
     let auth = card_fp
         .authentication()
         .expect("authentication fingerprint");
-    assert_eq!(format!("{:X}", auth), meta[2].0);
+    assert_eq!(format!("{auth:X}"), meta[2].0);
 
     // get_key_generation_times
     let card_kg = ard.key_generation_times()?;
@@ -154,16 +154,16 @@ pub fn test_print_caps(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput,
     let ard = pgpt.application_related_data()?;
 
     let aid = ard.application_id()?;
-    println!("aid: {:#x?}", aid);
+    println!("aid: {aid:#x?}");
 
     let hist = ard.historical_bytes()?;
-    println!("hist: {:#?}", hist);
+    println!("hist: {hist:#?}");
 
     let ecap = ard.extended_capabilities()?;
-    println!("ecap: {:#?}", ecap);
+    println!("ecap: {ecap:#?}");
 
     let eli = ard.extended_length_information()?;
-    println!("eli: {:#?}", eli);
+    println!("eli: {eli:#?}");
 
     Ok(vec![])
 }
@@ -174,13 +174,13 @@ pub fn test_print_algo_info(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOu
     let ard = pgpt.application_related_data()?;
 
     let dec = ard.algorithm_attributes(KeyType::Decryption)?;
-    println!("Current algorithm for the decrypt slot: {}", dec);
+    println!("Current algorithm for the decrypt slot: {dec}");
 
     println!();
 
     let algo = pgpt.algorithm_information();
     if let Ok(Some(algo)) = algo {
-        println!("Card algorithm list:\n{}", algo);
+        println!("Card algorithm list:\n{algo}");
     }
 
     Ok(vec![])
@@ -276,7 +276,7 @@ pub fn test_get_pub(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Te
     let key =
         public_key_material_and_fp_to_key(&sig, KeyType::Signing, &ts, fps.signature().unwrap())?;
 
-    println!(" sig key data from card -> {:x?}", key);
+    println!(" sig key data from card -> {key:x?}");
 
     // --
 
@@ -289,7 +289,7 @@ pub fn test_get_pub(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Te
         fps.decryption().unwrap(),
     )?;
 
-    println!(" dec key data from card -> {:x?}", key);
+    println!(" dec key data from card -> {key:x?}");
 
     // --
 
@@ -302,7 +302,7 @@ pub fn test_get_pub(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Te
         fps.authentication().unwrap(),
     )?;
 
-    println!(" auth key data from card -> {:x?}", key);
+    println!(" auth key data from card -> {key:x?}");
 
     Ok(vec![])
 }
@@ -360,7 +360,7 @@ pub fn test_private_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutpu
     println!();
 
     let d = pgpt.private_use_do(1)?;
-    println!("data 1 {:?}", d);
+    println!("data 1 {d:?}");
 
     pgpt.verify_pw1_user(b"123456")?;
 
@@ -373,13 +373,13 @@ pub fn test_private_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutpu
     pgpt.set_private_use_do(4, "Foo bar4!".as_bytes().to_vec())?;
 
     let d = pgpt.private_use_do(1)?;
-    println!("data 1 {:?}", d);
+    println!("data 1 {d:?}");
     let d = pgpt.private_use_do(2)?;
-    println!("data 2 {:?}", d);
+    println!("data 2 {d:?}");
     let d = pgpt.private_use_do(3)?;
-    println!("data 3 {:?}", d);
+    println!("data 3 {d:?}");
     let d = pgpt.private_use_do(4)?;
-    println!("data 4 {:?}", d);
+    println!("data 4 {d:?}");
 
     Ok(out)
 }
@@ -452,7 +452,7 @@ pub fn test_pw_status(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, 
     let ard = pgpt.application_related_data()?;
     let mut pws = ard.pw_status_bytes()?;
 
-    println!("pws {:?}", pws);
+    println!("pws {pws:?}");
 
     pgpt.verify_pw3(b"12345678")?;
 
@@ -463,7 +463,7 @@ pub fn test_pw_status(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, 
 
     let ard = pgpt.application_related_data()?;
     let pws = ard.pw_status_bytes()?;
-    println!("pws {:?}", pws);
+    println!("pws {pws:?}");
 
     Ok(out)
 }

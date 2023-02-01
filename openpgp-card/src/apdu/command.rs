@@ -93,8 +93,8 @@ impl Command {
         if !ext_len {
             assert!(
                 len <= 0xff,
-                "unexpected: len = {:x?}, but ext says Short",
-                len
+                "{}",
+                "unexpected: len = {len:x?}, but ext says Short"
             );
         }
 

@@ -41,41 +41,41 @@ fn main() -> Result<(), Box<dyn Error>> {
         // card metadata
 
         let app_id = transaction.application_identifier()?;
-        println!("{:x?}\n", app_id);
+        println!("{app_id:x?}\n");
 
         let eli = transaction.extended_length_information()?;
-        println!("extended_length_info: {:?}\n", eli);
+        println!("extended_length_info: {eli:?}\n");
 
         let hist = transaction.historical_bytes()?;
-        println!("{:#x?}\n", hist);
+        println!("{hist:#x?}\n");
 
         let ext = transaction.extended_capabilities()?;
-        println!("{:#x?}\n", ext);
+        println!("{ext:#x?}\n");
 
         let pws = transaction.pw_status_bytes()?;
-        println!("{:#x?}\n", pws);
+        println!("{pws:#x?}\n");
 
         // cardholder
         let ch = transaction.cardholder_related_data()?;
-        println!("{:#x?}\n", ch);
+        println!("{ch:#x?}\n");
 
         // crypto-ish metadata
         let fp = transaction.fingerprints()?;
-        println!("Fingerprint {:#x?}\n", fp);
+        println!("Fingerprint {fp:#x?}\n");
 
         match transaction.algorithm_information() {
-            Ok(Some(ai)) => println!("Algorithm information:\n{}", ai),
+            Ok(Some(ai)) => println!("Algorithm information:\n{ai}"),
             Ok(None) => println!("No Algorithm information found"),
-            Err(e) => println!("Error getting Algorithm information: {:?}", e),
+            Err(e) => println!("Error getting Algorithm information: {e:?}"),
         }
 
         println!("Current algorithm attributes on card:");
         let algo = transaction.algorithm_attributes(KeyType::Signing)?;
-        println!("Sig: {}", algo);
+        println!("Sig: {algo}");
         let algo = transaction.algorithm_attributes(KeyType::Decryption)?;
-        println!("Dec: {}", algo);
+        println!("Dec: {algo}");
         let algo = transaction.algorithm_attributes(KeyType::Authentication)?;
-        println!("Aut: {}", algo);
+        println!("Aut: {algo}");
 
         println!();
 
@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
 
         let check = transaction.check_admin_verified();
-        println!("has admin (pw3) been verified yet?\n{:x?}\n", check);
+        println!("has admin (pw3) been verified yet?\n{check:x?}\n");
 
         println!("factory reset\n");
         transaction.factory_reset()?;
@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("verify for admin ok");
 
         let check = transaction.check_user_verified();
-        println!("has user (pw1/82) been verified yet? {:x?}", check);
+        println!("has user (pw1/82) been verified yet? {check:x?}");
 
         // Use Admin access to card
         let mut admin = transaction.admin_card().expect("just verified");
@@ -148,13 +148,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
 
         let check = transaction.check_user_verified();
-        println!("has user (pw1/82) been verified yet?\n{:x?}\n", check);
+        println!("has user (pw1/82) been verified yet?\n{check:x?}\n");
 
         transaction.verify_user(b"123456")?;
         println!("verify for user (pw1/82) ok");
 
         let check = transaction.check_user_verified();
-        println!("has user (pw1/82) been verified yet?\n{:x?}\n", check);
+        println!("has user (pw1/82) been verified yet?\n{check:x?}\n");
 
         // Use User access to card
         let mut user = transaction
@@ -164,14 +164,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         let _cert = Cert::from_file(TEST_KEY_PATH)?;
         let msg = std::fs::read_to_string(TEST_ENC_MSG).expect("Unable to read file");
 
-        println!("Encrypted message:\n{}", msg);
+        println!("Encrypted message:\n{msg}");
 
         let sp = StandardPolicy::new();
         let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
         let res = sq_util::decryption_helper(d, msg.into_bytes(), &sp)?;
 
         let plain = String::from_utf8_lossy(&res);
-        println!("Decrypted plaintext: {}", plain);
+        println!("Decrypted plaintext: {plain}");
 
         assert_eq!(plain, "Hello world!\n");
 
@@ -197,7 +197,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let signer = sign.signer(&|| {})?;
         let sig = sq_util::sign_helper(signer, &mut text.as_bytes())?;
 
-        println!("Signature from card:\n{}", sig)
+        println!("Signature from card:\n{sig}")
 
         // FIXME: validate sig
     } else {

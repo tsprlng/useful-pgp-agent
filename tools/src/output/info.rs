@@ -85,7 +85,7 @@ impl Info {
         if !self.card_capabilities.is_empty() {
             s.push_str("Card Capabilities:\n");
             for c in self.card_capabilities.iter() {
-                s.push_str(&format!("- {}\n", c));
+                s.push_str(&format!("- {c}\n"));
             }
             s.push('\n');
         }
@@ -93,7 +93,7 @@ impl Info {
         if !self.card_service_data.is_empty() {
             s.push_str("Card service data:\n");
             for c in self.card_service_data.iter() {
-                s.push_str(&format!("- {}\n", c));
+                s.push_str(&format!("- {c}\n"));
             }
             s.push('\n');
         }
@@ -101,27 +101,27 @@ impl Info {
         if !self.extended_length_info.is_empty() {
             s.push_str("Extended Length Info:\n");
             for c in self.extended_length_info.iter() {
-                s.push_str(&format!("- {}\n", c));
+                s.push_str(&format!("- {c}\n"));
             }
             s.push('\n');
         }
 
         s.push_str("Extended Capabilities:\n");
         for c in self.extended_capabilities.iter() {
-            s.push_str(&format!("- {}\n", c));
+            s.push_str(&format!("- {c}\n"));
         }
         s.push('\n');
 
         if let Some(algos) = &self.algorithms {
             s.push_str("Supported algorithms:\n");
             for c in algos.iter() {
-                s.push_str(&format!("- {}\n", c));
+                s.push_str(&format!("- {c}\n"));
             }
             s.push('\n');
         }
 
         if let Some(v) = &self.firmware_version {
-            s.push_str(&format!("Firmware Version: {}\n", v));
+            s.push_str(&format!("Firmware Version: {v}\n"));
         }
 
         Ok(s)

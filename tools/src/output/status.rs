@@ -112,14 +112,14 @@ impl Status {
         let mut nl = false;
         if let Some(name) = &self.cardholder_name {
             if !name.is_empty() {
-                s.push_str(&format!("Cardholder: {}\n", name));
+                s.push_str(&format!("Cardholder: {name}\n"));
                 nl = true;
             }
         }
 
         if let Some(url) = &self.certificate_url {
             if !url.is_empty() {
-                s.push_str(&format!("Certificate URL: {}\n", url));
+                s.push_str(&format!("Certificate URL: {url}\n"));
                 nl = true;
             }
         }
@@ -127,7 +127,7 @@ impl Status {
         if !self.language_preferences.is_empty() {
             let prefs = self.language_preferences.to_vec().join(", ");
             if !prefs.is_empty() {
-                s.push_str(&format!("Language preferences: '{}'\n", prefs));
+                s.push_str(&format!("Language preferences: '{prefs}'\n"));
                 nl = true;
             }
         }
@@ -138,7 +138,7 @@ impl Status {
 
         s.push_str("Signature key:\n");
         for line in self.signature_key.format(self.verbose, self.pkm) {
-            s.push_str(&format!("  {}\n", line));
+            s.push_str(&format!("  {line}\n"));
         }
         if self.verbose {
             if self.user_pin_valid_for_only_one_signature {
@@ -152,13 +152,13 @@ impl Status {
 
         s.push_str("Decryption key:\n");
         for line in self.decryption_key.format(self.verbose, self.pkm) {
-            s.push_str(&format!("  {}\n", line));
+            s.push_str(&format!("  {line}\n"));
         }
         s.push('\n');
 
         s.push_str("Authentication key:\n");
         for line in self.authentication_key.format(self.verbose, self.pkm) {
-            s.push_str(&format!("  {}\n", line));
+            s.push_str(&format!("  {line}\n"));
         }
         s.push('\n');
 
@@ -167,7 +167,7 @@ impl Status {
                 if attestation_key.touch_policy.is_some() || attestation_key.algorithm.is_some() {
                     s.push_str("Attestation key:\n");
                     for line in attestation_key.format(self.verbose, self.pkm) {
-                        s.push_str(&format!("  {}\n", line));
+                        s.push_str(&format!("  {line}\n"));
                     }
                     s.push('\n');
                 }
@@ -183,10 +183,7 @@ impl Status {
 
         if self.verbose {
             for (keyref, status) in self.additional_key_statuses.iter() {
-                s.push_str(&format!(
-                    "Additional key status (#{}): {}\n",
-                    keyref, status
-                ));
+                s.push_str(&format!("Additional key status (#{keyref}): {status}\n"));
             }
         }
 
@@ -311,30 +308,30 @@ impl KeySlotInfo {
         let mut lines = vec![];
 
         if let Some(fp) = &self.fingerprint {
-            lines.push(format!("Fingerprint: {}", fp));
+            lines.push(format!("Fingerprint: {fp}"));
         } else {
             lines.push("Fingerprint: [unset]".to_string());
         }
         if let Some(ts) = &self.creation_time {
-            lines.push(format!("Creation Time: {}", ts));
+            lines.push(format!("Creation Time: {ts}"));
         }
         if let Some(a) = &self.algorithm {
-            lines.push(format!("Algorithm: {}", a));
+            lines.push(format!("Algorithm: {a}"));
         }
 
         if verbose {
             if let Some(policy) = &self.touch_policy {
                 if let Some(features) = &self.touch_features {
-                    lines.push(format!("Touch policy: {} (features: {})", policy, features));
+                    lines.push(format!("Touch policy: {policy} (features: {features})"));
                 }
             }
             if let Some(status) = &self.status {
-                lines.push(format!("Key Status: {}", status));
+                lines.push(format!("Key Status: {status}"));
             }
         }
         if pkm {
             if let Some(material) = &self.public_key_material {
-                lines.push(format!("Public key material: {}", material));
+                lines.push(format!("Public key material: {material}"));
             }
         }
 

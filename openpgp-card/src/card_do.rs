@@ -112,8 +112,7 @@ impl ApplicationRelatedData {
             Algo::try_from(&aa.serialize()[..])
         } else {
             Err(Error::NotFound(format!(
-                "Failed to get algorithm attributes for {:?}.",
-                key_type
+                "Failed to get algorithm attributes for {key_type:?}."
             )))
         }
     }
@@ -317,7 +316,7 @@ impl TryFrom<Vec<u8>> for UIF {
         if v.len() == 2 {
             Ok(UIF(v.try_into().unwrap()))
         } else {
-            Err(Error::ParseError(format!("Can't get UID from {:x?}", v)))
+            Err(Error::ParseError(format!("Can't get UID from {v:x?}")))
         }
     }
 }
@@ -388,7 +387,7 @@ impl Display for TouchPolicy {
             TouchPolicy::Fixed => write!(f, "Fixed"),
             TouchPolicy::Cached => write!(f, "Cached"),
             TouchPolicy::CachedFixed => write!(f, "CachedFixed"),
-            TouchPolicy::Unknown(i) => write!(f, "Unknown({})", i),
+            TouchPolicy::Unknown(i) => write!(f, "Unknown({i})"),
         }
     }
 }
@@ -575,7 +574,7 @@ impl Display for KeyStatus {
             KeyStatus::NotPresent => write!(f, "not present"),
             KeyStatus::Generated => write!(f, "generated"),
             KeyStatus::Imported => write!(f, "imported"),
-            KeyStatus::Unknown(i) => write!(f, "unknown status ({})", i),
+            KeyStatus::Unknown(i) => write!(f, "unknown status ({i})"),
         }
     }
 }
@@ -755,19 +754,15 @@ impl Display for ExtendedCapabilities {
 
         // v2
         if let Some(max_cmd_len) = self.max_cmd_len {
-            writeln!(f, "- maximum command length: {}", max_cmd_len)?;
+            writeln!(f, "- maximum command length: {max_cmd_len}")?;
         }
         if let Some(max_resp_len) = self.max_resp_len {
-            writeln!(f, "- maximum response length: {}", max_resp_len)?;
+            writeln!(f, "- maximum response length: {max_resp_len}")?;
         }
 
         // v3
         if let Some(max_len_special_do) = self.max_len_special_do {
-            writeln!(
-                f,
-                "- maximum length for special DOs: {}",
-                max_len_special_do
-            )?;
+            writeln!(f, "- maximum length for special DOs: {max_len_special_do}")?;
         }
         if self.pin_block_2_format_support == Some(true) {
             writeln!(f, "- PIN block 2 format supported")?;
@@ -809,7 +804,7 @@ impl Display for CardholderRelatedData {
             writeln!(f, "Name: {}", Self::latin1_to_string(name))?;
         }
         if let Some(sex) = self.sex {
-            writeln!(f, "Sex: {}", sex)?;
+            writeln!(f, "Sex: {sex}")?;
         }
         if let Some(lang) = &self.lang {
             for (n, l) in lang.iter().enumerate() {
@@ -839,7 +834,7 @@ impl Display for Sex {
             Self::Male => write!(f, "Male"),
             Self::Female => write!(f, "Female"),
             Self::NotApplicable => write!(f, "Not applicable"),
-            Self::UndefinedValue(v) => write!(f, "Undefined value {:x?}", v),
+            Self::UndefinedValue(v) => write!(f, "Undefined value {v:x?}"),
         }
     }
 }
@@ -884,7 +879,7 @@ impl Display for Lang {
                 write!(f, "{}{}", v[0] as char, v[1] as char)
             }
             Self::Invalid(v) => {
-                write!(f, "{:x?}", v)
+                write!(f, "{v:x?}")
             }
         }
     }
@@ -1023,8 +1018,7 @@ pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, Error> {
         Ok(output)
     } else {
         Err(Error::ParseError(format!(
-            "Parsing incomplete, trailing data: {:x?}",
-            rem
+            "Parsing incomplete, trailing data: {rem:x?}"
         )))
     }
 }

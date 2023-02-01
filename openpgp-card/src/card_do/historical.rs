@@ -100,8 +100,7 @@ impl TryFrom<&[u8]> for HistoricalBytes {
             // historical bytes cannot be this short
 
             return Err(Error::ParseError(format!(
-                "Historical bytes too short ({} bytes), must be >= 4",
-                len
+                "Historical bytes too short ({len} bytes), must be >= 4"
             )));
         }
 

@@ -126,8 +126,7 @@ impl<'b> PcscTransaction<'b> {
                         c.reconnect(mode, pcsc::Protocols::ANY, Disposition::ResetCard)
                             .map_err(|e| {
                                 Error::Smartcard(SmartcardError::Error(format!(
-                                    "Reconnect failed: {:?}",
-                                    e
+                                    "Reconnect failed: {e:?}"
                                 )))
                             })?;
                     }
@@ -139,8 +138,7 @@ impl<'b> PcscTransaction<'b> {
                 Err((_, e)) => {
                     log::trace!("start_tx: error {:?}", e);
                     break Err(Error::Smartcard(SmartcardError::Error(format!(
-                        "Error: {:?}",
-                        e
+                        "Error: {e:?}"
                     ))));
                 }
             };
@@ -162,8 +160,7 @@ impl<'b> PcscTransaction<'b> {
     ) -> Result<ApplicationRelatedData, Error> {
         <dyn CardTransaction>::application_related_data(card_tx).map_err(|e| {
             Error::Smartcard(SmartcardError::Error(format!(
-                "TxClient: failed to get application_related_data {:x?}",
-                e
+                "TxClient: failed to get application_related_data {e:x?}"
             )))
         })
     }
@@ -179,8 +176,7 @@ impl<'b> PcscTransaction<'b> {
             .control(cm_ioctl_get_feature_request, &[], &mut recv)
             .map_err(|e| {
                 Error::Smartcard(SmartcardError::Error(format!(
-                    "GET_FEATURE_REQUEST control call failed: {:?}",
-                    e
+                    "GET_FEATURE_REQUEST control call failed: {e:?}"
                 )))
             })?;
 
@@ -216,7 +212,7 @@ impl CardTransaction for PcscTransaction<'_> {
             .transmit(cmd, &mut resp_buffer)
             .map_err(|e| match e {
                 pcsc::Error::NotTransacted => Error::Smartcard(SmartcardError::NotTransacted),
-                _ => Error::Smartcard(SmartcardError::Error(format!("Transmit failed: {:?}", e))),
+                _ => Error::Smartcard(SmartcardError::Error(format!("Transmit failed: {e:?}"))),
             })?;
 
         Ok(resp.to_vec())
@@ -317,13 +313,13 @@ impl CardTransaction for PcscTransaction<'_> {
             .ok_or_else(|| Error::Smartcard(SmartcardError::Error("no reader_capability".into())))?
             .value()
             .try_into()
-            .map_err(|e| Error::ParseError(format!("unexpected feature data: {:?}", e)))?;
+            .map_err(|e| Error::ParseError(format!("unexpected feature data: {e:?}")))?;
 
         let res = self
             .tx
             .control(u32::from_be_bytes(verify_ioctl).into(), &send, &mut recv)
             .map_err(|e: pcsc::Error| {
-                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {:?}", e)))
+                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {e:?}")))
             })?;
 
         log::trace!(" <- pcsc pinpad_verify result: {:x?}", res);
@@ -420,13 +416,13 @@ impl CardTransaction for PcscTransaction<'_> {
             .ok_or_else(|| Error::Smartcard(SmartcardError::Error("no reader_capability".into())))?
             .value()
             .try_into()
-            .map_err(|e| Error::ParseError(format!("unexpected feature data: {:?}", e)))?;
+            .map_err(|e| Error::ParseError(format!("unexpected feature data: {e:?}")))?;
 
         let res = self
             .tx
             .control(u32::from_be_bytes(modify_ioctl).into(), &send, &mut recv)
             .map_err(|e: pcsc::Error| {
-                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {:?}", e)))
+                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {e:?}")))
             })?;
 
         log::trace!(" <- pcsc pinpad_modify result: {:x?}", res);

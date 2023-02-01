@@ -45,7 +45,7 @@ impl TryFrom<&str> for AlgoSimple {
             "NIST384" => NIST384,
             "NIST521" => NIST521,
             "Curve25519" => Curve25519,
-            _ => return Err(Error::UnsupportedAlgo(format!("unexpected algo {}", algo))),
+            _ => return Err(Error::UnsupportedAlgo(format!("unexpected algo {algo}"))),
         })
     }
 }
@@ -175,7 +175,7 @@ impl fmt::Display for Algo {
                 )
             }
             Self::Unknown(u) => {
-                write!(f, "Unknown: {:?}", u)
+                write!(f, "Unknown: {u:?}")
             }
         }
     }
@@ -188,10 +188,7 @@ impl Algo {
         match self {
             Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa),
             Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
-            _ => Err(Error::UnsupportedAlgo(format!(
-                "Unexpected Algo {:?}",
-                self
-            ))),
+            _ => Err(Error::UnsupportedAlgo(format!("Unexpected Algo {self:?}"))),
         }
     }
 
@@ -351,7 +348,7 @@ impl TryFrom<&[u8]> for Curve {
             oid::ED448 => Ed448,
             oid::X448 => X448,
 
-            _ => return Err(Error::ParseError(format!("Unknown curve OID {:?}", oid))),
+            _ => return Err(Error::ParseError(format!("Unknown curve OID {oid:?}"))),
         };
 
         Ok(curve)

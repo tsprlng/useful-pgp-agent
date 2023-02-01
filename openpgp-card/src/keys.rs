@@ -76,7 +76,7 @@ pub(crate) fn gen_key_with_metadata(
     // Store creation timestamp (unix time format, limited to u32)
     let ts = time
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| Error::InternalError(format!("This should never happen {}", e)))?
+        .map_err(|e| Error::InternalError(format!("This should never happen {e}")))?
         .as_secs() as u32;
 
     let ts = ts.into();
@@ -111,8 +111,7 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial, crate::Err
         }
 
         (_, _, _) => Err(Error::UnsupportedAlgo(format!(
-            "Unexpected public key material from card {:?}",
-            tlv
+            "Unexpected public key material from card {tlv:?}"
         ))),
     }
 }
@@ -285,8 +284,7 @@ pub(crate) fn determine_ecc_attrs(
         if algos.is_empty() {
             // If oid is not in algo_info, return error.
             return Err(Error::UnsupportedAlgo(format!(
-                "Oid {:?} unsupported according to algo_info",
-                oid
+                "Oid {oid:?} unsupported according to algo_info"
             )));
         }
 
@@ -340,8 +338,7 @@ fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Resul
     } else {
         // RSA with this bit length is not in algo_info
         Err(Error::UnsupportedAlgo(format!(
-            "RSA {} unsupported according to algo_info",
-            rsa_bits
+            "RSA {rsa_bits} unsupported according to algo_info"
         )))
     }
 }

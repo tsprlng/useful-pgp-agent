@@ -230,7 +230,7 @@ pub fn public_key_material_to_key(
     match pkm {
         PublicKeyMaterial::R(rsa) => {
             let k4 = Key4::import_public_rsa(rsa.v(), rsa.n(), Some(time)).map_err(|e| {
-                Error::InternalError(format!("sequoia Key4::import_public_rsa failed: {:?}", e))
+                Error::InternalError(format!("sequoia Key4::import_public_rsa failed: {e:?}"))
             })?;
 
             Ok(k4.into())
@@ -254,8 +254,7 @@ pub fn public_key_material_to_key(
                             let k4 =
                                 Key4::import_public_ed25519(ecc.data(), time).map_err(|e| {
                                     Error::InternalError(format!(
-                                        "sequoia Key4::import_public_ed25519 failed: {:?}",
-                                        e
+                                        "sequoia Key4::import_public_ed25519 failed: {e:?}"
                                     ))
                                 })?;
 
@@ -272,8 +271,7 @@ pub fn public_key_material_to_key(
                             )
                             .map_err(|e| {
                                 Error::InternalError(format!(
-                                    "sequoia Key4::new for ECDSA failed: {:?}",
-                                    e
+                                    "sequoia Key4::new for ECDSA failed: {e:?}"
                                 ))
                             })?;
 
@@ -286,8 +284,7 @@ pub fn public_key_material_to_key(
                             let k4 = Key4::import_public_cv25519(ecc.data(), hash, sym, time)
                                 .map_err(|e| {
                                     Error::InternalError(format!(
-                                        "sequoia Key4::import_public_cv25519 failed: {:?}",
-                                        e
+                                        "sequoia Key4::import_public_cv25519 failed: {e:?}"
                                     ))
                                 })?;
 
@@ -306,8 +303,7 @@ pub fn public_key_material_to_key(
                             )
                             .map_err(|e| {
                                 Error::InternalError(format!(
-                                    "sequoia Key4::new for ECDH failed: {:?}",
-                                    e
+                                    "sequoia Key4::new for ECDH failed: {e:?}"
                                 ))
                             })?;
 

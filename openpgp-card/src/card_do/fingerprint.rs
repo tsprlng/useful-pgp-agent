@@ -44,14 +44,14 @@ impl Fingerprint {
 
 impl fmt::Display for Fingerprint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:X}", self)
+        write!(f, "{self:X}")
     }
 }
 
 impl fmt::UpperHex for Fingerprint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for b in &self.0 {
-            write!(f, "{:02X}", b)?;
+            write!(f, "{b:02X}")?;
         }
         Ok(())
     }
@@ -133,9 +133,6 @@ mod test {
 
         let fp = Fingerprint::try_from(&data1[..]).expect("failed to parse fingerprint");
 
-        assert_eq!(
-            format!("{}", fp),
-            "B7CD9F76371E077F761C826555543E6D656D1D80"
-        );
+        assert_eq!(format!("{fp}"), "B7CD9F76371E077F761C826555543E6D656D1D80");
     }
 }

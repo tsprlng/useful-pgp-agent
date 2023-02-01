@@ -30,10 +30,10 @@ impl Ssh {
         let mut s = format!("OpenPGP card {}\n\n", self.ident);
 
         if let Some(fp) = &self.authentication_key_fingerprint {
-            s.push_str(&format!("Authentication key fingerprint:\n{}\n\n", fp));
+            s.push_str(&format!("Authentication key fingerprint:\n{fp}\n\n"));
         }
         if let Some(key) = &self.ssh_public_key {
-            s.push_str(&format!("SSH public key:\n{}\n", key));
+            s.push_str(&format!("SSH public key:\n{key}\n"));
         }
 
         Ok(s)

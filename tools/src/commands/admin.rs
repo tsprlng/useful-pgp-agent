@@ -515,7 +515,7 @@ fn generate_command(
 
     let algo = cmd.algo.map(AlgoSimple::from);
     log::info!(" Key generation will be attempted with algo: {:?}", algo);
-    output.algorithm(format!("{:?}", algo));
+    output.algorithm(format!("{algo:?}"));
 
     // 2) Then, generate keys on the card.
     // We need "admin" access to the card for this).
