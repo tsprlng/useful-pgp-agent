@@ -29,7 +29,7 @@ fn main() -> Result<()> {
 
         print!("Set user data");
         let userdata_out = run_test(&mut card, test_set_user_data, &[])?;
-        println!(" {:x?}", userdata_out);
+        println!(" {userdata_out:x?}");
 
         let key_files = {
             let config = card.get_config();
@@ -42,20 +42,20 @@ fn main() -> Result<()> {
 
         for key_file in &key_files {
             // upload keys
-            print!("Upload key '{}'", key_file);
+            print!("Upload key '{key_file}'");
             let upload_res = run_test(&mut card, test_upload_keys, &[key_file]);
 
             if let Err(TestError::KeyUploadError(_file, err)) = &upload_res {
                 // The card doesn't support this key type, so skip to the
                 // next key - don't try to decrypt/sign for this key.
 
-                println!(" => Upload failed ({:?}), skip tests", err);
+                println!(" => Upload failed ({err:?}), skip tests");
 
                 continue;
             }
 
             let upload_out = upload_res?;
-            println!(" {:x?}", upload_out);
+            println!(" {upload_out:x?}");
 
             let key = std::fs::read_to_string(key_file).expect("Unable to read ciphertext");
 
@@ -66,13 +66,13 @@ fn main() -> Result<()> {
             let ciphertext = util::encrypt_to("Hello world!\n", &c)?;
 
             let dec_out = run_test(&mut card, test_decrypt, &[&key, &ciphertext])?;
-            println!(" {:x?}", dec_out);
+            println!(" {dec_out:x?}");
 
             // sign
             print!("  Sign");
 
             let sign_out = run_test(&mut card, test_sign, &[&key])?;
-            println!(" {:x?}", sign_out);
+            println!(" {sign_out:x?}");
         }
 
         // FIXME: import key with password

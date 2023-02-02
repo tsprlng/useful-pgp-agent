@@ -205,7 +205,7 @@ fn set_user(
     match res {
         Err(err) => {
             println!("\nFailed to change the User PIN!");
-            println!("{:?}", err);
+            println!("{err:?}");
             print_gnuk_note(err, &card)?;
         }
         Ok(_) => println!("\nUser PIN has been set."),

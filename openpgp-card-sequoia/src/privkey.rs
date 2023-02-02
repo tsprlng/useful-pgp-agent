@@ -53,7 +53,7 @@ impl CardUploadableKey for SequoiaKey {
                 .key
                 .clone()
                 .decrypt_secret(&sequoia_openpgp::crypto::Password::from(pw.as_str()))
-                .map_err(|e| Error::InternalError(format!("sequoia decrypt failed {:?}", e)))?,
+                .map_err(|e| Error::InternalError(format!("sequoia decrypt failed {e:?}")))?,
         };
 
         // Get private cryptographic material
@@ -129,7 +129,7 @@ impl SqRSA {
         q: ProtectedMPI,
     ) -> Result<Self, Error> {
         let nettle = nettle::rsa::PrivateKey::new(d.value(), p.value(), q.value(), None)
-            .map_err(|e| Error::InternalError(format!("nettle error {:?}", e)))?;
+            .map_err(|e| Error::InternalError(format!("nettle error {e:?}")))?;
 
         Ok(Self { e, n, p, q, nettle })
     }

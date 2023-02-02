@@ -22,7 +22,7 @@ impl List {
         } else {
             let mut s = "Available OpenPGP cards:\n".to_string();
             for id in self.idents.iter() {
-                s.push_str(&format!("  {}\n", id));
+                s.push_str(&format!("  {id}\n"));
             }
             s
         };

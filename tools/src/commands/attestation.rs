@@ -187,7 +187,7 @@ fn statement(ident: Option<String>, key: BaseKeySlot) -> Result<(), Box<dyn std:
 
     if !cert.is_empty() {
         let pem = util::pem_encode(cert);
-        println!("{}", pem);
+        println!("{pem}");
     } else {
         println!("Cardholder certificate slot is empty");
     }

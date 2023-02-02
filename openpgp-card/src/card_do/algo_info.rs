@@ -33,7 +33,7 @@ impl fmt::Display for AlgoInfo {
                 KeyType::Authentication => "AUT",
                 KeyType::Attestation => "ATT",
             };
-            writeln!(f, "{}: {} ", kt, a)?;
+            writeln!(f, "{kt}: {a} ")?;
         }
         Ok(())
     }

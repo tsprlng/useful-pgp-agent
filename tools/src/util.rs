@@ -133,7 +133,7 @@ pub(crate) fn open_or_stdout(f: Option<&Path>) -> Result<Box<dyn std::io::Write 
 }
 
 fn get_ssh_pubkey(pkm: &PublicKeyMaterial, ident: String) -> Result<sshkeys::PublicKey> {
-    let cardname = format!("opgpcard:{}", ident);
+    let cardname = format!("opgpcard:{ident}");
 
     let (key_type, kind) = match pkm {
         PublicKeyMaterial::R(rsa) => {

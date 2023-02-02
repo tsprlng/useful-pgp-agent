@@ -103,16 +103,13 @@ impl ScdBackend {
         } else {
             // Create and use a new Agent based on a default Context
             let ctx = Context::new().map_err(|e| {
-                Error::Smartcard(SmartcardError::Error(format!("Context::new failed {}", e)))
+                Error::Smartcard(SmartcardError::Error(format!("Context::new failed {e}")))
             })?;
             RT.lock()
                 .unwrap()
                 .block_on(Agent::connect(&ctx))
                 .map_err(|e| {
-                    Error::Smartcard(SmartcardError::Error(format!(
-                        "Agent::connect failed {}",
-                        e
-                    )))
+                    Error::Smartcard(SmartcardError::Error(format!("Agent::connect failed {e}")))
                 })?
         };
 
@@ -131,8 +128,7 @@ impl ScdBackend {
     fn send2(&mut self, cmd: &str) -> Result<(), Error> {
         self.agent.send(cmd).map_err(|e| {
             Error::Smartcard(SmartcardError::Error(format!(
-                "scdc agent send failed: {}",
-                e
+                "scdc agent send failed: {e}"
             )))
         })
     }
@@ -166,7 +162,7 @@ impl ScdBackend {
     /// Ask scdameon to switch to using a specific OpenPGP card, based on
     /// its `serial`.
     fn select_card(&mut self, serial: &str) -> Result<(), Error> {
-        let send = format!("SCD SERIALNO --demand={}", serial);
+        let send = format!("SCD SERIALNO --demand={serial}");
         self.send2(&send)?;
 
         let rt = RT.lock().unwrap();
@@ -204,7 +200,7 @@ impl ScdBackend {
             log::trace!("select res: {:x?}", response);
 
             if let Err(e) = response {
-                return Err(Error::Smartcard(SmartcardError::Error(format!("{:?}", e))));
+                return Err(Error::Smartcard(SmartcardError::Error(format!("{e:?}"))));
             }
 
             if let Ok(..) = response {
@@ -218,8 +214,7 @@ impl ScdBackend {
         }
 
         Err(Error::Smartcard(SmartcardError::Error(format!(
-            "Error sending command {}",
-            cmd
+            "Error sending command {cmd}"
         ))))
     }
 }
@@ -250,7 +245,7 @@ impl CardTransaction for ScdTransaction<'_> {
             "".to_string()
         };
 
-        let send = format!("SCD APDU {}{}\n", ext, hex);
+        let send = format!("SCD APDU {ext}{hex}\n");
         log::trace!("SCDC command: '{}'", send);
 
         if send.len() > ASSUAN_LINELENGTH {
@@ -268,8 +263,7 @@ impl CardTransaction for ScdTransaction<'_> {
             log::trace!("res: {:x?}", response);
             if response.is_err() {
                 return Err(Error::Smartcard(SmartcardError::Error(format!(
-                    "Unexpected error response from SCD {:?}",
-                    response
+                    "Unexpected error response from SCD {response:?}"
                 ))));
             }
 

@@ -76,9 +76,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn output_versions(chosen: OutputVersion) {
     for v in OUTPUT_VERSIONS.iter() {
         if v == &chosen {
-            println!("* {}", v);
+            println!("* {v}");
         } else {
-            println!("  {}", v);
+            println!("  {v}");
         }
     }
 }

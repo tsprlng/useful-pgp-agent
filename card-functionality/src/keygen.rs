@@ -53,7 +53,7 @@ fn main() -> Result<()> {
         };
 
         for algo in algos {
-            println!("Generate key [{}]", algo);
+            println!("Generate key [{algo}]");
 
             let res = run_test(&mut card, test_keygen, &[&algo])?;
 
@@ -61,7 +61,7 @@ fn main() -> Result<()> {
                 // sign
                 print!("  Sign");
                 let sign_out = run_test(&mut card, test_sign, &[cert])?;
-                println!(" {:x?}", sign_out);
+                println!(" {sign_out:x?}");
 
                 // decrypt
                 let c = Cert::from_str(cert)?;
@@ -69,7 +69,7 @@ fn main() -> Result<()> {
 
                 print!("  Decrypt");
                 let dec_out = run_test(&mut card, test_decrypt, &[cert, &ciphertext])?;
-                println!(" {:x?}", dec_out);
+                println!(" {dec_out:x?}");
             } else {
                 panic!("Didn't get back a Cert from test_keygen");
             };

@@ -70,7 +70,7 @@ pub fn print_status(
     // Language Preference
     if let Some(lang) = card.cardholder_related_data()?.lang() {
         for lang in lang {
-            output.language_preference(format!("{}", lang));
+            output.language_preference(format!("{lang}"));
         }
     }
 
@@ -97,7 +97,7 @@ pub fn print_status(
         signature_key.touch_features(format!("{}", uif.features()));
     }
     if let Some(ks) = ki.as_ref().map(|ki| ki.sig_status()) {
-        signature_key.status(format!("{}", ks));
+        signature_key.status(format!("{ks}"));
     }
 
     if let Ok(pkm) = card.public_key_material(KeyType::Signing) {
@@ -125,7 +125,7 @@ pub fn print_status(
         decryption_key.touch_features(format!("{}", uif.features()));
     }
     if let Some(ks) = ki.as_ref().map(|ki| ki.dec_status()) {
-        decryption_key.status(format!("{}", ks));
+        decryption_key.status(format!("{ks}"));
     }
     if let Ok(pkm) = card.public_key_material(KeyType::Decryption) {
         decryption_key.public_key_material(pkm.to_string());
@@ -148,7 +148,7 @@ pub fn print_status(
         authentication_key.touch_features(format!("{}", uif.features()));
     }
     if let Some(ks) = ki.as_ref().map(|ki| ki.aut_status()) {
-        authentication_key.status(format!("{}", ks));
+        authentication_key.status(format!("{ks}"));
     }
     if let Ok(pkm) = card.public_key_material(KeyType::Authentication) {
         authentication_key.public_key_material(pkm.to_string());
@@ -160,7 +160,7 @@ pub fn print_status(
         attestation_key.fingerprint(fp.to_spaced_hex());
     }
     if let Ok(Some(algo)) = card.attestation_key_algorithm_attributes() {
-        attestation_key.algorithm(format!("{}", algo));
+        attestation_key.algorithm(format!("{algo}"));
     }
     if let Ok(Some(kgt)) = card.attestation_key_generation_time() {
         attestation_key.creation_time(format!("{}", kgt.to_datetime()));
@@ -180,7 +180,7 @@ pub fn print_status(
     if let Some(ki) = ki.as_ref() {
         if let Some(n) = (0..ki.num_additional()).find(|&n| ki.additional_ref(n) == 0x81) {
             let ks = ki.additional_status(n);
-            attestation_key.status(format!("{}", ks));
+            attestation_key.status(format!("{ks}"));
         }
     };
 
