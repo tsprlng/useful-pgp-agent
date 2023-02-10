@@ -13,12 +13,12 @@ documentation = "https://docs.rs/crate/openpgp-card-sequoia"
 
 [dependencies]
 sequoia-openpgp = "1.4"
-nettle = "7"
 openpgp-card = { path = "../openpgp-card", version = "0.3.3" }
 chrono = "0.4"
 anyhow = "1"
 thiserror = "1"
 log = "0.4"
+rsa = "0.8.1"
 
 [dev-dependencies]
 openpgp-card-pcsc = { path = "../pcsc", version = "0.3" }

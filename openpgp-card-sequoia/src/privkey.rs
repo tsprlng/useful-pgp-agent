@@ -109,6 +109,14 @@ impl CardUploadableKey for SequoiaKey {
     }
 }
 
+fn mpi_to_biguint(mpi: &MPI) -> rsa::BigUint {
+    slice_to_biguint(mpi.value())
+}
+
+fn slice_to_biguint(bytes: &[u8]) -> rsa::BigUint {
+    rsa::BigUint::from_bytes_be(bytes)
+}
+
 /// RSA-specific data-structure to hold private (sub)key material for upload
 /// with the `openpgp-card` crate.
 struct SqRSA {
@@ -116,7 +124,9 @@ struct SqRSA {
     n: MPI,
     p: ProtectedMPI,
     q: ProtectedMPI,
-    nettle: nettle::rsa::PrivateKey,
+    pq: ProtectedMPI,
+    dp1: ProtectedMPI,
+    dq1: ProtectedMPI,
 }
 
 impl SqRSA {
@@ -128,10 +138,43 @@ impl SqRSA {
         p: ProtectedMPI,
         q: ProtectedMPI,
     ) -> Result<Self, Error> {
-        let nettle = nettle::rsa::PrivateKey::new(d.value(), p.value(), q.value(), None)
-            .map_err(|e| Error::InternalError(format!("nettle error {e:?}")))?;
+        let key = rsa::RsaPrivateKey::from_components(
+            mpi_to_biguint(&n),
+            mpi_to_biguint(&e),
+            slice_to_biguint(d.value()),
+            vec![slice_to_biguint(p.value()), slice_to_biguint(q.value())],
+        )
+        .map_err(|e| Error::InternalError(format!("rsa error {e:?}")))?;
 
-        Ok(Self { e, n, p, q, nettle })
+        let pq = key
+            .qinv()
+            .ok_or_else(|| Error::InternalError("pq value missing".into()))?
+            .to_biguint()
+            .ok_or_else(|| Error::InternalError("conversion to bigunit failed".into()))?
+            .to_bytes_be()
+            .into();
+
+        let dp1 = key
+            .dp()
+            .ok_or_else(|| Error::InternalError("dp1 value missing".into()))?
+            .to_bytes_be()
+            .into();
+
+        let dq1 = key
+            .dq()
+            .ok_or_else(|| Error::InternalError("dq1 value missing".into()))?
+            .to_bytes_be()
+            .into();
+
+        Ok(Self {
+            e,
+            n,
+            p,
+            q,
+            pq,
+            dp1,
+            dq1,
+        })
     }
 }
 
@@ -149,16 +192,15 @@ impl RSAKey for SqRSA {
     }
 
     fn pq(&self) -> Box<[u8]> {
-        let (_, _, inv) = self.nettle.d_crt();
-        inv
+        self.pq.value().into()
     }
+
     fn dp1(&self) -> Box<[u8]> {
-        let (dp, _, _) = self.nettle.d_crt();
-        dp
+        self.dp1.value().into()
     }
+
     fn dq1(&self) -> Box<[u8]> {
-        let (_, dq, _) = self.nettle.d_crt();
-        dq
+        self.dq1.value().into()
     }
 
     fn n(&self) -> &[u8] {
