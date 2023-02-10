@@ -24,6 +24,7 @@ log = "0.4"
 openpgp-card-pcsc = { path = "../pcsc", version = "0.3" }
 #openpgp-card-scdc = { path = "../scdc", version = "0.3" }
 env_logger = "0.9"
+testresult = "0.3.0"
 
 [[example]]
 name = "test"
