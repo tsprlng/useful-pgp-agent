@@ -109,6 +109,14 @@ impl CardUploadableKey for SequoiaKey {
     }
 }
 
+fn mpi_to_biguint(mpi: &MPI) -> rsa::BigUint {
+    slice_to_biguint(mpi.value())
+}
+
+fn slice_to_biguint(bytes: &[u8]) -> rsa::BigUint {
+    rsa::BigUint::from_bytes_be(bytes)
+}
+
 /// RSA-specific data-structure to hold private (sub)key material for upload
 /// with the `openpgp-card` crate.
 struct SqRSA {
@@ -116,7 +124,9 @@ struct SqRSA {
     n: MPI,
     p: ProtectedMPI,
     q: ProtectedMPI,
-    nettle: nettle::rsa::PrivateKey,
+    pq: ProtectedMPI,
+    dp1: ProtectedMPI,
+    dq1: ProtectedMPI,
 }
 
 impl SqRSA {
@@ -128,10 +138,43 @@ impl SqRSA {
         p: ProtectedMPI,
         q: ProtectedMPI,
     ) -> Result<Self, Error> {
-        let nettle = nettle::rsa::PrivateKey::new(d.value(), p.value(), q.value(), None)
-            .map_err(|e| Error::InternalError(format!("nettle error {e:?}")))?;
+        let key = rsa::RsaPrivateKey::from_components(
+            mpi_to_biguint(&n),
+            mpi_to_biguint(&e),
+            slice_to_biguint(d.value()),
+            vec![slice_to_biguint(p.value()), slice_to_biguint(q.value())],
+        )
+        .map_err(|e| Error::InternalError(format!("rsa error {e:?}")))?;
 
-        Ok(Self { e, n, p, q, nettle })
+        let pq = key
+            .qinv()
+            .ok_or_else(|| Error::InternalError("pq value missing".into()))?
+            .to_biguint()
+            .ok_or_else(|| Error::InternalError("conversion to bigunit failed".into()))?
+            .to_bytes_be()
+            .into();
+
+        let dp1 = key
+            .dp()
+            .ok_or_else(|| Error::InternalError("dp1 value missing".into()))?
+            .to_bytes_be()
+            .into();
+
+        let dq1 = key
+            .dq()
+            .ok_or_else(|| Error::InternalError("dq1 value missing".into()))?
+            .to_bytes_be()
+            .into();
+
+        Ok(Self {
+            e,
+            n,
+            p,
+            q,
+            pq,
+            dp1,
+            dq1,
+        })
     }
 }
 
@@ -149,16 +192,15 @@ impl RSAKey for SqRSA {
     }
 
     fn pq(&self) -> Box<[u8]> {
-        let (_, _, inv) = self.nettle.d_crt();
-        inv
+        self.pq.value().into()
     }
+
     fn dp1(&self) -> Box<[u8]> {
-        let (dp, _, _) = self.nettle.d_crt();
-        dp
+        self.dp1.value().into()
     }
+
     fn dq1(&self) -> Box<[u8]> {
-        let (_, dq, _) = self.nettle.d_crt();
-        dq
+        self.dq1.value().into()
     }
 
     fn n(&self) -> &[u8] {
@@ -208,5 +250,99 @@ impl EccKey for SqEccKey {
 
     fn ecc_type(&self) -> EccType {
         self.ecc_type
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use openpgp::cert::Cert;
+    use openpgp::crypto::mpi::PublicKey;
+    use openpgp::packet::key::SecretKeyMaterial;
+    use openpgp::parse::Parse;
+    use sequoia_openpgp as openpgp;
+    use testresult::TestResult;
+
+    use super::*;
+
+    #[test]
+    fn parsing_rsa_key() -> TestResult {
+        let cert = Cert::from_bytes(
+            r#"-----BEGIN PGP PRIVATE KEY BLOCK-----
+
+lQHYBGPmItUBBADp/S0sPqOQF6oBEQf558E5HeVtRP0qyWaVT0/fl7gj2jMSu6kF
+de1jbr7AdeQxa7RiOo7m/ob8ZzKIzFNMLVfKsfo4mn5QjYulnadl+dyl87Jj1TlN
+iEmeVvKbJUzXf7p4B4zFBFwIoCWtGZMTuUOgvi11Gbt00QwNUZdB10VjNwARAQAB
+AAP/dH22pR3kSWL2oMRNX8XZJSn0pENh9RDCsRgE0HDU3IiPv8ZMviq5TjT+44tt
+2YrhCbxUk7zpEDUCbCepWrYCS7Q7pMCJul2AdymJBDkNwzrPjNdzPwx1mOIudDFp
+uosokjzx/bDNb9c8rdQpB5Oz9f9qZ9WhmfittQvBFPmBjyUCAPHWyhSVt86Wc3Dd
+/1nQRLwMHVJK6VszIMO0EYgGvaFN9WXh6VUue9DXnAkHejUDNpsOlJfiAHMDU0fS
+PnBX4D0CAPewtqGyIyluZ+S/+MJQBOUqLPzqHHr6smGmbOYFG52RFv17LhQH/02h
+sLkd6qXXNUFSOF02XiYV9RywhnSadIMCALP4oM2YGCQL+B5bj3bT1uwoF8O0gwuW
+FAc6Sz3ESpaI11ABLOv2wPNS3OcUyyIUe/DPVbekaKswvO57Ddzw5iait7QFQUJD
+REWIzgQTAQgAOBYhBBCVR7AQd8pmtyaMetgkYA0A8AOABQJj5iLVAhsBBQsJCAcC
+BhUKCQgLAgQWAgMBAh4BAheAAAoJENgkYA0A8AOA5W4EAMGuqrRLFjonYYS97Ypx
+zo7HUpOALrLVgfwKoxX2/DdC4FWOQ61cog63KKOiM/DjF/TimLD7R4wls6pbELyD
+T038FOlGoWtmtQuf3iUsBKdAYPPiqInaDU9XCy/hm1f7xOz70kpUXVG8K6c6my+b
+/fGkli/zcEWR55dOMPeoZ6zF
+=QZJ9
+-----END PGP PRIVATE KEY BLOCK-----"#,
+        )?;
+        if let Key::V4(key) = cert.primary_key().key().clone().parts_into_secret()? {
+            let (e, n) = if let PublicKey::RSA { e, n } = key.mpis() {
+                (e, n)
+            } else {
+                unreachable!();
+            };
+            if let Some(SecretKeyMaterial::Unencrypted(secret)) = key.optional_secret() {
+                assert!(secret.map(|secret| {
+                    if let openpgp::crypto::mpi::SecretKeyMaterial::RSA { d, p, q, .. } = secret {
+                        let rsa = SqRSA::new(e.clone(), d.clone(), n.clone(), p.clone(), q.clone())
+                            .unwrap();
+                        assert_eq!(
+                            rsa.pq(),
+                            vec![
+                                66, 30, 140, 169, 99, 220, 224, 43, 7, 176, 133, 35, 251, 25, 162,
+                                178, 14, 200, 188, 60, 82, 126, 134, 117, 184, 10, 186, 28, 162,
+                                177, 225, 3, 147, 218, 96, 195, 182, 159, 32, 48, 87, 141, 182, 73,
+                                232, 37, 154, 152, 123, 11, 1, 86, 188, 224, 157, 35, 125, 4, 210,
+                                229, 233, 121, 207, 14
+                            ]
+                            .into()
+                        );
+                        assert_eq!(
+                            rsa.dp1(),
+                            vec![
+                                19, 67, 44, 109, 95, 79, 120, 160, 251, 40, 238, 69, 188, 125, 158,
+                                59, 236, 43, 25, 182, 229, 199, 97, 215, 38, 63, 93, 118, 28, 51,
+                                86, 121, 195, 38, 14, 76, 107, 128, 124, 84, 50, 24, 55, 143, 228,
+                                231, 252, 13, 137, 100, 43, 233, 189, 18, 148, 22, 155, 183, 136,
+                                195, 120, 103, 71, 113
+                            ]
+                            .into()
+                        );
+                        assert_eq!(
+                            rsa.dq1(),
+                            vec![
+                                29, 192, 92, 47, 143, 246, 41, 67, 217, 182, 224, 88, 64, 254, 219,
+                                151, 171, 57, 60, 39, 226, 195, 226, 217, 10, 97, 179, 50, 237,
+                                234, 35, 67, 10, 63, 232, 75, 224, 156, 21, 78, 125, 221, 124, 94,
+                                219, 144, 144, 9, 21, 143, 138, 181, 167, 146, 39, 128, 251, 176,
+                                54, 131, 239, 253, 157, 129
+                            ]
+                            .into()
+                        );
+                        true
+                    } else {
+                        false
+                    }
+                }))
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
+
+        Ok(())
     }
 }
