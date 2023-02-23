@@ -592,7 +592,7 @@ impl Display for ApplicationIdentifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "D276000124 01 {:02X} {:04X} {:04X} {:08X} 0000",
+            "D276000124 {:02X} {:04X} {:04X} {:08X} 0000",
             self.application, self.version, self.manufacturer, self.serial
         )
     }
