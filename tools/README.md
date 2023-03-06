@@ -243,7 +243,7 @@ Most of the output is probably not of interest to regular users.
 $ opgpcard info
 OpenPGP card FFFE:12345678 (card version 2.0)
 
-Application Identifier: D276000124 01 01 0200 FFFE 12345678 0000
+Application Identifier: D276000124 01 0200 FFFE 12345678 0000
 Manufacturer [FFFE]: Range reserved for randomly assigned serial numbers.
 
 Card Capabilities:
