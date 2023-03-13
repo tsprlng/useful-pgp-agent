@@ -22,6 +22,9 @@ pub struct SshCommand {
         help = "Identifier of the card to use"
     )]
     pub ident: Option<String>,
+
+    #[clap(long, help = "Only print the ssh public key")]
+    pub key_only: bool,
 }
 
 pub fn print_ssh(
@@ -30,6 +33,8 @@ pub fn print_ssh(
     command: SshCommand,
 ) -> Result<()> {
     let mut output = output::Ssh::default();
+
+    output.key_only(command.key_only);
 
     let ident = command.ident;
 

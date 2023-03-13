@@ -8,12 +8,17 @@ use crate::{OutputBuilder, OutputFormat, OutputVariant, OutputVersion};
 
 #[derive(Debug, Default, Serialize)]
 pub struct Ssh {
+    key_only: bool, // only print ssh public key, in text mode
     ident: String,
     authentication_key_fingerprint: Option<String>,
     ssh_public_key: Option<String>,
 }
 
 impl Ssh {
+    pub fn key_only(&mut self, ssh_key_only: bool) {
+        self.key_only = ssh_key_only;
+    }
+
     pub fn ident(&mut self, ident: String) {
         self.ident = ident;
     }
@@ -27,16 +32,20 @@ impl Ssh {
     }
 
     fn text(&self) -> Result<String, OpgpCardError> {
-        let mut s = format!("OpenPGP card {}\n\n", self.ident);
+        if !self.key_only {
+            let mut s = format!("OpenPGP card {}\n\n", self.ident);
 
-        if let Some(fp) = &self.authentication_key_fingerprint {
-            s.push_str(&format!("Authentication key fingerprint:\n{fp}\n\n"));
-        }
-        if let Some(key) = &self.ssh_public_key {
-            s.push_str(&format!("SSH public key:\n{key}\n"));
-        }
+            if let Some(fp) = &self.authentication_key_fingerprint {
+                s.push_str(&format!("Authentication key fingerprint:\n{fp}\n\n"));
+            }
+            if let Some(key) = &self.ssh_public_key {
+                s.push_str(&format!("SSH public key:\n{key}\n"));
+            }
 
-        Ok(s)
+            Ok(s)
+        } else {
+            Ok(self.ssh_public_key.clone().unwrap_or("".to_string()))
+        }
     }
 
     fn v1(&self) -> Result<SshV0, OpgpCardError> {
