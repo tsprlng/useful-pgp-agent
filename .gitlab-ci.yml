@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 # SPDX-FileCopyrightText: 2021-2022 Nora Widdecke <mail@nora.pink>
 # SPDX-License-Identifier: CC0-1.0
 
@@ -131,33 +131,6 @@ cargo-test-debian-bookworm:
     # override the key
     key: "bookworm"
 
-subplot:
-  stage: virtual-test
-  image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
-  before_script:
-    - mkdir -p /run/user/$UID
-    - apt update -y -qq
-    - >
-      apt install -y -qq --no-install-recommends
-      git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates
-      libpcsclite-dev
-      sq
-    - apt clean
-    - /etc/init.d/pcscd start
-    - su - -c "sh /home/jcardsim/run-card.sh >/dev/null" jcardsim
-    - *report-rust
-  script:
-    # make sure a virtual card is available, so that the subplot tests are
-    # generated
-    - CARD_BASED_TESTS=true cargo test -- --test-threads 1
-  cache:
-    # inherit all general cache settings
-    <<: *general_cache_config
-    # subplot uses tests/virtual-card-available to indicate that tests which use
-    # virtual cards should be created. The cache with this file should not be
-    # shared.
-    key: "subplot"
-
 run_cardtest_smartpgp:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
@@ -165,8 +138,8 @@ run_cardtest_smartpgp:
     - *report-rust
   script:
     - sh /start.sh
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
@@ -185,8 +158,8 @@ run_cardtest_opcard_rs:
     - *report-rust
   script:
     - sh /start.sh
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
@@ -205,8 +178,8 @@ run_cardtest_ykneo:
     - *report-rust
   script:
     - sh /start.sh
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:
@@ -225,8 +198,8 @@ run_cardtest_fluffypgp:
     - *report-rust
   script:
     - sh /start.sh
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
-    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
+#    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- info
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin import -- $CONFIG
     - RUST_BACKTRACE=1 cargo run -p openpgp-card-tests --bin keygen -- $CONFIG
   variables:

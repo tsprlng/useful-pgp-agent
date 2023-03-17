@@ -1,6 +1,0 @@
-openpgp-card-tool (0.0.11-1) unstable; urgency=medium
-
-  * Initial packaging. This is not intended to be uploaded to Debian, so
-    not closing of an ITP bug.
-
- -- Lars Wirzenius <liw@liw.fi>  Thu, 30 Sep 2021 09:51:32 +0300
