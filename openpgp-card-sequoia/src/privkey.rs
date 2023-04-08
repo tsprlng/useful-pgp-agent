@@ -234,11 +234,11 @@ impl EccKey for SqEccKey {
     }
 
     fn private(&self) -> Vec<u8> {
-        // FIXME: padding for 25519?
         match self.curve {
             Curve::NistP256 => self.private.value_padded(0x20).to_vec(),
             Curve::NistP384 => self.private.value_padded(0x30).to_vec(),
             Curve::NistP521 => self.private.value_padded(0x42).to_vec(),
+            Curve::Cv25519 | Curve::Ed25519 => self.private.value_padded(0x20).to_vec(),
             _ => self.private.value().to_vec(),
         }
     }
