@@ -70,7 +70,11 @@ pub trait CardTransaction {
     /// Set the card capabilities in the CardTransaction.
     ///
     /// Setting these capabilities is typically part of a bootstrapping
-    /// process: the information about the card's capabilities is typically
+    /// process (this fn is typically called from [CardTransaction::initialize].
+    /// When implementing CardTransaction, you probably want to call
+    /// [CardTransaction::initialize] during setup).
+    ///
+    /// The information about the card's capabilities is typically
     /// requested from the card using the same CardTransaction instance,
     /// before the card's capabilities have been initialized.
     fn init_card_caps(&mut self, caps: CardCaps);
