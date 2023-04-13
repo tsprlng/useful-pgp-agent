@@ -81,7 +81,7 @@ impl Command {
         let nc = self.data.len() as u16;
 
         let mut buf = vec![self.cla, self.ins, self.p1, self.p2];
-        buf.extend(Self::make_lc(nc, ext_len));
+        buf.extend(Self::make_lc(nc, ext_len)?);
         buf.extend(&self.data);
         buf.extend(Self::make_le(nc, ext_len, expect_response));
 
@@ -89,21 +89,19 @@ impl Command {
     }
 
     /// Encode len for Lc field
-    fn make_lc(len: u16, ext_len: bool) -> Vec<u8> {
-        if !ext_len {
-            assert!(
-                len <= 0xff,
-                "{}",
-                "unexpected: len = {len:x?}, but ext says Short"
-            );
+    fn make_lc(len: u16, ext_len: bool) -> Result<Vec<u8>, crate::Error> {
+        if !ext_len && len > 0xff {
+            return Err(crate::Error::InternalError(format!(
+                "Command len = {len:x?}, but extended length is unsupported by backend"
+            )));
         }
 
         if len == 0 {
-            vec![]
+            Ok(vec![])
         } else if !ext_len {
-            vec![len as u8]
+            Ok(vec![len as u8])
         } else {
-            vec![0, (len >> 8) as u8, (len & 255) as u8]
+            Ok(vec![0, (len >> 8) as u8, (len & 255) as u8])
         }
     }
 
