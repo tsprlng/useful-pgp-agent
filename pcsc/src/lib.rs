@@ -646,6 +646,38 @@ impl PcscBackend {
     fn reader_caps(&self) -> HashMap<u8, Tlv> {
         self.reader_caps.clone()
     }
+
+    /// This command will try to activate an OpenPGP card, if:
+    /// - exactly one card is connected to the system
+    /// - that card replies to SELECT with Status 6285
+    ///
+    /// See OpenPGP card spec (version 3.4.1): 7.2.17 ACTIVATE FILE
+    pub fn activate_terminated_card() -> Result<(), Error> {
+        let mut cards =
+            Self::raw_pcsc_cards(pcsc::ShareMode::Exclusive).map_err(Error::Smartcard)?;
+        if cards.len() != 1 {
+            return Err(Error::InternalError(format!(
+                "This command is only allowed if exactly one card is connected, found {}.",
+                cards.len()
+            )));
+        }
+
+        let card = cards.pop().unwrap();
+
+        let mut backend = PcscBackend::new(card, pcsc::ShareMode::Exclusive);
+        let mut card_tx = Box::new(PcscTransaction::new(&mut backend, false)?);
+
+        match <dyn CardTransaction>::select(&mut card_tx) {
+            Err(Error::CardStatus(openpgp_card::StatusBytes::TerminationState)) => {
+                let _ = <dyn CardTransaction>::activate_file(&mut card_tx)?;
+                Ok(())
+            }
+
+            _ => Err(Error::InternalError(
+                "Card doesn't appear to be terminated.".to_string(),
+            )),
+        }
+    }
 }
 
 impl CardBackend for PcscBackend {
