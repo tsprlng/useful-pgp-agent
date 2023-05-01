@@ -135,6 +135,7 @@ run_cardtest_smartpgp:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
   before_script:
+    - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
   script:
     - sh /start.sh
