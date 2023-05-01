@@ -111,6 +111,13 @@ pub trait CardTransaction {
         apdu::send_command(self, select_openpgp, false)?.try_into()
     }
 
+    /// Activate file
+    fn activate_file(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("CardTransaction: activate_file");
+        let activate_file = commands::activate_file();
+        apdu::send_command(self, activate_file, false)?.try_into()
+    }
+
     /// Get the "application related data" from the card.
     ///
     /// (This data should probably be cached in a higher layer. Some parts of
