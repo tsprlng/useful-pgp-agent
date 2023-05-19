@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
+[card.smartpgp]
+backend.pcsc = "F1D0:00000000"
+config.keygen = [
+    "RSA2k", "RSA3k", "RSA4k",
+    "NIST256", "NIST384", "Curve25519"
+]
+config.import = [
+    "card-functionality/data/rsa2k.sec",
+    "card-functionality/data/rsa3k.sec",
+    "card-functionality/data/rsa4k.sec",
+    "card-functionality/data/nist256.sec",
+    "card-functionality/data/nist384.sec",
+    "card-functionality/data/25519.sec",
+]
