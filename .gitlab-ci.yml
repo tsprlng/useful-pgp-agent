@@ -156,6 +156,7 @@ run_cardtest_opcard_rs:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
   before_script:
+    - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
   script:
     - sh /start.sh
@@ -176,6 +177,7 @@ run_cardtest_ykneo:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/ykneo-builddeps
   before_script:
+    - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
   script:
     - sh /start.sh
@@ -196,6 +198,7 @@ run_cardtest_fluffypgp:
   stage: virtual-test
   image: registry.gitlab.com/openpgp-card/virtual-cards/fluffypgp-builddeps
   before_script:
+    - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
   script:
     - sh /start.sh
