@@ -121,6 +121,7 @@ cargo-test-debian-bookworm:
     - apt install -y -qq --no-install-recommends git rustc cargo clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
     - *report-rust
+    - cargo update -p lalrpop@0.20.0 --precise 0.19.12 # hack to work with Rust 1.63
   script:
     # there is no virtual card in this image, so subplot does not generate tests
     # that would require one.
@@ -179,6 +180,7 @@ run_cardtest_ykneo:
   before_script:
     - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
+    - cargo update -p lalrpop@0.20.0 --precise 0.19.12 # hack to work with Rust 1.63
   script:
     - sh /start.sh
 #    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
@@ -200,6 +202,7 @@ run_cardtest_fluffypgp:
   before_script:
     - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
+    - cargo update -p lalrpop@0.20.0 --precise 0.19.12 # hack to work with Rust 1.63
   script:
     - sh /start.sh
 #    - RUST_BACKTRACE=1 cargo run -p openpgp-card-tools --bin opgpcard -- status
