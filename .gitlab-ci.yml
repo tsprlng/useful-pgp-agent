@@ -154,7 +154,7 @@ run_cardtest_smartpgp:
 
 run_cardtest_opcard_rs:
   stage: virtual-test
-  image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-builddeps
+  image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
   before_script:
     - *report-rust
   script:
@@ -169,8 +169,8 @@ run_cardtest_opcard_rs:
     # inherit all general cache settings
     <<: *general_cache_config
     # override the key
-    # (the base image of run_cardtest uses bookworm)
-    key: "bookworm"
+    # (the base image is separate from the other virtual cards)
+    key: "opcard_rs"
 
 run_cardtest_ykneo:
   stage: virtual-test
