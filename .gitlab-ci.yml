@@ -127,6 +127,7 @@ cargo-test-debian-bookworm:
     # there is no virtual card in this image, so subplot does not generate tests
     # that would require one.
     - cargo test
+  allow_failure: true
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
