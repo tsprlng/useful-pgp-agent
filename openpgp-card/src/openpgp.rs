@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::convert::{TryFrom, TryInto};
@@ -35,6 +35,14 @@ impl OpenPgp {
         Self {
             card: backend.into(),
         }
+    }
+
+    /// Get the internal `CardBackend`.
+    ///
+    /// This is useful to perform operations on the card with a different crate,
+    /// e.g. `yubikey-management`.
+    pub fn into_card(self) -> Box<dyn CardBackend + Send + Sync> {
+        self.card
     }
 
     /// Get an OpenPgpTransaction object. This starts a transaction on the underlying
