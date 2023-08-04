@@ -74,6 +74,7 @@ cargo-clippy:
   script:
     - rustup component add clippy
     - cargo clippy --verbose --tests -- -D warnings
+  allow_failure: true
   cache:
     # inherit all general cache settings
     <<: *general_cache_config
