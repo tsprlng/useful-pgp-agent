@@ -203,7 +203,7 @@ impl ScdBackend {
                 return Err(Error::Smartcard(SmartcardError::Error(format!("{e:?}"))));
             }
 
-            if let Ok(..) = response {
+            if response.is_ok() {
                 // drop remaining lines
                 while let Some(_drop) = rt.block_on(self.agent.next()) {
                     log::trace!(" drop: {:x?}", _drop);
