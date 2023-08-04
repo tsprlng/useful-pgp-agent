@@ -23,7 +23,7 @@ rsa = "0.8.1"
 [dev-dependencies]
 openpgp-card-pcsc = { path = "../pcsc", version = "0.3" }
 #openpgp-card-scdc = { path = "../scdc", version = "0.3" }
-env_logger = "0.9"
+env_logger = "0.10"
 testresult = "0.3.0"
 
 [features]
