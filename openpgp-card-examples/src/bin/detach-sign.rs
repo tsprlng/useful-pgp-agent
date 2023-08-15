@@ -23,9 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let pin = std::fs::read(pin_file)?;
 
-    transaction.verify_user_for_signing(&pin)?;
-
-    let mut sign = transaction.signing_card().unwrap();
+    let mut sign = transaction.to_signing_card(&pin)?;
     let s = sign.signer(&|| println!("Touch confirmation needed for signing"))?;
 
     let stdout = std::io::stdout();

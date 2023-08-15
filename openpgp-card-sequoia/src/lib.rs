@@ -69,9 +69,8 @@
 //! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
 //!
-//! // Get authorization for user access to the card with password
-//! transaction.verify_user(b"123456")?;
-//! let mut user = transaction.user_card().expect("This should not fail");
+//! // Get user access to the card (and authorize with the user pin)
+//! let mut user = transaction.to_user_card("123456")?;
 //!
 //! // Get decryptor
 //! let decryptor = user.decryptor(&|| println!("Touch confirmation needed for decryption"));
@@ -104,9 +103,8 @@
 //! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
 //!
-//! // Get authorization for signing access to the card with password
-//! transaction.verify_user_for_signing(b"123456")?;
-//! let mut user = transaction.signing_card().expect("This should not fail");
+//! // Get signing access to the card (and authorize with the user pin)
+//! let mut user = transaction.to_signing_card("123456")?;
 //!
 //! // Get signer
 //! let signer = user.signer(&|| println!("Touch confirmation needed for signing"));
@@ -130,9 +128,8 @@
 //! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
 //!
-//! // Get authorization for admin access to the card with password
-//! transaction.verify_admin(b"12345678")?;
-//! let mut admin = transaction.admin_card().expect("This should not fail");
+//! // Get admin access to the card (and authorize with the admin pin)
+//! let mut admin = transaction.to_admin_card("12345678")?;
 //!
 //! // Set the Name and URL fields on the card
 //! admin.set_name("Alice Adams")?;
@@ -173,6 +170,36 @@ pub mod util;
 
 /// Shorthand for Sequoia public key data (a single public (sub)key)
 pub type PublicKey = Key<key::PublicParts, key::UnspecifiedRole>;
+
+/// Optional PIN, used as a parameter to `Card<Transaction>::into_*_card`.
+///
+/// Effectively acts like a `Option<&[u8]>`, but with a number of `From`
+/// implementations for convenience.
+pub struct OptionalPin<'p>(Option<&'p [u8]>);
+
+impl<'p> From<Option<&'p [u8]>> for OptionalPin<'p> {
+    fn from(value: Option<&'p [u8]>) -> Self {
+        OptionalPin(value)
+    }
+}
+
+impl<'p> From<&'p str> for OptionalPin<'p> {
+    fn from(value: &'p str) -> Self {
+        OptionalPin(Some(value.as_bytes()))
+    }
+}
+
+impl<'p> From<&'p Vec<u8>> for OptionalPin<'p> {
+    fn from(value: &'p Vec<u8>) -> Self {
+        OptionalPin(Some(value))
+    }
+}
+
+impl<'p, const S: usize> From<&'p [u8; S]> for OptionalPin<'p> {
+    fn from(value: &'p [u8; S]) -> Self {
+        OptionalPin(Some(value))
+    }
+}
 
 /// Representation of an OpenPGP card.
 ///
@@ -362,22 +389,55 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Get a view of the card authenticated for "User" commands.
-    pub fn user_card<'b>(&'b mut self) -> Option<Card<User<'a, 'b>>> {
-        Some(Card::<User> {
+    ///
+    /// If `pin` is not None, `verify_user` is called with that pin.
+    pub fn to_user_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<User<'a, 'b>>, Error>
+    where
+        P: Into<OptionalPin<'p>>,
+    {
+        let pin: OptionalPin = pin.into();
+
+        if let Some(pin) = pin.0 {
+            self.verify_user(pin)?;
+        }
+
+        Ok(Card::<User> {
             state: User { tx: self },
         })
     }
 
     /// Get a view of the card authenticated for Signing.
-    pub fn signing_card<'b>(&'b mut self) -> Option<Card<Sign<'a, 'b>>> {
-        Some(Card::<Sign> {
+    ///
+    /// If `pin` is not None, `verify_user_for_signing` is called with that pin.
+    pub fn to_signing_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<Sign<'a, 'b>>, Error>
+    where
+        P: Into<OptionalPin<'p>>,
+    {
+        let pin: OptionalPin = pin.into();
+
+        if let Some(pin) = pin.0 {
+            self.verify_user_for_signing(pin)?;
+        }
+
+        Ok(Card::<Sign> {
             state: Sign { tx: self },
         })
     }
 
     /// Get a view of the card authenticated for "Admin" commands.
-    pub fn admin_card<'b>(&'b mut self) -> Option<Card<Admin<'a, 'b>>> {
-        Some(Card::<Admin> {
+    ///
+    /// If `pin` is not None, `verify_admin` is called with that pin.
+    pub fn to_admin_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<Admin<'a, 'b>>, Error>
+    where
+        P: Into<OptionalPin<'p>>,
+    {
+        let pin: OptionalPin = pin.into();
+
+        if let Some(pin) = pin.0 {
+            self.verify_admin(pin)?;
+        }
+
+        Ok(Card::<Admin> {
             state: Admin { tx: self },
         })
     }

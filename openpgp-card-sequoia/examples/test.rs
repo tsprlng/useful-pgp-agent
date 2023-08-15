@@ -100,7 +100,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("has user (pw1/82) been verified yet? {check:x?}");
 
             // Use Admin access to card
-            let mut admin = transaction.admin_card().expect("just verified");
+            let mut admin = transaction.to_admin_card(None).expect("just verified");
 
             println!();
 
@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // Use User access to card
             let mut user = transaction
-                .user_card()
+                .to_user_card(None)
                 .expect("We just validated, this should not fail");
 
             let _cert = Cert::from_file(TEST_KEY_PATH)?;
@@ -191,7 +191,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("verify for sign (pw1/81) ok\n");
 
         // Use Sign access to card
-        let mut sign = transaction.signing_card().expect("just verified");
+        let mut sign = transaction.to_signing_card(None).expect("just verified");
 
         let _cert = Cert::from_file(TEST_KEY_PATH)?;
 

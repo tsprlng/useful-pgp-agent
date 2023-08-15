@@ -24,9 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let pin = std::fs::read(pin_file)?;
 
-    transaction.verify_user(&pin)?;
-
-    let mut user = transaction.user_card().unwrap();
+    let mut user = transaction.to_user_card(&pin)?;
 
     let p = StandardPolicy::new();
 

@@ -6,7 +6,7 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use openpgp_card::algorithm::{Algo, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
@@ -58,16 +58,14 @@ pub fn make_cert(
             } else {
                 open.verify_user_for_signing_pinpad(pinpad_prompt)?;
             }
-            if let Some(mut sign) = open.signing_card() {
-                // Card-backed signer for bindings
-                let mut card_signer = sign.signer_from_public(key_sig.clone(), touch_prompt);
+            let mut sign = open.to_signing_card(None)?;
 
-                // Make signature, return it
-                let s = op(&mut card_signer)?;
-                Ok(s)
-            } else {
-                Err(anyhow!("Failed to open card for signing"))
-            }
+            // Card-backed signer for bindings
+            let mut card_signer = sign.signer_from_public(key_sig.clone(), touch_prompt);
+
+            // Make signature, return it
+            let s = op(&mut card_signer)?;
+            Ok::<Signature, anyhow::Error>(s)
         };
 
     // 1) use the signing key as primary key
