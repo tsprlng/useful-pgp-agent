@@ -6,9 +6,9 @@ use std::time::SystemTime;
 
 use anyhow::Result;
 use openpgp_card::card_do::KeyGenerationTime;
-use openpgp_card::{KeyType, OpenPgpTransaction};
-use openpgp_card_sequoia::sq_util;
-use openpgp_card_sequoia::util::vka_as_uploadable_key;
+use openpgp_card::KeyType;
+use openpgp_card_sequoia::state::Admin;
+use openpgp_card_sequoia::{sq_util, Card};
 use sequoia_openpgp::parse::stream::{
     DetachedVerifierBuilder, MessageLayer, MessageStructure, VerificationHelper,
 };
@@ -20,7 +20,7 @@ use sequoia_openpgp::Cert;
 pub const SP: &StandardPolicy = &StandardPolicy::new();
 
 pub(crate) fn upload_subkeys(
-    pgpt: &mut OpenPgpTransaction,
+    admin: &mut Card<Admin>,
     cert: &Cert,
     policy: &dyn Policy,
 ) -> Result<Vec<(String, KeyGenerationTime)>> {
@@ -44,8 +44,7 @@ pub(crate) fn upload_subkeys(
             out.push((fp, creation.into()));
 
             // upload key
-            let cuk = vka_as_uploadable_key(vka, None);
-            pgpt.key_import(cuk, *kt)?;
+            admin.upload_key(vka, *kt, None)?;
         }
     }
 

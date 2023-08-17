@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Wrapping of cards for tests. Open a list of cards, based on a
@@ -7,13 +7,13 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use openpgp_card::{CardBackend, Error};
-use openpgp_card_pcsc::PcscBackend;
-use openpgp_card_scdc::ScdBackend;
-use pcsc::ShareMode;
+use card_backend_pcsc::PcscBackend;
+use card_backend_scdc::ScdBackend;
+use openpgp_card::Error;
+use openpgp_card_sequoia::state::Open;
 use serde_derive::Deserialize;
 
-const SHARE_MODE: Option<ShareMode> = Some(ShareMode::Shared);
+// const SHARE_MODE: Option<ShareMode> = Some(ShareMode::Shared);
 
 #[derive(Debug, Deserialize)]
 pub struct TestConfig {
@@ -41,7 +41,7 @@ pub struct TestCardData {
 }
 
 impl TestCardData {
-    pub(crate) fn get_card(&self) -> Result<Box<dyn CardBackend + Send + Sync>> {
+    pub fn get_card(&self) -> Result<openpgp_card_sequoia::Card<Open>> {
         self.tc.open()
     }
 
@@ -92,7 +92,7 @@ pub enum TestCard {
 }
 
 impl TestCard {
-    pub fn open(&self) -> Result<Box<dyn CardBackend + Send + Sync>> {
+    pub fn open(&self) -> Result<openpgp_card_sequoia::Card<Open>> {
         match self {
             Self::Pcsc(ident) => {
                 // Attempt to shutdown SCD, if it is running.
@@ -103,24 +103,39 @@ impl TestCard {
                 // Make three attempts to open the card before failing
                 // (this can be useful in ShareMode::Exclusive)
                 let mut i = 1;
-                let card: Result<Box<dyn CardBackend + Send + Sync>, Error> = loop {
-                    let res = PcscBackend::open_by_ident(ident, SHARE_MODE);
+                let card: Result<openpgp_card_sequoia::Card<Open>, Error> = loop {
+                    i += 1;
 
-                    if i == 3 {
-                        if let Ok(res) = res {
-                            break Ok(Box::new(res));
-                        }
+                    let cards = PcscBackend::card_backends(None)?;
+                    let res = openpgp_card_sequoia::Card::<Open>::open_by_ident(cards, ident);
+
+                    println!("Got result for card: {}", ident);
+
+                    if let Err(e) = &res {
+                        println!("Result is an error: {:x?}", e);
+                    } else {
+                        println!("Result is a happy card");
+                    }
+
+                    if let Ok(res) = res {
+                        break Ok(res);
+                    }
+
+                    if i > 3 {
+                        break Err(Error::NotFound(format!("Couldn't open card {}", ident)));
                     }
 
                     // sleep for 100ms
+                    println!("Will sleep for 100ms");
                     std::thread::sleep(std::time::Duration::from_millis(100));
-
-                    i += 1;
                 };
 
                 Ok(card?)
             }
-            Self::Scdc(serial) => Ok(Box::new(ScdBackend::open_by_serial(None, serial)?)),
+            Self::Scdc(serial) => {
+                let backend = ScdBackend::open_by_serial(None, serial)?;
+                Ok(openpgp_card_sequoia::Card::<Open>::new(backend)?)
+            }
         }
     }
 }

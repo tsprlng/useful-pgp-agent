@@ -8,12 +8,13 @@ use std::string::FromUtf8Error;
 use anyhow::Result;
 use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
-use openpgp_card::{Error, KeyType, OpenPgp, OpenPgpTransaction, StatusBytes};
+use openpgp_card::{Error, KeyType, OpenPgp, StatusBytes};
 use openpgp_card_sequoia::sq_util;
+use openpgp_card_sequoia::state::{Admin, Open};
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
-use openpgp_card_sequoia::{state::Transaction, Card};
+use openpgp_card_sequoia::Card;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::SerializeInto;
@@ -21,7 +22,6 @@ use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 use thiserror;
 
-use crate::cards::TestCardData;
 use crate::util;
 
 #[derive(Debug)]
@@ -52,9 +52,7 @@ pub enum TestError {
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-pub fn test_decrypt(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
-
+pub fn test_decrypt(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
     assert_eq!(
         param.len(),
         2,
@@ -63,13 +61,11 @@ pub fn test_decrypt(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, Tes
 
     let msg = param[1].to_string();
 
-    pgpt.verify_pw1_user(b"123456")?;
-
     let p = StandardPolicy::new();
 
-    let mut transaction = Card::<Transaction>::new(pgpt)?;
+    let mut transaction = card.transaction()?;
 
-    let mut user = transaction.user_card().unwrap();
+    let mut user = transaction.to_user_card("123456")?;
     let d = user.decryptor(&|| {})?;
 
     let res = sq_util::decrypt(d, msg.into_bytes(), &p)?;
@@ -81,18 +77,14 @@ pub fn test_decrypt(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, Tes
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-pub fn test_sign(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
-
+pub fn test_sign(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
-
-    pgpt.verify_pw1_sign(b"123456")?;
 
     let cert = Cert::from_str(param[0])?;
 
-    let mut transaction = Card::<Transaction>::new(pgpt)?;
+    let mut transaction = card.transaction()?;
 
-    let mut sign = transaction.signing_card().unwrap();
+    let mut sign = transaction.to_signing_card("123456").unwrap();
     let s = sign.signer(&|| {})?;
 
     let msg = "Hello world, I am signed.";
@@ -105,13 +97,13 @@ pub fn test_sign(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestEr
 }
 
 fn check_key_upload_metadata(
-    pgpt: &mut OpenPgpTransaction,
+    admin: &mut Card<Admin>,
     meta: &[(String, KeyGenerationTime)],
 ) -> Result<()> {
-    let ard = pgpt.application_related_data()?;
+    admin.as_transaction().reload_ard()?;
 
     // check fingerprints
-    let card_fp = ard.fingerprints()?;
+    let card_fp = admin.as_transaction().fingerprints()?;
 
     let sig = card_fp.signature().expect("signature fingerprint");
     assert_eq!(format!("{sig:X}"), meta[0].0);
@@ -125,7 +117,7 @@ fn check_key_upload_metadata(
     assert_eq!(format!("{auth:X}"), meta[2].0);
 
     // get_key_generation_times
-    let card_kg = ard.key_generation_times()?;
+    let card_kg = admin.as_transaction().key_generation_times()?;
 
     let sig = card_kg.signature().expect("signature creation time");
     assert_eq!(sig, &meta[0].1);
@@ -186,8 +178,8 @@ pub fn test_print_algo_info(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOu
     Ok(vec![])
 }
 
-pub fn test_upload_keys(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_upload_keys(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
     assert_eq!(
         param.len(),
@@ -195,16 +187,15 @@ pub fn test_upload_keys(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput,
         "test_upload_keys needs a filename for 'cert'"
     );
 
-    pgpt.verify_pw3(b"12345678")?;
-
     let cert = Cert::from_file(param[0])?;
-
     let p = StandardPolicy::new();
 
-    let meta = util::upload_subkeys(&mut pgpt, &cert, &p)
+    let mut admin = transaction.to_admin_card(b"12345678")?;
+
+    let meta = util::upload_subkeys(&mut admin, &cert, &p)
         .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
 
-    check_key_upload_metadata(&mut pgpt, &meta)?;
+    check_key_upload_metadata(&mut admin, &meta)?;
 
     // FIXME: implement
     check_key_upload_algo_attrs()?;
@@ -213,12 +204,11 @@ pub fn test_upload_keys(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput,
 }
 
 /// Generate keys for each of the three KeyTypes
-pub fn test_keygen(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, TestError> {
-    let pgpt = pgp.transaction()?;
-
-    let mut transaction = Card::<Transaction>::new(pgpt)?;
-    transaction.verify_admin(b"12345678")?;
-    let mut admin = transaction.admin_card().expect("Couldn't get Admin card");
+pub fn test_keygen(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
+    let mut admin = transaction
+        .to_admin_card("12345678")
+        .expect("Couldn't get Admin card");
 
     // Generate all three subkeys on card
     let algo = param[0];
@@ -262,16 +252,15 @@ pub fn test_keygen(pgp: &mut OpenPgp, param: &[&str]) -> Result<TestOutput, Test
 }
 
 /// Construct public key based on data from the card
-pub fn test_get_pub(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_get_pub(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
-    let ard = pgpt.application_related_data()?;
-    let times = ard.key_generation_times()?;
-    let fps = ard.fingerprints()?;
+    let times = transaction.key_generation_times()?;
+    let fps = transaction.fingerprints()?;
 
     // --
 
-    let sig = pgpt.public_key(KeyType::Signing)?;
+    let sig = transaction.public_key_material(KeyType::Signing)?;
     let ts = times.signature().unwrap().get().into();
     let key =
         public_key_material_and_fp_to_key(&sig, KeyType::Signing, &ts, fps.signature().unwrap())?;
@@ -280,7 +269,7 @@ pub fn test_get_pub(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Te
 
     // --
 
-    let dec = pgpt.public_key(KeyType::Decryption)?;
+    let dec = transaction.public_key_material(KeyType::Decryption)?;
     let ts = times.decryption().unwrap().get().into();
     let key = public_key_material_and_fp_to_key(
         &dec,
@@ -293,7 +282,7 @@ pub fn test_get_pub(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Te
 
     // --
 
-    let auth = pgpt.public_key(KeyType::Authentication)?;
+    let auth = transaction.public_key_material(KeyType::Authentication)?;
     let ts = times.authentication().unwrap().get().into();
     let key = public_key_material_and_fp_to_key(
         &auth,
@@ -307,10 +296,10 @@ pub fn test_get_pub(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Te
     Ok(vec![])
 }
 
-pub fn test_reset(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_reset(card: &mut Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
-    pgpt.factory_reset()?;
+    transaction.factory_reset()?;
     Ok(vec![])
 }
 
@@ -319,25 +308,28 @@ pub fn test_reset(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Test
 ///
 /// Returns an empty TestOutput, throws errors for unexpected Status codes
 /// and for unequal field values.
-pub fn test_set_user_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_set_user_data(card: &mut Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
-    pgpt.verify_pw3(b"12345678")?;
+    let mut admin = transaction.to_admin_card("12345678")?;
 
     // name
-    pgpt.set_name(b"Bar<<Foo")?;
+    admin.set_name("Bar<<Foo")?;
 
     // lang
-    pgpt.set_lang(&[['d', 'e'].into(), ['e', 'n'].into()])?;
+    admin.set_lang(&[['d', 'e'].into(), ['e', 'n'].into()])?;
 
     // sex
-    pgpt.set_sex(Sex::Female)?;
+    admin.set_sex(Sex::Female)?;
 
     // url
-    pgpt.set_url(b"https://duckduckgo.com/")?;
+    admin.set_url("https://duckduckgo.com/")?;
 
-    // read all the fields back again, expect equal data
-    let ch = pgpt.cardholder_related_data()?;
+    // reload application releated data
+    transaction.reload_ard()?;
+
+    // compare the reloaded fields, expect equal data
+    let ch = transaction.cardholder_related_data()?;
 
     assert_eq!(ch.name(), Some("Bar<<Foo".as_bytes()));
     assert_eq!(
@@ -346,59 +338,62 @@ pub fn test_set_user_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutp
     );
     assert_eq!(ch.sex(), Some(Sex::Female));
 
-    let url = pgpt.url()?;
-    assert_eq!(&url, b"https://duckduckgo.com/");
+    let url = transaction.url()?;
+    assert_eq!(&url, "https://duckduckgo.com/");
 
     Ok(vec![])
 }
 
-pub fn test_set_login_data(pgp: &mut OpenPgp, _params: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_set_login_data(
+    card: &mut Card<Open>,
+    _params: &[&str],
+) -> std::result::Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
-    pgpt.verify_pw3(b"12345678")?;
+    let mut admin = transaction.to_admin_card("12345678")?;
 
-    let test_login = b"someone@somewhere.com";
-    pgpt.set_login(test_login)?;
+    let test_login = "someone@somewhere.com";
+    admin.set_login_data(test_login)?;
 
     // Read the previously set login data
-    let read_login_data = pgpt.login_data()?;
+    let read_login_data = transaction.login_data()?;
 
-    assert_eq!(read_login_data, test_login.to_vec());
+    assert_eq!(read_login_data, test_login);
 
     Ok(vec![])
 }
 
-pub fn test_private_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
-
-    let out = vec![];
-
-    println!();
-
-    let d = pgpt.private_use_do(1)?;
-    println!("data 1 {d:?}");
-
-    pgpt.verify_pw1_user(b"123456")?;
-
-    pgpt.set_private_use_do(1, "Foo bar1!".as_bytes().to_vec())?;
-    pgpt.set_private_use_do(3, "Foo bar3!".as_bytes().to_vec())?;
-
-    pgpt.verify_pw3(b"12345678")?;
-
-    pgpt.set_private_use_do(2, "Foo bar2!".as_bytes().to_vec())?;
-    pgpt.set_private_use_do(4, "Foo bar4!".as_bytes().to_vec())?;
-
-    let d = pgpt.private_use_do(1)?;
-    println!("data 1 {d:?}");
-    let d = pgpt.private_use_do(2)?;
-    println!("data 2 {d:?}");
-    let d = pgpt.private_use_do(3)?;
-    println!("data 3 {d:?}");
-    let d = pgpt.private_use_do(4)?;
-    println!("data 4 {d:?}");
-
-    Ok(out)
-}
+// pub fn test_private_data(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
+//     let mut transaction = card.transaction()?;
+//
+//     let out = vec![];
+//
+//     println!();
+//
+//     let d = transaction.private_use_do(1)?;
+//     println!("data 1 {d:?}");
+//
+//     transaction.verify_pw1_user(b"123456")?;
+//
+//     transaction.set_private_use_do(1, "Foo bar1!".as_bytes().to_vec())?;
+//     transaction.set_private_use_do(3, "Foo bar3!".as_bytes().to_vec())?;
+//
+//     transaction.verify_pw3(b"12345678")?;
+//
+//     transaction.set_private_use_do(2, "Foo bar2!".as_bytes().to_vec())?;
+//     transaction.set_private_use_do(4, "Foo bar4!".as_bytes().to_vec())?;
+//
+//     let d = transaction.private_use_do(1)?;
+//     println!("data 1 {d:?}");
+//     let d = transaction.private_use_do(2)?;
+//     println!("data 2 {d:?}");
+//     let d = transaction.private_use_do(3)?;
+//     println!("data 3 {d:?}");
+//     let d = transaction.private_use_do(4)?;
+//     println!("data 4 {d:?}");
+//
+//     Ok(out)
+// }
 
 // pub fn test_cardholder_cert(
 //     card_tx: &mut CardApp,
@@ -460,25 +455,25 @@ pub fn test_private_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutpu
 //     Ok(out)
 // }
 
-pub fn test_pw_status(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_pw_status(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
     let out = vec![];
 
-    let ard = pgpt.application_related_data()?;
-    let mut pws = ard.pw_status_bytes()?;
+    let mut pws = transaction.pw_status_bytes()?;
 
     println!("pws {pws:?}");
 
-    pgpt.verify_pw3(b"12345678")?;
+    let mut admin = transaction.to_admin_card("12345678")?;
 
     pws.set_pw1_cds_valid_once(false);
     pws.set_pw1_pin_block(true);
 
-    pgpt.set_pw_status_bytes(&pws, false)?;
+    admin.set_pw_status_bytes(&pws, false)?;
 
-    let ard = pgpt.application_related_data()?;
-    let pws = ard.pw_status_bytes()?;
+    transaction.reload_ard()?;
+
+    let pws = transaction.pw_status_bytes()?;
     println!("pws {pws:?}");
 
     Ok(out)
@@ -487,8 +482,8 @@ pub fn test_pw_status(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, 
 /// Outputs:
 /// - verify pw3 (check) -> Status
 /// - verify pw1 (check) -> Status
-pub fn test_verify(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
     // Steps:
     //
@@ -505,7 +500,8 @@ pub fn test_verify(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Tes
     let mut out = vec![];
 
     // try to set name without verify, assert result is not ok!
-    let res = pgpt.set_name("Notverified<<Hello".as_bytes());
+    let mut admin = transaction.to_admin_card(None)?;
+    let res = admin.set_name("Notverified<<Hello");
 
     if let Err(Error::CardStatus(s)) = res {
         assert_eq!(s, StatusBytes::SecurityStatusNotSatisfied);
@@ -513,9 +509,9 @@ pub fn test_verify(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Tes
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
 
-    pgpt.verify_pw3(b"12345678")?;
+    transaction.verify_admin(b"12345678")?;
 
-    match pgpt.check_pw3() {
+    match transaction.check_admin_verified() {
         Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
@@ -526,14 +522,18 @@ pub fn test_verify(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Tes
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    pgpt.set_name(b"Admin<<Hello")?;
+    let mut admin = transaction.to_admin_card(None)?;
 
-    let cardholder = pgpt.cardholder_related_data()?;
+    admin.set_name("Admin<<Hello")?;
+
+    transaction.reload_ard()?;
+
+    let cardholder = transaction.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("Admin<<Hello".as_bytes()));
 
-    pgpt.verify_pw1_user(b"123456")?;
+    transaction.verify_user(b"123456")?;
 
-    match pgpt.check_pw3() {
+    match transaction.check_user_verified() {
         Err(Error::CardStatus(s)) => {
             // e.g. yubikey5 returns an error status!
             out.push(TestResult::Status(s));
@@ -544,36 +544,39 @@ pub fn test_verify(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, Tes
         Ok(_) => out.push(TestResult::StatusOk),
     }
 
-    pgpt.set_name(b"There<<Hello")?;
+    let mut admin = transaction.to_admin_card(None)?;
 
-    let cardholder = pgpt.cardholder_related_data()?;
+    admin.set_name("There<<Hello")?;
+
+    transaction.reload_ard()?;
+    let cardholder = transaction.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("There<<Hello".as_bytes()));
 
     Ok(out)
 }
 
-pub fn test_change_pw(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+pub fn test_change_pw(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut transaction = card.transaction()?;
 
     let out = vec![];
 
     // first do admin-less pw1 on gnuk
     // (NOTE: Gnuk requires a key to be loaded before allowing pw changes!)
     println!("change pw1");
-    pgpt.change_pw1(b"123456", b"abcdef00")?;
+    transaction.change_user_pin(b"123456", b"abcdef00")?;
 
     // also set admin pw, which means pw1 is now only user-pw again, on gnuk
     println!("change pw3");
     // ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
-    pgpt.change_pw3(b"12345678", b"abcdefgh")?;
+    transaction.change_admin_pin(b"12345678", b"abcdefgh")?;
 
     println!("change pw1");
-    pgpt.change_pw1(b"abcdef00", b"abcdef")?; // gnuk
+    transaction.change_user_pin(b"abcdef00", b"abcdef")?; // gnuk
 
     // ca.change_pw1("123456", "abcdef")?;
 
     println!("verify bad pw1");
-    match pgpt.verify_pw1_user(b"123456ab") {
+    match transaction.verify_user(b"123456ab") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -584,10 +587,10 @@ pub fn test_change_pw(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, 
     }
 
     println!("verify good pw1");
-    pgpt.verify_pw1_user(b"abcdef")?;
+    transaction.verify_user(b"abcdef")?;
 
     println!("verify bad pw3");
-    match pgpt.verify_pw3(b"00000000") {
+    match transaction.verify_admin(b"00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -598,36 +601,36 @@ pub fn test_change_pw(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, 
     }
 
     println!("verify good pw3");
-    pgpt.verify_pw3(b"abcdefgh")?;
+    transaction.verify_admin(b"abcdefgh")?;
 
     println!("change pw3 back to default");
-    pgpt.change_pw3(b"abcdefgh", b"12345678")?;
+    transaction.change_admin_pin(b"abcdefgh", b"12345678")?;
 
     println!("change pw1 back to default");
-    pgpt.change_pw1(b"abcdef", b"123456")?;
+    transaction.change_user_pin(b"abcdef", b"123456")?;
 
     Ok(out)
 }
 
 pub fn test_reset_retry_counter(
-    pgp: &mut OpenPgp,
+    mut card: Card<Open>,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut pgpt = pgp.transaction()?;
+    let mut transaction = card.transaction()?;
 
     let out = vec![];
 
     // set pw3, then pw1 (to bring gnuk into non-admin mode)
     println!("set pw3");
-    pgpt.change_pw3(b"12345678", b"12345678")?;
+    transaction.change_admin_pin(b"12345678", b"12345678")?;
     println!("set pw1");
-    pgpt.change_pw1(b"123456", b"123456")?;
+    transaction.change_user_pin(b"123456", b"123456")?;
 
     println!("break pw1");
-    let _ = pgpt.verify_pw1_user(b"wrong0");
-    let _ = pgpt.verify_pw1_user(b"wrong0");
-    let _ = pgpt.verify_pw1_user(b"wrong0");
-    let res = pgpt.verify_pw1_user(b"wrong0");
+    let _ = transaction.verify_user(b"wrong0");
+    let _ = transaction.verify_user(b"wrong0");
+    let _ = transaction.verify_user(b"wrong0");
+    let res = transaction.verify_user(b"wrong0");
 
     match res {
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
@@ -646,20 +649,21 @@ pub fn test_reset_retry_counter(
     }
 
     println!("verify pw3");
-    pgpt.verify_pw3(b"12345678")?;
+    transaction.verify_admin(b"12345678")?;
 
     println!("set resetting code");
-    pgpt.set_resetting_code(b"abcdefgh")?;
+    let mut admin = transaction.to_admin_card(None)?;
+    admin.set_resetting_code(b"abcdefgh")?;
 
     println!("reset retry counter");
     // ca.reset_retry_counter_pw1("abcdef".as_bytes().to_vec(), None)?;
-    let _res = pgpt.reset_retry_counter_pw1(b"abcdef", Some(b"abcdefgh"));
+    let _res = transaction.reset_user_pin(b"abcdef", b"abcdefgh");
 
     println!("verify good pw1");
-    pgpt.verify_pw1_user(b"abcdef")?;
+    transaction.verify_user(b"abcdef")?;
 
     println!("verify bad pw1");
-    match pgpt.verify_pw1_user(b"00000000") {
+    match transaction.verify_user(b"00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -673,11 +677,9 @@ pub fn test_reset_retry_counter(
 }
 
 pub fn run_test(
-    tc: &mut TestCardData,
-    t: fn(&mut OpenPgp, &[&str]) -> Result<TestOutput, TestError>,
+    card: &mut Card<Open>,
+    t: fn(&mut Card<Open>, &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let card = tc.get_card()?;
-    let mut pgp = OpenPgp::new(card);
-    t(&mut pgp, param)
+    t(card, param)
 }

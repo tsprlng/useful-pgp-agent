@@ -7,6 +7,8 @@ use anyhow::Result;
 use card_functionality::cards::TestConfig;
 use card_functionality::tests::*;
 use card_functionality::util;
+use openpgp_card_sequoia::state::Open;
+use openpgp_card_sequoia::Card;
 use sequoia_openpgp::Cert;
 
 fn main() -> Result<()> {
@@ -21,15 +23,22 @@ fn main() -> Result<()> {
 
     let cards = config.into_cardapps();
 
-    for mut card in cards {
+    for card in cards {
         println!("** Run tests on card '{}' **", card.get_name());
 
+        let mut c: Card<Open> = card.get_card()?;
+        println!(" -> Card opened");
+
         println!("Reset");
-        let _ = run_test(&mut card, test_reset, &[])?;
+        let _ = run_test(&mut c, test_reset, &[])?;
 
         print!("Set user data");
-        let userdata_out = run_test(&mut card, test_set_user_data, &[])?;
+        let userdata_out = run_test(&mut c, test_set_user_data, &[])?;
         println!(" {userdata_out:x?}");
+
+        println!("Set login data");
+        let login_data_out = run_test(&mut c, test_set_login_data, &[])?;
+        println!(" {login_data_out:x?}");
 
         let key_files = {
             let config = card.get_config();
@@ -40,14 +49,10 @@ fn main() -> Result<()> {
             }
         };
 
-        println!("Set login data");
-        let login_data_out = run_test(&mut card, test_set_login_data, &[])?;
-        println!(" {login_data_out:x?}");
-
         for key_file in &key_files {
             // upload keys
             print!("Upload key '{key_file}'");
-            let upload_res = run_test(&mut card, test_upload_keys, &[key_file]);
+            let upload_res = run_test(&mut c, test_upload_keys, &[key_file]);
 
             if let Err(TestError::KeyUploadError(_file, err)) = &upload_res {
                 // The card doesn't support this key type, so skip to the
@@ -66,16 +71,16 @@ fn main() -> Result<()> {
             // decrypt
             print!("  Decrypt");
 
-            let c = Cert::from_str(&key)?;
-            let ciphertext = util::encrypt_to("Hello world!\n", &c)?;
+            let cert = Cert::from_str(&key)?;
+            let ciphertext = util::encrypt_to("Hello world!\n", &cert)?;
 
-            let dec_out = run_test(&mut card, test_decrypt, &[&key, &ciphertext])?;
+            let dec_out = run_test(&mut c, test_decrypt, &[&key, &ciphertext])?;
             println!(" {dec_out:x?}");
 
             // sign
             print!("  Sign");
 
-            let sign_out = run_test(&mut card, test_sign, &[&key])?;
+            let sign_out = run_test(&mut c, test_sign, &[&key])?;
             println!(" {sign_out:x?}");
         }
 

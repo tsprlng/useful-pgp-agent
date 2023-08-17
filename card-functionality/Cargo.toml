@@ -31,8 +31,8 @@ path = "src/list-cards.rs"
 [dependencies]
 openpgp-card = { path = "../openpgp-card" }
 openpgp-card-sequoia = { path = "../openpgp-card-sequoia" }
-openpgp-card-scdc = { path = "../scdc" }
-openpgp-card-pcsc = { path = "../pcsc" }
+card-backend-scdc = { path = "../scdc" }
+card-backend-pcsc = { path = "../pcsc" }
 pcsc = "2.7"
 sequoia-openpgp = "1.3"
 anyhow = "1"

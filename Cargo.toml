@@ -9,5 +9,5 @@ members = [
     "pcsc",
     "scdc",
     "openpgp-card-examples",
-#    "card-functionality",
+    "card-functionality",
 ]

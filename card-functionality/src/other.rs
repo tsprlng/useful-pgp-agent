@@ -4,6 +4,8 @@
 use anyhow::Result;
 use card_functionality::cards::TestConfig;
 use card_functionality::tests::*;
+use openpgp_card_sequoia::state::Open;
+use openpgp_card_sequoia::Card;
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -12,8 +14,10 @@ fn main() -> Result<()> {
 
     let cards = config.into_cardapps();
 
-    for mut card in cards {
+    for card in cards {
         println!("** Run tests on card '{}' **", card.get_name());
+
+        let mut c: Card<Open> = card.get_card()?;
 
         // println!("Caps");
         // let _ = run_test(&mut card, test_print_caps, &[])?;
@@ -23,7 +27,7 @@ fn main() -> Result<()> {
         // let _ = run_test(&mut card, test_print_algo_info, &[])?;
 
         println!("Reset");
-        let _ = run_test(&mut card, test_reset, &[])?;
+        let _ = run_test(&mut c, test_reset, &[])?;
 
         // ---
 

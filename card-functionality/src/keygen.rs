@@ -7,6 +7,8 @@ use anyhow::Result;
 use card_functionality::cards::TestConfig;
 use card_functionality::tests::*;
 use card_functionality::util;
+use openpgp_card_sequoia::state::Open;
+use openpgp_card_sequoia::Card;
 use sequoia_openpgp::Cert;
 
 fn main() -> Result<()> {
@@ -21,8 +23,11 @@ fn main() -> Result<()> {
 
     let cards = config.into_cardapps();
 
-    for mut card in cards {
+    for card in cards {
         println!("** Run tests on card {} **", card.get_name());
+
+        let mut c: Card<Open> = card.get_card()?;
+        println!(" -> Card opened");
 
         // println!("Get pubkey");
         // let _ = run_test(&mut card, test_get_pub, &[])?;
@@ -34,14 +39,14 @@ fn main() -> Result<()> {
         // // continue; // only print caps
 
         println!("Reset");
-        let _ = run_test(&mut card, test_reset, &[])?;
+        let _ = run_test(&mut c, test_reset, &[])?;
 
         // println!("Algo info");
         // let _ = run_test(&mut card, test_print_algo_info, &[])?;
 
         // Set user data because keygen expects a name (for the user id)
         println!("Set user data");
-        let _ = run_test(&mut card, test_set_user_data, &[])?;
+        let _ = run_test(&mut c, test_set_user_data, &[])?;
 
         let algos = {
             let config = card.get_config();
@@ -55,20 +60,20 @@ fn main() -> Result<()> {
         for algo in algos {
             println!("Generate key [{algo}]");
 
-            let res = run_test(&mut card, test_keygen, &[&algo])?;
+            let res = run_test(&mut c, test_keygen, &[&algo])?;
 
-            if let TestResult::Text(cert) = &res[0] {
+            if let TestResult::Text(cert_str) = &res[0] {
                 // sign
                 print!("  Sign");
-                let sign_out = run_test(&mut card, test_sign, &[cert])?;
+                let sign_out = run_test(&mut c, test_sign, &[cert_str])?;
                 println!(" {sign_out:x?}");
 
                 // decrypt
-                let c = Cert::from_str(cert)?;
-                let ciphertext = util::encrypt_to("Hello world!\n", &c)?;
+                let cert = Cert::from_str(cert_str)?;
+                let ciphertext = util::encrypt_to("Hello world!\n", &cert)?;
 
                 print!("  Decrypt");
-                let dec_out = run_test(&mut card, test_decrypt, &[cert, &ciphertext])?;
+                let dec_out = run_test(&mut c, test_decrypt, &[cert_str, &ciphertext])?;
                 println!(" {dec_out:x?}");
             } else {
                 panic!("Didn't get back a Cert from test_keygen");
