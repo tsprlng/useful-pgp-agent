@@ -352,6 +352,22 @@ pub fn test_set_user_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutp
     Ok(vec![])
 }
 
+pub fn test_set_login_data(pgp: &mut OpenPgp, _params: &[&str]) -> Result<TestOutput, TestError> {
+    let mut pgpt = pgp.transaction()?;
+
+    pgpt.verify_pw3(b"12345678")?;
+
+    let test_login = b"someone@somewhere.com";
+    pgpt.set_login(test_login)?;
+
+    // Read the previously set login data
+    let read_login_data = pgpt.login_data()?;
+
+    assert_eq!(read_login_data, test_login.to_vec());
+
+    Ok(vec![])
+}
+
 pub fn test_private_data(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOutput, TestError> {
     let mut pgpt = pgp.transaction()?;
 
