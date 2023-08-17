@@ -128,7 +128,7 @@ pub trait CardTransaction {
         let resp = apdu::send_command(self, ad, true)?;
         let value = Value::from(resp.data()?, true)?;
 
-        log::trace!(" ARD value: {:x?}", value);
+        log::trace!(" ARD value: {:02x?}", value);
 
         Ok(ApplicationRelatedData(Tlv::new(
             Tags::ApplicationRelatedData,

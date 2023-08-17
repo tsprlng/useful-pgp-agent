@@ -29,7 +29,7 @@ pub(crate) fn send_command<C>(
 where
     C: CardTransaction + ?Sized,
 {
-    log::debug!(" -> full APDU command: {:x?}", cmd);
+    log::debug!(" -> full APDU command: {:02x?}", cmd);
 
     let mut resp = RawResponse::try_from(send_command_low_level(
         card_tx,
@@ -69,7 +69,7 @@ where
     }
 
     log::debug!(
-        " <- APDU response [len {}]: {:x?}",
+        " <- APDU response [len {}]: {:02x?}",
         resp.raw_data().len(),
         resp
     );
@@ -158,11 +158,11 @@ where
 
             let serialized = partial.serialize(ext_len, expect_response)?;
 
-            log::trace!(" -> chained APDU command: {:x?}", &serialized);
+            log::trace!(" -> chained APDU command: {:02x?}", &serialized);
 
             let resp = card_tx.transmit(&serialized, buf_size)?;
 
-            log::trace!(" <- APDU response: {:x?}", &resp);
+            log::trace!(" <- APDU response: {:02x?}", &resp);
 
             if resp.len() < 2 {
                 return Err(Error::ResponseLength(resp.len()));
@@ -200,11 +200,11 @@ where
             return Err(Error::CommandTooLong(serialized.len()));
         }
 
-        log::trace!(" -> APDU command: {:x?}", &serialized);
+        log::trace!(" -> APDU command: {:02x?}", &serialized);
 
         let resp = card_tx.transmit(&serialized, buf_size)?;
 
-        log::trace!(" <- APDU response: {:x?}", resp);
+        log::trace!(" <- APDU response: {:02x?}", resp);
 
         Ok(resp)
     }
