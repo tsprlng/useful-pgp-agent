@@ -819,7 +819,7 @@ impl<'app, 'open> Card<Sign<'app, 'open>> {
 }
 
 impl<'app, 'open> Card<Admin<'app, 'open>> {
-    pub fn as_open(&'_ mut self) -> &mut Card<Transaction<'app>> {
+    pub fn as_transaction(&'_ mut self) -> &mut Card<Transaction<'app>> {
         self.state.tx
     }
 
