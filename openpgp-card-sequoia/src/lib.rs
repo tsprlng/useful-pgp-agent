@@ -264,11 +264,8 @@ impl Card<Open> {
 }
 
 impl<'a> Card<Transaction<'a>> {
-    /// Do not use!
-    ///
-    /// FIXME: this interface is currently used in `card-functionality`, for testing.
-    /// It will be removed.
-    pub fn new(mut opt: OpenPgpTransaction<'a>) -> Result<Self, Error> {
+    // Internal constructor
+    fn new(mut opt: OpenPgpTransaction<'a>) -> Result<Self, Error> {
         let ard = opt.application_related_data()?;
 
         Ok(Self {
