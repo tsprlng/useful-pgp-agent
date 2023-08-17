@@ -886,6 +886,14 @@ impl Card<Admin<'_, '_>> {
         }
     }
 
+    pub fn set_pw_status_bytes(
+        &mut self,
+        pw_status: &PWStatusBytes,
+        long: bool,
+    ) -> Result<(), Error> {
+        self.card().set_pw_status_bytes(pw_status, long)
+    }
+
     pub fn set_uif(&mut self, key: KeyType, policy: TouchPolicy) -> Result<(), Error> {
         let uif = match key {
             KeyType::Signing => self.state.tx.state.ard.uif_pso_cds()?,
