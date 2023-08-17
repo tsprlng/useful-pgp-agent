@@ -47,6 +47,11 @@ pub(crate) fn url() -> Command {
     get_data(Tags::Url)
 }
 
+/// GET DO "Login Data"
+pub(crate) fn login_data() -> Command {
+    get_data(Tags::LoginData)
+}
+
 /// GET DO "Cardholder related data"
 pub(crate) fn cardholder_related_data() -> Command {
     get_data(Tags::CardholderRelatedData)
@@ -129,6 +134,11 @@ pub(crate) fn put_private_use_do(num: u8, data: Vec<u8>) -> Command {
         4 => put_data(Tags::PrivateUse4, data),
         _ => panic!("this should never happen"), // FIXME
     }
+}
+
+/// PUT DO Login Data
+pub(crate) fn put_login_data(login_data: Vec<u8>) -> Command {
+    put_data(Tags::LoginData, login_data)
 }
 
 /// PUT DO Name

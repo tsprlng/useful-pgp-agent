@@ -110,6 +110,15 @@ impl<'a> OpenPgpTransaction<'a> {
         Ok(resp.data()?.to_vec())
     }
 
+    /// Get Login Data (5e)
+    pub fn login_data(&mut self) -> Result<Vec<u8>, Error> {
+        log::info!("OpenPgpTransaction: login_data");
+
+        let resp = apdu::send_command(self.tx(), commands::login_data(), true)?;
+
+        Ok(resp.data()?.to_vec())
+    }
+
     /// Get cardholder related data (65)
     pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData, Error> {
         log::info!("OpenPgpTransaction: cardholder_related_data");
@@ -715,6 +724,12 @@ impl<'a> OpenPgpTransaction<'a> {
         let resp = apdu::send_command(self.tx(), cmd, true)?;
 
         Ok(resp.data()?.to_vec())
+    }
+
+    pub fn set_login(&mut self, login: &[u8]) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_login");
+        let put_login_data = commands::put_login_data(login.to_vec());
+        apdu::send_command(self.tx(), put_login_data, false)?.try_into()
     }
 
     pub fn set_name(&mut self, name: &[u8]) -> Result<(), Error> {

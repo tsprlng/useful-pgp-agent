@@ -40,6 +40,10 @@ fn main() -> Result<()> {
             }
         };
 
+        println!("Set login data");
+        let login_data_out = run_test(&mut card, test_set_login_data, &[])?;
+        println!(" {login_data_out:x?}");
+
         for key_file in &key_files {
             // upload keys
             print!("Upload key '{key_file}'");
