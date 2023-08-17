@@ -435,6 +435,9 @@ impl<'a> Card<Transaction<'a>> {
     // --- optional private DOs (0101 - 0104) ---
 
     // --- login data (5e) ---
+    pub fn login_data(&mut self) -> Result<String, Error> {
+        Ok(String::from_utf8_lossy(&self.state.opt.login_data()?).to_string())
+    }
 
     // --- URL (5f50) ---
 
@@ -773,6 +776,10 @@ impl Card<Admin<'_, '_>> {
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<(), Error> {
         self.card().set_sex(sex)
+    }
+
+    pub fn set_login_data(&mut self, login_data: &str) -> Result<(), Error> {
+        self.card().set_login(login_data.as_bytes())
     }
 
     /// Set "hardholder" URL on the card.
