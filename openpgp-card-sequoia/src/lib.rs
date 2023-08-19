@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! This crate offers ergonomic abstractions to use
-//! [OpenPGP cards](https://en.wikipedia.org/wiki/OpenPGP_card).
+//! [OpenPGP card devices](https://en.wikipedia.org/wiki/OpenPGP_card).
 //! The central abstraction is the [Card] type, which offers access to all card operations.
 //!
 //! A [Card] object is always in one of the possible [State]s. The [State] determines which
