@@ -5,7 +5,8 @@
 stages:
   - lint
   - test
-  - virtual-test
+  - virtual-cards
+  - udeps
   - hw-builddeps
   - hw-import
   - hw-keygen
@@ -82,7 +83,8 @@ cargo-clippy:
     key: "rust-latest"
 
 udeps:
-  stage: lint
+  stage: udeps
+  needs: [ ]
   image: rustlang/rust:nightly-slim
   before_script:
     - mkdir -p /run/user/$UID
@@ -137,7 +139,7 @@ cargo-test-debian-bookworm:
     key: "bookworm"
 
 run_cardtest_smartpgp:
-  stage: virtual-test
+  stage: virtual-cards
   image: registry.gitlab.com/openpgp-card/virtual-cards/smartpgp-builddeps
   before_script:
     - export PATH="$HOME/.cargo/bin:$PATH"
@@ -158,7 +160,7 @@ run_cardtest_smartpgp:
     key: "bookworm"
 
 run_cardtest_opcard_rs:
-  stage: virtual-test
+  stage: virtual-cards
   image: registry.gitlab.com/openpgp-card/virtual-cards/opcard-rs-tools
   before_script:
     - export PATH="$HOME/.cargo/bin:$PATH"
@@ -179,7 +181,7 @@ run_cardtest_opcard_rs:
     key: "opcard_rs"
 
 run_cardtest_canokey:
-  stage: virtual-test
+  stage: virtual-cards
   image: registry.gitlab.com/openpgp-card/virtual-cards/canokey-builddeps
   before_script:
     - export PATH="$HOME/.cargo/bin:$PATH"
@@ -200,7 +202,7 @@ run_cardtest_canokey:
     key: "canokey"
 
 run_cardtest_ykneo:
-  stage: virtual-test
+  stage: virtual-cards
   image: registry.gitlab.com/openpgp-card/virtual-cards/ykneo-builddeps
   before_script:
     - export PATH="$HOME/.cargo/bin:$PATH"
@@ -224,7 +226,7 @@ run_cardtest_ykneo:
     key: "bookworm"
 
 run_cardtest_fluffypgp:
-  stage: virtual-test
+  stage: virtual-cards
   image: registry.gitlab.com/openpgp-card/virtual-cards/fluffypgp-builddeps
   before_script:
     - export PATH="$HOME/.cargo/bin:$PATH"
@@ -247,7 +249,8 @@ run_cardtest_fluffypgp:
     # (the base image of run_cardtest uses bookworm)
     key: "bookworm"
 
-hardware-builddeps:
+# disabled for now
+.hardware-builddeps:
   stage: hw-builddeps
   needs: [ ]
   image: docker:stable
@@ -300,15 +303,16 @@ hardware-builddeps:
     # so use a different key for clarity
     key: "cookiejar"
 
-import:
+# disabled for now
+.import:
   extends: .hw-test-template
   stage: hw-import
   variables:
     ARG: import
 
-keygen:
+# disabled for now
+.keygen:
   extends: .hw-test-template
   stage: hw-keygen
-  timeout: 2h
   variables:
     ARG: keygen
