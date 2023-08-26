@@ -4,7 +4,7 @@
 [workspace]
 members = [
     "openpgp-card",
-#    "openpgp-card-sequoia",
+    "openpgp-card-sequoia",
     "card-backend",
     "pcsc",
     "scdc",

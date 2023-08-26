@@ -1,13 +1,13 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::env;
 use std::error::Error;
 
 use anyhow::Result;
+use card_backend_pcsc::PcscBackend;
 use openpgp_card::card_do::Sex;
 use openpgp_card::KeyType;
-use openpgp_card_pcsc::PcscBackend;
 use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::{state::Open, Card};
 use sequoia_openpgp::parse::Parse;
@@ -33,154 +33,157 @@ fn main() -> Result<(), Box<dyn Error>> {
     let test_card_ident = env::var("TEST_CARD_IDENT");
 
     if let Ok(test_card_ident) = test_card_ident {
-        let backend = PcscBackend::open_by_ident(&test_card_ident, None)?;
+        let cards = PcscBackend::card_backends(None)?;
+        let mut card = Card::<Open>::open_by_ident(cards, &test_card_ident)?;
 
-        let mut card: Card<Open> = backend.into();
-        let mut transaction = card.transaction()?;
+        {
+            let mut transaction = card.transaction()?;
 
-        // card metadata
+            // card metadata
 
-        let app_id = transaction.application_identifier()?;
-        println!("{app_id:x?}\n");
+            let app_id = transaction.application_identifier()?;
+            println!("{app_id:x?}\n");
 
-        let eli = transaction.extended_length_information()?;
-        println!("extended_length_info: {eli:?}\n");
+            let eli = transaction.extended_length_information()?;
+            println!("extended_length_info: {eli:?}\n");
 
-        let hist = transaction.historical_bytes()?;
-        println!("{hist:#x?}\n");
+            let hist = transaction.historical_bytes()?;
+            println!("{hist:#x?}\n");
 
-        let ext = transaction.extended_capabilities()?;
-        println!("{ext:#x?}\n");
+            let ext = transaction.extended_capabilities()?;
+            println!("{ext:#x?}\n");
 
-        let pws = transaction.pw_status_bytes()?;
-        println!("{pws:#x?}\n");
+            let pws = transaction.pw_status_bytes()?;
+            println!("{pws:#x?}\n");
 
-        // cardholder
-        let ch = transaction.cardholder_related_data()?;
-        println!("{ch:#x?}\n");
+            // cardholder
+            let ch = transaction.cardholder_related_data()?;
+            println!("{ch:#x?}\n");
 
-        // crypto-ish metadata
-        let fp = transaction.fingerprints()?;
-        println!("Fingerprint {fp:#x?}\n");
+            // crypto-ish metadata
+            let fp = transaction.fingerprints()?;
+            println!("Fingerprint {fp:#x?}\n");
 
-        match transaction.algorithm_information() {
-            Ok(Some(ai)) => println!("Algorithm information:\n{ai}"),
-            Ok(None) => println!("No Algorithm information found"),
-            Err(e) => println!("Error getting Algorithm information: {e:?}"),
+            match transaction.algorithm_information() {
+                Ok(Some(ai)) => println!("Algorithm information:\n{ai}"),
+                Ok(None) => println!("No Algorithm information found"),
+                Err(e) => println!("Error getting Algorithm information: {e:?}"),
+            }
+
+            println!("Current algorithm attributes on card:");
+            let algo = transaction.algorithm_attributes(KeyType::Signing)?;
+            println!("Sig: {algo}");
+            let algo = transaction.algorithm_attributes(KeyType::Decryption)?;
+            println!("Dec: {algo}");
+            let algo = transaction.algorithm_attributes(KeyType::Authentication)?;
+            println!("Aut: {algo}");
+
+            println!();
+
+            // ---------------------------------------------
+            //  CAUTION: Write commands ahead!
+            //  Try not to overwrite your production cards.
+            // ---------------------------------------------
+
+            assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
+
+            let check = transaction.check_admin_verified();
+            println!("has admin (pw3) been verified yet?\n{check:x?}\n");
+
+            println!("factory reset\n");
+            transaction.factory_reset()?;
+
+            transaction.verify_admin(b"12345678")?;
+            println!("verify for admin ok");
+
+            let check = transaction.check_user_verified();
+            println!("has user (pw1/82) been verified yet? {check:x?}");
+
+            // Use Admin access to card
+            let mut admin = transaction.admin_card().expect("just verified");
+
+            println!();
+
+            admin.set_name("Bar<<Foo")?;
+            println!("set name - ok");
+
+            admin.set_sex(Sex::NotApplicable)?;
+            println!("set sex - ok");
+
+            admin.set_lang(&[['e', 'n'].into()])?;
+            println!("set lang - ok");
+
+            admin.set_url("https://keys.openpgp.org")?;
+            println!("set url - ok");
+
+            let cert = Cert::from_file(TEST_KEY_PATH)?;
+            let p = StandardPolicy::new();
+
+            if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Signing)? {
+                println!("Upload signing key");
+                admin.upload_key(vka, KeyType::Signing, None)?;
+            }
+
+            if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Decryption)? {
+                println!("Upload decryption key");
+                admin.upload_key(vka, KeyType::Decryption, None)?;
+            }
+
+            if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Authentication)? {
+                println!("Upload auth key");
+                admin.upload_key(vka, KeyType::Authentication, None)?;
+            }
         }
-
-        println!("Current algorithm attributes on card:");
-        let algo = transaction.algorithm_attributes(KeyType::Signing)?;
-        println!("Sig: {algo}");
-        let algo = transaction.algorithm_attributes(KeyType::Decryption)?;
-        println!("Dec: {algo}");
-        let algo = transaction.algorithm_attributes(KeyType::Authentication)?;
-        println!("Aut: {algo}");
-
-        println!();
-
-        // ---------------------------------------------
-        //  CAUTION: Write commands ahead!
-        //  Try not to overwrite your production cards.
-        // ---------------------------------------------
-
-        assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
-
-        let check = transaction.check_admin_verified();
-        println!("has admin (pw3) been verified yet?\n{check:x?}\n");
-
-        println!("factory reset\n");
-        transaction.factory_reset()?;
-
-        transaction.verify_admin(b"12345678")?;
-        println!("verify for admin ok");
-
-        let check = transaction.check_user_verified();
-        println!("has user (pw1/82) been verified yet? {check:x?}");
-
-        // Use Admin access to card
-        let mut admin = transaction.admin_card().expect("just verified");
-
-        println!();
-
-        admin.set_name("Bar<<Foo")?;
-        println!("set name - ok");
-
-        admin.set_sex(Sex::NotApplicable)?;
-        println!("set sex - ok");
-
-        admin.set_lang(&[['e', 'n'].into()])?;
-        println!("set lang - ok");
-
-        admin.set_url("https://keys.openpgp.org")?;
-        println!("set url - ok");
-
-        let cert = Cert::from_file(TEST_KEY_PATH)?;
-        let p = StandardPolicy::new();
-
-        if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Signing)? {
-            println!("Upload signing key");
-            admin.upload_key(vka, KeyType::Signing, None)?;
-        }
-
-        if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Decryption)? {
-            println!("Upload decryption key");
-            admin.upload_key(vka, KeyType::Decryption, None)?;
-        }
-
-        if let Some(vka) = sq_util::subkey_by_type(&cert, &p, KeyType::Authentication)? {
-            println!("Upload auth key");
-            admin.upload_key(vka, KeyType::Authentication, None)?;
-        }
-
         println!();
 
         // -----------------------------
         //  Open fresh Card for decrypt
         // -----------------------------
-        let backend = PcscBackend::open_by_ident(&test_card_ident, None)?;
+        let cards = PcscBackend::card_backends(None)?;
+        let mut card = Card::<Open>::open_by_ident(cards, &test_card_ident)?;
 
-        let mut card: Card<Open> = backend.into();
-        let mut transaction = card.transaction()?;
+        {
+            let mut transaction = card.transaction()?;
 
-        // Check that we're still using the expected card
-        let app_id = transaction.application_identifier()?;
-        assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
+            // Check that we're still using the expected card
+            let app_id = transaction.application_identifier()?;
+            assert_eq!(app_id.ident(), test_card_ident.to_ascii_uppercase());
 
-        let check = transaction.check_user_verified();
-        println!("has user (pw1/82) been verified yet?\n{check:x?}\n");
+            let check = transaction.check_user_verified();
+            println!("has user (pw1/82) been verified yet?\n{check:x?}\n");
 
-        transaction.verify_user(b"123456")?;
-        println!("verify for user (pw1/82) ok");
+            transaction.verify_user(b"123456")?;
+            println!("verify for user (pw1/82) ok");
 
-        let check = transaction.check_user_verified();
-        println!("has user (pw1/82) been verified yet?\n{check:x?}\n");
+            let check = transaction.check_user_verified();
+            println!("has user (pw1/82) been verified yet?\n{check:x?}\n");
 
-        // Use User access to card
-        let mut user = transaction
-            .user_card()
-            .expect("We just validated, this should not fail");
+            // Use User access to card
+            let mut user = transaction
+                .user_card()
+                .expect("We just validated, this should not fail");
 
-        let _cert = Cert::from_file(TEST_KEY_PATH)?;
-        let msg = std::fs::read_to_string(TEST_ENC_MSG).expect("Unable to read file");
+            let _cert = Cert::from_file(TEST_KEY_PATH)?;
+            let msg = std::fs::read_to_string(TEST_ENC_MSG).expect("Unable to read file");
 
-        println!("Encrypted message:\n{msg}");
+            println!("Encrypted message:\n{msg}");
 
-        let sp = StandardPolicy::new();
-        let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
-        let res = sq_util::decryption_helper(d, msg.into_bytes(), &sp)?;
+            let sp = StandardPolicy::new();
+            let d = user.decryptor(&|| println!("Touch confirmation needed for decryption"))?;
+            let res = sq_util::decryption_helper(d, msg.into_bytes(), &sp)?;
 
-        let plain = String::from_utf8_lossy(&res);
-        println!("Decrypted plaintext: {plain}");
+            let plain = String::from_utf8_lossy(&res);
+            println!("Decrypted plaintext: {plain}");
 
-        assert_eq!(plain, "Hello world!\n");
+            assert_eq!(plain, "Hello world!\n");
+        }
 
         // -----------------------------
         //  Open fresh Card for signing
         // -----------------------------
-        let backend = PcscBackend::open_by_ident(&test_card_ident, None)?;
+        let cards = PcscBackend::card_backends(None)?;
+        let mut card = Card::<Open>::open_by_ident(cards, &test_card_ident)?;
 
-        let mut card: Card<Open> = backend.into();
         let mut transaction = card.transaction()?;
 
         // Sign
@@ -211,7 +214,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("The following OpenPGP cards are connected to your system:");
 
         for backend in PcscBackend::cards(None)? {
-            let mut card: Card<Open> = backend.into();
+            let mut card: Card<Open> = Card::<Open>::new(backend?)?;
             let open = card.transaction()?;
 
             println!(" {}", open.application_identifier()?.ident());
