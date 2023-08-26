@@ -8,6 +8,6 @@ members = [
     "card-backend",
     "pcsc",
     "scdc",
-#    "openpgp-card-examples",
+    "openpgp-card-examples",
 #    "card-functionality",
 ]

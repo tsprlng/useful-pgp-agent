@@ -14,7 +14,7 @@ documentation = "https://docs.rs/crate/openpgp-card-examples"
 [dependencies]
 sequoia-openpgp = "1.3"
 nettle = "7"
-openpgp-card-pcsc = { path = "../pcsc" }
+card-backend-pcsc = { path = "../pcsc" }
 openpgp-card-sequoia = { path = "../openpgp-card-sequoia" }
 chrono = "0.4"
 anyhow = "1"
