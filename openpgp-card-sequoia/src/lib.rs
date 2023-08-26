@@ -16,17 +16,17 @@
 //! # Backends
 //!
 //! To make use of this crate, you need to use a backend for communication
-//! with cards. The suggested default backend is `openpgp-card-pcsc`.
+//! with cards. The suggested default backend is `card-backend-pcsc`.
 //!
-//! With `openpgp-card-pcsc` you can either open all available cards:
+//! With `card-backend-pcsc` you can either open all available cards:
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscBackend;
+//! use card_backend_pcsc::PcscBackend;
 //! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! for backend in PcscBackend::cards(None)? {
-//!     let mut card: Card<Open> = backend.into();
+//!     let mut card = Card::<Open>::new(backend?)?;
 //!     let mut transaction = card.transaction()?;
 //!     println!(
 //!         "Found OpenPGP card with ident '{}'",
@@ -40,12 +40,12 @@
 //! Or you can open one particular card, by ident:
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscBackend;
+//! use card_backend_pcsc::PcscBackend;
 //! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let backend = PcscBackend::open_by_ident("abcd:01234567", None)?;
-//! let mut card: Card<Open> = backend.into();
+//! let cards = PcscBackend::card_backends(None)?;
+//! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
 //! # Ok(())
 //! # }
@@ -60,13 +60,13 @@
 //! implementation can then be obtained:
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscBackend;
+//! use card_backend_pcsc::PcscBackend;
 //! use openpgp_card_sequoia::{state::Open, Card};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
 //! use sequoia_openpgp::policy::StandardPolicy;
-//! let backend = PcscBackend::open_by_ident("abcd:01234567", None)?;
-//! let mut card: Card<Open> = backend.into();
+//! let cards = PcscBackend::card_backends(None)?;
+//! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
 //!
 //! // Get authorization for user access to the card with password
@@ -95,13 +95,13 @@
 //! user password before each signing operation!)
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscBackend;
+//! use card_backend_pcsc::PcscBackend;
 //! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
-//! let backend = PcscBackend::open_by_ident("abcd:01234567", None)?;
-//! let mut card: Card<Open> = backend.into();
+//! let cards = PcscBackend::card_backends(None)?;
+//! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
 //!
 //! // Get authorization for signing access to the card with password
@@ -121,13 +121,13 @@
 //! # Setting up and configuring a card
 //!
 //! ```no_run
-//! use openpgp_card_pcsc::PcscBackend;
+//! use card_backend_pcsc::PcscBackend;
 //! use openpgp_card_sequoia::{state::Open, Card};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Open card via PCSC
-//! let backend = PcscBackend::open_by_ident("abcd:01234567", None)?;
-//! let mut card: Card<Open> = backend.into();
+//! let cards = PcscBackend::card_backends(None)?;
+//! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
 //!
 //! // Get authorization for admin access to the card with password
@@ -142,6 +142,7 @@
 //! # }
 //! ```
 
+use card_backend::{CardBackend, SmartcardError};
 use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
 use openpgp_card::card_do::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
@@ -149,7 +150,7 @@ use openpgp_card::card_do::{
     SecuritySupportTemplate, Sex, TouchPolicy, UIF,
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
-use openpgp_card::{CardBackend, Error, KeySet, KeyType, OpenPgp, OpenPgpTransaction};
+use openpgp_card::{Error, KeySet, KeyType, OpenPgp, OpenPgpTransaction};
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::packet::{key, Key};
@@ -188,20 +189,38 @@ where
     state: S,
 }
 
-impl<B> From<B> for Card<Open>
-where
-    B: Into<Box<dyn CardBackend + Send + Sync>>,
-{
-    fn from(backend: B) -> Self {
-        let pgp = OpenPgp::new(backend.into());
-
-        Card::<Open> {
-            state: Open { pgp },
-        }
-    }
-}
-
 impl Card<Open> {
+    pub fn open_by_ident(
+        cards: impl Iterator<Item = Result<Box<dyn CardBackend + Send + Sync>, SmartcardError>>,
+        ident: &str,
+    ) -> Result<Self, Error> {
+        for b in cards.filter_map(|c| c.ok()) {
+            let mut card = Self::new(b)?;
+
+            let aid = {
+                let tx = card.transaction()?;
+                tx.state.ard.application_id()?
+            };
+
+            if aid.ident() == ident.to_ascii_uppercase() {
+                return Ok(card);
+            }
+        }
+
+        Err(Error::NotFound(format!("Couldn't find card {}", ident)))
+    }
+
+    pub fn new<B>(backend: B) -> Result<Self, Error>
+    where
+        B: Into<Box<dyn CardBackend + Send + Sync>>,
+    {
+        let pgp = OpenPgp::new(backend)?;
+
+        Ok(Card::<Open> {
+            state: Open { pgp },
+        })
+    }
+
     pub fn transaction(&mut self) -> Result<Card<Transaction>, Error> {
         let opt = self.state.pgp.transaction()?;
 

@@ -6,4 +6,4 @@
 pub use openpgp_card::algorithm::{Algo, AlgoSimple, Curve};
 pub use openpgp_card::card_do::{Sex, TouchPolicy};
 pub use openpgp_card::crypto_data::{EccType, PublicKeyMaterial};
-pub use openpgp_card::{CardBackend, Error, KeyType, StatusBytes};
+pub use openpgp_card::{Error, KeyType, StatusBytes};
