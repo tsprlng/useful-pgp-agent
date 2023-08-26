@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
@@ -12,13 +12,15 @@ standard, in Rust.
 This project consists of the following library crates:
 
 - [openpgp-card](https://crates.io/crates/openpgp-card), which offers a
-  relatively low level OpenPGP card client API.
+  relatively low-level OpenPGP card client API.
   It is PGP implementation agnostic.
-- [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc),
-  a backend to communicate with smartcards via
+- [card-backend](https://crates.io/crates/card-backend),
+  a shared trait for Smart Card backends
+- [card-backend-pcsc](https://crates.io/crates/card-backend-pcsc),
+  a backend implementation to communicate with smartcards via
   [pcsc](https://pcsclite.apdu.fr/).
-- [openpgp-card-scdc](https://crates.io/crates/openpgp-card-scdc),
-  a backend to communicate with smartcards via an 
+- [card-backend-scdc](https://crates.io/crates/card-backend-scdc),
+  a backend implementation to communicate with smartcards via an 
   [scdaemon](https://www.gnupg.org/documentation/manuals/gnupg/Invoking-SCDAEMON.html#Invoking-SCDAEMON)
   instance.
 - [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia),
@@ -29,8 +31,10 @@ This is how the libraries relate to each other (and to applications):
 
 ```mermaid
 graph BT
-    OP["openpgp-card-pcsc <br/> (pcsclite backend)"] --> OC
-    OS["openpgp-card-scdc <br/> (scdaemon backend)"] --> OC["openpgp-card <br/> (low level API)"]
+    CB["card-backend <br/> (shared trait)"] --> OP
+    CB --> OS
+    OP["card-backend-pcsc <br/> (pcsclite backend)"] --> OC
+    OS["card-backend-scdc <br/> (scdaemon backend)"] --> OC["openpgp-card <br/> (low level API)"]
     OC --> OCS["openpgp-card-sequoia <br/> (high level Sequoia PGP-based API)"]
     OC -.-> U1[Applications based on low level API]
     OCS -.-> U2[Sequoia PGP-based applications]
@@ -43,9 +47,9 @@ Additionally, there are the following non-library crates that are built on
 top of the libraries described above:
 
 - [openpgp-card-tools](https://crates.io/crates/openpgp-card-sequoia),
-  a CLI tool to inspect, manage and use OpenPGP cards, aimed at end users.
+  the `opgpcard` CLI tool to inspect, manage and use OpenPGP cards, aimed at end users.
 - [openpgp-card-tests](https://gitlab.com/openpgp-card/openpgp-card/-/tree/main/card-functionality),
-  a test-suite that runs OpenPGP card operations on smartcards.
+  a test-suite that runs OpenPGP card operations on Smart Cards.
 - [openpgp-card-examples](https://gitlab.com/openpgp-card/openpgp-card/-/tree/main/card-examples),
   small example applications that demonstrate how you can use these 
   libraries in your own projects to access OpenPGP card functionality.
@@ -63,11 +67,11 @@ implementation.
 
 ### Backends
 
-Typically, `openpgp-card` will be used with the `openpgp-card-pcsc` backend,
-which uses the standard pcsclite library to communicate with cards.
+Typically, `openpgp-card` will be used with the `card-backend-pcsc` backend,
+which uses the standard pcsc-lite library to communicate with cards.
 
 However, alternative backends can be used and may be useful.  
-The experimental, alternative `openpgp-card-scdc` backend uses scdaemon from 
+The experimental, alternative `card-backend-scdc` backend uses scdaemon from 
 the GnuPG project as a low-level transport layer to interact with OpenPGP 
 cards.
 
@@ -84,7 +88,7 @@ Backends implement:
 All higher level and/or OpenPGP card-specific logic (including command 
 chaining) is handled in the `openpgp-card` layer.
 
-### The **openpgp-card-sequoia** crate 
+### The openpgp-card-sequoia crate 
 
 Offers a higher level interface, based around Sequoia PGP datastructures.
 
@@ -100,8 +104,8 @@ library against OpenPGP cards.
 However, OpenPGP cards are, usually, physical devices that you plug into your 
 computer, e.g. as USB sticks, or Smart cards (this is, of course, the usual 
 point of these cards: they are independent devices, which are only loosely 
-coupled with your regular computing environment. However, for automated 
-testing, such as CI, this can be a complication.)
+coupled with your regular computing environment).
+For automated testing, such as CI, this is a complication.
 
 There are at least two approaches for running tests against software-based 
 OpenPGP cards:
