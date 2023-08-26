@@ -164,6 +164,26 @@ impl<'a> OpenPgpTransaction<'a> {
             .try_into()
     }
 
+    // TERMINATE DF
+
+    /// 7.2.16 TERMINATE DF
+    pub fn terminate_df(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: terminate_df");
+
+        self.send_command(commands::terminate_df(), false)?;
+        Ok(())
+    }
+
+    // ACTIVATE FILE
+
+    /// 7.2.17 ACTIVATE FILE
+    pub fn activate_file(&mut self) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: activate_file");
+
+        self.send_command(commands::activate_file(), false)?;
+        Ok(())
+    }
+
     // --- pinpad ---
 
     /// Does the reader support FEATURE_VERIFY_PIN_DIRECT?
@@ -463,17 +483,8 @@ impl<'a> OpenPgpTransaction<'a> {
             }
         }
 
-        // terminate_df [apdu 00 e6 00 00]
-        log::info!("  terminate_df");
-        let term = commands::terminate_df();
-        let resp = self.send_command(term, false)?;
-        resp.check_ok()?;
-
-        // activate_file [apdu 00 44 00 00]
-        log::info!("  activate_file");
-        let act = commands::activate_file();
-        let resp = self.send_command(act, false)?;
-        resp.check_ok()?;
+        self.terminate_df()?;
+        self.activate_file()?;
 
         Ok(())
     }
