@@ -72,7 +72,7 @@ fn parse_tl_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
     Ok((input, list))
 }
 
-pub(self) fn parse(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
+fn parse(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
     // Handle two variations of input format:
     // a) TLV format (e.g. YubiKey 5)
     // b) Plain list (e.g. Gnuk, FOSS-Store Smartcard 3.4)
