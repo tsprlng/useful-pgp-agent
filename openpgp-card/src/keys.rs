@@ -215,7 +215,9 @@ pub(crate) fn key_import(
         card_tx.set_algorithm_attributes(key_type, &algo)?;
     }
 
+    log::info!("Import key material");
     card_tx.send_command(key_cmd, false)?.check_ok()?;
+
     card_tx.set_fingerprint(fp, key_type)?;
     card_tx.set_creation_time(key.timestamp(), key_type)?;
 
