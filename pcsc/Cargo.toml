@@ -1,18 +1,18 @@
-# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 [package]
-name = "openpgp-card-pcsc"
-description = "PCSC OpenPGP card backend, for use with the openpgp-card crate"
+name = "card-backend-pcsc"
+description = "PCSC card backend, e.g. for use with the openpgp-card crate"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2018"
 repository = "https://gitlab.com/openpgp-card/openpgp-card"
-documentation = "https://docs.rs/crate/openpgp-card-pcsc"
+documentation = "https://docs.rs/crate/card-backend-pcsc"
 
 [dependencies]
-openpgp-card = { path = "../openpgp-card", version = "0.3.5" }
+card-backend = { path = "../card-backend", version = "0.1" }
 iso7816-tlv = "0.4"
 pcsc = "2.7"
 log = "0.4"

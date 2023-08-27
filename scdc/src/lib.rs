@@ -1,17 +1,17 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! This crate implements the experimental `ScdBackend`/`ScdTransaction` backend for the
 //! `openpgp-card` crate.
-//! It uses GnuPG's scdaemon (via GnuPG Agent) to access OpenPGP cards.
+//! It uses GnuPG's scdaemon (via GnuPG Agent) to access smart cards (including OpenPGP cards).
 //!
-//! Note that (unlike `openpgp-card-pcsc`), this backend doesn't implement transaction guarantees.
+//! Note that (unlike `card-backend-pcsc`), this backend doesn't implement transaction guarantees.
 
 use std::sync::Mutex;
 
+use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
 use futures::StreamExt;
 use lazy_static::lazy_static;
-use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, PinType, SmartcardError};
 use sequoia_ipc::assuan::Response;
 use sequoia_ipc::gnupg::{Agent, Context};
 use tokio::runtime::Runtime;
@@ -33,36 +33,44 @@ lazy_static! {
 /// communication within GnuPG? Are \r\n added?)
 const ASSUAN_LINELENGTH: usize = 1000;
 
-/// The maximum number of bytes for a command that we will send to
+/// The maximum number of bytes for a command that we can send to
 /// scdaemon (via Assuan).
 ///
 /// Each command byte gets sent via Assuan as a two-character hex string.
 ///
-/// 22 characters are used to send "SCD APDU --exlen=abcd "
-/// (So, as a defensive limit, 25 characters are subtracted).
+/// 17 characters are used to send "SCD APDU --exlen "
 ///
 /// In concrete terms, this limit means that some commands (with big
 /// parameters) cannot be sent to the card, when the card doesn't support
 /// command chaining (like the floss-shop "OpenPGP Smart Card 3.4").
 ///
 /// In particular, uploading rsa4096 keys fails via scdaemon, with such cards.
-const APDU_CMD_BYTES_MAX: usize = (ASSUAN_LINELENGTH - 25) / 2;
+///
+/// The value of "36" was experimentally determined:
+/// This value results in the biggest APDU_CMD_BYTES_MAX that still allows
+/// uploading an RSA4k key onto a YubiKey 5.
+const APDU_CMD_BYTES_MAX: usize = (ASSUAN_LINELENGTH - 36) / 2;
 
 /// An implementation of the CardBackend trait that uses GnuPG's scdaemon
-/// (via GnuPG Agent) to access OpenPGP card devices.
+/// (via GnuPG Agent) to access smart cards.
 pub struct ScdBackend {
     agent: Agent,
-    card_caps: Option<CardCaps>,
+}
+
+/// Boxing helper (for easier consumption of PcscBackend in openpgp_card and openpgp_card_sequoia)
+impl From<ScdBackend> for Box<dyn CardBackend + Sync + Send> {
+    fn from(backend: ScdBackend) -> Box<dyn CardBackend + Sync + Send> {
+        Box::new(backend)
+    }
 }
 
 impl ScdBackend {
-    /// Open a CardApp that uses an scdaemon instance as its backend.
-    /// The specific card with AID `serial` is requested from scdaemon.
-    pub fn open_by_serial(agent: Option<Agent>, serial: &str) -> Result<Self, Error> {
+    /// Request card with AID `serial` from scdaemon, and return it as a ScdBackend.
+    ///
+    /// The client may provide a GnuPG `agent` to use.
+    pub fn open_by_serial(agent: Option<Agent>, serial: &str) -> Result<Self, SmartcardError> {
         let mut card = ScdBackend::new(agent, true)?;
-        card.select_card(serial)?;
-
-        card.transaction()?.initialize()?;
+        card.select_by_serial(serial)?;
 
         Ok(card)
     }
@@ -72,22 +80,21 @@ impl ScdBackend {
     /// If multiple cards are available, scdaemon implicitly selects one.
     ///
     /// (NOTE: implicitly picking an unspecified card might be a bad idea.
-    /// You might want to avoid using this function.)
-    pub fn open_yolo(agent: Option<Agent>) -> Result<Self, Error> {
-        let mut card = ScdBackend::new(agent, true)?;
-
-        card.transaction()?.initialize()?;
+    /// You might want to avoid using this function, or check which card
+    /// you received.)
+    pub fn open_yolo(agent: Option<Agent>) -> Result<Self, SmartcardError> {
+        let card = ScdBackend::new(agent, true)?;
 
         Ok(card)
     }
 
     /// Helper fn that shuts down scdaemon via GnuPG Agent.
     /// This may be useful to obtain access to a Smard card via PCSC.
-    pub fn shutdown_scd(agent: Option<Agent>) -> Result<(), Error> {
+    pub fn shutdown_scd(agent: Option<Agent>) -> Result<(), SmartcardError> {
         let mut scdc = Self::new(agent, false)?;
 
-        scdc.send("SCD RESTART")?;
-        scdc.send("SCD BYE")?;
+        scdc.execute("SCD RESTART")?;
+        scdc.execute("SCD BYE")?;
 
         Ok(())
     }
@@ -97,26 +104,18 @@ impl ScdBackend {
     ///
     /// If `agent` is None, a Context with the default GnuPG home directory
     /// is used.
-    fn new(agent: Option<Agent>, init: bool) -> Result<Self, Error> {
-        let agent = if let Some(agent) = agent {
-            agent
-        } else {
-            // Create and use a new Agent based on a default Context
-            let ctx = Context::new().map_err(|e| {
-                Error::Smartcard(SmartcardError::Error(format!("Context::new failed {e}")))
-            })?;
-            RT.lock()
-                .unwrap()
-                .block_on(Agent::connect(&ctx))
-                .map_err(|e| {
-                    Error::Smartcard(SmartcardError::Error(format!("Agent::connect failed {e}")))
-                })?
-        };
+    fn new(agent: Option<Agent>, init: bool) -> Result<Self, SmartcardError> {
+        let agent = agent.unwrap_or({
+            let rt = RT.lock().unwrap();
 
-        let mut scdc = Self {
-            agent,
-            card_caps: None,
-        };
+            // Create and use a new Agent based on a default Context
+            let ctx = Context::new()
+                .map_err(|e| SmartcardError::Error(format!("Context::new failed {e}")))?;
+            rt.block_on(Agent::connect(&ctx))
+                .map_err(|e| SmartcardError::Error(format!("Agent::connect failed {e}")))?
+        });
+
+        let mut scdc = Self { agent };
 
         if init {
             scdc.serialno()?;
@@ -125,24 +124,23 @@ impl ScdBackend {
         Ok(scdc)
     }
 
-    fn send2(&mut self, cmd: &str) -> Result<(), Error> {
-        self.agent.send(cmd).map_err(|e| {
-            Error::Smartcard(SmartcardError::Error(format!(
-                "scdc agent send failed: {e}"
-            )))
-        })
+    /// Just send a command, without looking at the results at all
+    fn send_cmd(&mut self, cmd: &str) -> Result<(), SmartcardError> {
+        self.agent
+            .send(cmd)
+            .map_err(|e| SmartcardError::Error(format!("scdc agent send failed: {e}")))
     }
 
-    /// Call "SCD SERIALNO", which causes scdaemon to be started by gpg
-    /// agent (if it's not running yet).
-    fn serialno(&mut self) -> Result<(), Error> {
+    /// Call "SCD SERIALNO", which causes scdaemon to be started by gpg-agent
+    /// (if it's not running yet).
+    fn serialno(&mut self) -> Result<(), SmartcardError> {
         let rt = RT.lock().unwrap();
 
-        let send = "SCD SERIALNO";
-        self.send2(send)?;
+        let cmd = "SCD SERIALNO";
+        self.send_cmd(cmd)?;
 
         while let Some(response) = rt.block_on(self.agent.next()) {
-            log::trace!("init res: {:x?}", response);
+            log::trace!("SCD SERIALNO res: {:x?}", response);
 
             if let Ok(Response::Status { .. }) = response {
                 // drop remaining lines
@@ -154,26 +152,22 @@ impl ScdBackend {
             }
         }
 
-        Err(Error::Smartcard(SmartcardError::Error(
-            "SCDC init() failed".into(),
-        )))
+        Err(SmartcardError::Error("SCDC init() failed".into()))
     }
 
-    /// Ask scdameon to switch to using a specific OpenPGP card, based on
+    /// Ask scdaemon to switch to using a specific OpenPGP card, based on
     /// its `serial`.
-    fn select_card(&mut self, serial: &str) -> Result<(), Error> {
-        let send = format!("SCD SERIALNO --demand={serial}");
-        self.send2(&send)?;
-
+    fn select_by_serial(&mut self, serial: &str) -> Result<(), SmartcardError> {
         let rt = RT.lock().unwrap();
+
+        let send = format!("SCD SERIALNO --demand={serial}");
+        self.send_cmd(&send)?;
 
         while let Some(response) = rt.block_on(self.agent.next()) {
             log::trace!("select res: {:x?}", response);
 
             if response.is_err() {
-                return Err(Error::Smartcard(SmartcardError::CardNotFound(
-                    serial.into(),
-                )));
+                return Err(SmartcardError::CardNotFound(serial.into()));
             }
 
             if let Ok(Response::Status { .. }) = response {
@@ -186,21 +180,19 @@ impl ScdBackend {
             }
         }
 
-        Err(Error::Smartcard(SmartcardError::CardNotFound(
-            serial.into(),
-        )))
+        Err(SmartcardError::CardNotFound(serial.into()))
     }
 
-    fn send(&mut self, cmd: &str) -> Result<(), Error> {
-        self.send2(cmd)?;
-
+    fn execute(&mut self, cmd: &str) -> Result<(), SmartcardError> {
         let rt = RT.lock().unwrap();
+
+        self.send_cmd(cmd)?;
 
         while let Some(response) = rt.block_on(self.agent.next()) {
             log::trace!("select res: {:x?}", response);
 
             if let Err(e) = response {
-                return Err(Error::Smartcard(SmartcardError::Error(format!("{e:?}"))));
+                return Err(SmartcardError::Error(format!("{e:?}")));
             }
 
             if response.is_ok() {
@@ -213,14 +205,17 @@ impl ScdBackend {
             }
         }
 
-        Err(Error::Smartcard(SmartcardError::Error(format!(
+        Err(SmartcardError::Error(format!(
             "Error sending command {cmd}"
-        ))))
+        )))
     }
 }
 
 impl CardBackend for ScdBackend {
-    fn transaction(&mut self) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
+    fn transaction(
+        &mut self,
+        _reselect_application: Option<&[u8]>,
+    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, SmartcardError> {
         Ok(Box::new(ScdTransaction { scd: self }))
     }
 }
@@ -230,41 +225,40 @@ pub struct ScdTransaction<'a> {
 }
 
 impl CardTransaction for ScdTransaction<'_> {
-    fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>, Error> {
+    fn transmit(&mut self, cmd: &[u8], _: usize) -> Result<Vec<u8>, SmartcardError> {
         log::trace!("SCDC cmd len {}", cmd.len());
 
         let hex = hex::encode(cmd);
 
-        // (Unwrap is ok here, not having a card_caps is fine)
-        let ext = if self.card_caps().is_some() && self.card_caps().unwrap().ext_support() {
-            // If we know about card_caps, and can do extended length we
-            // set "exlen" accordingly ...
-            format!("--exlen={} ", self.card_caps().unwrap().max_rsp_bytes())
-        } else {
-            // ... otherwise don't send "exlen" to scdaemon
-            "".to_string()
-        };
+        // Always set "--exlen" (without explicit parameter for length)
+        //
+        // FIXME: Does this ever cause problems?
+        //
+        // Hypothesis: this should be ok.
+        // Allowing too big of a return value should not do any effective harm
+        // (just maybe cause some slightly too large memory allocations).
+        let ext = "--exlen ".to_string();
 
-        let send = format!("SCD APDU {ext}{hex}\n");
+        let send = format!("SCD APDU {ext}{hex}");
         log::trace!("SCDC command: '{}'", send);
 
         if send.len() > ASSUAN_LINELENGTH {
-            return Err(Error::Smartcard(SmartcardError::Error(format!(
+            return Err(SmartcardError::Error(format!(
                 "APDU command is too long ({}) to send via Assuan",
                 send.len()
-            ))));
+            )));
         }
-
-        self.scd.send2(&send)?;
 
         let rt = RT.lock().unwrap();
 
+        self.scd.send_cmd(&send)?;
+
         while let Some(response) = rt.block_on(self.scd.agent.next()) {
-            log::trace!("res: {:x?}", response);
+            log::trace!("transmit res: {:x?}", response);
             if response.is_err() {
-                return Err(Error::Smartcard(SmartcardError::Error(format!(
+                return Err(SmartcardError::Error(format!(
                     "Unexpected error response from SCD {response:?}"
-                ))));
+                )));
             }
 
             if let Ok(Response::Data { partial }) = response {
@@ -279,17 +273,7 @@ impl CardTransaction for ScdTransaction<'_> {
             }
         }
 
-        Err(Error::Smartcard(SmartcardError::Error(
-            "no response found".into(),
-        )))
-    }
-
-    fn init_card_caps(&mut self, caps: CardCaps) {
-        self.scd.card_caps = Some(caps);
-    }
-
-    fn card_caps(&self) -> Option<&CardCaps> {
-        self.scd.card_caps.as_ref()
+        Err(SmartcardError::Error("no response found".into()))
     }
 
     /// Return limit for APDU command size via scdaemon (based on Assuan
@@ -298,23 +282,31 @@ impl CardTransaction for ScdTransaction<'_> {
         Some(APDU_CMD_BYTES_MAX)
     }
 
-    /// FIXME: not implemented yet
+    /// Not implemented yet
     fn feature_pinpad_verify(&self) -> bool {
         false
     }
 
-    /// FIXME: not implemented yet
+    /// Not implemented yet
     fn feature_pinpad_modify(&self) -> bool {
         false
     }
 
-    /// FIXME: not implemented yet
-    fn pinpad_verify(&mut self, _id: PinType) -> Result<Vec<u8>, Error> {
+    /// Not implemented yet
+    fn pinpad_verify(
+        &mut self,
+        _id: PinType,
+        _card_caps: &Option<CardCaps>,
+    ) -> Result<Vec<u8>, SmartcardError> {
         unimplemented!()
     }
 
-    /// FIXME: not implemented yet
-    fn pinpad_modify(&mut self, _id: PinType) -> Result<Vec<u8>, Error> {
+    /// Not implemented yet
+    fn pinpad_modify(
+        &mut self,
+        _id: PinType,
+        _card_caps: &Option<CardCaps>,
+    ) -> Result<Vec<u8>, SmartcardError> {
         unimplemented!()
     }
 }

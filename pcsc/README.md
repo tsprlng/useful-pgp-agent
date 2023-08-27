@@ -1,17 +1,19 @@
 <!--
-SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
-# PC/SC client for the openpgp-card library
+# PC/SC based smart card backend
 
 This crate provides `PcscBackend` and `PcscTransaction`, which are implementations of the 
-`CardBackend` and `CardTransactions` traits from the [`openpgp-card`](https://crates.io/crates/openpgp-card) crate.
+`CardBackend` and `CardTransactions` traits from the [`card-backend`](https://crates.io/crates/card-backend) crate.
 
 This implementation uses the [pcsc](https://crates.io/crates/pcsc) Rust wrapper crate
 to access OpenPGP cards.
 
-## Documentation
+Mainly intended for use with the [openpgp-card](https://gitlab.com/openpgp-card/openpgp-card) library.
+
+## Documentation on PC/SC
 
 [PC/SC](https://en.wikipedia.org/wiki/PC/SC) is a standard for interaction with smartcards and readers.
 

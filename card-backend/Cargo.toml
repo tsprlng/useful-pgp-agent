@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2023 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+[package]
+name = "card-backend"
+description = "Card backend trait, for use with the openpgp-card crate"
+authors = ["Heiko Schaefer <heiko@schaefer.name>"]
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+edition = "2018"
+repository = "https://gitlab.com/openpgp-card/openpgp-card"
+documentation = "https://docs.rs/crate/card-backend"
+
+[dependencies]
+thiserror = "1"

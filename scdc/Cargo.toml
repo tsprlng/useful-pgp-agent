@@ -1,19 +1,19 @@
-# SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+# SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 [package]
-name = "openpgp-card-scdc"
-description = "Experimental SCDaemon Client, for use with the openpgp-card crate"
+name = "card-backend-scdc"
+description = "Experimental SCDaemon Client, e.g. for use with the openpgp-card crate"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
-version = "0.2.2"
+version = "0.4.0"
 edition = "2018"
 repository = "https://gitlab.com/openpgp-card/openpgp-card"
 documentation = "https://docs.rs/crate/openpgp-card-scdc"
 
 [dependencies]
-openpgp-card = { path = "../openpgp-card", version = "0.3" }
-sequoia-ipc = "0.27"
+card-backend = { path = "../card-backend", version = "0.1" }
+sequoia-ipc = "0.29"
 hex = "0.4"
 futures = "0.3"
 tokio = { version = "1.13.1", features = ["rt-multi-thread"] }

@@ -13,7 +13,7 @@ documentation = "https://docs.rs/crate/openpgp-card-sequoia"
 
 [dependencies]
 sequoia-openpgp = { version = "1.4", default-features = false }
-openpgp-card = { path = "../openpgp-card", version = "0.3.7" }
+openpgp-card = { path = "../openpgp-card", version = "0.4" }
 chrono = "0.4"
 anyhow = "1"
 thiserror = "1"

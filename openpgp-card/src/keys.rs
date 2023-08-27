@@ -16,7 +16,7 @@ use crate::crypto_data::{
 };
 use crate::openpgp::OpenPgpTransaction;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
-use crate::{apdu, Error, KeyType, Tag, Tags};
+use crate::{Error, KeyType, Tag, Tags};
 
 /// Generate asymmetric key pair on the card.
 ///
@@ -130,7 +130,7 @@ pub(crate) fn generate_asymmetric_key_pair(
     let crt = control_reference_template(key_type)?;
     let gen_key_cmd = commands::gen_key(crt.serialize().to_vec());
 
-    let resp = apdu::send_command(card_tx.tx(), gen_key_cmd, true)?;
+    let resp = card_tx.send_command(gen_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -158,7 +158,7 @@ pub(crate) fn public_key(
     let crt = control_reference_template(key_type)?;
     let get_pub_key_cmd = commands::get_pub_key(crt.serialize().to_vec());
 
-    let resp = apdu::send_command(card_tx.tx(), get_pub_key_cmd, true)?;
+    let resp = card_tx.send_command(get_pub_key_cmd, true)?;
     resp.check_ok()?;
 
     let tlv = Tlv::try_from(resp.data()?)?;
@@ -215,7 +215,7 @@ pub(crate) fn key_import(
         card_tx.set_algorithm_attributes(key_type, &algo)?;
     }
 
-    apdu::send_command(card_tx.tx(), key_cmd, false)?.check_ok()?;
+    card_tx.send_command(key_cmd, false)?.check_ok()?;
     card_tx.set_fingerprint(fp, key_type)?;
     card_tx.set_creation_time(key.timestamp(), key_type)?;
 

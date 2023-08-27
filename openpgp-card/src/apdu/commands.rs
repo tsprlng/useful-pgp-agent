@@ -4,18 +4,12 @@
 //! Pre-defined `Command` values for the OpenPGP card application
 
 use crate::apdu::command::Command;
-use crate::{KeyType, ShortTag, Tags};
+use crate::{KeyType, ShortTag, Tags, OP_APP};
 
 /// 7.2.1 SELECT
 /// (select the OpenPGP application on the card)
 pub(crate) fn select_openpgp() -> Command {
-    Command::new(
-        0x00,
-        0xA4,
-        0x04,
-        0x00,
-        vec![0xD2, 0x76, 0x00, 0x01, 0x24, 0x01],
-    )
+    Command::new(0x00, 0xA4, 0x04, 0x00, OP_APP.to_vec())
 }
 
 /// 7.2.6 GET DATA

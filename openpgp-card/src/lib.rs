@@ -13,9 +13,9 @@
 //! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
 //! This library can't directly access cards by itself. Instead, users
-//! need to supply a backend that implements the [`CardBackend`]
-//! / [`CardTransaction`] traits. The companion crate
-//! [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
+//! need to supply a backend that implements the [`card_backend::CardBackend`]
+//! / [`card_backend::CardTransaction`] traits. The companion crate
+//! [card-backend-pcsc](https://crates.io/crates/card-backend-pcsc)
 //! offers a backend that uses [PC/SC](https://en.wikipedia.org/wiki/PC/SC) to
 //! communicate with Smart Cards.
 //!
@@ -38,211 +38,11 @@ mod oid;
 mod openpgp;
 mod tlv;
 
-use std::convert::TryInto;
-
-use crate::apdu::commands;
-use crate::card_do::ApplicationRelatedData;
-pub use crate::errors::{Error, SmartcardError, StatusBytes};
+pub use crate::errors::{Error, StatusBytes};
 pub use crate::openpgp::{OpenPgp, OpenPgpTransaction};
-use crate::tlv::{tag::Tag, value::Value, Tlv};
+use crate::tlv::tag::Tag;
 
-/// The CardBackend trait defines a connection with an OpenPGP card via a
-/// backend implementation (e.g. via the pcsc backend in the crate
-/// [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)),
-/// A CardBackend is only used to get access to a `CardTransaction` object.
-#[blanket::blanket(derive(Box))]
-pub trait CardBackend {
-    fn transaction(&mut self) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error>;
-}
-
-/// The CardTransaction trait defines communication with an OpenPGP card via a
-/// backend implementation (e.g. the pcsc backend in the crate
-/// [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)),
-/// after opening a transaction from a CardBackend.
-#[blanket::blanket(derive(Box))]
-pub trait CardTransaction {
-    /// Transmit the command data in `cmd` to the card.
-    ///
-    /// `buf_size` is a hint to the backend (the backend may ignore it)
-    /// indicating the expected maximum response size.
-    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>, Error>;
-
-    /// Set the card capabilities in the CardTransaction.
-    ///
-    /// Setting these capabilities is typically part of a bootstrapping
-    /// process (this fn is typically called from [CardTransaction::initialize].
-    /// When implementing CardTransaction, you probably want to call
-    /// [CardTransaction::initialize] during setup).
-    ///
-    /// The information about the card's capabilities is typically
-    /// requested from the card using the same CardTransaction instance,
-    /// before the card's capabilities have been initialized.
-    fn init_card_caps(&mut self, caps: CardCaps);
-
-    /// Request the card's capabilities
-    ///
-    /// (apdu serialization makes use of this information, e.g. to
-    /// determine if extended length can be used)
-    fn card_caps(&self) -> Option<&CardCaps>;
-
-    /// If a CardTransaction implementation introduces an additional,
-    /// backend-specific limit for maximum number of bytes per command,
-    /// this fn can indicate that limit by returning `Some(max_cmd_len)`.
-    fn max_cmd_len(&self) -> Option<usize> {
-        None
-    }
-
-    /// Does the reader support FEATURE_VERIFY_PIN_DIRECT?
-    fn feature_pinpad_verify(&self) -> bool;
-
-    /// Does the reader support FEATURE_MODIFY_PIN_DIRECT?
-    fn feature_pinpad_modify(&self) -> bool;
-
-    /// Verify the PIN `id` via the reader pinpad
-    fn pinpad_verify(&mut self, pin: PinType) -> Result<Vec<u8>, Error>;
-
-    /// Modify the PIN `id` via the reader pinpad
-    fn pinpad_modify(&mut self, pin: PinType) -> Result<Vec<u8>, Error>;
-
-    /// Select the OpenPGP card application
-    fn select(&mut self) -> Result<Vec<u8>, Error> {
-        log::info!("CardTransaction: select");
-        let select_openpgp = commands::select_openpgp();
-        apdu::send_command(self, select_openpgp, false)?.try_into()
-    }
-
-    /// Activate file
-    fn activate_file(&mut self) -> Result<Vec<u8>, Error> {
-        log::info!("CardTransaction: activate_file");
-        let activate_file = commands::activate_file();
-        apdu::send_command(self, activate_file, false)?.try_into()
-    }
-
-    /// Get the "application related data" from the card.
-    ///
-    /// (This data should probably be cached in a higher layer. Some parts of
-    /// it are needed regularly, and it does not usually change during
-    /// normal use of a card.)
-    fn application_related_data(&mut self) -> Result<ApplicationRelatedData, Error> {
-        let ad = commands::application_related_data();
-        let resp = apdu::send_command(self, ad, true)?;
-        let value = Value::from(resp.data()?, true)?;
-
-        log::trace!(" ARD value: {:02x?}", value);
-
-        Ok(ApplicationRelatedData(Tlv::new(
-            Tags::ApplicationRelatedData,
-            value,
-        )))
-    }
-
-    /// Get a CardApp based on a CardTransaction.
-    ///
-    /// It is expected that SELECT has already been performed on the card
-    /// beforehand.
-    ///
-    /// This fn initializes the CardCaps by requesting
-    /// application_related_data from the card, and setting the
-    /// capabilities accordingly.
-    fn initialize(&mut self) -> Result<(), Error> {
-        let ard = self.application_related_data()?;
-
-        // Determine chaining/extended length support from card
-        // metadata and cache this information in the CardTransaction
-        // implementation (as a CardCaps)
-        let mut ext_support = false;
-        let mut chaining_support = false;
-
-        if let Ok(hist) = ard.historical_bytes() {
-            if let Some(cc) = hist.card_capabilities() {
-                chaining_support = cc.command_chaining();
-                ext_support = cc.extended_lc_le();
-            }
-        }
-
-        let ext_cap = ard.extended_capabilities()?;
-
-        // Get max command/response byte sizes from card
-        let (max_cmd_bytes, max_rsp_bytes) =
-            if let Ok(Some(eli)) = ard.extended_length_information() {
-                // In card 3.x, max lengths come from ExtendedLengthInfo
-                (eli.max_command_bytes(), eli.max_response_bytes())
-            } else if let (Some(cmd), Some(rsp)) = (ext_cap.max_cmd_len(), ext_cap.max_resp_len()) {
-                // In card 2.x, max lengths come from ExtendedCapabilities
-                (cmd, rsp)
-            } else {
-                // Fallback: use 255 if we have no information from the card
-                (255, 255)
-            };
-
-        let pw_status = ard.pw_status_bytes()?;
-        let pw1_max = pw_status.pw1_max_len();
-        let pw3_max = pw_status.pw3_max_len();
-
-        let caps = CardCaps {
-            ext_support,
-            chaining_support,
-            max_cmd_bytes,
-            max_rsp_bytes,
-            pw1_max_len: pw1_max,
-            pw3_max_len: pw3_max,
-        };
-
-        log::trace!("init_card_caps to: {:x?}", caps);
-
-        self.init_card_caps(caps);
-
-        Ok(())
-    }
-}
-
-/// Information about the capabilities of a card.
-///
-/// CardCaps is used to signal capabilities (chaining, extended length support, max
-/// command/response sizes, max PIN lengths) of the current card to backends.
-///
-/// CardCaps is not intended for users of this library.
-///
-/// (The information is gathered from the "Card Capabilities", "Extended length information" and
-/// "PWStatus" DOs)
-#[derive(Clone, Copy, Debug)]
-pub struct CardCaps {
-    /// Does the card support extended Lc and Le fields?
-    ext_support: bool,
-
-    /// Command chaining support?
-    chaining_support: bool,
-
-    /// Maximum number of bytes in a command APDU
-    max_cmd_bytes: u16,
-
-    /// Maximum number of bytes in a response APDU
-    max_rsp_bytes: u16,
-
-    /// Maximum length of PW1
-    pw1_max_len: u8,
-
-    /// Maximum length of PW3
-    pw3_max_len: u8,
-}
-
-impl CardCaps {
-    pub fn ext_support(&self) -> bool {
-        self.ext_support
-    }
-
-    pub fn max_rsp_bytes(&self) -> u16 {
-        self.max_rsp_bytes
-    }
-
-    pub fn pw1_max_len(&self) -> u8 {
-        self.pw1_max_len
-    }
-
-    pub fn pw3_max_len(&self) -> u8 {
-        self.pw3_max_len
-    }
-}
+pub(crate) const OP_APP: &[u8] = &[0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
 
 /// Tags, as specified and used in the OpenPGP card 3.4.1 spec.
 /// All tags in OpenPGP card are either 1 or 2 bytes long.
@@ -493,32 +293,6 @@ impl From<ShortTag> for Vec<u8> {
         match t {
             ShortTag::One(t0) => vec![t0],
             ShortTag::Two(t0, t1) => vec![t0, t1],
-        }
-    }
-}
-
-/// Specify a PIN to *verify* (distinguishes between `Sign`, `User` and `Admin`).
-///
-/// (Note that for PIN *management*, in particular changing a PIN, "signing and user" are
-/// not distinguished. They always share the same PIN value `PW1`)
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum PinType {
-    /// Verify PW1 in mode P2=81 (for the PSO:CDS operation)
-    Sign,
-
-    /// Verify PW1 in mode P2=82 (for all other User operations)
-    User,
-
-    /// Verify PW3 (for Admin operations)
-    Admin,
-}
-
-impl PinType {
-    pub fn id(&self) -> u8 {
-        match self {
-            PinType::Sign => 0x81,
-            PinType::User => 0x82,
-            PinType::Admin => 0x83,
         }
     }
 }

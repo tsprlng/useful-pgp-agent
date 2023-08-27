@@ -5,14 +5,14 @@
 name = "openpgp-card"
 description = "A client implementation for the OpenPGP card specification"
 license = "MIT OR Apache-2.0"
-version = "0.3.7"
+version = "0.4.0"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 edition = "2018"
 repository = "https://gitlab.com/openpgp-card/openpgp-card"
 documentation = "https://docs.rs/crate/openpgp-card"
 
 [dependencies]
-blanket = "0.3"
+card-backend = { path = "../card-backend", version = "0.1" }
 nom = "7"
 hex-slice = "0.1"
 thiserror = "1"

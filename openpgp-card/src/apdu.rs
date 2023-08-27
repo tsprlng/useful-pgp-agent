@@ -10,9 +10,11 @@ pub mod response;
 
 use std::convert::TryFrom;
 
+use card_backend::{CardCaps, CardTransaction};
+
 use crate::apdu::command::Expect;
 use crate::apdu::{command::Command, response::RawResponse};
-use crate::{CardTransaction, Error, StatusBytes};
+use crate::{Error, StatusBytes};
 
 /// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
 const MAX_BUFFER_SIZE: usize = 264;
@@ -24,6 +26,7 @@ const MAX_BUFFER_SIZE: usize = 264;
 pub(crate) fn send_command<C>(
     card_tx: &mut C,
     cmd: Command,
+    card_caps: Option<CardCaps>,
     expect_reply: bool,
 ) -> Result<RawResponse, Error>
 where
@@ -34,6 +37,7 @@ where
     let mut resp = RawResponse::try_from(send_command_low_level(
         card_tx,
         cmd.clone(),
+        card_caps,
         if expect_reply {
             Expect::Some
         } else {
@@ -42,7 +46,12 @@ where
     )?)?;
 
     if let StatusBytes::UnknownStatus(0x6c, size) = resp.status() {
-        resp = RawResponse::try_from(send_command_low_level(card_tx, cmd, Expect::Short(size))?)?;
+        resp = RawResponse::try_from(send_command_low_level(
+            card_tx,
+            cmd,
+            card_caps,
+            Expect::Short(size),
+        )?)?;
     }
 
     while let StatusBytes::OkBytesAvailable(bytes) = resp.status() {
@@ -53,6 +62,7 @@ where
         let next = RawResponse::try_from(send_command_low_level(
             card_tx,
             commands::get_response(),
+            card_caps,
             Expect::Short(bytes),
         )?)?;
 
@@ -85,20 +95,21 @@ where
 fn send_command_low_level<C>(
     card_tx: &mut C,
     cmd: Command,
+    card_caps: Option<CardCaps>,
     expect_response: Expect,
 ) -> Result<Vec<u8>, Error>
 where
     C: CardTransaction + ?Sized,
 {
     let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
-        if let Some(caps) = card_tx.card_caps() {
+        if let Some(caps) = card_caps {
             log::trace!("found card caps data!");
 
             (
-                caps.ext_support,
-                caps.chaining_support,
-                caps.max_cmd_bytes as usize,
-                caps.max_rsp_bytes as usize,
+                caps.ext_support(),
+                caps.chaining_support(),
+                caps.max_cmd_bytes() as usize,
+                caps.max_rsp_bytes() as usize,
             )
         } else {
             log::trace!("found NO card caps data!");

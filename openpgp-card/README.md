@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
@@ -19,8 +19,8 @@ specification.
 This crate doesn't contain code to talk to cards. Implementations of the traits
 `CardBackend`/`CardTransaction` need to be provided for access to cards.
 
-The crates [openpgp-card-pcsc](https://crates.io/crates/openpgp-card-pcsc)
-and the experimental crate [openpgp-card-scdc](https://crates.io/crates/openpgp-card-scdc)
+The crates [card-backend-pcsc](https://crates.io/crates/card-backend-pcsc)
+and the experimental crate [card-backend-scdc](https://crates.io/crates/card-backend-scdc)
 provide implementations of these traits for use with this crate.
 
 **Sequoia PGP wrapper**

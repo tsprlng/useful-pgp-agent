@@ -10,6 +10,8 @@
 //! - [`StatusBytes`], which models error statuses reported by the OpenPGP
 //! card application
 
+use card_backend::SmartcardError;
+
 /// Enum wrapper for the different error types of this crate
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
@@ -46,6 +48,12 @@ pub enum Error {
 impl From<StatusBytes> for Error {
     fn from(oce: StatusBytes) -> Self {
         Error::CardStatus(oce)
+    }
+}
+
+impl From<SmartcardError> for Error {
+    fn from(sce: SmartcardError) -> Self {
+        Error::Smartcard(sce)
     }
 }
 
@@ -160,33 +168,4 @@ impl From<(u8, u8)> for StatusBytes {
             _ => StatusBytes::UnknownStatus(status.0, status.1),
         }
     }
-}
-
-/// Errors on the smartcard/reader layer
-#[derive(thiserror::Error, Debug)]
-#[non_exhaustive]
-pub enum SmartcardError {
-    #[error("Failed to create a pcsc smartcard context {0}")]
-    ContextError(String),
-
-    #[error("Failed to list readers: {0}")]
-    ReaderError(String),
-
-    #[error("No reader found.")]
-    NoReaderFoundError,
-
-    #[error("The requested card '{0}' was not found.")]
-    CardNotFound(String),
-
-    #[error("Couldn't select the OpenPGP card application")]
-    SelectOpenPGPCardFailed,
-
-    #[error("Failed to connect to the card: {0}")]
-    SmartCardConnectionError(String),
-
-    #[error("NotTransacted (SCARD_E_NOT_TRANSACTED)")]
-    NotTransacted,
-
-    #[error("Generic SmartCard Error: {0}")]
-    Error(String),
 }

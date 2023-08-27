@@ -1,38 +1,30 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! This crate implements the `CardBackend`/`CardTransaction` backend for
-//! `openpgp-card`. It uses the PCSC middleware to access the OpenPGP
-//! application on smart cards.
+//! This crate implements the traits [CardBackend] and [CardTransaction].
+//! It uses the PCSC middleware to access smart cards.
+//!
+//! This crate is mainly intended for use by the `openpgp-card` crate.
 
 use std::collections::HashMap;
 use std::convert::TryInto;
 
+use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
 use iso7816_tlv::simple::Tlv;
-use openpgp_card::card_do::ApplicationRelatedData;
-use openpgp_card::{CardBackend, CardCaps, CardTransaction, Error, PinType, SmartcardError};
+use pcsc::Disposition;
 
 const FEATURE_VERIFY_PIN_DIRECT: u8 = 0x06;
 const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 
-fn default_mode(mode: Option<pcsc::ShareMode>) -> pcsc::ShareMode {
-    if let Some(mode) = mode {
-        mode
-    } else {
-        pcsc::ShareMode::Shared
-    }
-}
-
 /// An opened PCSC Card (without open transaction).
-/// The OpenPGP application on the card is `select`-ed while setting up a PcscCard object.
+/// Note: No application is `select`-ed on the card while setting up a PcscCard object.
 ///
 /// This struct can be used to hold on to a Card, even while no operations
 /// are performed on the Card. To perform operations on the card, a
-/// `TxClient` object needs to be obtained (via PcscCard::transaction()).
+/// [PcscTransaction] object needs to be obtained (via [PcscBackend::transaction]).
 pub struct PcscBackend {
     card: pcsc::Card,
     mode: pcsc::ShareMode,
-    card_caps: Option<CardCaps>,
     reader_caps: HashMap<u8, Tlv>,
 }
 
@@ -56,118 +48,99 @@ impl From<PcscBackend> for Box<dyn CardBackend + Sync + Send> {
 /// <https://docs.microsoft.com/en-us/windows/win32/api/winscard/nf-winscard-scardbegintransaction?redirectedfrom=MSDN#remarks>)
 pub struct PcscTransaction<'b> {
     tx: pcsc::Transaction<'b>,
-    card_caps: Option<CardCaps>,   // FIXME: manual copy from PcscCard
-    reader_caps: HashMap<u8, Tlv>, // FIXME: manual copy from PcscCard
+    reader_caps: HashMap<u8, Tlv>, // FIXME: gets manually cloned
 }
 
 impl<'b> PcscTransaction<'b> {
     /// Start a transaction on `card`.
     ///
-    /// `reselect` set to `false` is only used internally in this crate,
-    /// during initial setup of cards. Otherwise it must be `true`, to
-    /// cause a select() call on cards that have been reset.
-    fn new(card: &'b mut PcscBackend, reselect: bool) -> Result<Self, Error> {
-        use pcsc::Disposition;
+    /// If `reselect_application` is set, the application is SELECTed,
+    /// if the card reports having been reset.
+    fn new(
+        card: &'b mut PcscBackend,
+        reselect_application: Option<&[u8]>,
+    ) -> Result<Self, SmartcardError> {
+        log::trace!("Start a transaction");
 
         let mut was_reset = false;
 
-        let card_caps = card.card_caps();
-        let reader_caps = card.reader_caps();
-        let mode = card.mode();
+        let mode = card.mode;
+        let reader_caps = card.reader_caps.clone();
 
-        let mut c = card.card();
+        let mut c = &mut card.card;
 
         loop {
             match c.transaction2() {
-                Ok(mut tx) => {
-                    // A transaction has been successfully started
+                Ok(tx) => {
+                    // A pcsc transaction has been successfully started
+
+                    let mut pt = Self { tx, reader_caps };
 
                     if was_reset {
-                        log::trace!("start_tx: card was reset, select!");
+                        log::trace!("Card was reset");
 
-                        let mut txc = Self {
-                            tx,
-                            card_caps,
-                            reader_caps: reader_caps.clone(),
-                        };
+                        // If the caller expects that an application on the
+                        // card has been selected, re-select the application
+                        // here.
+                        //
+                        // When initially opening a card, we don't do this
+                        // (freshly opened cards don't have an application
+                        // "SELECT"ed).
+                        if let Some(app) = reselect_application {
+                            log::trace!("Will re-select an application after card reset");
 
-                        // In contexts where the caller of this fn
-                        // expects that the card has already been opened,
-                        // re-open the card here.
-                        // For initial card-opening, we don't do this, then
-                        // the caller always expects a card that has not
-                        // been "select"ed yet.
-                        if reselect {
-                            PcscTransaction::select(&mut txc)?;
+                            let mut res = CardTransaction::select(&mut pt, app)?;
+                            log::trace!("select res: {:0x?}", res);
+
+                            // Drop any bytes before the status code.
+                            //
+                            // e.g. SELECT on Basic Card 3.4 returns:
+                            // [6f, 1d,
+                            //  62, 15, 84, 10, d2, 76, 0, 1, 24, 1, 3, 4, 0, 5, 0, 0, a8, 35, 0, 0, 8a, 1, 5, 64, 4, 53, 2, c4, 41,
+                            //  90, 0]
+                            if res.len() > 2 {
+                                res.drain(0..res.len() - 2);
+                            }
+
+                            if res != [0x90, 0x00] {
+                                break Err(SmartcardError::Error(format!(
+                                        "Error while attempting to (re-)select {:x?}, status code {:x?}",
+                                        app, res
+                                    )));
+                            }
+
+                            log::trace!("re-select ok");
                         }
-
-                        tx = txc.tx;
                     }
 
-                    let txc = Self {
-                        tx,
-                        card_caps,
-                        reader_caps,
-                    };
-
-                    break Ok(txc);
+                    break Ok(pt);
                 }
                 Err((c_, pcsc::Error::ResetCard)) => {
                     // Card was reset, need to reconnect
                     was_reset = true;
 
-                    // drop(res);
-
                     c = c_;
 
                     log::trace!("start_tx: do reconnect");
 
-                    {
-                        c.reconnect(mode, pcsc::Protocols::ANY, Disposition::ResetCard)
-                            .map_err(|e| {
-                                Error::Smartcard(SmartcardError::Error(format!(
-                                    "Reconnect failed: {e:?}"
-                                )))
-                            })?;
-                    }
+                    c.reconnect(mode, pcsc::Protocols::ANY, Disposition::ResetCard)
+                        .map_err(|e| SmartcardError::Error(format!("Reconnect failed: {e:?}")))?;
 
                     log::trace!("start_tx: reconnected.");
 
-                    // -> try opening a transaction again
+                    // -> try opening a transaction again, in the next loop run
                 }
                 Err((_, e)) => {
                     log::trace!("start_tx: error {:?}", e);
-                    break Err(Error::Smartcard(SmartcardError::Error(format!(
-                        "Error: {e:?}"
-                    ))));
+                    break Err(SmartcardError::Error(format!("Error: {e:?}")));
                 }
             };
         }
     }
 
-    /// Try to select the OpenPGP application on a card
-    fn select(card_tx: &mut PcscTransaction) -> Result<(), Error> {
-        if <dyn CardTransaction>::select(card_tx).is_ok() {
-            Ok(())
-        } else {
-            Err(Error::Smartcard(SmartcardError::SelectOpenPGPCardFailed))
-        }
-    }
-
-    /// Get application_related_data from card
-    fn application_related_data(
-        card_tx: &mut PcscTransaction,
-    ) -> Result<ApplicationRelatedData, Error> {
-        <dyn CardTransaction>::application_related_data(card_tx).map_err(|e| {
-            Error::Smartcard(SmartcardError::Error(format!(
-                "TxClient: failed to get application_related_data {e:x?}"
-            )))
-        })
-    }
-
     /// GET_FEATURE_REQUEST
     /// (see http://pcscworkgroup.com/Download/Specifications/pcsc10_v2.02.09.pdf)
-    fn features(&mut self) -> Result<Vec<Tlv>, Error> {
+    fn features(&mut self) -> Result<Vec<Tlv>, SmartcardError> {
         let mut recv = vec![0; 1024];
 
         let cm_ioctl_get_feature_request = pcsc::ctl_code(3400);
@@ -175,9 +148,7 @@ impl<'b> PcscTransaction<'b> {
             .tx
             .control(cm_ioctl_get_feature_request, &[], &mut recv)
             .map_err(|e| {
-                Error::Smartcard(SmartcardError::Error(format!(
-                    "GET_FEATURE_REQUEST control call failed: {e:?}"
-                )))
+                SmartcardError::Error(format!("GET_FEATURE_REQUEST control call failed: {e:?}"))
             })?;
 
         Ok(Tlv::parse_all(res))
@@ -190,40 +161,37 @@ impl<'b> PcscTransaction<'b> {
             PinType::Admin => 8,
         }
     }
+
     /// Get the maximum pin length for pin_id.
-    fn max_pin_len(&self, pin: PinType) -> Result<u8, Error> {
-        if let Some(card_caps) = self.card_caps {
+    fn max_pin_len(
+        &self,
+        pin: PinType,
+        card_caps: &Option<CardCaps>,
+    ) -> Result<u8, SmartcardError> {
+        if let Some(card_caps) = card_caps {
             match pin {
                 PinType::User | PinType::Sign => Ok(card_caps.pw1_max_len()),
                 PinType::Admin => Ok(card_caps.pw3_max_len()),
             }
         } else {
-            Err(Error::InternalError("card_caps is None".into()))
+            Err(SmartcardError::Error("card_caps is None".into()))
         }
     }
 }
 
 impl CardTransaction for PcscTransaction<'_> {
-    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>, Error> {
+    fn transmit(&mut self, cmd: &[u8], buf_size: usize) -> Result<Vec<u8>, SmartcardError> {
         let mut resp_buffer = vec![0; buf_size];
 
         let resp = self
             .tx
             .transmit(cmd, &mut resp_buffer)
             .map_err(|e| match e {
-                pcsc::Error::NotTransacted => Error::Smartcard(SmartcardError::NotTransacted),
-                _ => Error::Smartcard(SmartcardError::Error(format!("Transmit failed: {e:?}"))),
+                pcsc::Error::NotTransacted => SmartcardError::NotTransacted,
+                _ => SmartcardError::Error(format!("Transmit failed: {e:?}")),
             })?;
 
         Ok(resp.to_vec())
-    }
-
-    fn init_card_caps(&mut self, caps: CardCaps) {
-        self.card_caps = Some(caps);
-    }
-
-    fn card_caps(&self) -> Option<&CardCaps> {
-        self.card_caps.as_ref()
     }
 
     fn feature_pinpad_verify(&self) -> bool {
@@ -234,9 +202,13 @@ impl CardTransaction for PcscTransaction<'_> {
         self.reader_caps.contains_key(&FEATURE_MODIFY_PIN_DIRECT)
     }
 
-    fn pinpad_verify(&mut self, pin: PinType) -> Result<Vec<u8>, Error> {
+    fn pinpad_verify(
+        &mut self,
+        pin: PinType,
+        card_caps: &Option<CardCaps>,
+    ) -> Result<Vec<u8>, SmartcardError> {
         let pin_min_size = self.min_pin_len(pin);
-        let pin_max_size = self.max_pin_len(pin)?;
+        let pin_max_size = self.max_pin_len(pin, card_caps)?;
 
         // Default to varlen, for now.
         // (NOTE: Some readers don't support varlen, and need explicit length
@@ -310,26 +282,28 @@ impl CardTransaction for PcscTransaction<'_> {
         let verify_ioctl: [u8; 4] = self
             .reader_caps
             .get(&FEATURE_VERIFY_PIN_DIRECT)
-            .ok_or_else(|| Error::Smartcard(SmartcardError::Error("no reader_capability".into())))?
+            .ok_or_else(|| SmartcardError::Error("no reader_capability".into()))?
             .value()
             .try_into()
-            .map_err(|e| Error::ParseError(format!("unexpected feature data: {e:?}")))?;
+            .map_err(|e| SmartcardError::Error(format!("unexpected feature data: {e:?}")))?;
 
         let res = self
             .tx
             .control(u32::from_be_bytes(verify_ioctl).into(), &send, &mut recv)
-            .map_err(|e: pcsc::Error| {
-                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {e:?}")))
-            })?;
+            .map_err(|e: pcsc::Error| SmartcardError::Error(format!("pcsc Error: {e:?}")))?;
 
         log::trace!(" <- pcsc pinpad_verify result: {:x?}", res);
 
         Ok(res.to_vec())
     }
 
-    fn pinpad_modify(&mut self, pin: PinType) -> Result<Vec<u8>, Error> {
+    fn pinpad_modify(
+        &mut self,
+        pin: PinType,
+        card_caps: &Option<CardCaps>,
+    ) -> Result<Vec<u8>, SmartcardError> {
         let pin_min_size = self.min_pin_len(pin);
-        let pin_max_size = self.max_pin_len(pin)?;
+        let pin_max_size = self.max_pin_len(pin, card_caps)?;
 
         // Default to varlen, for now.
         // (NOTE: Some readers don't support varlen, and need explicit length
@@ -413,17 +387,15 @@ impl CardTransaction for PcscTransaction<'_> {
         let modify_ioctl: [u8; 4] = self
             .reader_caps
             .get(&FEATURE_MODIFY_PIN_DIRECT)
-            .ok_or_else(|| Error::Smartcard(SmartcardError::Error("no reader_capability".into())))?
+            .ok_or_else(|| SmartcardError::Error("no reader_capability".into()))?
             .value()
             .try_into()
-            .map_err(|e| Error::ParseError(format!("unexpected feature data: {e:?}")))?;
+            .map_err(|e| SmartcardError::Error(format!("unexpected feature data: {e:?}")))?;
 
         let res = self
             .tx
             .control(u32::from_be_bytes(modify_ioctl).into(), &send, &mut recv)
-            .map_err(|e: pcsc::Error| {
-                Error::Smartcard(SmartcardError::Error(format!("pcsc Error: {e:?}")))
-            })?;
+            .map_err(|e: pcsc::Error| SmartcardError::Error(format!("pcsc Error: {e:?}")))?;
 
         log::trace!(" <- pcsc pinpad_modify result: {:x?}", res);
 
@@ -432,16 +404,7 @@ impl CardTransaction for PcscTransaction<'_> {
 }
 
 impl PcscBackend {
-    fn card(&mut self) -> &mut pcsc::Card {
-        &mut self.card
-    }
-
-    fn mode(&self) -> pcsc::ShareMode {
-        self.mode
-    }
-
-    /// A list of "raw" opened PCSC Cards (without selecting the OpenPGP card
-    /// application)
+    /// A list of "raw" opened PCSC Cards (without selecting any application)
     fn raw_pcsc_cards(mode: pcsc::ShareMode) -> Result<Vec<pcsc::Card>, SmartcardError> {
         log::trace!("raw_pcsc_cards start");
 
@@ -505,116 +468,52 @@ impl PcscBackend {
         }
     }
 
-    /// Starts from a list of all pcsc cards, then compares their OpenPGP
-    /// application identity with `ident` (if `ident` is None, all Cards are
-    /// returned). Returns fully initialized PcscCard structs for all matching
-    /// cards.
-    fn cards_filter(ident: Option<&str>, mode: pcsc::ShareMode) -> Result<Vec<Self>, Error> {
-        let mut cards: Vec<Self> = vec![];
-
-        for mut card in Self::raw_pcsc_cards(mode).map_err(Error::Smartcard)? {
-            log::trace!("cards_filter: next card");
-            log::trace!(" status: {:x?}", card.status2_owned());
-
-            let mut store_card = false;
-            {
-                // start transaction
-                let mut p = PcscBackend::new(card, mode);
-                let mut txc = PcscTransaction::new(&mut p, false)?;
-
-                {
-                    if let Err(e) = PcscTransaction::select(&mut txc) {
-                        log::trace!(" select error: {:?}", e);
-                    } else {
-                        // successfully opened the OpenPGP application
-                        log::trace!(" select ok, will read ARD");
-                        log::trace!(" status: {:x?}", txc.tx.status2_owned());
-
-                        if let Some(ident) = ident {
-                            if let Ok(ard) = PcscTransaction::application_related_data(&mut txc) {
-                                let aid = ard.application_id()?;
-
-                                if aid.ident() == ident.to_ascii_uppercase() {
-                                    // FIXME: handle multiple cards with matching ident
-                                    log::info!(" found card: {:?} (will use)", ident);
-
-                                    // we want to return this one card
-                                    store_card = true;
-                                } else {
-                                    log::info!(" found card: {:?} (won't use)", aid.ident());
-                                }
-                            } else {
-                                // couldn't read ARD for this card.
-                                // ignore and move on
-                                continue;
-                            }
-                        } else {
-                            // we want to return all cards
-                            store_card = true;
-                        }
-                    }
-                }
-
-                drop(txc);
-                card = p.card;
-            }
-
-            if store_card {
-                let pcsc = PcscBackend::new(card, mode);
-                cards.push(pcsc.initialize_card()?);
-            }
-        }
-
-        log::trace!("cards_filter: found {} cards", cards.len());
-
-        Ok(cards)
-    }
-
-    /// Return all cards on which the OpenPGP application could be selected.
+    /// Returns an Iterator over Smart Cards that are accessible via PCSC.
     ///
-    /// Each card has the OpenPGP application selected, card_caps and reader_caps have been
-    /// initialized.
-    pub fn cards(mode: Option<pcsc::ShareMode>) -> Result<Vec<Self>, Error> {
-        Self::cards_filter(None, default_mode(mode))
+    /// No application is SELECTed on the cards.
+    /// You can not assume that any particular application is available on the cards.
+    pub fn cards(
+        mode: Option<pcsc::ShareMode>,
+    ) -> Result<impl Iterator<Item = Result<Self, SmartcardError>>, SmartcardError> {
+        let mode = mode.unwrap_or(pcsc::ShareMode::Shared);
+
+        let cards = Self::raw_pcsc_cards(mode)?;
+
+        Ok(cards.into_iter().map(move |card| {
+            let backend = PcscBackend {
+                card,
+                mode,
+                reader_caps: Default::default(),
+            };
+
+            backend.initialize_card()
+        }))
     }
 
-    /// Returns the OpenPGP card that matches `ident`, if it is available.
-    /// A fully initialized PcscCard is returned: the OpenPGP application has
-    /// been selected, card_caps and reader_caps have been initialized.
-    pub fn open_by_ident(ident: &str, mode: Option<pcsc::ShareMode>) -> Result<Self, Error> {
-        log::trace!("open_by_ident for {:?}", ident);
+    /// Returns an Iterator over Smart Cards that are accessible via PCSC.
+    /// Like [Self::cards], but returns the cards as [CardBackend].
+    pub fn card_backends(
+        mode: Option<pcsc::ShareMode>,
+    ) -> Result<
+        impl Iterator<Item = Result<Box<dyn CardBackend + Send + Sync>, SmartcardError>>,
+        SmartcardError,
+    > {
+        let cards = PcscBackend::cards(mode)?;
 
-        let mut cards = Self::cards_filter(Some(ident), default_mode(mode))?;
-
-        if !cards.is_empty() {
-            // FIXME: handle >1 cards found
-
-            Ok(cards.pop().unwrap())
-        } else {
-            Err(Error::Smartcard(SmartcardError::CardNotFound(
-                ident.to_string(),
-            )))
-        }
+        Ok(cards.map(|c| match c {
+            Ok(c) => Ok(Box::new(c) as Box<dyn CardBackend + Send + Sync>),
+            Err(e) => Err(e),
+        }))
     }
 
-    fn new(card: pcsc::Card, mode: pcsc::ShareMode) -> Self {
-        Self {
-            card,
-            mode,
-            card_caps: None,
-            reader_caps: HashMap::new(),
-        }
-    }
-
-    /// Initialized a PcscCard:
-    /// - Obtain and store feature lists from reader (pinpad functionality).
-    /// - Get ARD from card, set CardCaps based on ARD.
-    fn initialize_card(mut self) -> Result<Self, Error> {
+    /// Initialize this PcscBackend (obtains and stores feature lists from reader,
+    /// to determine if the reader offers PIN pad functionality).
+    fn initialize_card(mut self) -> Result<Self, SmartcardError> {
         log::trace!("pcsc initialize_card");
 
         let mut h: HashMap<u8, Tlv> = HashMap::default();
 
-        let mut txc = PcscTransaction::new(&mut self, true)?;
+        let mut txc = PcscTransaction::new(&mut self, None)?;
 
         // Get Features from reader (pinpad verify/modify)
         if let Ok(feat) = txc.features() {
@@ -624,14 +523,7 @@ impl PcscBackend {
             }
         }
 
-        // Initialize CardTransaction (set CardCaps from ARD)
-        <dyn CardTransaction>::initialize(&mut txc)?;
-
-        let cc = txc.card_caps().cloned();
-
         drop(txc);
-
-        self.card_caps = cc;
 
         for (a, b) in h {
             self.reader_caps.insert(a, b);
@@ -639,50 +531,14 @@ impl PcscBackend {
 
         Ok(self)
     }
-
-    fn card_caps(&self) -> Option<CardCaps> {
-        self.card_caps
-    }
-    fn reader_caps(&self) -> HashMap<u8, Tlv> {
-        self.reader_caps.clone()
-    }
-
-    /// This command will try to activate an OpenPGP card, if:
-    /// - exactly one card is connected to the system
-    /// - that card replies to SELECT with Status 6285
-    ///
-    /// See OpenPGP card spec (version 3.4.1): 7.2.17 ACTIVATE FILE
-    pub fn activate_terminated_card() -> Result<(), Error> {
-        let mut cards =
-            Self::raw_pcsc_cards(pcsc::ShareMode::Exclusive).map_err(Error::Smartcard)?;
-        if cards.len() != 1 {
-            return Err(Error::InternalError(format!(
-                "This command is only allowed if exactly one card is connected, found {}.",
-                cards.len()
-            )));
-        }
-
-        let card = cards.pop().unwrap();
-
-        let mut backend = PcscBackend::new(card, pcsc::ShareMode::Exclusive);
-        let mut card_tx = Box::new(PcscTransaction::new(&mut backend, false)?);
-
-        match <dyn CardTransaction>::select(&mut card_tx) {
-            Err(Error::CardStatus(openpgp_card::StatusBytes::TerminationState)) => {
-                let _ = <dyn CardTransaction>::activate_file(&mut card_tx)?;
-                Ok(())
-            }
-
-            _ => Err(Error::InternalError(
-                "Card doesn't appear to be terminated.".to_string(),
-            )),
-        }
-    }
 }
 
 impl CardBackend for PcscBackend {
-    /// Get a TxClient for this PcscCard (this starts a transaction)
-    fn transaction(&mut self) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, Error> {
-        Ok(Box::new(PcscTransaction::new(self, true)?))
+    /// Get a CardTransaction for this PcscBackend (this starts a transaction)
+    fn transaction(
+        &mut self,
+        reselect_application: Option<&[u8]>,
+    ) -> Result<Box<dyn CardTransaction + Send + Sync + '_>, SmartcardError> {
+        Ok(Box::new(PcscTransaction::new(self, reselect_application)?))
     }
 }
