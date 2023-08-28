@@ -441,15 +441,10 @@ impl PcscBackend {
 
         log::trace!(" readers: {:?}", readers);
 
-        let mut found_reader = false;
-
         let mut cards = vec![];
 
         // Find a reader with a SmartCard.
         for reader in readers {
-            // We've seen at least one smartcard reader
-            found_reader = true;
-
             log::trace!("Checking reader: {:?}", reader);
 
             // Try connecting to card in this reader
@@ -472,11 +467,7 @@ impl PcscBackend {
             cards.push(card);
         }
 
-        if !found_reader {
-            Err(SmartcardError::NoReaderFoundError)
-        } else {
-            Ok(cards)
-        }
+        Ok(cards)
     }
 
     /// Returns an Iterator over Smart Cards that are accessible via PCSC.
