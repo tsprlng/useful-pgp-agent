@@ -1083,11 +1083,9 @@ impl<'a> OpenPgpTransaction<'a> {
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), Error> {
-        let algo_info = self.algorithm_information();
-
         // An error is ok - it's fine if a card doesn't offer a list of
         // supported algorithms
-        let algo_info = algo_info.unwrap_or(None);
+        let algo_info = self.algorithm_information().unwrap_or(None);
 
         keys::key_import(self, key, key_type, algo_info)
     }
