@@ -124,6 +124,11 @@ impl OpenPgp {
         let card_caps = &mut self.card_caps;
         let tx = self.card.transaction(Some(OP_APP))?;
 
+        if tx.was_reset() {
+            // FIXME
+            // Signal state invalidation? (PIN verification, ...)
+        }
+
         Ok(OpenPgpTransaction { tx, card_caps })
     }
 }

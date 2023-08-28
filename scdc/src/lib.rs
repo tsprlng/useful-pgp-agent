@@ -309,4 +309,9 @@ impl CardTransaction for ScdTransaction<'_> {
     ) -> Result<Vec<u8>, SmartcardError> {
         unimplemented!()
     }
+
+    /// Not implemented here
+    fn was_reset(&self) -> bool {
+        false
+    }
 }

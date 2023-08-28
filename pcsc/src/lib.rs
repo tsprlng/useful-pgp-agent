@@ -49,6 +49,7 @@ impl From<PcscBackend> for Box<dyn CardBackend + Sync + Send> {
 pub struct PcscTransaction<'b> {
     tx: pcsc::Transaction<'b>,
     reader_caps: HashMap<u8, Tlv>, // FIXME: gets manually cloned
+    was_reset: bool,
 }
 
 impl<'b> PcscTransaction<'b> {
@@ -74,10 +75,16 @@ impl<'b> PcscTransaction<'b> {
                 Ok(tx) => {
                     // A pcsc transaction has been successfully started
 
-                    let mut pt = Self { tx, reader_caps };
+                    let mut pt = Self {
+                        tx,
+                        reader_caps,
+                        was_reset: false,
+                    };
 
                     if was_reset {
                         log::trace!("Card was reset");
+
+                        pt.was_reset = true;
 
                         // If the caller expects that an application on the
                         // card has been selected, re-select the application
@@ -400,6 +407,10 @@ impl CardTransaction for PcscTransaction<'_> {
         log::trace!(" <- pcsc pinpad_modify result: {:x?}", res);
 
         Ok(res.to_vec())
+    }
+
+    fn was_reset(&self) -> bool {
+        self.was_reset
     }
 }
 

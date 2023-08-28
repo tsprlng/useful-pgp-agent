@@ -65,6 +65,11 @@ pub trait CardTransaction {
         pin: PinType,
         card_caps: &Option<CardCaps>,
     ) -> Result<Vec<u8>, SmartcardError>;
+
+    /// Has a reset been detected while starting this transaction?
+    ///
+    /// (Backends may choose to always return false)
+    fn was_reset(&self) -> bool;
 }
 
 /// Information about the capabilities of a card.
