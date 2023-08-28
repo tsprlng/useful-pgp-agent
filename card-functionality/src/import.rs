@@ -28,16 +28,18 @@ fn main() -> Result<()> {
 
         let mut c: Card<Open> = card.get_card()?;
         println!(" -> Card opened");
+        let mut tx = c.transaction()?;
+        println!("    started transaction");
 
         println!("Reset");
-        let _ = run_test(&mut c, test_reset, &[])?;
+        let _ = run_test(&mut tx, test_reset, &[])?;
 
         print!("Set user data");
-        let userdata_out = run_test(&mut c, test_set_user_data, &[])?;
+        let userdata_out = run_test(&mut tx, test_set_user_data, &[])?;
         println!(" {userdata_out:x?}");
 
         println!("Set login data");
-        let login_data_out = run_test(&mut c, test_set_login_data, &[])?;
+        let login_data_out = run_test(&mut tx, test_set_login_data, &[])?;
         println!(" {login_data_out:x?}");
 
         let key_files = {
@@ -52,7 +54,7 @@ fn main() -> Result<()> {
         for key_file in &key_files {
             // upload keys
             print!("Upload key '{key_file}'");
-            let upload_res = run_test(&mut c, test_upload_keys, &[key_file]);
+            let upload_res = run_test(&mut tx, test_upload_keys, &[key_file]);
 
             if let Err(TestError::KeyUploadError(_file, err)) = &upload_res {
                 // The card doesn't support this key type, so skip to the
@@ -74,13 +76,13 @@ fn main() -> Result<()> {
             let cert = Cert::from_str(&key)?;
             let ciphertext = util::encrypt_to("Hello world!\n", &cert)?;
 
-            let dec_out = run_test(&mut c, test_decrypt, &[&key, &ciphertext])?;
+            let dec_out = run_test(&mut tx, test_decrypt, &[&key, &ciphertext])?;
             println!(" {dec_out:x?}");
 
             // sign
             print!("  Sign");
 
-            let sign_out = run_test(&mut c, test_sign, &[&key])?;
+            let sign_out = run_test(&mut tx, test_sign, &[&key])?;
             println!(" {sign_out:x?}");
         }
 

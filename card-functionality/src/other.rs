@@ -18,6 +18,7 @@ fn main() -> Result<()> {
         println!("** Run tests on card '{}' **", card.get_name());
 
         let mut c: Card<Open> = card.get_card()?;
+        let mut tx = c.transaction()?;
 
         // println!("Caps");
         // let _ = run_test(&mut card, test_print_caps, &[])?;
@@ -27,7 +28,7 @@ fn main() -> Result<()> {
         // let _ = run_test(&mut card, test_print_algo_info, &[])?;
 
         println!("Reset");
-        let _ = run_test(&mut c, test_reset, &[])?;
+        let _ = run_test(&mut tx, test_reset, &[])?;
 
         // ---
 

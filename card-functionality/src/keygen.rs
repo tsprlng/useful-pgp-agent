@@ -28,6 +28,8 @@ fn main() -> Result<()> {
 
         let mut c: Card<Open> = card.get_card()?;
         println!(" -> Card opened");
+        let mut tx = c.transaction()?;
+        println!("    started transaction");
 
         // println!("Get pubkey");
         // let _ = run_test(&mut card, test_get_pub, &[])?;
@@ -39,14 +41,14 @@ fn main() -> Result<()> {
         // // continue; // only print caps
 
         println!("Reset");
-        let _ = run_test(&mut c, test_reset, &[])?;
+        let _ = run_test(&mut tx, test_reset, &[])?;
 
         // println!("Algo info");
         // let _ = run_test(&mut card, test_print_algo_info, &[])?;
 
         // Set user data because keygen expects a name (for the user id)
         println!("Set user data");
-        let _ = run_test(&mut c, test_set_user_data, &[])?;
+        let _ = run_test(&mut tx, test_set_user_data, &[])?;
 
         let algos = {
             let config = card.get_config();
@@ -60,12 +62,12 @@ fn main() -> Result<()> {
         for algo in algos {
             println!("Generate key [{algo}]");
 
-            let res = run_test(&mut c, test_keygen, &[&algo])?;
+            let res = run_test(&mut tx, test_keygen, &[&algo])?;
 
             if let TestResult::Text(cert_str) = &res[0] {
                 // sign
                 print!("  Sign");
-                let sign_out = run_test(&mut c, test_sign, &[cert_str])?;
+                let sign_out = run_test(&mut tx, test_sign, &[cert_str])?;
                 println!(" {sign_out:x?}");
 
                 // decrypt
@@ -73,7 +75,7 @@ fn main() -> Result<()> {
                 let ciphertext = util::encrypt_to("Hello world!\n", &cert)?;
 
                 print!("  Decrypt");
-                let dec_out = run_test(&mut c, test_decrypt, &[cert_str, &ciphertext])?;
+                let dec_out = run_test(&mut tx, test_decrypt, &[cert_str, &ciphertext])?;
                 println!(" {dec_out:x?}");
             } else {
                 panic!("Didn't get back a Cert from test_keygen");

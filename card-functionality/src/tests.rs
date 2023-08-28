@@ -10,7 +10,7 @@ use openpgp_card::algorithm::AlgoSimple;
 use openpgp_card::card_do::{KeyGenerationTime, Sex};
 use openpgp_card::{Error, KeyType, OpenPgp, StatusBytes};
 use openpgp_card_sequoia::sq_util;
-use openpgp_card_sequoia::state::{Admin, Open};
+use openpgp_card_sequoia::state::{Admin, Open, Transaction};
 use openpgp_card_sequoia::util::{
     make_cert, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
@@ -52,7 +52,7 @@ pub enum TestError {
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-pub fn test_decrypt(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_decrypt(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutput, TestError> {
     assert_eq!(
         param.len(),
         2,
@@ -63,9 +63,7 @@ pub fn test_decrypt(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput,
 
     let p = StandardPolicy::new();
 
-    let mut transaction = card.transaction()?;
-
-    let mut user = transaction.to_user_card("123456")?;
+    let mut user = tx.to_user_card("123456")?;
     let d = user.decryptor(&|| {})?;
 
     let res = sq_util::decrypt(d, msg.into_bytes(), &p)?;
@@ -77,14 +75,12 @@ pub fn test_decrypt(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput,
 }
 
 /// Run after each "upload keys", if key *was* uploaded (?)
-pub fn test_sign(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
+pub fn test_sign(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutput, TestError> {
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
 
     let cert = Cert::from_str(param[0])?;
 
-    let mut transaction = card.transaction()?;
-
-    let mut sign = transaction.to_signing_card("123456").unwrap();
+    let mut sign = tx.to_signing_card("123456").unwrap();
     let s = sign.signer(&|| {})?;
 
     let msg = "Hello world, I am signed.";
@@ -178,9 +174,10 @@ pub fn test_print_algo_info(pgp: &mut OpenPgp, _param: &[&str]) -> Result<TestOu
     Ok(vec![])
 }
 
-pub fn test_upload_keys(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut transaction = card.transaction()?;
-
+pub fn test_upload_keys(
+    tx: &mut Card<Transaction>,
+    param: &[&str],
+) -> Result<TestOutput, TestError> {
     assert_eq!(
         param.len(),
         1,
@@ -190,7 +187,7 @@ pub fn test_upload_keys(card: &mut Card<Open>, param: &[&str]) -> Result<TestOut
     let cert = Cert::from_file(param[0])?;
     let p = StandardPolicy::new();
 
-    let mut admin = transaction.to_admin_card(b"12345678")?;
+    let mut admin = tx.to_admin_card(b"12345678")?;
 
     let meta = util::upload_subkeys(&mut admin, &cert, &p)
         .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
@@ -204,9 +201,8 @@ pub fn test_upload_keys(card: &mut Card<Open>, param: &[&str]) -> Result<TestOut
 }
 
 /// Generate keys for each of the three KeyTypes
-pub fn test_keygen(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut transaction = card.transaction()?;
-    let mut admin = transaction
+pub fn test_keygen(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutput, TestError> {
+    let mut admin = tx
         .to_admin_card("12345678")
         .expect("Couldn't get Admin card");
 
@@ -233,9 +229,11 @@ pub fn test_keygen(card: &mut Card<Open>, param: &[&str]) -> Result<TestOutput, 
     let (pkm, ts) = admin.generate_key_simple(KeyType::Authentication, Some(alg))?;
     let key_aut = public_key_material_to_key(&pkm, KeyType::Authentication, &ts, None, None)?;
 
+    tx.reload_ard()?;
+
     // Generate a Cert for this set of generated keys
     let cert = make_cert(
-        &mut transaction,
+        tx,
         key_sig,
         Some(key_dec),
         Some(key_aut),
@@ -296,10 +294,8 @@ pub fn test_get_pub(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput,
     Ok(vec![])
 }
 
-pub fn test_reset(card: &mut Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut transaction = card.transaction()?;
-
-    transaction.factory_reset()?;
+pub fn test_reset(tx: &mut Card<Transaction>, _param: &[&str]) -> Result<TestOutput, TestError> {
+    tx.factory_reset()?;
     Ok(vec![])
 }
 
@@ -308,10 +304,11 @@ pub fn test_reset(card: &mut Card<Open>, _param: &[&str]) -> Result<TestOutput, 
 ///
 /// Returns an empty TestOutput, throws errors for unexpected Status codes
 /// and for unequal field values.
-pub fn test_set_user_data(card: &mut Card<Open>, _param: &[&str]) -> Result<TestOutput, TestError> {
-    let mut transaction = card.transaction()?;
-
-    let mut admin = transaction.to_admin_card("12345678")?;
+pub fn test_set_user_data(
+    tx: &mut Card<Transaction>,
+    _param: &[&str],
+) -> Result<TestOutput, TestError> {
+    let mut admin = tx.to_admin_card("12345678")?;
 
     // name
     admin.set_name("Bar<<Foo")?;
@@ -326,10 +323,10 @@ pub fn test_set_user_data(card: &mut Card<Open>, _param: &[&str]) -> Result<Test
     admin.set_url("https://duckduckgo.com/")?;
 
     // reload application releated data
-    transaction.reload_ard()?;
+    tx.reload_ard()?;
 
     // compare the reloaded fields, expect equal data
-    let ch = transaction.cardholder_related_data()?;
+    let ch = tx.cardholder_related_data()?;
 
     assert_eq!(ch.name(), Some("Bar<<Foo".as_bytes()));
     assert_eq!(
@@ -338,25 +335,23 @@ pub fn test_set_user_data(card: &mut Card<Open>, _param: &[&str]) -> Result<Test
     );
     assert_eq!(ch.sex(), Some(Sex::Female));
 
-    let url = transaction.url()?;
+    let url = tx.url()?;
     assert_eq!(&url, "https://duckduckgo.com/");
 
     Ok(vec![])
 }
 
 pub fn test_set_login_data(
-    card: &mut Card<Open>,
+    tx: &mut Card<Transaction>,
     _params: &[&str],
 ) -> std::result::Result<TestOutput, TestError> {
-    let mut transaction = card.transaction()?;
-
-    let mut admin = transaction.to_admin_card("12345678")?;
+    let mut admin = tx.to_admin_card("12345678")?;
 
     let test_login = "someone@somewhere.com";
     admin.set_login_data(test_login)?;
 
     // Read the previously set login data
-    let read_login_data = transaction.login_data()?;
+    let read_login_data = tx.login_data()?;
 
     assert_eq!(read_login_data, test_login);
 
@@ -677,8 +672,8 @@ pub fn test_reset_retry_counter(
 }
 
 pub fn run_test(
-    card: &mut Card<Open>,
-    t: fn(&mut Card<Open>, &[&str]) -> Result<TestOutput, TestError>,
+    card: &mut Card<Transaction>,
+    t: fn(&mut Card<Transaction>, &[&str]) -> Result<TestOutput, TestError>,
     param: &[&str],
 ) -> Result<TestOutput, TestError> {
     t(card, param)
