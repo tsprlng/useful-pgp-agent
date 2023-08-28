@@ -158,8 +158,10 @@ where
 
         log::trace!("chained command mode");
 
+        let cmd_chunk_size = if ext_support { max_cmd_bytes } else { 255 };
+
         // Break up payload into chunks that fit into one command, each
-        let chunks: Vec<_> = cmd.data().chunks(max_cmd_bytes).collect();
+        let chunks: Vec<_> = cmd.data().chunks(cmd_chunk_size).collect();
 
         for (i, d) in chunks.iter().enumerate() {
             let last = i == chunks.len() - 1;
