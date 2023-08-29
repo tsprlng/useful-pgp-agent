@@ -1242,14 +1242,11 @@ impl<'a> Transaction<'a> {
         simple: AlgoSimple,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         let ard = self.application_related_data()?;
-        let algo_info = if let Ok(ai) = self.algorithm_information() {
-            ai
-        } else {
-            None
-        };
+        let algorithm_attributes = ard.algorithm_attributes(key_type)?;
 
-        let algo = simple.determine_algo_attributes(key_type, &ard, algo_info)?;
+        let algo_info = self.algorithm_information().ok().flatten();
 
+        let algo = simple.determine_algo_attributes(key_type, algorithm_attributes, algo_info)?;
         Self::generate_key(self, fp_from_pub, key_type, Some(&algo))
     }
 

@@ -12,7 +12,6 @@
 use std::convert::TryFrom;
 use std::fmt;
 
-use crate::card_do::ApplicationRelatedData;
 use crate::crypto_data::EccType;
 use crate::{keys, oid, Error, KeyType};
 
@@ -77,38 +76,40 @@ impl AlgoSimple {
 
     /// Return the appropriate Algo for this AlgoSimple.
     ///
-    /// This mapping differs between cards, based on `ard` and `algo_info`
-    /// (e.g. the exact Algo variant can have a different size for e, in RSA;
-    /// also, the import_format can differ).
+    /// This mapping depends on the actual card in use
+    /// (e.g.: the size of "e", in RSA can differ;
+    /// or a different `import_format` can be selected).
+    ///
+    /// These card-specific settings are derived from `algorithm_attributes` and `algo_info`.
     pub(crate) fn determine_algo_attributes(
         &self,
         key_type: KeyType,
-        ard: &ApplicationRelatedData,
+        algorithm_attributes: AlgorithmAttributes,
         algo_info: Option<AlgoInfo>,
     ) -> Result<AlgorithmAttributes, Error> {
         let algo = match self {
             Self::RSA1k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
                 1024,
                 key_type,
-                ard.algorithm_attributes(key_type)?,
+                algorithm_attributes,
                 algo_info,
             )?),
             Self::RSA2k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
                 2048,
                 key_type,
-                ard.algorithm_attributes(key_type)?,
+                algorithm_attributes,
                 algo_info,
             )?),
             Self::RSA3k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
                 3072,
                 key_type,
-                ard.algorithm_attributes(key_type)?,
+                algorithm_attributes,
                 algo_info,
             )?),
             Self::RSA4k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
                 4096,
                 key_type,
-                ard.algorithm_attributes(key_type)?,
+                algorithm_attributes,
                 algo_info,
             )?),
             Self::NIST256 => AlgorithmAttributes::Ecc(keys::determine_ecc_attrs(
