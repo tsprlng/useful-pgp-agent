@@ -6,7 +6,7 @@
 use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::algorithm::{AlgoInfo, AlgorithmAttributes, Curve, EccAttrs, RsaAttrs};
+use crate::algorithm::{AlgorithmAttributes, AlgorithmInformation, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_do::{Fingerprint, KeyGenerationTime};
@@ -147,7 +147,7 @@ pub(crate) fn key_import(
     card_tx: &mut Transaction,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
-    algo_info: Option<AlgoInfo>,
+    algo_info: Option<AlgorithmInformation>,
 ) -> Result<(), Error> {
     log::info!("OpenPgpTransaction: key_import");
 
@@ -206,7 +206,7 @@ pub(crate) fn determine_rsa_attrs(
     rsa_bits: u16,
     key_type: KeyType,
     algo_attr: AlgorithmAttributes,
-    algo_info: Option<AlgoInfo>,
+    algo_info: Option<AlgorithmInformation>,
 ) -> Result<RsaAttrs, Error> {
     // Figure out suitable RSA algorithm parameters:
 
@@ -248,7 +248,7 @@ pub(crate) fn determine_ecc_attrs(
     oid: &[u8],
     ecc_type: EccType,
     key_type: KeyType,
-    algo_info: Option<AlgoInfo>,
+    algo_info: Option<AlgorithmInformation>,
 ) -> Result<EccAttrs, crate::Error> {
     // If we have an algo_info, refuse upload if oid is not listed
     if let Some(algo_info) = algo_info {
@@ -284,7 +284,11 @@ pub(crate) fn determine_ecc_attrs(
 }
 
 /// Look up RsaAttrs parameters in algo_info based on key_type and rsa_bits
-fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Result<RsaAttrs, Error> {
+fn card_algo_rsa(
+    algo_info: AlgorithmInformation,
+    key_type: KeyType,
+    rsa_bits: u16,
+) -> Result<RsaAttrs, Error> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
@@ -322,7 +326,11 @@ fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Resul
 }
 
 /// Get all entries from algo_info with matching `oid` and `key_type`.
-fn check_card_algo_ecc(algo_info: AlgoInfo, key_type: KeyType, oid: &[u8]) -> Vec<EccAttrs> {
+fn check_card_algo_ecc(
+    algo_info: AlgorithmInformation,
+    key_type: KeyType,
+    oid: &[u8],
+) -> Vec<EccAttrs> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype

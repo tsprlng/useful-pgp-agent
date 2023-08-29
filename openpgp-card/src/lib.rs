@@ -45,7 +45,7 @@ use std::convert::{TryFrom, TryInto};
 use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
 use tags::{ShortTag, Tags};
 
-use crate::algorithm::{AlgoInfo, AlgoSimple, AlgorithmAttributes};
+use crate::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::apdu::response::RawResponse;
@@ -433,13 +433,13 @@ impl<'a> Transaction<'a> {
     }
 
     /// Get "Algorithm Information"
-    pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>, Error> {
+    pub fn algorithm_information(&mut self) -> Result<Option<AlgorithmInformation>, Error> {
         log::info!("OpenPgpTransaction: algorithm_information");
 
         let resp = self.send_command(commands::algo_info(), true)?;
         resp.check_ok()?;
 
-        let ai = AlgoInfo::try_from(resp.data()?)?;
+        let ai = AlgorithmInformation::try_from(resp.data()?)?;
         Ok(Some(ai))
     }
 

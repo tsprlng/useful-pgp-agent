@@ -85,7 +85,7 @@ impl AlgoSimple {
         &self,
         key_type: KeyType,
         algorithm_attributes: AlgorithmAttributes,
-        algo_info: Option<AlgoInfo>,
+        algo_info: Option<AlgorithmInformation>,
     ) -> Result<AlgorithmAttributes, Error> {
         let algo = match self {
             Self::RSA1k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
@@ -142,15 +142,16 @@ impl AlgoSimple {
     }
 }
 
-/// 4.4.3.11 Algorithm Information
+/// Algorithm Information [Spec section 4.4.3.11]
 ///
-/// Modern cards (since OpenPGP card v3.4) provide a list of supported
-/// algorithms for each key type. This list specifies which "Algorithm
-/// Attributes" can be set for key generation or key import.
+/// Modern OpenPGP cards (starting with version v3.4) provide a list of
+/// algorithms they support for each key slot.
+/// The Algorithm Information list specifies which [`AlgorithmAttributes`]
+/// can be used on that card (for key generation or key import).
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct AlgoInfo(pub(crate) Vec<(KeyType, AlgorithmAttributes)>);
+pub struct AlgorithmInformation(pub(crate) Vec<(KeyType, AlgorithmAttributes)>);
 
-/// 4.4.3.9 Algorithm Attributes
+/// Algorithm Attributes [Spec section 4.4.3.9]
 ///
 /// An `Algo` describes the algorithm settings for a key on the card.
 ///

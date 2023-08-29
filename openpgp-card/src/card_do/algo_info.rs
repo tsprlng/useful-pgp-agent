@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! 4.4.3.11 Algorithm Information
@@ -10,11 +10,11 @@ use nom::branch::alt;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 
-use crate::algorithm::{AlgoInfo, AlgorithmAttributes};
+use crate::algorithm::{AlgorithmAttributes, AlgorithmInformation};
 use crate::card_do::{algo_attrs, complete};
 use crate::KeyType;
 
-impl AlgoInfo {
+impl AlgorithmInformation {
     pub fn filter_by_keytype(&self, kt: KeyType) -> Vec<&AlgorithmAttributes> {
         self.0
             .iter()
@@ -24,7 +24,7 @@ impl AlgoInfo {
     }
 }
 
-impl fmt::Display for AlgoInfo {
+impl fmt::Display for AlgorithmInformation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (kt, a) in &self.0 {
             let kt = match kt {
@@ -85,11 +85,11 @@ fn parse(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, AlgorithmAttributes)
     ))(input)
 }
 
-impl TryFrom<&[u8]> for AlgoInfo {
+impl TryFrom<&[u8]> for AlgorithmInformation {
     type Error = crate::Error;
 
     fn try_from(input: &[u8]) -> Result<Self, Self::Error> {
-        Ok(AlgoInfo(complete(parse(input))?))
+        Ok(AlgorithmInformation(complete(parse(input))?))
     }
 }
 
@@ -99,7 +99,9 @@ impl TryFrom<&[u8]> for AlgoInfo {
 mod test {
     use std::convert::TryFrom;
 
-    use crate::algorithm::{AlgoInfo, AlgorithmAttributes::*, Curve::*, EccAttrs, RsaAttrs};
+    use crate::algorithm::{
+        AlgorithmAttributes::*, AlgorithmInformation, Curve::*, EccAttrs, RsaAttrs,
+    };
     use crate::crypto_data::EccType::*;
     use crate::KeyType::*;
 
@@ -118,11 +120,11 @@ mod test {
             0x1,
         ];
 
-        let ai = AlgoInfo::try_from(&data[..]).unwrap();
+        let ai = AlgorithmInformation::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ai,
-            AlgoInfo(vec![
+            AlgorithmInformation(vec![
                 (Signing, Rsa(RsaAttrs::new(2048, 32, 0))),
                 (Signing, Rsa(RsaAttrs::new(4096, 32, 0))),
                 (Signing, Ecc(EccAttrs::new(ECDSA, NistP256r1, None))),
@@ -164,11 +166,11 @@ mod test {
             0xa, 0x13, 0x2b, 0x24, 0x3, 0x3, 0x2, 0x8, 0x1, 0x1, 0xd,
         ];
 
-        let ai = AlgoInfo::try_from(&data[..]).unwrap();
+        let ai = AlgorithmInformation::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ai,
-            AlgoInfo(vec![
+            AlgorithmInformation(vec![
                 (Signing, Rsa(RsaAttrs::new(2048, 32, 0))),
                 (Signing, Rsa(RsaAttrs::new(3072, 32, 0))),
                 (Signing, Rsa(RsaAttrs::new(4096, 32, 0))),
@@ -245,11 +247,11 @@ mod test {
             0xda, 0xb, 0x16, 0x2b, 0x6, 0x1, 0x4, 0x1, 0x97, 0x55, 0x1, 0x5, 0x1,
         ];
 
-        let ai = AlgoInfo::try_from(&data[..]).unwrap();
+        let ai = AlgorithmInformation::try_from(&data[..]).unwrap();
 
         assert_eq!(
             ai,
-            AlgoInfo(vec![
+            AlgorithmInformation(vec![
                 (Signing, Rsa(RsaAttrs::new(2048, 17, 0))),
                 (Signing, Rsa(RsaAttrs::new(3072, 17, 0))),
                 (Signing, Rsa(RsaAttrs::new(4096, 17, 0))),

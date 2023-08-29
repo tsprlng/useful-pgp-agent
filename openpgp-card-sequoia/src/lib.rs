@@ -140,7 +140,7 @@
 //! ```
 
 use card_backend::{CardBackend, SmartcardError};
-use openpgp_card::algorithm::{AlgoInfo, AlgoSimple, AlgorithmAttributes};
+use openpgp_card::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
 use openpgp_card::card_do::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
     Fingerprint, HistoricalBytes, KeyGenerationTime, KeyInformation, KeySet, Lang, PWStatusBytes,
@@ -581,7 +581,7 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     // DO "Algorithm Information" (0xFA)
-    pub fn algorithm_information(&mut self) -> Result<Option<AlgoInfo>, Error> {
+    pub fn algorithm_information(&mut self) -> Result<Option<AlgorithmInformation>, Error> {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
         let ec = self.extended_capabilities()?;
