@@ -298,8 +298,8 @@ impl EccAttrs {
         self.ecc_type
     }
 
-    pub fn curve(&self) -> Curve {
-        self.curve
+    pub fn curve(&self) -> &Curve {
+        &self.curve
     }
 
     pub fn oid(&self) -> &[u8] {
@@ -312,7 +312,7 @@ impl EccAttrs {
 }
 
 /// Enum for naming ECC curves, and mapping them to/from their OIDs.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Curve {
     NistP256r1,
@@ -326,6 +326,7 @@ pub enum Curve {
     Cv25519,
     Ed448,
     X448,
+    Unknown(Vec<u8>),
 }
 
 impl Curve {
@@ -343,6 +344,7 @@ impl Curve {
             Cv25519 => oid::CV25519,
             Ed448 => oid::ED448,
             X448 => oid::X448,
+            Unknown(v) => v,
         }
     }
 }
@@ -370,7 +372,7 @@ impl TryFrom<&[u8]> for Curve {
             oid::ED448 => Ed448,
             oid::X448 => X448,
 
-            _ => return Err(Error::ParseError(format!("Unknown curve OID {oid:?}"))),
+            o => Unknown(o.to_vec()),
         };
 
         Ok(curve)

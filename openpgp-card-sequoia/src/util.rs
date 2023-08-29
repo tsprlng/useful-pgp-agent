@@ -247,7 +247,7 @@ pub fn public_key_material_to_key(
 
                 match key_type {
                     KeyType::Authentication | KeyType::Signing => {
-                        if algo_ecc.curve() == Curve::Ed25519 {
+                        if algo_ecc.curve() == &Curve::Ed25519 {
                             // EdDSA
                             let k4 =
                                 Key4::import_public_ed25519(ecc.data(), time).map_err(|e| {
@@ -277,7 +277,7 @@ pub fn public_key_material_to_key(
                         }
                     }
                     KeyType::Decryption => {
-                        if algo_ecc.curve() == Curve::Cv25519 {
+                        if algo_ecc.curve() == &Curve::Cv25519 {
                             // EdDSA
                             let k4 = Key4::import_public_cv25519(ecc.data(), hash, sym, time)
                                 .map_err(|e| {
