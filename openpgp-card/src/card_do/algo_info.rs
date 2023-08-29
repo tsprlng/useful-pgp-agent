@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! 4.4.3.11 Algorithm Information
+//! Algorithm Information [Spec section 4.4.3.11]
 
 use std::convert::TryFrom;
 use std::fmt;
@@ -15,7 +15,7 @@ use crate::card_do::{algo_attrs, complete};
 use crate::KeyType;
 
 impl AlgorithmInformation {
-    pub fn filter_by_keytype(&self, kt: KeyType) -> Vec<&AlgorithmAttributes> {
+    pub fn for_keytype(&self, kt: KeyType) -> Vec<&AlgorithmAttributes> {
         self.0
             .iter()
             .filter(|(k, _)| *k == kt)

@@ -292,7 +292,7 @@ fn card_algo_rsa(
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_info.filter_by_keytype(key_type);
+    let keytype_algos: Vec<_> = algo_info.for_keytype(key_type);
     // Get RSA algo attributes
     let rsa_algos: Vec<_> = keytype_algos
         .iter()
@@ -334,7 +334,7 @@ fn check_card_algo_ecc(
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
-    let keytype_algos: Vec<_> = algo_info.filter_by_keytype(key_type);
+    let keytype_algos: Vec<_> = algo_info.for_keytype(key_type);
 
     // Get attributes
     let ecc_algos: Vec<_> = keytype_algos
