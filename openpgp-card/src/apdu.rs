@@ -101,7 +101,7 @@ fn send_command_low_level<C>(
 where
     C: CardTransaction + ?Sized,
 {
-    let (ext_support, chaining_support, mut max_cmd_bytes, max_rsp_bytes) =
+    let (ext_support, chaining_support, max_cmd_bytes, max_rsp_bytes) =
         if let Some(caps) = card_caps {
             log::trace!("found card caps data!");
 
@@ -117,15 +117,6 @@ where
             // default settings
             (false, false, 255, 255)
         };
-
-    // If the CardTransaction implementation has an inherent limit for the cmd
-    // size, take that limit into account.
-    // (E.g. when using scdaemon as a CardTransaction backend, there is a
-    // limitation to 1000 bytes length for Assuan commands, which
-    // translates to maximum command length of a bit under 500 bytes)
-    if let Some(max_card_cmd_bytes) = card_tx.max_cmd_len() {
-        max_cmd_bytes = usize::min(max_cmd_bytes, max_card_cmd_bytes);
-    }
 
     log::trace!(
         "ext le/lc {}, chaining {}, max cmd {}, max rsp {}",
