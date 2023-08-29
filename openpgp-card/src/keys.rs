@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Generate and import keys
@@ -14,9 +14,9 @@ use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
     RSAPub,
 };
-use crate::openpgp::OpenPgpTransaction;
+use crate::tags::Tags;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
-use crate::{Error, KeyType, Tag, Tags};
+use crate::{Error, KeyType, Tag, Transaction};
 
 /// Generate asymmetric key pair on the card.
 ///
@@ -29,7 +29,7 @@ use crate::{Error, KeyType, Tag, Tags};
 /// `fp_from_pub` calculates the fingerprint for a public key data object and
 /// creation timestamp
 pub(crate) fn gen_key_with_metadata(
-    card_tx: &mut OpenPgpTransaction,
+    card_tx: &mut Transaction,
     fp_from_pub: fn(&PublicKeyMaterial, KeyGenerationTime, KeyType) -> Result<Fingerprint, Error>,
     key_type: KeyType,
     algo: Option<&AlgorithmAttributes>,
@@ -121,7 +121,7 @@ fn tlv_to_pubkey(tlv: &Tlv, algo: &AlgorithmAttributes) -> Result<PublicKeyMater
 /// This runs the low level key generation primitive on the card.
 /// (This does not set algorithm attributes, creation time or fingerprint)
 pub(crate) fn generate_asymmetric_key_pair(
-    card_tx: &mut OpenPgpTransaction,
+    card_tx: &mut Transaction,
     key_type: KeyType,
 ) -> Result<Tlv, Error> {
     log::info!("OpenPgpTransaction: generate_asymmetric_key_pair");
@@ -145,7 +145,7 @@ pub(crate) fn generate_asymmetric_key_pair(
 ///
 /// (See 7.2.14 GENERATE ASYMMETRIC KEY PAIR)
 pub(crate) fn public_key(
-    card_tx: &mut OpenPgpTransaction,
+    card_tx: &mut Transaction,
     key_type: KeyType,
 ) -> Result<PublicKeyMaterial, Error> {
     log::info!("OpenPgpTransaction: public_key");
@@ -173,7 +173,7 @@ pub(crate) fn public_key(
 /// caused by checks before attempting to upload the key to the card, or by
 /// an error that the card reports during an attempt to upload the key).
 pub(crate) fn key_import(
-    card_tx: &mut OpenPgpTransaction,
+    card_tx: &mut Transaction,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
     algo_info: Option<AlgoInfo>,

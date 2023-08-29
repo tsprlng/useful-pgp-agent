@@ -5,7 +5,7 @@ use std::convert::TryInto;
 
 use anyhow::anyhow;
 use openpgp_card::crypto_data::Hash;
-use openpgp_card::OpenPgpTransaction;
+use openpgp_card::Transaction;
 use sequoia_openpgp::crypto;
 use sequoia_openpgp::crypto::mpi;
 use sequoia_openpgp::types::{Curve, PublicKeyAlgorithm};
@@ -14,7 +14,7 @@ use crate::PublicKey;
 
 pub struct CardSigner<'a, 'app> {
     /// The OpenPGP card (authenticated to allow signing operations)
-    ca: &'a mut OpenPgpTransaction<'app>,
+    ca: &'a mut Transaction<'app>,
 
     /// The matching public key for the card's signing key
     public: PublicKey,
@@ -28,7 +28,7 @@ pub struct CardSigner<'a, 'app> {
 
 impl<'a, 'app> CardSigner<'a, 'app> {
     pub(crate) fn with_pubkey(
-        ca: &'a mut OpenPgpTransaction<'app>,
+        ca: &'a mut Transaction<'app>,
         public: PublicKey,
         touch_prompt: &'a (dyn Fn() + Send + Sync),
     ) -> CardSigner<'a, 'app> {
@@ -41,7 +41,7 @@ impl<'a, 'app> CardSigner<'a, 'app> {
     }
 
     pub(crate) fn with_pubkey_for_auth(
-        ca: &'a mut OpenPgpTransaction<'app>,
+        ca: &'a mut Transaction<'app>,
         public: PublicKey,
         touch_prompt: &'a (dyn Fn() + Send + Sync),
     ) -> CardSigner<'a, 'app> {
@@ -84,9 +84,9 @@ impl<'a, 'app> crypto::Signer for CardSigner<'a, 'app> {
         };
 
         let sig_fn = if !self.auth {
-            OpenPgpTransaction::signature_for_hash
+            Transaction::signature_for_hash
         } else {
-            OpenPgpTransaction::authenticate_for_hash
+            Transaction::authenticate_for_hash
         };
 
         // Delegate a signing (or auth) operation to the OpenPGP card.

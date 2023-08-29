@@ -4,7 +4,6 @@
 //! States of a card are modeled by the types `Open`, `Transaction`, `User`, `Sign`, `Admin`.
 
 use openpgp_card::card_do::ApplicationRelatedData;
-use openpgp_card::{OpenPgp, OpenPgpTransaction};
 
 use crate::Card;
 
@@ -23,7 +22,7 @@ impl State for Admin<'_, '_> {}
 ///
 /// A transaction can be started on the card, in this state.
 pub struct Open {
-    pub(crate) pgp: OpenPgp,
+    pub(crate) pgp: openpgp_card::Card,
 }
 
 /// State of an OpenPGP card once a transaction has been started.
@@ -34,7 +33,7 @@ pub struct Open {
 ///
 /// (Note that a factory-reset can be performed in this base state.)
 pub struct Transaction<'a> {
-    pub(crate) opt: OpenPgpTransaction<'a>,
+    pub(crate) opt: openpgp_card::Transaction<'a>,
 
     // Cache of "application related data".
     //

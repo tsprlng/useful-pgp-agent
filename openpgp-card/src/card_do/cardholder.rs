@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Cardholder Related Data (see spec pg. 22)
@@ -6,8 +6,8 @@
 use std::convert::TryFrom;
 
 use crate::card_do::{CardholderRelatedData, Lang, Sex};
+use crate::tags::Tags;
 use crate::tlv::{value::Value, Tlv};
-use crate::Tags;
 
 impl CardholderRelatedData {
     pub fn name(&self) -> Option<&[u8]> {

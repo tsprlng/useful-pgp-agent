@@ -3,7 +3,7 @@
 
 use anyhow::anyhow;
 use openpgp_card::crypto_data::Cryptogram;
-use openpgp_card::OpenPgpTransaction;
+use openpgp_card::Transaction;
 use sequoia_openpgp::crypto::mpi;
 use sequoia_openpgp::crypto::SessionKey;
 use sequoia_openpgp::packet;
@@ -15,7 +15,7 @@ use crate::PublicKey;
 
 pub struct CardDecryptor<'a, 'app> {
     /// The OpenPGP card (authenticated to allow decryption operations)
-    ca: &'a mut OpenPgpTransaction<'app>,
+    ca: &'a mut Transaction<'app>,
 
     /// The matching public key for the card's decryption key
     public: PublicKey,
@@ -26,7 +26,7 @@ pub struct CardDecryptor<'a, 'app> {
 
 impl<'a, 'app> CardDecryptor<'a, 'app> {
     pub(crate) fn with_pubkey(
-        ca: &'a mut OpenPgpTransaction<'app>,
+        ca: &'a mut Transaction<'app>,
         public: PublicKey,
         touch_prompt: &'a (dyn Fn() + Send + Sync),
     ) -> CardDecryptor<'a, 'app> {

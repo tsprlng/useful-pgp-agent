@@ -1,15 +1,16 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Pre-defined `Command` values for the OpenPGP card application
 
 use crate::apdu::command::Command;
-use crate::{KeyType, ShortTag, Tags, OP_APP};
+use crate::tags::{ShortTag, Tags};
+use crate::{KeyType, OPENPGP_APPLICATION};
 
 /// 7.2.1 SELECT
 /// (select the OpenPGP application on the card)
 pub(crate) fn select_openpgp() -> Command {
-    Command::new(0x00, 0xA4, 0x04, 0x00, OP_APP.to_vec())
+    Command::new(0x00, 0xA4, 0x04, 0x00, OPENPGP_APPLICATION.to_vec())
 }
 
 /// 7.2.6 GET DATA

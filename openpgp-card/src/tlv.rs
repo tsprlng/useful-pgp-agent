@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 pub(crate) mod length;
@@ -87,7 +87,8 @@ mod test {
     use hex_literal::hex;
 
     use super::{Tlv, Value};
-    use crate::{Error, Tags};
+    use crate::tags::Tags;
+    use crate::Error;
 
     #[test]
     fn test_tlv0() {

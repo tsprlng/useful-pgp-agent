@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! OpenPGP card data objects (DO)
@@ -9,7 +9,8 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 
-use crate::{algorithm::AlgorithmAttributes, tlv::Tlv, Error, KeySet, KeyType, Tags};
+use crate::tags::Tags;
+use crate::{algorithm::AlgorithmAttributes, tlv::Tlv, Error, KeyType};
 
 mod algo_attrs;
 mod algo_info;
@@ -22,7 +23,7 @@ mod historical;
 mod key_generation_times;
 mod pw_status;
 
-/// 4.4.3.1 Application Related Data
+/// Application Related Data [Spec section 4.4.3.1]
 ///
 /// The "application related data" DO contains a set of DOs.
 /// This struct offers read access to these DOs.
@@ -274,7 +275,7 @@ impl ApplicationRelatedData {
     }
 }
 
-/// Security support template (see spec pg. 24)
+/// Security support template [Spec page 24]
 #[derive(Debug)]
 pub struct SecuritySupportTemplate {
     // Digital signature counter [3 bytes]
@@ -288,7 +289,7 @@ impl SecuritySupportTemplate {
     }
 }
 
-/// An OpenPGP key generation Time (see spec pg. 24)
+/// An OpenPGP key generation Time [Spec page 24]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct KeyGenerationTime(u32);
 
@@ -309,7 +310,7 @@ impl Display for KeyGenerationTime {
     }
 }
 
-/// User Interaction Flag (UIF) (see spec pg. 24)
+/// User Interaction Flag (UIF) [Spec page 24]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct UIF([u8; 2]);
 
@@ -422,7 +423,7 @@ impl From<u8> for TouchPolicy {
     }
 }
 
-/// "additional hardware for user interaction" (see spec 4.1.3.2)
+/// "additional hardware for user interaction" [Spec section 4.1.3.2]
 pub struct Features(u8);
 
 impl From<u8> for Features {
@@ -464,7 +465,7 @@ impl Display for Features {
     }
 }
 
-/// 4.4.3.8 Key Information
+/// Key Information [Spec section 4.4.3.8]
 pub struct KeyInformation(Vec<u8>);
 
 impl From<Vec<u8>> for KeyInformation {
@@ -583,7 +584,7 @@ impl Display for KeyStatus {
     }
 }
 
-/// 4.2.1 Application Identifier (AID)
+/// Application Identifier (AID) [Spec section 4.2.1]
 #[derive(Debug, Eq, PartialEq)]
 pub struct ApplicationIdentifier {
     application: u8,
@@ -602,7 +603,7 @@ impl Display for ApplicationIdentifier {
     }
 }
 
-/// 6 Historical Bytes
+/// Historical Bytes [Spec chapter 6]
 #[derive(Debug, PartialEq, Eq)]
 pub struct HistoricalBytes {
     /// category indicator byte
@@ -618,7 +619,7 @@ pub struct HistoricalBytes {
     sib: u8,
 }
 
-/// Card Capabilities (see 6 Historical Bytes)
+/// Card Capabilities [Spec chapter 6 (Historical Bytes)]
 #[derive(Debug, PartialEq, Eq)]
 pub struct CardCapabilities {
     command_chaining: bool,
@@ -642,7 +643,7 @@ impl Display for CardCapabilities {
     }
 }
 
-/// Card service data (see 6 Historical Bytes)
+/// Card service data [Spec chapter 6 (Historical Bytes)]
 #[derive(Debug, PartialEq, Eq)]
 pub struct CardServiceData {
     select_by_full_df_name: bool, // Application Selection by full DF name (AID)
@@ -689,7 +690,7 @@ impl Display for CardServiceData {
     }
 }
 
-/// 4.4.3.7 Extended Capabilities
+/// Extended Capabilities [Spec section 4.4.3.7]
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedCapabilities {
     secure_messaging: bool,
@@ -779,7 +780,7 @@ impl Display for ExtendedCapabilities {
     }
 }
 
-/// 4.1.3.1 Extended length information
+/// Extended length information [Spec section 4.1.3.1]
 #[derive(Debug, Eq, PartialEq)]
 pub struct ExtendedLengthInfo {
     max_command_bytes: u16,
@@ -794,7 +795,7 @@ impl Display for ExtendedLengthInfo {
     }
 }
 
-/// Cardholder Related Data (see spec pg. 22)
+/// Cardholder Related Data [Spec page 22]
 #[derive(Debug, PartialEq, Eq)]
 pub struct CardholderRelatedData {
     name: Option<Vec<u8>>,
@@ -819,7 +820,7 @@ impl Display for CardholderRelatedData {
     }
 }
 
-/// 4.4.3.5 Sex
+/// Sex [Spec section 4.4.3.5]
 ///
 /// Encoded in accordance with <https://en.wikipedia.org/wiki/ISO/IEC_5218>
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -867,7 +868,9 @@ impl From<u8> for Sex {
     }
 }
 
-/// Individual language for Language Preferences (4.4.3.4), accessible via `CardholderRelatedData`.
+/// Individual language for Language Preferences [Spec section 4.4.3.4]
+///
+/// This field is accessible via `CardholderRelatedData`.
 ///
 /// Encoded according to <https://en.wikipedia.org/wiki/ISO_639-1>
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -922,7 +925,7 @@ impl From<&[u8; 2]> for Lang {
     }
 }
 
-/// PW status Bytes (see spec page 23)
+/// PW status Bytes [Spec page 23]
 #[derive(Debug, PartialEq, Eq)]
 pub struct PWStatusBytes {
     pub(crate) pw1_cds_valid_once: bool,
@@ -992,7 +995,7 @@ impl PWStatusBytes {
     }
 }
 
-/// Fingerprint (see spec pg. 23)
+/// Fingerprint [Spec page 23]
 #[derive(Clone, Eq, PartialEq)]
 pub struct Fingerprint([u8; 20]);
 
@@ -1024,5 +1027,37 @@ pub(crate) fn complete<O>(result: nom::IResult<&[u8], O>) -> Result<O, Error> {
         Err(Error::ParseError(format!(
             "Parsing incomplete, trailing data: {rem:x?}"
         )))
+    }
+}
+
+/// A KeySet binds together a triple of information about each Key slot on a card
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct KeySet<T> {
+    signature: Option<T>,
+    decryption: Option<T>,
+    authentication: Option<T>,
+}
+
+impl<T> From<(Option<T>, Option<T>, Option<T>)> for KeySet<T> {
+    fn from(tuple: (Option<T>, Option<T>, Option<T>)) -> Self {
+        Self {
+            signature: tuple.0,
+            decryption: tuple.1,
+            authentication: tuple.2,
+        }
+    }
+}
+
+impl<T> KeySet<T> {
+    pub fn signature(&self) -> Option<&T> {
+        self.signature.as_ref()
+    }
+
+    pub fn decryption(&self) -> Option<&T> {
+        self.decryption.as_ref()
+    }
+
+    pub fn authentication(&self) -> Option<&T> {
+        self.authentication.as_ref()
     }
 }
