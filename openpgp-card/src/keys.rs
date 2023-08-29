@@ -18,69 +18,40 @@ use crate::tags::Tags;
 use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
 use crate::{Error, KeyType, Tag, Transaction};
 
-/// Generate asymmetric key pair on the card.
+/// Generate asymmetric key pair on the card and set metadata (time, fingerprint).
 ///
-/// This is a convenience wrapper around gen_key() that:
-/// - sets algorithm attributes (if not None)
+/// This function doesn't set the algorithm_attributes!
+///
+/// This is a convenience wrapper around [generate_asymmetric_key_pair] that:
 /// - generates a key pair on the card
 /// - sets the creation time on the card to the current host time
 /// - calculates fingerprint for the key and sets it on the card
 ///
 /// `fp_from_pub` calculates the fingerprint for a public key data object and
 /// creation timestamp
-pub(crate) fn gen_key_with_metadata(
+pub(crate) fn gen_key_set_metadata(
     card_tx: &mut Transaction,
     fp_from_pub: fn(&PublicKeyMaterial, KeyGenerationTime, KeyType) -> Result<Fingerprint, Error>,
+    algorithm_attributes: &AlgorithmAttributes,
     key_type: KeyType,
-    algo: Option<&AlgorithmAttributes>,
 ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-    // Set algo on card if it's Some
-    if let Some(target_algo) = algo {
-        // FIXME: caching
-        let ard = card_tx.application_related_data()?; // no caching, here!
-        let ecap = ard.extended_capabilities()?;
-
-        // Only set algo if card supports setting of algo attr
-        if ecap.algo_attrs_changeable() {
-            card_tx.set_algorithm_attributes(key_type, target_algo)?;
-        } else {
-            // Check if the current algo on the card is the one we want, if
-            // not we return an error.
-
-            // NOTE: For RSA, the target algo shouldn't prescribe an
-            // Import-Format. The Import-Format should always depend on what
-            // the card supports.
-
-            // let cur_algo = ard.get_algorithm_attributes(key_type)?;
-            // assert_eq!(&cur_algo, target_algo);
-
-            // FIXME: return error
-        }
-    }
-
-    // get current (possibly updated) state of algo
-    let ard = card_tx.application_related_data()?; // no caching, here!
-    let cur_algo = ard.algorithm_attributes(key_type)?;
-
-    // generate key
-    let tlv = generate_asymmetric_key_pair(card_tx, key_type)?;
-
-    // derive pubkey
-    let pubkey = tlv_to_pubkey(&tlv, &cur_algo)?;
-
-    log::trace!("public {:x?}", pubkey);
-
-    // set creation time
+    // get creation timestamp
     let time = SystemTime::now();
-
-    // Store creation timestamp (unix time format, limited to u32)
     let ts = time
         .duration_since(UNIX_EPOCH)
         .map_err(|e| Error::InternalError(format!("This should never happen {e}")))?
         .as_secs() as u32;
 
-    let ts = ts.into();
+    // generate key
+    let tlv = generate_asymmetric_key_pair(card_tx, key_type)?;
 
+    // derive pubkey
+    let pubkey = tlv_to_pubkey(&tlv, algorithm_attributes)?;
+
+    log::trace!("public {:x?}", pubkey);
+
+    // Store creation timestamp (unix time format, limited to u32)
+    let ts = ts.into();
     card_tx.set_creation_time(ts, key_type)?;
 
     // calculate/store fingerprint

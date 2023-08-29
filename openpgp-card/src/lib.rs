@@ -1203,10 +1203,10 @@ impl<'a> Transaction<'a> {
     /// Generate a key on the card.
     /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
     ///
-    /// If the `algorithm_attributes` parameter is Some, then this algorithm will be set on
-    /// the card for "key_type".
+    /// If the `algorithm_attributes` parameter is Some, then that algorithm will be set on
+    /// the card for the `key_type` slot.
     ///
-    /// Note: `algorithm_attributes` needs to precisely specify the RSA bitsize of e (if
+    /// Note: `algorithm_attributes` needs to precisely specify the RSA bit-size of e (if
     /// applicable), and import format, with values that the current card
     /// supports.
     pub fn generate_key(
@@ -1219,7 +1219,35 @@ impl<'a> Transaction<'a> {
         key_type: KeyType,
         algorithm_attributes: Option<&AlgorithmAttributes>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        keys::gen_key_with_metadata(self, fp_from_pub, key_type, algorithm_attributes)
+        // Set algo on card if it's Some
+        if let Some(target_algo) = algorithm_attributes {
+            // FIXME: caching
+            let ard = self.application_related_data()?; // no caching, here!
+            let ecap = ard.extended_capabilities()?;
+
+            // Only set algo if card supports setting of algo attr
+            if ecap.algo_attrs_changeable() {
+                self.set_algorithm_attributes(key_type, target_algo)?;
+            } else {
+                // Check if the current algo on the card is the one we want, if
+                // not we return an error.
+
+                // NOTE: For RSA, the target algo shouldn't prescribe an
+                // Import-Format. The Import-Format should always depend on what
+                // the card supports.
+
+                // let cur_algo = ard.get_algorithm_attributes(key_type)?;
+                // assert_eq!(&cur_algo, target_algo);
+
+                // FIXME: return error?
+            }
+        }
+
+        // get current (possibly updated) state of algorithm_attributes
+        let ard = self.application_related_data()?; // no caching, here!
+        let cur_algo = ard.algorithm_attributes(key_type)?;
+
+        keys::gen_key_set_metadata(self, fp_from_pub, &cur_algo, key_type)
     }
 
     /// Generate a key on the card.
