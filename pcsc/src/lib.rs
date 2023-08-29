@@ -26,6 +26,12 @@ pub struct PcscBackend {
     card: pcsc::Card,
     mode: pcsc::ShareMode,
     reader_caps: HashMap<u8, Tlv>,
+
+    // The reader name could be used as a hint about capabilities
+    // (e.g. readers that don't support extended length)
+    #[allow(dead_code)]
+    reader_name: String,
+    // FIXME: add a "adjust_card_caps" fn to card-backend? (could replace `max_cmd_len`)
 }
 
 /// Boxing helper (for easier consumption of PcscBackend in openpgp_card and openpgp_card_sequoia)
@@ -415,8 +421,9 @@ impl CardTransaction for PcscTransaction<'_> {
 }
 
 impl PcscBackend {
-    /// A list of "raw" opened PCSC Cards (without selecting any application)
-    fn raw_pcsc_cards(mode: pcsc::ShareMode) -> Result<Vec<pcsc::Card>, SmartcardError> {
+    /// A list of "raw" opened PCSC Cards and reader names
+    /// (No application is selected)
+    fn raw_pcsc_cards(mode: pcsc::ShareMode) -> Result<Vec<(pcsc::Card, String)>, SmartcardError> {
         log::trace!("raw_pcsc_cards start");
 
         let ctx = match pcsc::Context::establish(pcsc::Scope::User) {
@@ -445,7 +452,9 @@ impl PcscBackend {
 
         // Find a reader with a SmartCard.
         for reader in readers {
-            log::trace!("Checking reader: {:?}", reader);
+            let name = String::from_utf8_lossy(reader.to_bytes());
+
+            log::trace!("Checking reader: {:?}", name);
 
             // Try connecting to card in this reader
             let card = match ctx.connect(reader, mode, pcsc::Protocols::ANY) {
@@ -464,7 +473,7 @@ impl PcscBackend {
 
             log::trace!("Found card");
 
-            cards.push(card);
+            cards.push((card, name.to_string()));
         }
 
         Ok(cards)
@@ -483,9 +492,10 @@ impl PcscBackend {
 
         Ok(cards.into_iter().map(move |card| {
             let backend = PcscBackend {
-                card,
+                card: card.0,
                 mode,
                 reader_caps: Default::default(),
+                reader_name: card.1,
             };
 
             backend.initialize_card()
