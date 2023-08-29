@@ -255,7 +255,7 @@ impl Card {
 /// before they are automatically closed.)
 pub struct Transaction<'a> {
     tx: Box<dyn CardTransaction + Send + Sync + 'a>,
-    card_caps: &'a mut Option<CardCaps>,
+    card_caps: &'a Option<CardCaps>,
 }
 
 impl<'a> Transaction<'a> {
