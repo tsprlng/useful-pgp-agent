@@ -16,7 +16,7 @@ impl From<KeyGenerationTime> for DateTime<Utc> {
         let naive_datetime = NaiveDateTime::from_timestamp_opt(kg.0 as i64, 0)
             .expect("invalid or out-of-range datetime");
 
-        DateTime::from_utc(naive_datetime, Utc)
+        DateTime::from_naive_utc_and_offset(naive_datetime, Utc)
     }
 }
 
