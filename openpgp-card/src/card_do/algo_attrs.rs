@@ -10,7 +10,7 @@ use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, number::complete as number};
 
-use crate::algorithm::{AlgorithmAttributes, Curve, EccAttrs, RsaAttrs};
+use crate::algorithm::{AlgorithmAttributes, Curve, EccAttributes, RsaAttributes};
 use crate::card_do::complete;
 use crate::crypto_data::EccType;
 
@@ -89,7 +89,7 @@ fn parse_rsa(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
 
     Ok((
         input,
-        AlgorithmAttributes::Rsa(RsaAttrs::new(len_n, len_e, import_format)),
+        AlgorithmAttributes::Rsa(RsaAttributes::new(len_n, len_e, import_format)),
     ))
 }
 
@@ -110,7 +110,7 @@ fn parse_ecdh(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
 
     Ok((
         input,
-        AlgorithmAttributes::Ecc(EccAttrs::new(EccType::ECDH, curve, import_format)),
+        AlgorithmAttributes::Ecc(EccAttributes::new(EccType::ECDH, curve, import_format)),
     ))
 }
 
@@ -122,7 +122,7 @@ fn parse_ecdsa(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
 
     Ok((
         input,
-        AlgorithmAttributes::Ecc(EccAttrs::new(EccType::ECDSA, curve, import_format)),
+        AlgorithmAttributes::Ecc(EccAttributes::new(EccType::ECDSA, curve, import_format)),
     ))
 }
 
@@ -134,7 +134,7 @@ fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
 
     Ok((
         input,
-        AlgorithmAttributes::Ecc(EccAttrs::new(EccType::EdDSA, curve, import_format)),
+        AlgorithmAttributes::Ecc(EccAttributes::new(EccType::EdDSA, curve, import_format)),
     ))
 }
 

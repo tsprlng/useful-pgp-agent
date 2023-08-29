@@ -6,7 +6,9 @@
 use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::algorithm::{AlgorithmAttributes, AlgorithmInformation, Curve, EccAttrs, RsaAttrs};
+use crate::algorithm::{
+    AlgorithmAttributes, AlgorithmInformation, Curve, EccAttributes, RsaAttributes,
+};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_do::{Fingerprint, KeyGenerationTime};
@@ -207,7 +209,7 @@ pub(crate) fn determine_rsa_attrs(
     key_type: KeyType,
     algo_attr: AlgorithmAttributes,
     algo_info: Option<AlgorithmInformation>,
-) -> Result<RsaAttrs, Error> {
+) -> Result<RsaAttributes, Error> {
     // Figure out suitable RSA algorithm parameters:
 
     // Does the card offer a list of algorithms?
@@ -222,7 +224,7 @@ pub(crate) fn determine_rsa_attrs(
         if let AlgorithmAttributes::Rsa(rsa) = algo_attr {
             // If so, use the algorithm parameters from the card and
             // adjust the bit length based on the user-provided key.
-            RsaAttrs::new(rsa_bits, rsa.len_e(), rsa.import_format())
+            RsaAttributes::new(rsa_bits, rsa.len_e(), rsa.import_format())
         } else {
             // The card doesn't provide an algorithm list, and the
             // current algorithm on the card is not RSA.
@@ -235,7 +237,7 @@ pub(crate) fn determine_rsa_attrs(
             // list of which RSA parameters that model of card
             // supports]
 
-            RsaAttrs::new(rsa_bits, 32, 0)
+            RsaAttributes::new(rsa_bits, 32, 0)
         }
     };
 
@@ -249,7 +251,7 @@ pub(crate) fn determine_ecc_attrs(
     ecc_type: EccType,
     key_type: KeyType,
     algo_info: Option<AlgorithmInformation>,
-) -> Result<EccAttrs, crate::Error> {
+) -> Result<EccAttributes, crate::Error> {
     // If we have an algo_info, refuse upload if oid is not listed
     if let Some(algo_info) = algo_info {
         let algos = check_card_algo_ecc(algo_info, key_type, oid);
@@ -269,7 +271,7 @@ pub(crate) fn determine_ecc_attrs(
         // We do however, use import_format from algorithm information.
 
         if !algos.is_empty() {
-            return Ok(EccAttrs::new(
+            return Ok(EccAttributes::new(
                 ecc_type,
                 Curve::try_from(oid)?,
                 algos[0].import_format(),
@@ -280,7 +282,7 @@ pub(crate) fn determine_ecc_attrs(
     // Return a default when we have no algo_info.
     // (Do cards that support ecc but have no algo_info exist?)
 
-    Ok(EccAttrs::new(ecc_type, Curve::try_from(oid)?, None))
+    Ok(EccAttributes::new(ecc_type, Curve::try_from(oid)?, None))
 }
 
 /// Look up RsaAttrs parameters in algo_info based on key_type and rsa_bits
@@ -288,7 +290,7 @@ fn card_algo_rsa(
     algo_info: AlgorithmInformation,
     key_type: KeyType,
     rsa_bits: u16,
-) -> Result<RsaAttrs, Error> {
+) -> Result<RsaAttributes, Error> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
@@ -330,7 +332,7 @@ fn check_card_algo_ecc(
     algo_info: AlgorithmInformation,
     key_type: KeyType,
     oid: &[u8],
-) -> Vec<EccAttrs> {
+) -> Vec<EccAttributes> {
     // Find suitable algorithm parameters (from card's list of algorithms).
 
     // Get Algos for this keytype
@@ -361,7 +363,7 @@ fn check_card_algo_ecc(
 fn rsa_key_import_cmd(
     key_type: KeyType,
     rsa_key: Box<dyn RSAKey>,
-    rsa_attrs: &RsaAttrs,
+    rsa_attrs: &RsaAttributes,
 ) -> Result<Command, Error> {
     // Assemble key command (see 4.4.3.12 Private Key Template)
 
@@ -459,7 +461,7 @@ fn rsa_key_import_cmd(
 fn ecc_key_import_cmd(
     key_type: KeyType,
     ecc_key: Box<dyn EccKey>,
-    ecc_attrs: &EccAttrs,
+    ecc_attrs: &EccAttributes,
 ) -> Result<Command, Error> {
     let private = ecc_key.private();
 

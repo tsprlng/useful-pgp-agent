@@ -162,8 +162,8 @@ pub struct AlgorithmInformation(pub(crate) Vec<(KeyType, AlgorithmAttributes)>);
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AlgorithmAttributes {
-    Rsa(RsaAttrs),
-    Ecc(EccAttrs),
+    Rsa(RsaAttributes),
+    Ecc(EccAttributes),
     Unknown(Vec<u8>),
 }
 
@@ -215,7 +215,7 @@ impl AlgorithmAttributes {
     }
 
     /// Helper: generate `data` for algorithm attributes with RSA
-    fn rsa_algo_attrs(algo_attrs: &RsaAttrs) -> Result<Vec<u8>, Error> {
+    fn rsa_algo_attrs(algo_attrs: &RsaAttributes) -> Result<Vec<u8>, Error> {
         // Algorithm ID (01 = RSA (Encrypt or Sign))
         let mut algo_attributes = vec![0x01];
 
@@ -249,15 +249,15 @@ impl AlgorithmAttributes {
 
 /// RSA specific attributes of [`AlgorithmAttributes`]
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct RsaAttrs {
+pub struct RsaAttributes {
     len_n: u16,
     len_e: u16,
     import_format: u8,
 }
 
-impl RsaAttrs {
+impl RsaAttributes {
     pub fn new(len_n: u16, len_e: u16, import_format: u8) -> Self {
-        RsaAttrs {
+        Self {
             len_n,
             len_e,
             import_format,
@@ -279,13 +279,13 @@ impl RsaAttrs {
 
 /// ECC specific attributes of [`AlgorithmAttributes`]
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct EccAttrs {
+pub struct EccAttributes {
     ecc_type: EccType,
     curve: Curve,
     import_format: Option<u8>,
 }
 
-impl EccAttrs {
+impl EccAttributes {
     pub fn new(ecc_type: EccType, curve: Curve, import_format: Option<u8>) -> Self {
         Self {
             ecc_type,
@@ -326,6 +326,7 @@ pub enum Curve {
     Cv25519,
     Ed448,
     X448,
+
     Unknown(Vec<u8>),
 }
 
@@ -344,7 +345,8 @@ impl Curve {
             Cv25519 => oid::CV25519,
             Ed448 => oid::ED448,
             X448 => oid::X448,
-            Unknown(v) => v,
+
+            Unknown(oid) => oid,
         }
     }
 }
@@ -372,7 +374,7 @@ impl TryFrom<&[u8]> for Curve {
             oid::ED448 => Ed448,
             oid::X448 => X448,
 
-            o => Unknown(o.to_vec()),
+            _ => Unknown(oid.to_vec()),
         };
 
         Ok(curve)
