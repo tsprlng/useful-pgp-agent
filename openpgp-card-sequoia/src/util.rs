@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use anyhow::Result;
-use openpgp_card::algorithm::{Algo, Curve};
+use openpgp_card::algorithm::{AlgorithmAttributes, Curve};
 use openpgp_card::card_do::{Fingerprint, KeyGenerationTime};
 use openpgp_card::crypto_data::{CardUploadableKey, PublicKeyMaterial};
 use openpgp_card::{Error, KeyType};
@@ -235,7 +235,7 @@ pub fn public_key_material_to_key(
         }
         PublicKeyMaterial::E(ecc) => {
             let algo = ecc.algo().clone(); // FIXME?
-            if let Algo::Ecc(algo_ecc) = algo {
+            if let AlgorithmAttributes::Ecc(algo_ecc) = algo {
                 let curve = match algo_ecc.curve() {
                     Curve::NistP256r1 => sequoia_openpgp::types::Curve::NistP256,
                     Curve::NistP384r1 => sequoia_openpgp::types::Curve::NistP384,

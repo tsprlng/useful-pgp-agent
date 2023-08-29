@@ -3,7 +3,7 @@
 
 //! Data structures that define OpenPGP algorithms.
 //!
-//! [`Algo`] and its components model "Algorithm Attributes" as described in
+//! [`AlgorithmAttributes`] and its components model "Algorithm Attributes" as described in
 //! the OpenPGP card specification.
 //!
 //! [`AlgoSimple`] offers a shorthand for specifying an algorithm,
@@ -85,31 +85,39 @@ impl AlgoSimple {
         key_type: KeyType,
         ard: &ApplicationRelatedData,
         algo_info: Option<AlgoInfo>,
-    ) -> Result<Algo, crate::Error> {
+    ) -> Result<AlgorithmAttributes, crate::Error> {
         let algo = match self {
-            Self::RSA1k => Algo::Rsa(keys::determine_rsa_attrs(1024, key_type, ard, algo_info)?),
-            Self::RSA2k => Algo::Rsa(keys::determine_rsa_attrs(2048, key_type, ard, algo_info)?),
-            Self::RSA3k => Algo::Rsa(keys::determine_rsa_attrs(3072, key_type, ard, algo_info)?),
-            Self::RSA4k => Algo::Rsa(keys::determine_rsa_attrs(4096, key_type, ard, algo_info)?),
-            Self::NIST256 => Algo::Ecc(keys::determine_ecc_attrs(
+            Self::RSA1k => {
+                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(1024, key_type, ard, algo_info)?)
+            }
+            Self::RSA2k => {
+                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(2048, key_type, ard, algo_info)?)
+            }
+            Self::RSA3k => {
+                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(3072, key_type, ard, algo_info)?)
+            }
+            Self::RSA4k => {
+                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(4096, key_type, ard, algo_info)?)
+            }
+            Self::NIST256 => AlgorithmAttributes::Ecc(keys::determine_ecc_attrs(
                 Curve::NistP256r1.oid(),
                 Self::ecc_type(key_type),
                 key_type,
                 algo_info,
             )?),
-            Self::NIST384 => Algo::Ecc(keys::determine_ecc_attrs(
+            Self::NIST384 => AlgorithmAttributes::Ecc(keys::determine_ecc_attrs(
                 Curve::NistP384r1.oid(),
                 Self::ecc_type(key_type),
                 key_type,
                 algo_info,
             )?),
-            Self::NIST521 => Algo::Ecc(keys::determine_ecc_attrs(
+            Self::NIST521 => AlgorithmAttributes::Ecc(keys::determine_ecc_attrs(
                 Curve::NistP521r1.oid(),
                 Self::ecc_type(key_type),
                 key_type,
                 algo_info,
             )?),
-            Self::Curve25519 => Algo::Ecc(keys::determine_ecc_attrs(
+            Self::Curve25519 => AlgorithmAttributes::Ecc(keys::determine_ecc_attrs(
                 Self::curve_for_25519(key_type).oid(),
                 Self::ecc_type_25519(key_type),
                 key_type,
@@ -127,7 +135,7 @@ impl AlgoSimple {
 /// algorithms for each key type. This list specifies which "Algorithm
 /// Attributes" can be set for key generation or key import.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct AlgoInfo(pub(crate) Vec<(KeyType, Algo)>);
+pub struct AlgoInfo(pub(crate) Vec<(KeyType, AlgorithmAttributes)>);
 
 /// 4.4.3.9 Algorithm Attributes
 ///
@@ -139,13 +147,13 @@ pub struct AlgoInfo(pub(crate) Vec<(KeyType, Algo)>);
 /// - Export of public key data from the card (e.g. after key generation)
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum Algo {
+pub enum AlgorithmAttributes {
     Rsa(RsaAttrs),
     Ecc(EccAttrs),
     Unknown(Vec<u8>),
 }
 
-impl fmt::Display for Algo {
+impl fmt::Display for AlgorithmAttributes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Rsa(rsa) => {
@@ -181,13 +189,13 @@ impl fmt::Display for Algo {
     }
 }
 
-impl Algo {
+impl AlgorithmAttributes {
     /// Get a DO representation of the Algo, for setting algorithm
     /// attributes on the card.
     pub(crate) fn to_data_object(&self) -> Result<Vec<u8>, Error> {
         match self {
-            Algo::Rsa(rsa) => Self::rsa_algo_attrs(rsa),
-            Algo::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
+            AlgorithmAttributes::Rsa(rsa) => Self::rsa_algo_attrs(rsa),
+            AlgorithmAttributes::Ecc(ecc) => Self::ecc_algo_attrs(ecc.oid(), ecc.ecc_type()),
             _ => Err(Error::UnsupportedAlgo(format!("Unexpected Algo {self:?}"))),
         }
     }
@@ -225,7 +233,7 @@ impl Algo {
     }
 }
 
-/// RSA specific attributes of [`Algo`] ("Algorithm Attributes")
+/// RSA specific attributes of [`AlgorithmAttributes`]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RsaAttrs {
     len_n: u16,
@@ -255,7 +263,7 @@ impl RsaAttrs {
     }
 }
 
-/// ECC specific attributes of [`Algo`] ("Algorithm Attributes")
+/// ECC specific attributes of [`AlgorithmAttributes`]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct EccAttrs {
     ecc_type: EccType,

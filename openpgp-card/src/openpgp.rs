@@ -5,7 +5,7 @@ use std::convert::{TryFrom, TryInto};
 
 use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
 
-use crate::algorithm::{Algo, AlgoInfo, AlgoSimple};
+use crate::algorithm::{AlgoInfo, AlgoSimple, AlgorithmAttributes};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::apdu::response::RawResponse;
@@ -905,7 +905,7 @@ impl<'a> OpenPgpTransaction<'a> {
     pub fn set_algorithm_attributes(
         &mut self,
         key_type: KeyType,
-        algo: &Algo,
+        algo: &AlgorithmAttributes,
     ) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_algorithm_attributes");
 
@@ -1107,7 +1107,7 @@ impl<'a> OpenPgpTransaction<'a> {
             KeyType,
         ) -> Result<Fingerprint, Error>,
         key_type: KeyType,
-        algo: Option<&Algo>,
+        algo: Option<&AlgorithmAttributes>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         keys::gen_key_with_metadata(self, fp_from_pub, key_type, algo)
     }

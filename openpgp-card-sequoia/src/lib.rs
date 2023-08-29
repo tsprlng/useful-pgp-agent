@@ -140,7 +140,7 @@
 //! ```
 
 use card_backend::{CardBackend, SmartcardError};
-use openpgp_card::algorithm::{Algo, AlgoInfo, AlgoSimple};
+use openpgp_card::algorithm::{AlgoInfo, AlgoSimple, AlgorithmAttributes};
 use openpgp_card::card_do::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
     Fingerprint, HistoricalBytes, KeyGenerationTime, KeyInformation, Lang, PWStatusBytes,
@@ -467,7 +467,7 @@ impl<'a> Card<Transaction<'a>> {
         self.state.ard.extended_capabilities()
     }
 
-    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo, Error> {
+    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<AlgorithmAttributes, Error> {
         self.state.ard.algorithm_attributes(key_type)
     }
 
@@ -617,7 +617,9 @@ impl<'a> Card<Transaction<'a>> {
         self.state.ard.attestation_key_fingerprint()
     }
 
-    pub fn attestation_key_algorithm_attributes(&mut self) -> Result<Option<Algo>, Error> {
+    pub fn attestation_key_algorithm_attributes(
+        &mut self,
+    ) -> Result<Option<AlgorithmAttributes>, Error> {
         self.state.ard.attestation_key_algorithm_attributes()
     }
 

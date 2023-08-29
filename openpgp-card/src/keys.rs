@@ -6,7 +6,7 @@
 use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::algorithm::{Algo, AlgoInfo, Curve, EccAttrs, RsaAttrs};
+use crate::algorithm::{AlgoInfo, AlgorithmAttributes, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
 use crate::card_do::{ApplicationRelatedData, Fingerprint, KeyGenerationTime};
@@ -32,7 +32,7 @@ pub(crate) fn gen_key_with_metadata(
     card_tx: &mut OpenPgpTransaction,
     fp_from_pub: fn(&PublicKeyMaterial, KeyGenerationTime, KeyType) -> Result<Fingerprint, Error>,
     key_type: KeyType,
-    algo: Option<&Algo>,
+    algo: Option<&AlgorithmAttributes>,
 ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
     // Set algo on card if it's Some
     if let Some(target_algo) = algo {
@@ -91,7 +91,7 @@ pub(crate) fn gen_key_with_metadata(
 }
 
 /// Transform a public key Tlv from the card into PublicKeyMaterial
-fn tlv_to_pubkey(tlv: &Tlv, algo: &Algo) -> Result<PublicKeyMaterial, crate::Error> {
+fn tlv_to_pubkey(tlv: &Tlv, algo: &AlgorithmAttributes) -> Result<PublicKeyMaterial, crate::Error> {
     let n = tlv.find(Tags::PublicKeyDataRsaModulus);
     let v = tlv.find(Tags::PublicKeyDataRsaExponent);
 
@@ -193,7 +193,7 @@ pub(crate) fn key_import(
 
             let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
-            (Algo::Rsa(rsa_attrs), key_cmd)
+            (AlgorithmAttributes::Rsa(rsa_attrs), key_cmd)
         }
         PrivateKeyMaterial::E(ecc_key) => {
             let ecc_attrs =
@@ -201,7 +201,7 @@ pub(crate) fn key_import(
 
             let key_cmd = ecc_key_import_cmd(key_type, ecc_key, &ecc_attrs)?;
 
-            (Algo::Ecc(ecc_attrs), key_cmd)
+            (AlgorithmAttributes::Ecc(ecc_attrs), key_cmd)
         }
     };
 
@@ -249,7 +249,7 @@ pub(crate) fn determine_rsa_attrs(
         let algo = ard.algorithm_attributes(key_type)?;
 
         // Is the algorithm on the card currently set to RSA?
-        if let Algo::Rsa(rsa) = algo {
+        if let AlgorithmAttributes::Rsa(rsa) = algo {
             // If so, use the algorithm parameters from the card and
             // adjust the bit length based on the user-provided key.
             RsaAttrs::new(rsa_bits, rsa.len_e(), rsa.import_format())
@@ -322,7 +322,13 @@ fn card_algo_rsa(algo_info: AlgoInfo, key_type: KeyType, rsa_bits: u16) -> Resul
     // Get RSA algo attributes
     let rsa_algos: Vec<_> = keytype_algos
         .iter()
-        .filter_map(|a| if let Algo::Rsa(r) = a { Some(r) } else { None })
+        .filter_map(|a| {
+            if let AlgorithmAttributes::Rsa(r) = a {
+                Some(r)
+            } else {
+                None
+            }
+        })
         .collect();
 
     // Filter card algorithms by rsa bitlength of the key we want to upload
@@ -355,7 +361,13 @@ fn check_card_algo_ecc(algo_info: AlgoInfo, key_type: KeyType, oid: &[u8]) -> Ve
     // Get attributes
     let ecc_algos: Vec<_> = keytype_algos
         .iter()
-        .filter_map(|a| if let Algo::Ecc(e) = a { Some(e) } else { None })
+        .filter_map(|a| {
+            if let AlgorithmAttributes::Ecc(e) = a {
+                Some(e)
+            } else {
+                None
+            }
+        })
         .collect();
 
     // Find entries with this OID in the algorithm information for key_type

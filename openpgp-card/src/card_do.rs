@@ -9,7 +9,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 
-use crate::{algorithm::Algo, tlv::Tlv, Error, KeySet, KeyType, Tags};
+use crate::{algorithm::AlgorithmAttributes, tlv::Tlv, Error, KeySet, KeyType, Tags};
 
 mod algo_attrs;
 mod algo_info;
@@ -105,11 +105,11 @@ impl ApplicationRelatedData {
     }
 
     /// Get algorithm attributes (for each key type)
-    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<Algo, Error> {
+    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<AlgorithmAttributes, Error> {
         let aa = self.0.find(key_type.algorithm_tag());
 
         if let Some(aa) = aa {
-            Algo::try_from(&aa.serialize()[..])
+            AlgorithmAttributes::try_from(&aa.serialize()[..])
         } else {
             Err(Error::NotFound(format!(
                 "Failed to get algorithm attributes for {key_type:?}."
@@ -235,10 +235,14 @@ impl ApplicationRelatedData {
     }
 
     /// Get Attestation key algorithm attributes.
-    pub fn attestation_key_algorithm_attributes(&mut self) -> Result<Option<Algo>, Error> {
+    pub fn attestation_key_algorithm_attributes(
+        &mut self,
+    ) -> Result<Option<AlgorithmAttributes>, Error> {
         match self.0.find(Tags::AlgorithmAttributesAttestation) {
             None => Ok(None),
-            Some(data) => Ok(Some(Algo::try_from(data.serialize().as_slice())?)),
+            Some(data) => Ok(Some(AlgorithmAttributes::try_from(
+                data.serialize().as_slice(),
+            )?)),
         }
     }
 

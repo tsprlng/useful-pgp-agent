@@ -10,7 +10,7 @@ use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, number::complete as number};
 
-use crate::algorithm::{Algo, Curve, EccAttrs, RsaAttrs};
+use crate::algorithm::{AlgorithmAttributes, Curve, EccAttrs, RsaAttrs};
 use crate::card_do::complete;
 use crate::crypto_data::EccType;
 
@@ -80,14 +80,17 @@ fn parse_oid(input: &[u8]) -> nom::IResult<&[u8], Curve> {
     ))(input)
 }
 
-fn parse_rsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
+fn parse_rsa(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
     let (input, _) = bytes::tag([0x01])(input)?;
 
     let (input, len_n) = number::be_u16(input)?;
     let (input, len_e) = number::be_u16(input)?;
     let (input, import_format) = number::u8(input)?;
 
-    Ok((input, Algo::Rsa(RsaAttrs::new(len_n, len_e, import_format))))
+    Ok((
+        input,
+        AlgorithmAttributes::Rsa(RsaAttrs::new(len_n, len_e, import_format)),
+    ))
 }
 
 fn parse_import_format(input: &[u8]) -> nom::IResult<&[u8], Option<u8>> {
@@ -99,7 +102,7 @@ fn default_import_format(input: &[u8]) -> nom::IResult<&[u8], Option<u8>> {
     Ok((input, None))
 }
 
-fn parse_ecdh(input: &[u8]) -> nom::IResult<&[u8], Algo> {
+fn parse_ecdh(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
     let (input, _) = bytes::tag([0x12])(input)?;
     let (input, curve) = parse_oid(input)?;
 
@@ -107,11 +110,11 @@ fn parse_ecdh(input: &[u8]) -> nom::IResult<&[u8], Algo> {
 
     Ok((
         input,
-        Algo::Ecc(EccAttrs::new(EccType::ECDH, curve, import_format)),
+        AlgorithmAttributes::Ecc(EccAttrs::new(EccType::ECDH, curve, import_format)),
     ))
 }
 
-fn parse_ecdsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
+fn parse_ecdsa(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
     let (input, _) = bytes::tag([0x13])(input)?;
     let (input, curve) = parse_oid(input)?;
 
@@ -119,11 +122,11 @@ fn parse_ecdsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
 
     Ok((
         input,
-        Algo::Ecc(EccAttrs::new(EccType::ECDSA, curve, import_format)),
+        AlgorithmAttributes::Ecc(EccAttrs::new(EccType::ECDSA, curve, import_format)),
     ))
 }
 
-fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
+fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
     let (input, _) = bytes::tag([0x16])(input)?;
     let (input, curve) = parse_oid(input)?;
 
@@ -131,15 +134,15 @@ fn parse_eddsa(input: &[u8]) -> nom::IResult<&[u8], Algo> {
 
     Ok((
         input,
-        Algo::Ecc(EccAttrs::new(EccType::EdDSA, curve, import_format)),
+        AlgorithmAttributes::Ecc(EccAttrs::new(EccType::EdDSA, curve, import_format)),
     ))
 }
 
-pub(crate) fn parse(input: &[u8]) -> nom::IResult<&[u8], Algo> {
+pub(crate) fn parse(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
     branch::alt((parse_rsa, parse_ecdsa, parse_eddsa, parse_ecdh))(input)
 }
 
-impl TryFrom<&[u8]> for Algo {
+impl TryFrom<&[u8]> for AlgorithmAttributes {
     type Error = crate::Error;
 
     fn try_from(data: &[u8]) -> Result<Self, crate::Error> {

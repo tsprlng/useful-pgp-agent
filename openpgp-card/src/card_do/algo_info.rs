@@ -10,12 +10,12 @@ use nom::branch::alt;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 
-use crate::algorithm::{Algo, AlgoInfo};
+use crate::algorithm::{AlgoInfo, AlgorithmAttributes};
 use crate::card_do::{algo_attrs, complete};
 use crate::KeyType;
 
 impl AlgoInfo {
-    pub fn filter_by_keytype(&self, kt: KeyType) -> Vec<&Algo> {
+    pub fn filter_by_keytype(&self, kt: KeyType) -> Vec<&AlgorithmAttributes> {
         self.0
             .iter()
             .filter(|(k, _)| *k == kt)
@@ -48,11 +48,11 @@ fn key_type(input: &[u8]) -> nom::IResult<&[u8], KeyType> {
     ))(input)
 }
 
-fn unknown(input: &[u8]) -> nom::IResult<&[u8], Algo> {
-    Ok((&[], Algo::Unknown(input.to_vec())))
+fn unknown(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
+    Ok((&[], AlgorithmAttributes::Unknown(input.to_vec())))
 }
 
-fn parse_one(input: &[u8]) -> nom::IResult<&[u8], Algo> {
+fn parse_one(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
     let (input, a) = combinator::map(
         combinator::flat_map(crate::tlv::length::length, bytes::take),
         |i| alt((combinator::all_consuming(algo_attrs::parse), unknown))(i),
@@ -61,18 +61,18 @@ fn parse_one(input: &[u8]) -> nom::IResult<&[u8], Algo> {
     Ok((input, a?.1))
 }
 
-fn parse_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
+fn parse_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, AlgorithmAttributes)>> {
     multi::many0(sequence::pair(key_type, parse_one))(input)
 }
 
-fn parse_tl_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
+fn parse_tl_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, AlgorithmAttributes)>> {
     let (input, (_, _, list)) =
         sequence::tuple((bytes::tag([0xfa]), crate::tlv::length::length, parse_list))(input)?;
 
     Ok((input, list))
 }
 
-fn parse(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, Algo)>> {
+fn parse(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, AlgorithmAttributes)>> {
     // Handle two variations of input format:
     // a) TLV format (e.g. YubiKey 5)
     // b) Plain list (e.g. Gnuk, FOSS-Store Smartcard 3.4)
@@ -99,7 +99,7 @@ impl TryFrom<&[u8]> for AlgoInfo {
 mod test {
     use std::convert::TryFrom;
 
-    use crate::algorithm::{Algo::*, AlgoInfo, Curve::*, EccAttrs, RsaAttrs};
+    use crate::algorithm::{AlgoInfo, AlgorithmAttributes::*, Curve::*, EccAttrs, RsaAttrs};
     use crate::crypto_data::EccType::*;
     use crate::KeyType::*;
 

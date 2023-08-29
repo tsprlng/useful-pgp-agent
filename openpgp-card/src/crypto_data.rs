@@ -5,7 +5,7 @@
 //! Private key data, public key data, cryptograms for decryption, hash
 //! data for signing.
 
-use crate::algorithm::Algo;
+use crate::algorithm::AlgorithmAttributes;
 use crate::card_do::{Fingerprint, KeyGenerationTime};
 use crate::{oid, Error};
 
@@ -169,18 +169,18 @@ impl RSAPub {
 #[non_exhaustive]
 pub struct EccPub {
     data: Vec<u8>,
-    algo: Algo,
+    algo: AlgorithmAttributes,
 }
 
 impl EccPub {
-    pub fn new(data: Vec<u8>, algo: Algo) -> Self {
+    pub fn new(data: Vec<u8>, algo: AlgorithmAttributes) -> Self {
         Self { data, algo }
     }
 
     pub fn data(&self) -> &[u8] {
         &self.data
     }
-    pub fn algo(&self) -> &Algo {
+    pub fn algo(&self) -> &AlgorithmAttributes {
         &self.algo
     }
 }
