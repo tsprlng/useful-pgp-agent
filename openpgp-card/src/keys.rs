@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::algorithm::{AlgoInfo, AlgorithmAttributes, Curve, EccAttrs, RsaAttrs};
 use crate::apdu::command::Command;
 use crate::apdu::commands;
-use crate::card_do::{ApplicationRelatedData, Fingerprint, KeyGenerationTime};
+use crate::card_do::{Fingerprint, KeyGenerationTime};
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
     RSAPub,
@@ -189,7 +189,8 @@ pub(crate) fn key_import(
             // (round up to 4-bytes, in case the key has 8+ leading zero bits)
             let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
 
-            let rsa_attrs = determine_rsa_attrs(rsa_bits, key_type, &ard, algo_info)?;
+            let algo_attr = ard.algorithm_attributes(key_type)?;
+            let rsa_attrs = determine_rsa_attrs(rsa_bits, key_type, algo_attr, algo_info)?;
 
             let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
@@ -233,9 +234,9 @@ pub(crate) fn key_import(
 pub(crate) fn determine_rsa_attrs(
     rsa_bits: u16,
     key_type: KeyType,
-    ard: &ApplicationRelatedData,
+    algo_attr: AlgorithmAttributes,
     algo_info: Option<AlgoInfo>,
-) -> Result<RsaAttrs, crate::Error> {
+) -> Result<RsaAttrs, Error> {
     // Figure out suitable RSA algorithm parameters:
 
     // Does the card offer a list of algorithms?
@@ -246,10 +247,8 @@ pub(crate) fn determine_rsa_attrs(
     } else {
         // No -> Get the current algorithm attributes for key_type.
 
-        let algo = ard.algorithm_attributes(key_type)?;
-
         // Is the algorithm on the card currently set to RSA?
-        if let AlgorithmAttributes::Rsa(rsa) = algo {
+        if let AlgorithmAttributes::Rsa(rsa) = algo_attr {
             // If so, use the algorithm parameters from the card and
             // adjust the bit length based on the user-provided key.
             RsaAttrs::new(rsa_bits, rsa.len_e(), rsa.import_format())

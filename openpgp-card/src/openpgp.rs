@@ -1077,7 +1077,7 @@ impl<'a> OpenPgpTransaction<'a> {
     // -----------------
 
     /// Import an existing private key to the card.
-    /// (This implicitly sets the algorithm info, fingerprint and timestamp)
+    /// (This implicitly sets the algorithm attributes, fingerprint and timestamp)
     pub fn key_import(
         &mut self,
         key: Box<dyn CardUploadableKey>,
@@ -1093,10 +1093,10 @@ impl<'a> OpenPgpTransaction<'a> {
     /// Generate a key on the card.
     /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
     ///
-    /// If the `algo` parameter is Some, then this algorithm will be set on
+    /// If the `algorithm_attributes` parameter is Some, then this algorithm will be set on
     /// the card for "key_type".
     ///
-    /// Note: `algo` needs to precisely specify the RSA bitsize of e (if
+    /// Note: `algorithm_attributes` needs to precisely specify the RSA bitsize of e (if
     /// applicable), and import format, with values that the current card
     /// supports.
     pub fn generate_key(
@@ -1107,9 +1107,9 @@ impl<'a> OpenPgpTransaction<'a> {
             KeyType,
         ) -> Result<Fingerprint, Error>,
         key_type: KeyType,
-        algo: Option<&AlgorithmAttributes>,
+        algorithm_attributes: Option<&AlgorithmAttributes>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        keys::gen_key_with_metadata(self, fp_from_pub, key_type, algo)
+        keys::gen_key_with_metadata(self, fp_from_pub, key_type, algorithm_attributes)
     }
 
     /// Generate a key on the card.
@@ -1138,7 +1138,7 @@ impl<'a> OpenPgpTransaction<'a> {
             None
         };
 
-        let algo = simple.determine_algo(key_type, &ard, algo_info)?;
+        let algo = simple.determine_algo_attributes(key_type, &ard, algo_info)?;
 
         Self::generate_key(self, fp_from_pub, key_type, Some(&algo))
     }

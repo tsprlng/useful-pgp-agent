@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2021 Heiko Schaefer <heiko@schaefer.name>
+// SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Data structures that define OpenPGP algorithms.
+//! Data structures that specify algorithms to use on an OpenPGP card.
 //!
-//! [`AlgorithmAttributes`] and its components model "Algorithm Attributes" as described in
-//! the OpenPGP card specification.
+//! [`AlgorithmAttributes`] (and its components) model "Algorithm Attributes"
+//! as described in the OpenPGP card specification.
 //!
 //! [`AlgoSimple`] offers a shorthand for specifying an algorithm,
 //! specifically for key generation on the card.
@@ -31,7 +31,7 @@ pub enum AlgoSimple {
 }
 
 impl TryFrom<&str> for AlgoSimple {
-    type Error = crate::Error;
+    type Error = Error;
 
     fn try_from(algo: &str) -> Result<Self, Self::Error> {
         use AlgoSimple::*;
@@ -80,25 +80,37 @@ impl AlgoSimple {
     /// This mapping differs between cards, based on `ard` and `algo_info`
     /// (e.g. the exact Algo variant can have a different size for e, in RSA;
     /// also, the import_format can differ).
-    pub(crate) fn determine_algo(
+    pub(crate) fn determine_algo_attributes(
         &self,
         key_type: KeyType,
         ard: &ApplicationRelatedData,
         algo_info: Option<AlgoInfo>,
-    ) -> Result<AlgorithmAttributes, crate::Error> {
+    ) -> Result<AlgorithmAttributes, Error> {
         let algo = match self {
-            Self::RSA1k => {
-                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(1024, key_type, ard, algo_info)?)
-            }
-            Self::RSA2k => {
-                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(2048, key_type, ard, algo_info)?)
-            }
-            Self::RSA3k => {
-                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(3072, key_type, ard, algo_info)?)
-            }
-            Self::RSA4k => {
-                AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(4096, key_type, ard, algo_info)?)
-            }
+            Self::RSA1k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
+                1024,
+                key_type,
+                ard.algorithm_attributes(key_type)?,
+                algo_info,
+            )?),
+            Self::RSA2k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
+                2048,
+                key_type,
+                ard.algorithm_attributes(key_type)?,
+                algo_info,
+            )?),
+            Self::RSA3k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
+                3072,
+                key_type,
+                ard.algorithm_attributes(key_type)?,
+                algo_info,
+            )?),
+            Self::RSA4k => AlgorithmAttributes::Rsa(keys::determine_rsa_attrs(
+                4096,
+                key_type,
+                ard.algorithm_attributes(key_type)?,
+                algo_info,
+            )?),
             Self::NIST256 => AlgorithmAttributes::Ecc(keys::determine_ecc_attrs(
                 Curve::NistP256r1.oid(),
                 Self::ecc_type(key_type),
@@ -334,7 +346,7 @@ impl Curve {
 }
 
 impl TryFrom<&[u8]> for Curve {
-    type Error = crate::Error;
+    type Error = Error;
 
     fn try_from(oid: &[u8]) -> Result<Self, Self::Error> {
         use Curve::*;
