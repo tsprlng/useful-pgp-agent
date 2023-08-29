@@ -77,11 +77,13 @@ impl ApplicationRelatedData {
 
     #[allow(dead_code)]
     fn general_feature_management() -> Option<bool> {
+        // FIXME
         unimplemented!()
     }
 
     #[allow(dead_code)]
     fn discretionary_data_objects() {
+        // FIXME
         unimplemented!()
     }
 
@@ -423,7 +425,8 @@ impl From<u8> for TouchPolicy {
     }
 }
 
-/// "additional hardware for user interaction" [Spec section 4.1.3.2]
+/// Features of "additional hardware for user interaction" [Spec section 4.1.3.2].
+/// (Settings for these features are contained in [`UserInteractionFlag`])
 pub struct Features(u8);
 
 impl From<u8> for Features {
@@ -551,8 +554,8 @@ impl Display for KeyInformation {
     }
 }
 
-/// KeyStatus is contained in `KeyInformation`. It encodes if key material on a card was imported
-/// or generated on the card.
+/// KeyStatus is contained in [`KeyInformation`].
+/// It encodes if key material on a card was imported or generated on the card.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
 pub enum KeyStatus {
@@ -820,7 +823,8 @@ impl Display for CardholderRelatedData {
     }
 }
 
-/// Sex [Spec section 4.4.3.5]
+/// Sex [Spec section 4.4.3.5].
+/// The Sex setting is accessible via [`CardholderRelatedData`].
 ///
 /// Encoded in accordance with <https://en.wikipedia.org/wiki/ISO/IEC_5218>
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -868,9 +872,8 @@ impl From<u8> for Sex {
     }
 }
 
-/// Individual language for Language Preferences [Spec section 4.4.3.4]
-///
-/// This field is accessible via `CardholderRelatedData`.
+/// Individual language for Language Preferences [Spec section 4.4.3.4].
+/// Language preferences are accessible via [`CardholderRelatedData`].
 ///
 /// Encoded according to <https://en.wikipedia.org/wiki/ISO_639-1>
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -995,7 +998,7 @@ impl PWStatusBytes {
     }
 }
 
-/// Fingerprint [Spec page 23]
+/// OpenPGP Fingerprint for a key slot [Spec page 23]
 #[derive(Clone, Eq, PartialEq)]
 pub struct Fingerprint([u8; 20]);
 

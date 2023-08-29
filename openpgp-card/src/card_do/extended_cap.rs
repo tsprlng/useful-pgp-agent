@@ -17,10 +17,18 @@ impl ExtendedCapabilities {
         self.algo_attrs_changeable
     }
 
+    /// Only available in OpenPGP card version 2.x
+    ///
+    /// (For OpenPGP card version 3.x, see
+    /// [`crate::card_do::ExtendedLengthInfo`])
     pub fn max_cmd_len(&self) -> Option<u16> {
         self.max_cmd_len
     }
 
+    /// Only available in OpenPGP card version 2.x
+    ///
+    /// (For OpenPGP card version 3.x, see
+    /// [`crate::card_do::ExtendedLengthInfo`])
     pub fn max_resp_len(&self) -> Option<u16> {
         self.max_resp_len
     }

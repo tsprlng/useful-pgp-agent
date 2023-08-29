@@ -3,8 +3,8 @@
 
 //! Client library for
 //! [OpenPGP card](https://en.wikipedia.org/wiki/OpenPGP_card)
-//! devices (such as Gnuk, YubiKey, or Java smartcards running an OpenPGP
-//! card application).
+//! devices (such as Gnuk, Nitrokey, YubiKey, or Java smartcards running an
+//! OpenPGP card application).
 //!
 //! This library aims to offer
 //! - access to all features in the OpenPGP
@@ -12,18 +12,16 @@
 //! - without relying on a particular
 //! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
-//! This library can't directly access cards by itself. Instead, users
-//! need to supply a backend that implements the [`card_backend::CardBackend`]
-//! / [`card_backend::CardTransaction`] traits.
-//!
-//! The companion crate
-//! [card-backend-pcsc](https://crates.io/crates/card-backend-pcsc)
-//! offers a backend that uses [PC/SC](https://en.wikipedia.org/wiki/PC/SC) to
-//! communicate with Smart Cards.
-//!
 //! The [openpgp-card-sequoia](https://crates.io/crates/openpgp-card-sequoia)
 //! crate offers a higher level wrapper based on the [Sequoia PGP](https://sequoia-pgp.org/)
 //! implementation.
+//!
+//! Note that this library can't directly access cards by itself.
+//! Instead, users need to supply a backend that implements the
+//! [`CardBackend`] and [`CardTransaction`] traits.
+//! For example [card-backend-pcsc](https://crates.io/crates/card-backend-pcsc)
+//! offers a backend implementation that uses [PC/SC](https://en.wikipedia.org/wiki/PC/SC) to
+//! communicate with Smart Cards.
 //!
 //! See the [architecture diagram](https://gitlab.com/openpgp-card/openpgp-card#architecture)
 //! for an overview of the ecosystem around this crate.
@@ -69,6 +67,7 @@ pub enum KeyType {
     Decryption,
     Authentication,
 
+    /// Attestation is a Yubico proprietary key slot
     Attestation,
 }
 
@@ -120,7 +119,11 @@ impl KeyType {
 /// Users of this crate can keep a long lived [`Card`] object, including in long running programs.
 /// All operations must be performed on a [`Transaction`] (which must be short lived).
 pub struct Card {
+    /// A connection to the smart card
     card: Box<dyn CardBackend + Send + Sync>,
+
+    /// Capabilites of the card, determined from hints by the Backend,
+    /// as well as the Application Related Data
     card_caps: Option<CardCaps>,
 }
 
@@ -223,21 +226,18 @@ impl Card {
         self.card
     }
 
-    /// Get an OpenPgpTransaction object. This starts a transaction on the underlying
-    /// CardBackend.
+    /// Start a transaction on the underlying CardBackend.
+    /// The resulting [Transaction] object allows performing commands on the card.
     ///
-    /// Note: transactions on the Card cannot be long running, they will be reset within seconds
-    /// when idle.
-    ///
-    /// If the card has been reset, and `reselect_application` is set, then
-    /// that application will be `SELECT`ed after starting the transaction.
+    /// Note: Transactions on the Card cannot be long running.
+    /// They may be reset by the smart card subsystem within seconds, when idle.
     pub fn transaction(&mut self) -> Result<Transaction, Error> {
         let card_caps = &mut self.card_caps;
         let tx = self.card.transaction(Some(OPENPGP_APPLICATION))?;
 
         if tx.was_reset() {
-            // FIXME
-            // Signal state invalidation? (PIN verification, ...)
+            // FIXME: Signal state invalidation to the library user?
+            // (E.g.: PIN verifications may have been lost.)
         }
 
         Ok(Transaction { tx, card_caps })
@@ -713,7 +713,7 @@ impl<'a> Transaction<'a> {
     /// (Note:
     /// - some cards don't correctly implement this feature, e.g. YubiKey 5
     /// - some cards that don't support this instruction may decrease the pin's error count,
-    ///   eventually requiring the user to reset the pin)
+    ///   eventually requiring the user to factory reset the card)
     pub fn check_pw3(&mut self) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: check_pw3");
 
@@ -849,8 +849,8 @@ impl<'a> Transaction<'a> {
     /// Valid until next reset of of the card or the next call to `select`
     /// The only keys that can be configured by this command are the `Decryption` and `Authentication` keys.
     ///
-    /// The following first sets the *Authentication* key to be used for [`Transaction::pso_decipher`]
-    /// and then sets the *Decryption* key to be used for [`Transaction::internal_authenticate`].
+    /// The following first sets the *Authentication* key to be used for [`Self::pso_decipher`]
+    /// and then sets the *Decryption* key to be used for [`Self::internal_authenticate`].
     ///
     /// ```no_run
     /// # use openpgp_card::{KeyType, Transaction};
@@ -1253,8 +1253,8 @@ impl<'a> Transaction<'a> {
     /// Generate a key on the card.
     /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
     ///
-    /// This is a wrapper around generate_key() which allows
-    /// using the simplified `AlgoSimple` algorithm selector enum.
+    /// This is a wrapper around [`Self::generate_key`] which allows
+    /// using the simplified [`AlgoSimple`] algorithm selector enum.
     ///
     /// Note: AlgoSimple doesn't specify card specific details (such as
     /// bitsize of e for RSA, and import format). This function determines

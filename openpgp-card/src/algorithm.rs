@@ -142,7 +142,8 @@ impl AlgoSimple {
     }
 }
 
-/// Algorithm Information [Spec section 4.4.3.11]
+/// "Algorithm Information" enumerates which algorithms the current card supports
+/// [Spec section 4.4.3.11]
 ///
 /// Modern OpenPGP cards (starting with version v3.4) provide a list of
 /// algorithms they support for each key slot.
@@ -153,7 +154,7 @@ pub struct AlgorithmInformation(pub(crate) Vec<(KeyType, AlgorithmAttributes)>);
 
 /// Algorithm Attributes [Spec section 4.4.3.9]
 ///
-/// An `Algo` describes the algorithm settings for a key on the card.
+/// [`AlgorithmAttributes`] describes the algorithm settings for a key on the card.
 ///
 /// This setting specifies the data format of:
 /// - Key import
