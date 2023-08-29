@@ -144,7 +144,7 @@ use openpgp_card::algorithm::{AlgoInfo, AlgoSimple, AlgorithmAttributes};
 use openpgp_card::card_do::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
     Fingerprint, HistoricalBytes, KeyGenerationTime, KeyInformation, KeySet, Lang, PWStatusBytes,
-    SecuritySupportTemplate, Sex, TouchPolicy, UIF,
+    SecuritySupportTemplate, Sex, TouchPolicy, UserInteractionFlag,
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
 use openpgp_card::{Error, KeyType};
@@ -492,19 +492,19 @@ impl<'a> Card<Transaction<'a>> {
         self.state.ard.key_information()
     }
 
-    pub fn uif_signing(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_signing(&self) -> Result<Option<UserInteractionFlag>, Error> {
         self.state.ard.uif_pso_cds()
     }
 
-    pub fn uif_decryption(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_decryption(&self) -> Result<Option<UserInteractionFlag>, Error> {
         self.state.ard.uif_pso_dec()
     }
 
-    pub fn uif_authentication(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_authentication(&self) -> Result<Option<UserInteractionFlag>, Error> {
         self.state.ard.uif_pso_aut()
     }
 
-    pub fn uif_attestation(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_attestation(&self) -> Result<Option<UserInteractionFlag>, Error> {
         self.state.ard.uif_attestation()
     }
 

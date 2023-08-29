@@ -193,7 +193,7 @@ impl ApplicationRelatedData {
         Ok(ki.map(|v| v.serialize().into()))
     }
 
-    pub fn uif_pso_cds(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_pso_cds(&self) -> Result<Option<UserInteractionFlag>, Error> {
         let uif = self.0.find(Tags::UifSig);
 
         match uif {
@@ -202,7 +202,7 @@ impl ApplicationRelatedData {
         }
     }
 
-    pub fn uif_pso_dec(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_pso_dec(&self) -> Result<Option<UserInteractionFlag>, Error> {
         let uif = self.0.find(Tags::UifDec);
 
         match uif {
@@ -211,7 +211,7 @@ impl ApplicationRelatedData {
         }
     }
 
-    pub fn uif_pso_aut(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_pso_aut(&self) -> Result<Option<UserInteractionFlag>, Error> {
         let uif = self.0.find(Tags::UifAuth);
 
         match uif {
@@ -265,7 +265,7 @@ impl ApplicationRelatedData {
         }
     }
 
-    pub fn uif_attestation(&self) -> Result<Option<UIF>, Error> {
+    pub fn uif_attestation(&self) -> Result<Option<UserInteractionFlag>, Error> {
         let uif = self.0.find(Tags::UifAttestation);
 
         match uif {
@@ -310,23 +310,23 @@ impl Display for KeyGenerationTime {
     }
 }
 
-/// User Interaction Flag (UIF) [Spec page 24]
+/// User Interaction Flag [Spec page 24]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct UIF([u8; 2]);
+pub struct UserInteractionFlag([u8; 2]);
 
-impl TryFrom<Vec<u8>> for UIF {
+impl TryFrom<Vec<u8>> for UserInteractionFlag {
     type Error = Error;
 
     fn try_from(v: Vec<u8>) -> Result<Self, Self::Error> {
         if v.len() == 2 {
-            Ok(UIF(v.try_into().unwrap()))
+            Ok(UserInteractionFlag(v.try_into().unwrap()))
         } else {
             Err(Error::ParseError(format!("Can't get UID from {v:x?}")))
         }
     }
 }
 
-impl UIF {
+impl UserInteractionFlag {
     pub fn touch_policy(&self) -> TouchPolicy {
         self.0[0].into()
     }
@@ -344,7 +344,7 @@ impl UIF {
     }
 }
 
-impl Display for UIF {
+impl Display for UserInteractionFlag {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
