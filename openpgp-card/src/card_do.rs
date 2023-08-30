@@ -588,7 +588,7 @@ impl Display for KeyStatus {
 }
 
 /// Application Identifier (AID) [Spec section 4.2.1]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ApplicationIdentifier {
     application: u8,
     version: u16,
@@ -607,7 +607,7 @@ impl Display for ApplicationIdentifier {
 }
 
 /// Historical Bytes [Spec chapter 6]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HistoricalBytes {
     /// category indicator byte
     cib: u8,
@@ -623,7 +623,7 @@ pub struct HistoricalBytes {
 }
 
 /// Card Capabilities [Spec chapter 6 (Historical Bytes)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CardCapabilities {
     command_chaining: bool,
     extended_lc_le: bool,
@@ -647,7 +647,7 @@ impl Display for CardCapabilities {
 }
 
 /// Card service data [Spec chapter 6 (Historical Bytes)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CardServiceData {
     select_by_full_df_name: bool, // Application Selection by full DF name (AID)
     select_by_partial_df_name: bool, // Application Selection by partial DF name
@@ -694,7 +694,7 @@ impl Display for CardServiceData {
 }
 
 /// Extended Capabilities [Spec section 4.4.3.7]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, Clone, Copy, PartialEq)]
 pub struct ExtendedCapabilities {
     secure_messaging: bool,
     get_challenge: bool,
@@ -784,7 +784,7 @@ impl Display for ExtendedCapabilities {
 }
 
 /// Extended length information [Spec section 4.1.3.1]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, Clone, Copy, PartialEq)]
 pub struct ExtendedLengthInfo {
     max_command_bytes: u16,
     max_response_bytes: u16,

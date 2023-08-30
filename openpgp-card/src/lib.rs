@@ -392,32 +392,32 @@ impl<'a> Transaction<'a> {
     ///
     /// This function returns data that is cached during initialization.
     /// Calling it doesn't require sending a command to the card.
-    pub fn application_identifier(&self) -> Result<&ApplicationIdentifier, Error> {
-        Ok(&self.card_immutable()?.aid)
+    pub fn application_identifier(&self) -> Result<ApplicationIdentifier, Error> {
+        Ok(self.card_immutable()?.aid)
     }
 
     /// Extended capabilities.
     ///
     /// This function returns data that is cached during initialization.
     /// Calling it doesn't require sending a command to the card.
-    pub fn extended_capabilities(&self) -> Result<&ExtendedCapabilities, Error> {
-        Ok(&self.card_immutable()?.ec)
+    pub fn extended_capabilities(&self) -> Result<ExtendedCapabilities, Error> {
+        Ok(self.card_immutable()?.ec)
     }
 
     /// Historical Bytes (if available).
     ///
     /// This function returns data that is cached during initialization.
     /// Calling it doesn't require sending a command to the card.
-    pub fn historical_bytes(&self) -> Result<&Option<HistoricalBytes>, Error> {
-        Ok(&self.card_immutable()?.hb)
+    pub fn historical_bytes(&self) -> Result<Option<HistoricalBytes>, Error> {
+        Ok(self.card_immutable()?.hb)
     }
 
     /// Extended length info (if available).
     ///
     /// This function returns data that is cached during initialization.
     /// Calling it doesn't require sending a command to the card.
-    pub fn extended_length_info(&self) -> Result<&Option<ExtendedLengthInfo>, Error> {
-        Ok(&self.card_immutable()?.eli)
+    pub fn extended_length_info(&self) -> Result<Option<ExtendedLengthInfo>, Error> {
+        Ok(self.card_immutable()?.eli)
     }
 
     #[allow(dead_code)]
@@ -1302,7 +1302,7 @@ impl<'a> Transaction<'a> {
     ) -> Result<(), Error> {
         // An error is ok - it's fine if a card doesn't offer a list of
         // supported algorithms
-        let algo_info = self.algorithm_information().unwrap_or(None);
+        let algo_info = self.algorithm_information_cached().ok().flatten();
 
         keys::key_import(self, key, key_type, algo_info)
     }
@@ -1328,9 +1328,7 @@ impl<'a> Transaction<'a> {
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         // Set algo on card if it's Some
         if let Some(target_algo) = algorithm_attributes {
-            // FIXME: caching
-            let ard = self.application_related_data()?; // no caching, here!
-            let ecap = ard.extended_capabilities()?;
+            let ecap = self.extended_capabilities()?;
 
             // Only set algo if card supports setting of algo attr
             if ecap.algo_attrs_changeable() {
@@ -1379,7 +1377,7 @@ impl<'a> Transaction<'a> {
         let ard = self.application_related_data()?;
         let algorithm_attributes = ard.algorithm_attributes(key_type)?;
 
-        let algo_info = self.algorithm_information().ok().flatten();
+        let algo_info = self.algorithm_information_cached().ok().flatten();
 
         let algo = simple.determine_algo_attributes(key_type, algorithm_attributes, algo_info)?;
         Self::generate_key(self, fp_from_pub, key_type, Some(&algo))
