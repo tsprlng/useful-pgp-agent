@@ -117,15 +117,15 @@ impl KeyType {
 ///
 /// Most users will probably want to use the `PcscCard` backend from the `card-backend-pcsc` crate.
 ///
-/// Users of this crate can keep a long lived [Card] object, including in long running programs.
-/// All operations must be performed on a [Transaction] (which must be short lived).
+/// Users of this crate can keep a long lived [`Card`] object, including in long running programs.
+/// All operations must be performed on a [`Transaction`] (which must be short lived).
 pub struct Card {
     card: Box<dyn CardBackend + Send + Sync>,
     card_caps: Option<CardCaps>,
 }
 
 impl Card {
-    /// Turn a [CardBackend] into an [Card] object:
+    /// Turn a [`CardBackend`] into a [`Card`] object:
     ///
     /// The OpenPGP application is `SELECT`ed, and the card capabilities
     /// of the card are retrieved from the "Application Related Data".
@@ -229,13 +229,13 @@ impl Card {
     }
 }
 
-/// To perform commands on a [Card], a [Transaction] must be started.
+/// To perform commands on a [`Card`], a [`Transaction`] must be started.
 /// This struct offers low-level access to OpenPGP card functionality.
 ///
 /// On backends that support transactions, operations are grouped together in transaction, while
 /// an object of this type lives.
 ///
-/// A [Transaction] on typical underlying card subsystems must be short lived.
+/// A [`Transaction`] on typical underlying card subsystems must be short lived.
 /// (Typically, smart cards can't be kept open for longer than a few seconds,
 /// before they are automatically closed.)
 pub struct Transaction<'a> {
@@ -479,13 +479,11 @@ impl<'a> Transaction<'a> {
     ///
     /// (This library leaves it up to consumers to decide on a strategy for dealing with this
     /// issue. Possible strategies include:
-    /// - asking the card for its [`firmware_version`](Transaction::firmware_version)
+    /// - asking the card for its [`Transaction::firmware_version`]
     ///   and using the workaround if version <=5.4.3
     /// - trying this command first without the workaround, then with workaround if the card
-    ///   returns
-    ///   [`IncorrectParametersCommandDataField`](StatusBytes::IncorrectParametersCommandDataField)
-    /// - for read operations: using
-    ///   [`next_cardholder_certificate`](Transaction::next_cardholder_certificate)
+    ///   returns [`StatusBytes::IncorrectParametersCommandDataField`]
+    /// - for read operations: using [`Transaction::next_cardholder_certificate`]
     ///   instead of SELECT DATA)
     pub fn select_data(&mut self, num: u8, tag: &[u8], yk_workaround: bool) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: select_data");
@@ -818,7 +816,7 @@ impl<'a> Transaction<'a> {
     /// Run decryption operation on the smartcard (low level operation)
     /// (7.2.11 PSO: DECIPHER)
     ///
-    /// (consider using the `decipher()` method if you don't want to create
+    /// (consider using the [`Self::decipher`] method if you don't want to create
     /// the data field manually)
     pub fn pso_decipher(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: pso_decipher");
@@ -836,8 +834,8 @@ impl<'a> Transaction<'a> {
     /// Valid until next reset of of the card or the next call to `select`
     /// The only keys that can be configured by this command are the `Decryption` and `Authentication` keys.
     ///
-    /// The following first sets the *Authentication* key to be used for [pso_decipher](Transaction::pso_decipher)
-    /// and then sets the *Decryption* key to be used for [internal_authenticate](Transaction::internal_authenticate).
+    /// The following first sets the *Authentication* key to be used for [`Transaction::pso_decipher`]
+    /// and then sets the *Decryption* key to be used for [`Transaction::internal_authenticate`].
     ///
     /// ```no_run
     /// # use openpgp_card::{KeyType, Transaction};
@@ -877,7 +875,7 @@ impl<'a> Transaction<'a> {
     /// (see 7.2.10.2 DigestInfo for RSA).
     ///
     /// With ECC the hash data is processed as is, using
-    /// pso_compute_digital_signature.
+    /// [`Self::pso_compute_digital_signature`].
     pub fn signature_for_hash(&mut self, hash: Hash) -> Result<Vec<u8>, Error> {
         self.pso_compute_digital_signature(digestinfo(hash))
     }
@@ -885,7 +883,7 @@ impl<'a> Transaction<'a> {
     /// Run signing operation on the smartcard (low level operation)
     /// (7.2.10 PSO: COMPUTE DIGITAL SIGNATURE)
     ///
-    /// (consider using the `signature_for_hash()` method if you don't
+    /// (consider using the [`Self::signature_for_hash`] method if you don't
     /// want to create the data field manually)
     pub fn pso_compute_digital_signature(&mut self, data: Vec<u8>) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: pso_compute_digital_signature");
