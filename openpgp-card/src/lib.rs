@@ -29,12 +29,12 @@
 extern crate core;
 
 pub mod algorithm;
-pub(crate) mod apdu;
+mod apdu;
 pub mod card_do;
 mod commands;
 pub mod crypto_data;
 mod errors;
-pub(crate) mod keys;
+mod keys;
 mod oid;
 mod tags;
 mod tlv;
@@ -57,7 +57,7 @@ use crate::tlv::tag::Tag;
 use crate::tlv::value::Value;
 use crate::tlv::Tlv;
 
-pub(crate) const OPENPGP_APPLICATION: &[u8] = &[0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
+const OPENPGP_APPLICATION: &[u8] = &[0xD2, 0x76, 0x00, 0x01, 0x24, 0x01];
 
 /// Identify a Key slot on an OpenPGP card
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
