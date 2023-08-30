@@ -1283,11 +1283,7 @@ impl<'a> Transaction<'a> {
         key: Box<dyn CardUploadableKey>,
         key_type: KeyType,
     ) -> Result<(), Error> {
-        // An error is ok - it's fine if a card doesn't offer a list of
-        // supported algorithms
-        let algo_info = self.algorithm_information_cached().ok().flatten();
-
-        keys::key_import(self, key, key_type, algo_info)
+        keys::key_import(self, key, key_type)
     }
 
     /// Generate a key on the card.

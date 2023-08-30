@@ -142,58 +142,112 @@ pub(crate) fn public_key(
 
 /// Import private key material to the card as a specific KeyType.
 ///
-/// If the key is suitable for `key_type`, an Error is returned (either
+/// If the key is unsuitable for `key_type`, an Error is returned (either
 /// caused by checks before attempting to upload the key to the card, or by
 /// an error that the card reports during an attempt to upload the key).
 pub(crate) fn key_import(
     card_tx: &mut Transaction,
     key: Box<dyn CardUploadableKey>,
     key_type: KeyType,
-    algo_info: Option<AlgorithmInformation>,
 ) -> Result<(), Error> {
     log::info!("OpenPgpTransaction: key_import");
+
+    match key.private_key()? {
+        PrivateKeyMaterial::R(rsa_key) => key_import_rsa(
+            card_tx,
+            key_type,
+            rsa_key,
+            key.fingerprint()?,
+            key.timestamp(),
+        ),
+        PrivateKeyMaterial::E(ecc_key) => key_import_ecc(
+            card_tx,
+            key_type,
+            ecc_key,
+            key.fingerprint()?,
+            key.timestamp(),
+        ),
+    }
+}
+
+fn key_import_rsa(
+    card_tx: &mut Transaction,
+    key_type: KeyType,
+    rsa_key: Box<dyn RSAKey>,
+    fp: Fingerprint,
+    ts: KeyGenerationTime,
+) -> Result<(), Error> {
+    // An error is ok (it's fine if a card doesn't offer a list of supported algorithms)
+    let algo_info = card_tx.algorithm_information_cached().ok().flatten();
+
+    // RSA bitsize
+    // (round up to 4-bytes, in case the key has 8+ leading zero bits)
+    let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
 
     // FIXME: caching?
     let ard = card_tx.application_related_data()?;
 
-    let (algo, key_cmd) = match key.private_key()? {
-        PrivateKeyMaterial::R(rsa_key) => {
-            // RSA bitsize
-            // (round up to 4-bytes, in case the key has 8+ leading zero bits)
-            let rsa_bits = (((rsa_key.n().len() * 8 + 31) / 32) * 32) as u16;
+    let algo_attr = ard.algorithm_attributes(key_type)?;
+    let rsa_attrs = determine_rsa_attrs(rsa_bits, key_type, algo_attr, algo_info)?;
 
-            let algo_attr = ard.algorithm_attributes(key_type)?;
-            let rsa_attrs = determine_rsa_attrs(rsa_bits, key_type, algo_attr, algo_info)?;
-
-            let key_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
-
-            (AlgorithmAttributes::Rsa(rsa_attrs), key_cmd)
-        }
-        PrivateKeyMaterial::E(ecc_key) => {
-            let ecc_attrs =
-                determine_ecc_attrs(ecc_key.oid(), ecc_key.ecc_type(), key_type, algo_info)?;
-
-            let key_cmd = ecc_key_import_cmd(key_type, ecc_key, &ecc_attrs)?;
-
-            (AlgorithmAttributes::Ecc(ecc_attrs), key_cmd)
-        }
-    };
-
-    let fp = key.fingerprint()?;
+    let import_cmd = rsa_key_import_cmd(key_type, rsa_key, &rsa_attrs)?;
 
     // Now that we have marshalled all necessary information, perform all
     // set-operations on the card.
+    import_key_set_metadata(
+        card_tx,
+        key_type,
+        import_cmd,
+        fp,
+        ts,
+        AlgorithmAttributes::Rsa(rsa_attrs),
+    )
+}
+
+fn key_import_ecc(
+    card_tx: &mut Transaction,
+    key_type: KeyType,
+    ecc_key: Box<dyn EccKey>,
+    fp: Fingerprint,
+    ts: KeyGenerationTime,
+) -> Result<(), Error> {
+    // An error is ok (it's fine if a card doesn't offer a list of supported algorithms)
+    let algo_info = card_tx.algorithm_information_cached().ok().flatten();
+
+    let ecc_attrs = determine_ecc_attrs(ecc_key.oid(), ecc_key.ecc_type(), key_type, algo_info)?;
+    let import_cmd = ecc_key_import_cmd(key_type, ecc_key, &ecc_attrs)?;
+
+    // Now that we have marshalled all necessary information, perform all
+    // set-operations on the card.
+    import_key_set_metadata(
+        card_tx,
+        key_type,
+        import_cmd,
+        fp,
+        ts,
+        AlgorithmAttributes::Ecc(ecc_attrs),
+    )
+}
+
+fn import_key_set_metadata(
+    card_tx: &mut Transaction,
+    key_type: KeyType,
+    import_cmd: Command,
+    fp: Fingerprint,
+    ts: KeyGenerationTime,
+    algorithm_attributes: AlgorithmAttributes,
+) -> Result<(), Error> {
+    log::info!("Import key material");
 
     // Only set algo attrs if "Extended Capabilities" lists the feature
-    if ard.extended_capabilities()?.algo_attrs_changeable() {
-        card_tx.set_algorithm_attributes(key_type, &algo)?;
+    if card_tx.extended_capabilities()?.algo_attrs_changeable() {
+        card_tx.set_algorithm_attributes(key_type, &algorithm_attributes)?;
     }
 
-    log::info!("Import key material");
-    card_tx.send_command(key_cmd, false)?.check_ok()?;
+    card_tx.send_command(import_cmd, false)?.check_ok()?;
 
     card_tx.set_fingerprint(fp, key_type)?;
-    card_tx.set_creation_time(key.timestamp(), key_type)?;
+    card_tx.set_creation_time(ts, key_type)?;
 
     Ok(())
 }
