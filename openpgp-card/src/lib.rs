@@ -31,6 +31,7 @@ extern crate core;
 pub mod algorithm;
 pub(crate) mod apdu;
 pub mod card_do;
+mod commands;
 pub mod crypto_data;
 mod errors;
 pub(crate) mod keys;
@@ -45,7 +46,6 @@ use tags::{ShortTag, Tags};
 
 use crate::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
 use crate::apdu::command::Command;
-use crate::apdu::commands;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
     ApplicationRelatedData, CardholderRelatedData, Fingerprint, KeyGenerationTime, Lang,

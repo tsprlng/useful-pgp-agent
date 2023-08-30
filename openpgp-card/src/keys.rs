@@ -10,8 +10,8 @@ use crate::algorithm::{
     AlgorithmAttributes, AlgorithmInformation, Curve, EccAttributes, RsaAttributes,
 };
 use crate::apdu::command::Command;
-use crate::apdu::commands;
 use crate::card_do::{Fingerprint, KeyGenerationTime};
+use crate::commands;
 use crate::crypto_data::{
     CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
     RSAPub,

@@ -5,15 +5,15 @@
 //! Commands and responses to commands
 
 pub(crate) mod command;
-pub(crate) mod commands;
 pub mod response;
 
 use std::convert::TryFrom;
 
 use card_backend::{CardCaps, CardTransaction};
 
-use crate::apdu::command::Expect;
-use crate::apdu::{command::Command, response::RawResponse};
+use crate::apdu::command::{Command, Expect};
+use crate::apdu::response::RawResponse;
+use crate::commands;
 use crate::{Error, StatusBytes};
 
 /// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
