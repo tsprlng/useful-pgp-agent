@@ -48,8 +48,9 @@ use crate::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
 use crate::apdu::command::Command;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
-    ApplicationRelatedData, CardholderRelatedData, Fingerprint, KeyGenerationTime, Lang,
-    PWStatusBytes, SecuritySupportTemplate, Sex, UserInteractionFlag,
+    ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
+    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
+    SecuritySupportTemplate, Sex, UserInteractionFlag,
 };
 use crate::crypto_data::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial};
 pub use crate::errors::{Error, StatusBytes};
@@ -112,6 +113,21 @@ impl KeyType {
     }
 }
 
+/// A struct to cache immutable information of a card.
+/// Some of the data is stored during [`Card::new`].
+/// Other information can optionally be cached later (e.g. `ai`)
+#[derive(Debug)]
+struct CardImmutable {
+    aid: ApplicationIdentifier,
+    ec: ExtendedCapabilities,
+    hb: Option<HistoricalBytes>,     // new in v2.0
+    eli: Option<ExtendedLengthInfo>, // new in v3.0
+
+    // First `Option` layer encodes if this cache field has been initialized,
+    // if `Some`, then the second `Option` layer encodes if the field exists on the card.
+    ai: Option<Option<AlgorithmInformation>>, // new in v3.4
+}
+
 /// An OpenPGP card object (backed by a CardBackend implementation).
 ///
 /// Most users will probably want to use the `PcscCard` backend from the `card-backend-pcsc` crate.
@@ -125,6 +141,11 @@ pub struct Card {
     /// Capabilites of the card, determined from hints by the Backend,
     /// as well as the Application Related Data
     card_caps: Option<CardCaps>,
+
+    /// A cache data structure for information that is immutable on OpenPGP cards.
+    /// Some of the information gets initialized when connecting to the card.
+    /// Other information my be cached on first read.
+    immutable: Option<CardImmutable>,
 }
 
 impl Card {
@@ -141,9 +162,10 @@ impl Card {
         let mut op = Self {
             card,
             card_caps: None,
+            immutable: None,
         };
 
-        let caps = {
+        let (caps, imm) = {
             let mut tx = op.transaction()?;
             tx.select()?;
 
@@ -207,13 +229,24 @@ impl Card {
                 pw3_max,
             );
 
+            let imm = CardImmutable {
+                aid: ard.application_id()?,
+                ec: ard.extended_capabilities()?,
+                hb: Some(ard.historical_bytes()?),
+                eli: ard.extended_length_information()?,
+                ai: None, // FIXME: initialize elsewhere?
+            };
+
             drop(tx);
 
-            caps
+            (caps, imm)
         };
 
-        log::trace!("init_card_caps to: {:x?}", caps);
+        log::trace!("set card_caps to: {:x?}", caps);
         op.card_caps = Some(caps);
+
+        log::trace!("set immutable card state to: {:x?}", imm);
+        op.immutable = Some(imm);
 
         Ok(op)
     }
@@ -233,6 +266,8 @@ impl Card {
     /// They may be reset by the smart card subsystem within seconds, when idle.
     pub fn transaction(&mut self) -> Result<Transaction, Error> {
         let card_caps = &mut self.card_caps;
+        let immutable = &mut self.immutable; // FIXME: unwrap
+
         let tx = self.card.transaction(Some(OPENPGP_APPLICATION))?;
 
         if tx.was_reset() {
@@ -240,7 +275,11 @@ impl Card {
             // (E.g.: PIN verifications may have been lost.)
         }
 
-        Ok(Transaction { tx, card_caps })
+        Ok(Transaction {
+            tx,
+            card_caps,
+            immutable,
+        })
     }
 }
 
@@ -256,6 +295,7 @@ impl Card {
 pub struct Transaction<'a> {
     tx: Box<dyn CardTransaction + Send + Sync + 'a>,
     card_caps: &'a Option<CardCaps>,
+    immutable: &'a mut Option<CardImmutable>,
 }
 
 impl<'a> Transaction<'a> {
@@ -332,6 +372,73 @@ impl<'a> Transaction<'a> {
             Tags::ApplicationRelatedData,
             value,
         )))
+    }
+
+    // -- cached card data --
+
+    /// Get read access to cached immutable card information
+    fn card_immutable(&self) -> Result<&CardImmutable, Error> {
+        if let Some(imm) = &self.immutable {
+            Ok(imm)
+        } else {
+            // We expect that self.immutable has been initialized here
+            Err(Error::InternalError(
+                "Unexpected state of immutable cache".to_string(),
+            ))
+        }
+    }
+
+    /// Application Identifier.
+    ///
+    /// This function returns data that is cached during initialization.
+    /// Calling it doesn't require sending a command to the card.
+    pub fn application_identifier(&self) -> Result<&ApplicationIdentifier, Error> {
+        Ok(&self.card_immutable()?.aid)
+    }
+
+    /// Extended capabilities.
+    ///
+    /// This function returns data that is cached during initialization.
+    /// Calling it doesn't require sending a command to the card.
+    pub fn extended_capabilities(&self) -> Result<&ExtendedCapabilities, Error> {
+        Ok(&self.card_immutable()?.ec)
+    }
+
+    /// Historical Bytes (if available).
+    ///
+    /// This function returns data that is cached during initialization.
+    /// Calling it doesn't require sending a command to the card.
+    pub fn historical_bytes(&self) -> Result<&Option<HistoricalBytes>, Error> {
+        Ok(&self.card_immutable()?.hb)
+    }
+
+    /// Extended length info (if available).
+    ///
+    /// This function returns data that is cached during initialization.
+    /// Calling it doesn't require sending a command to the card.
+    pub fn extended_length_info(&self) -> Result<&Option<ExtendedLengthInfo>, Error> {
+        Ok(&self.card_immutable()?.eli)
+    }
+
+    #[allow(dead_code)]
+    fn algorithm_information_cached(&mut self) -> Result<Option<AlgorithmInformation>, Error> {
+        // FIXME: merge this fn with the regular/public `algorithm_information()` fn?
+
+        if self.immutable.is_none() {
+            // We expect that self.immutable has been initialized here
+            return Err(Error::InternalError(
+                "Unexpected state of immutable cache".to_string(),
+            ));
+        }
+
+        if self.immutable.as_ref().unwrap().ai.is_none() {
+            // Cached ai is unset, initialize it now!
+
+            let ai = self.algorithm_information()?;
+            self.immutable.as_mut().unwrap().ai = Some(ai);
+        }
+
+        Ok(self.immutable.as_ref().unwrap().ai.clone().unwrap())
     }
 
     // --- login data (5e) ---
