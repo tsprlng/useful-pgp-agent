@@ -447,49 +447,42 @@ impl<'a> Transaction<'a> {
     pub fn url(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: url");
 
-        let resp = self.send_command(commands::url(), true)?;
-
-        Ok(resp.data()?.to_vec())
+        self.send_command(commands::url(), true)?.try_into()
     }
 
     /// Get Login Data (5e)
     pub fn login_data(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: login_data");
 
-        let resp = self.send_command(commands::login_data(), true)?;
-
-        Ok(resp.data()?.to_vec())
+        self.send_command(commands::login_data(), true)?.try_into()
     }
 
     /// Get cardholder related data (65)
     pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData, Error> {
         log::info!("OpenPgpTransaction: cardholder_related_data");
 
-        let crd = commands::cardholder_related_data();
-        let resp = self.send_command(crd, true)?;
-        resp.check_ok()?;
+        let resp = self.send_command(commands::cardholder_related_data(), true)?;
 
-        CardholderRelatedData::try_from(resp.data()?)
+        resp.data()?.try_into()
     }
 
     /// Get security support template (7a)
     pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate, Error> {
         log::info!("OpenPgpTransaction: security_support_template");
 
-        let sst = commands::security_support_template();
-        let resp = self.send_command(sst, true)?;
-        resp.check_ok()?;
+        let resp = self.send_command(commands::security_support_template(), true)?;
 
         let tlv = Tlv::try_from(resp.data()?)?;
-        let res = tlv.find(Tag::from([0x93])).ok_or_else(|| {
-            Error::NotFound("Couldn't get SecuritySupportTemplate DO".to_string())
+
+        let dst = tlv.find(Tags::DigitalSignatureCounter).ok_or_else(|| {
+            Error::NotFound("Couldn't get DigitalSignatureCounter DO".to_string())
         })?;
 
-        if let Value::S(data) = res {
+        if let Value::S(data) = dst {
             let mut data = data.to_vec();
             if data.len() != 3 {
                 return Err(Error::ParseError(format!(
-                    "Unexpected length {} for 'Digital signature counter' DO",
+                    "Unexpected length {} for DigitalSignatureCounter DO",
                     data.len()
                 )));
             }
@@ -524,8 +517,8 @@ impl<'a> Transaction<'a> {
     pub fn cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: cardholder_certificate");
 
-        let cmd = commands::cardholder_certificate();
-        self.send_command(cmd, true)?.try_into()
+        self.send_command(commands::cardholder_certificate(), true)?
+            .try_into()
     }
 
     /// Call "GET NEXT DATA" for the DO cardholder certificate.
@@ -535,8 +528,8 @@ impl<'a> Transaction<'a> {
     pub fn next_cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: next_cardholder_certificate");
 
-        let cmd = commands::get_next_cardholder_certificate();
-        self.send_command(cmd, true)?.try_into()
+        self.send_command(commands::get_next_cardholder_certificate(), true)?
+            .try_into()
     }
 
     /// Get "Algorithm Information"
@@ -544,9 +537,8 @@ impl<'a> Transaction<'a> {
         log::info!("OpenPgpTransaction: algorithm_information");
 
         let resp = self.send_command(commands::algo_info(), true)?;
-        resp.check_ok()?;
 
-        let ai = AlgorithmInformation::try_from(resp.data()?)?;
+        let ai = resp.data()?.try_into()?;
         Ok(Some(ai))
     }
 
@@ -554,18 +546,16 @@ impl<'a> Transaction<'a> {
     pub fn attestation_certificate(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: attestation_certificate");
 
-        let resp = self.send_command(commands::attestation_certificate(), true)?;
-
-        Ok(resp.data()?.into())
+        self.send_command(commands::attestation_certificate(), true)?
+            .try_into()
     }
 
     /// Firmware Version (YubiKey specific (?))
     pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: firmware_version");
 
-        let resp = self.send_command(commands::firmware_version(), true)?;
-
-        Ok(resp.data()?.into())
+        self.send_command(commands::firmware_version(), true)?
+            .try_into()
     }
 
     /// Set identity (Nitrokey Start specific (?)).
@@ -582,7 +572,7 @@ impl<'a> Transaction<'a> {
         if let Err(Error::Smartcard(SmartcardError::NotTransacted)) = resp {
             Ok(vec![])
         } else {
-            Ok(resp?.data()?.into())
+            resp?.try_into()
         }
     }
 
@@ -631,7 +621,7 @@ impl<'a> Transaction<'a> {
 
         // Possible response data (Control Parameter = CP) don't need to be evaluated by the
         // application (See "7.2.5 SELECT DATA")
-        self.send_command(cmd, true)?.try_into()?;
+        self.send_command(cmd, true)?.check_ok()?;
 
         Ok(())
     }
@@ -647,9 +637,7 @@ impl<'a> Transaction<'a> {
         assert!((1..=4).contains(&num));
 
         let cmd = commands::private_use_do(num);
-        let resp = self.send_command(cmd, true)?;
-
-        Ok(resp.data()?.to_vec())
+        self.send_command(cmd, true)?.try_into()
     }
 
     // ----------
@@ -721,8 +709,9 @@ impl<'a> Transaction<'a> {
     pub fn verify_pw1_sign(&mut self, pin: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: verify_pw1_sign");
 
-        let verify = commands::verify_pw1_81(pin.to_vec());
-        self.send_command(verify, false)?.try_into()
+        let cmd = commands::verify_pw1_81(pin.to_vec());
+
+        self.send_command(cmd, false)?.try_into()
     }
 
     /// Verify pw1 (user) for signing operation (mode 81) using a
@@ -894,8 +883,8 @@ impl<'a> Transaction<'a> {
     ) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: reset_retry_counter_pw1");
 
-        let reset = commands::reset_retry_counter_pw1(resetting_code, new_pw1);
-        self.send_command(reset, false)?.try_into()
+        let cmd = commands::reset_retry_counter_pw1(resetting_code, new_pw1);
+        self.send_command(cmd, false)?.try_into()
     }
 
     // --- decrypt ---
@@ -946,9 +935,8 @@ impl<'a> Transaction<'a> {
         // The OpenPGP card is already connected and PW1 82 has been verified
         let dec_cmd = commands::decryption(data);
         let resp = self.send_command(dec_cmd, true)?;
-        resp.check_ok()?;
 
-        Ok(resp.data().map(|d| d.to_vec())?)
+        Ok(resp.data()?.to_vec())
     }
 
     /// Set the key to be used for the pso_decipher and the internal_authenticate commands.
@@ -1069,41 +1057,39 @@ impl<'a> Transaction<'a> {
 
     pub fn set_login(&mut self, login: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_login");
-        let put_login_data = commands::put_login_data(login.to_vec());
-        self.send_command(put_login_data, false)?.try_into()
+
+        let cmd = commands::put_login_data(login.to_vec());
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_name(&mut self, name: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_name");
 
-        let put_name = commands::put_name(name.to_vec());
-        self.send_command(put_name, false)?.try_into()
+        let cmd = commands::put_name(name.to_vec());
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_lang(&mut self, lang: &[Lang]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_lang");
 
-        let bytes: Vec<u8> = lang
-            .iter()
-            .flat_map(|&l| Into::<Vec<u8>>::into(l))
-            .collect();
+        let bytes: Vec<_> = lang.iter().flat_map(|&l| Vec::<u8>::from(l)).collect();
 
-        let put_lang = commands::put_lang(bytes);
-        self.send_command(put_lang, false)?.try_into()
+        let cmd = commands::put_lang(bytes);
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_sex(&mut self, sex: Sex) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_sex");
 
-        let put_sex = commands::put_sex((&sex).into());
-        self.send_command(put_sex, false)?.try_into()
+        let cmd = commands::put_sex((&sex).into());
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_url(&mut self, url: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_url");
 
-        let put_url = commands::put_url(url.to_vec());
-        self.send_command(put_url, false)?.try_into()
+        let cmd = commands::put_url(url.to_vec());
+        self.send_command(cmd, false)?.try_into()
     }
 
     /// Set cardholder certificate (for AUT, DEC or SIG).
@@ -1159,30 +1145,30 @@ impl<'a> Transaction<'a> {
     pub fn set_fingerprint(&mut self, fp: Fingerprint, key_type: KeyType) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_fingerprint");
 
-        let fp_cmd = commands::put_data(key_type.fingerprint_put_tag(), fp.as_bytes().to_vec());
+        let cmd = commands::put_data(key_type.fingerprint_put_tag(), fp.as_bytes().to_vec());
 
-        self.send_command(fp_cmd, false)?.try_into()
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_ca_fingerprint_1(&mut self, fp: Fingerprint) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_ca_fingerprint_1");
 
-        let fp_cmd = commands::put_data(Tags::CaFingerprint1, fp.as_bytes().to_vec());
-        self.send_command(fp_cmd, false)?.try_into()
+        let cmd = commands::put_data(Tags::CaFingerprint1, fp.as_bytes().to_vec());
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_ca_fingerprint_2(&mut self, fp: Fingerprint) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_ca_fingerprint_2");
 
-        let fp_cmd = commands::put_data(Tags::CaFingerprint2, fp.as_bytes().to_vec());
-        self.send_command(fp_cmd, false)?.try_into()
+        let cmd = commands::put_data(Tags::CaFingerprint2, fp.as_bytes().to_vec());
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_ca_fingerprint_3(&mut self, fp: Fingerprint) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_ca_fingerprint_3");
 
-        let fp_cmd = commands::put_data(Tags::CaFingerprint3, fp.as_bytes().to_vec());
-        self.send_command(fp_cmd, false)?.try_into()
+        let cmd = commands::put_data(Tags::CaFingerprint3, fp.as_bytes().to_vec());
+        self.send_command(cmd, false)?.try_into()
     }
 
     pub fn set_creation_time(
@@ -1201,9 +1187,9 @@ impl<'a> Transaction<'a> {
             .copied()
             .collect();
 
-        let time_cmd = commands::put_data(key_type.timestamp_put_tag(), time_value);
+        let cmd = commands::put_data(key_type.timestamp_put_tag(), time_value);
 
-        self.send_command(time_cmd, false)?.try_into()
+        self.send_command(cmd, false)?.try_into()
     }
 
     // FIXME: optional DO SM-Key-ENC
@@ -1227,12 +1213,9 @@ impl<'a> Transaction<'a> {
     pub fn set_pso_enc_dec_key(&mut self, key: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_pso_enc_dec_key");
 
-        let fp_cmd = commands::put_data(Tags::PsoEncDecKey, key.to_vec());
-
-        self.send_command(fp_cmd, false)?.try_into()
+        let cmd = commands::put_data(Tags::PsoEncDecKey, key.to_vec());
+        self.send_command(cmd, false)?.try_into()
     }
-
-    // FIXME: optional DO for PSO:ENC/DEC with AES
 
     /// Set UIF for PSO:CDS
     pub fn set_uif_pso_cds(&mut self, uif: &UserInteractionFlag) -> Result<(), Error> {
