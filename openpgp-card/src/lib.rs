@@ -1103,17 +1103,32 @@ impl<'a> Transaction<'a> {
         self.send_command(cmd, false)?.try_into()
     }
 
-    /// Set algorithm attributes
-    /// (4.4.3.9 Algorithm Attributes)
+    /// Set algorithm attributes for a key slot (4.4.3.9 Algorithm Attributes)
+    ///
+    /// Note: `algorithm_attributes` needs to precisely specify the
+    /// RSA bit-size of e (if applicable), and import format, with values
+    /// that the current card supports.
     pub fn set_algorithm_attributes(
         &mut self,
         key_type: KeyType,
-        algo: &AlgorithmAttributes,
+        algorithm_attributes: &AlgorithmAttributes,
     ) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_algorithm_attributes");
 
+        // Don't set algorithm if the feature is not available?
+        let ecap = self.extended_capabilities()?;
+        if !ecap.algo_attrs_changeable() {
+            // Don't change the algorithm attributes, if the card doesn't support change
+            // FIXME: Compare current and requested setting and return an error, if they differ?
+
+            return Ok(());
+        }
+
         // Command to PUT the algorithm attributes
-        let cmd = commands::put_data(key_type.algorithm_tag(), algo.to_data_object()?);
+        let cmd = commands::put_data(
+            key_type.algorithm_tag(),
+            algorithm_attributes.to_data_object()?,
+        );
 
         self.send_command(cmd, false)?.try_into()
     }
