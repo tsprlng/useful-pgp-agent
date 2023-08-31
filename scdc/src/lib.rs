@@ -254,7 +254,6 @@ impl CardTransaction for ScdTransaction<'_> {
         self.scd.send_cmd(&send)?;
 
         while let Some(response) = rt.block_on(self.scd.agent.next()) {
-            log::trace!("transmit res: {:x?}", response);
             if response.is_err() {
                 return Err(SmartcardError::Error(format!(
                     "Unexpected error response from SCD {response:?}"
