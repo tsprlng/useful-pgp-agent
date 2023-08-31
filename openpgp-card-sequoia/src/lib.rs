@@ -975,6 +975,6 @@ impl Card<Admin<'_, '_>> {
             self.card().set_algorithm_attributes(key_type, &attr)?;
         }
 
-        self.card().generate_key(Self::ptf, key_type, None)
+        self.card().generate_key(Self::ptf, key_type)
     }
 }

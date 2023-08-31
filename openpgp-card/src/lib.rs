@@ -44,7 +44,7 @@ use std::convert::{TryFrom, TryInto};
 use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
 use tags::{ShortTag, Tags};
 
-use crate::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
+use crate::algorithm::{AlgorithmAttributes, AlgorithmInformation};
 use crate::apdu::command::Command;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
@@ -1303,13 +1303,6 @@ impl<'a> Transaction<'a> {
 
     /// Generate a key on the card.
     /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
-    ///
-    /// If the `algorithm_attributes` parameter is Some, then that algorithm will be set on
-    /// the card for the `key_type` slot.
-    ///
-    /// Note: `algorithm_attributes` needs to precisely specify the RSA bit-size of e (if
-    /// applicable), and import format, with values that the current card
-    /// supports.
     pub fn generate_key(
         &mut self,
         fp_from_pub: fn(
@@ -1318,63 +1311,12 @@ impl<'a> Transaction<'a> {
             KeyType,
         ) -> Result<Fingerprint, Error>,
         key_type: KeyType,
-        algorithm_attributes: Option<&AlgorithmAttributes>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        // Set algo on card if it's Some
-        if let Some(target_algo) = algorithm_attributes {
-            let ecap = self.extended_capabilities()?;
-
-            // Only set algo if card supports setting of algo attr
-            if ecap.algo_attrs_changeable() {
-                self.set_algorithm_attributes(key_type, target_algo)?;
-            } else {
-                // Check if the current algo on the card is the one we want, if
-                // not we return an error.
-
-                // NOTE: For RSA, the target algo shouldn't prescribe an
-                // Import-Format. The Import-Format should always depend on what
-                // the card supports.
-
-                // let cur_algo = ard.get_algorithm_attributes(key_type)?;
-                // assert_eq!(&cur_algo, target_algo);
-
-                // FIXME: return error?
-            }
-        }
-
         // get current (possibly updated) state of algorithm_attributes
         let ard = self.application_related_data()?; // no caching, here!
         let cur_algo = ard.algorithm_attributes(key_type)?;
 
         keys::gen_key_set_metadata(self, fp_from_pub, &cur_algo, key_type)
-    }
-
-    /// Generate a key on the card.
-    /// (7.2.14 GENERATE ASYMMETRIC KEY PAIR)
-    ///
-    /// This is a wrapper around [`Self::generate_key`] which allows
-    /// using the simplified [`AlgoSimple`] algorithm selector enum.
-    ///
-    /// Note: AlgoSimple doesn't specify card specific details (such as
-    /// bitsize of e for RSA, and import format). This function determines
-    /// these values based on information from the card.
-    pub fn generate_key_simple(
-        &mut self,
-        fp_from_pub: fn(
-            &PublicKeyMaterial,
-            KeyGenerationTime,
-            KeyType,
-        ) -> Result<Fingerprint, Error>,
-        key_type: KeyType,
-        simple: AlgoSimple,
-    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        let ard = self.application_related_data()?;
-        let algorithm_attributes = ard.algorithm_attributes(key_type)?;
-
-        let algo_info = self.algorithm_information_cached().ok().flatten();
-
-        let algo = simple.determine_algo_attributes(key_type, algorithm_attributes, algo_info)?;
-        Self::generate_key(self, fp_from_pub, key_type, Some(&algo))
     }
 
     /// Get public key material from the card.
