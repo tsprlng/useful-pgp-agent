@@ -13,7 +13,7 @@ use std::convert::TryFrom;
 use std::fmt;
 
 use crate::crypto_data::EccType;
-use crate::{keys, oid, Error, KeyType};
+use crate::{keys, oid, Error, KeyType, Transaction};
 
 /// A shorthand way to specify algorithms (e.g. for key generation).
 #[derive(Clone, Copy, Debug)]
@@ -50,6 +50,25 @@ impl TryFrom<&str> for AlgoSimple {
 }
 
 impl AlgoSimple {
+    /// Get algorithm attributes for slot `key_type` from this AlgoSimple.
+    ///
+    /// AlgoSimple doesn't specify card specific details (such as bit-size
+    /// of e for RSA, and import format).
+    /// This function determines these values based on information from the
+    /// card behind `tx`.
+    pub fn matching_algorithm_attributes(
+        &self,
+        tx: &mut Transaction,
+        key_type: KeyType,
+    ) -> Result<AlgorithmAttributes, Error> {
+        let ard = tx.application_related_data()?;
+        let algorithm_attributes = ard.algorithm_attributes(key_type)?;
+
+        let algo_info = tx.algorithm_information_cached().ok().flatten();
+
+        self.determine_algo_attributes(key_type, algorithm_attributes, algo_info)
+    }
+
     /// Get corresponding EccType by KeyType (except for Curve25519)
     fn ecc_type(key_type: KeyType) -> EccType {
         match key_type {

@@ -969,9 +969,12 @@ impl Card<Admin<'_, '_>> {
         key_type: KeyType,
         algo: Option<AlgoSimple>,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        match algo {
-            Some(algo) => self.card().generate_key_simple(Self::ptf, key_type, algo),
-            None => self.card().generate_key(Self::ptf, key_type, None),
+        if let Some(algo) = algo {
+            // set algorithm attributes
+            let attr = algo.matching_algorithm_attributes(self.card(), key_type)?;
+            self.card().set_algorithm_attributes(key_type, &attr)?;
         }
+
+        self.card().generate_key(Self::ptf, key_type, None)
     }
 }
