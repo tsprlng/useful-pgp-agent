@@ -964,17 +964,36 @@ impl Card<Admin<'_, '_>> {
         )
     }
 
-    pub fn generate_key_simple(
+    /// Configure the key slot `key_type` to `algorithm_attributes`.
+    /// This can be useful in preparation for [`Self::generate_key`].
+    ///
+    /// Note that legal values for [`AlgorithmAttributes`] are card-specific.
+    /// Different OpenPGP card implementations may support different
+    /// algorithms, sometimes with differing requirements for the encoding
+    /// (e.g. field sizes)
+    pub fn set_algorithm_attributes(
         &mut self,
         key_type: KeyType,
-        algo: Option<AlgoSimple>,
-    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        if let Some(algo) = algo {
-            // set algorithm attributes
-            let attr = algo.matching_algorithm_attributes(self.card(), key_type)?;
-            self.card().set_algorithm_attributes(key_type, &attr)?;
-        }
+        algorithm_attributes: &AlgorithmAttributes,
+    ) -> Result<(), Error> {
+        self.card()
+            .set_algorithm_attributes(key_type, algorithm_attributes)
+    }
 
+    /// Configure the key slot `key_type` to the algorithm `algo`.
+    /// This can be useful in preparation for [`Self::generate_key`].
+    pub fn set_algorithm(&mut self, key_type: KeyType, algo: AlgoSimple) -> Result<(), Error> {
+        let attr = algo.matching_algorithm_attributes(self.card(), key_type)?;
+        self.set_algorithm_attributes(key_type, &attr)
+    }
+
+    /// Generate a new cryptographic key in slot `key_type`, with the currently
+    /// configured cryptographic algorithm
+    /// (see [`Self::set_algorithm`] for changing the algorithm setting).
+    pub fn generate_key(
+        &mut self,
+        key_type: KeyType,
+    ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
         self.card().generate_key(Self::ptf, key_type)
     }
 }

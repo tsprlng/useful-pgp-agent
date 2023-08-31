@@ -218,11 +218,13 @@ pub fn test_keygen(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOut
     let alg = AlgoSimple::try_from(algo)?;
 
     println!(" Generate subkey for Signing");
-    let (pkm, ts) = admin.generate_key_simple(KeyType::Signing, Some(alg))?;
+    admin.set_algorithm(KeyType::Signing, alg)?;
+    let (pkm, ts) = admin.generate_key(KeyType::Signing)?;
     let key_sig = public_key_material_to_key(&pkm, KeyType::Signing, &ts, None, None)?;
 
     println!(" Generate subkey for Decryption");
-    let (pkm, ts) = admin.generate_key_simple(KeyType::Decryption, Some(alg))?;
+    admin.set_algorithm(KeyType::Decryption, alg)?;
+    let (pkm, ts) = admin.generate_key(KeyType::Decryption)?;
     let key_dec = public_key_material_to_key(
         &pkm,
         KeyType::Decryption,
@@ -232,7 +234,8 @@ pub fn test_keygen(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOut
     )?;
 
     println!(" Generate subkey for Authentication");
-    let (pkm, ts) = admin.generate_key_simple(KeyType::Authentication, Some(alg))?;
+    admin.set_algorithm(KeyType::Authentication, alg)?;
+    let (pkm, ts) = admin.generate_key(KeyType::Authentication)?;
     let key_aut = public_key_material_to_key(&pkm, KeyType::Authentication, &ts, None, None)?;
 
     tx.reload_ard()?;
