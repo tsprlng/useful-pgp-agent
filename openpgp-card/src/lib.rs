@@ -188,7 +188,7 @@ impl Card {
             let ext_cap = ard.extended_capabilities()?;
 
             // Get max command/response byte sizes from card
-            let (mut max_cmd_bytes, max_rsp_bytes) = if let Ok(Some(eli)) =
+            let (max_cmd_bytes, max_rsp_bytes) = if let Ok(Some(eli)) =
                 ard.extended_length_information()
             {
                 // In card 3.x, max lengths come from ExtendedLengthInfo
@@ -204,21 +204,6 @@ impl Card {
             let pw_status = ard.pw_status_bytes()?;
             let pw1_max = pw_status.pw1_max_len();
             let pw3_max = pw_status.pw3_max_len();
-
-            // If the CardTransaction implementation has an inherent limit for the cmd
-            // size, take that limit into account.
-            // (E.g. when using scdaemon as a CardTransaction backend, there is a
-            // limitation to 1000 bytes length for Assuan commands, which
-            // translates to maximum command length of a bit under 500 bytes)
-            if let Some(max_card_cmd_bytes) = tx.tx.max_cmd_len() {
-                max_cmd_bytes = u16::min(max_cmd_bytes, max_card_cmd_bytes as u16);
-            }
-
-            // FIXME: add a more general mechanism to ask the backend for
-            // amendments to the CardCaps (e.g. to change support for
-            // "extended length")
-            //
-            // Also see https://blog.apdu.fr/posts/2011/05/extended-apdu-status-per-reader/
 
             let caps = CardCaps::new(
                 ext_support,
@@ -238,6 +223,12 @@ impl Card {
             };
 
             drop(tx);
+
+            // General mechanism to ask the backend for amendments to
+            // the CardCaps (e.g. to change support for "extended length")
+            //
+            // Also see https://blog.apdu.fr/posts/2011/05/extended-apdu-status-per-reader/
+            let caps = op.card.limit_card_caps(caps);
 
             (caps, imm)
         };

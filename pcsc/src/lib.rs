@@ -546,6 +546,25 @@ impl PcscBackend {
 }
 
 impl CardBackend for PcscBackend {
+    fn limit_card_caps(&self, card_caps: CardCaps) -> CardCaps {
+        let mut ext = card_caps.ext_support();
+
+        // Disable "extended length" support when the card reader is known not to support it
+        if self.reader_name.starts_with("ACS ACR122U") {
+            log::debug!("Disabling ext_support for reader {}", self.reader_name);
+            ext = false;
+        }
+
+        CardCaps::new(
+            ext,
+            card_caps.chaining_support(),
+            card_caps.max_cmd_bytes(),
+            card_caps.max_rsp_bytes(),
+            card_caps.pw1_max_len(),
+            card_caps.pw3_max_len(),
+        )
+    }
+
     /// Get a CardTransaction for this PcscBackend (this starts a transaction)
     fn transaction(
         &mut self,

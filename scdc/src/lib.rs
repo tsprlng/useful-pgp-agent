@@ -212,6 +212,19 @@ impl ScdBackend {
 }
 
 impl CardBackend for ScdBackend {
+    fn limit_card_caps(&self, card_caps: CardCaps) -> CardCaps {
+        let max_cmd_bytes = u16::min(APDU_CMD_BYTES_MAX as u16, card_caps.max_cmd_bytes());
+
+        CardCaps::new(
+            card_caps.ext_support(),
+            card_caps.chaining_support(),
+            max_cmd_bytes,
+            card_caps.max_rsp_bytes(),
+            card_caps.pw1_max_len(),
+            card_caps.pw3_max_len(),
+        )
+    }
+
     fn transaction(
         &mut self,
         _reselect_application: Option<&[u8]>,
