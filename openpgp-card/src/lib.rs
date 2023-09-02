@@ -661,15 +661,18 @@ impl<'a> Transaction<'a> {
         log::info!("OpenPgpTransaction: factory_reset");
 
         // send 4 bad requests to verify pw1
-        // [apdu 00 20 00 81 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
-            log::info!("  verify_pw1_81");
-            let verify = commands::verify_pw1_81([0x40; 8].to_vec());
-            let resp = self.send_command(verify, false)?;
-            if !(resp.status() == StatusBytes::SecurityStatusNotSatisfied
-                || resp.status() == StatusBytes::AuthenticationMethodBlocked
-                || matches!(resp.status(), StatusBytes::PasswordNotChecked(_)))
-            {
+            let resp = self.verify_pw1_sign(&[0x40; 8]);
+
+            if !(matches!(
+                resp,
+                Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied))
+                    | Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked))
+                    | Err(Error::CardStatus(
+                        StatusBytes::ExecutionErrorNonVolatileMemoryUnchanged
+                    ))
+                    | Err(Error::CardStatus(StatusBytes::PasswordNotChecked(_)))
+            )) {
                 return Err(Error::InternalError(
                     "Unexpected status for reset, at pw1.".into(),
                 ));
@@ -677,16 +680,18 @@ impl<'a> Transaction<'a> {
         }
 
         // send 4 bad requests to verify pw3
-        // [apdu 00 20 00 83 08 40 40 40 40 40 40 40 40]
         for _ in 0..4 {
-            log::info!("  verify_pw3");
-            let verify = commands::verify_pw3([0x40; 8].to_vec());
-            let resp = self.send_command(verify, false)?;
+            let resp = self.verify_pw3(&[0x40; 8]);
 
-            if !(resp.status() == StatusBytes::SecurityStatusNotSatisfied
-                || resp.status() == StatusBytes::AuthenticationMethodBlocked
-                || matches!(resp.status(), StatusBytes::PasswordNotChecked(_)))
-            {
+            if !(matches!(
+                resp,
+                Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied))
+                    | Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked))
+                    | Err(Error::CardStatus(
+                        StatusBytes::ExecutionErrorNonVolatileMemoryUnchanged
+                    ))
+                    | Err(Error::CardStatus(StatusBytes::PasswordNotChecked(_)))
+            )) {
                 return Err(Error::InternalError(
                     "Unexpected status for reset, at pw3.".into(),
                 ));
