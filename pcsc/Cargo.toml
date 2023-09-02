@@ -6,13 +6,13 @@ name = "card-backend-pcsc"
 description = "PCSC card backend, e.g. for use with the openpgp-card crate"
 authors = ["Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2018"
 repository = "https://gitlab.com/openpgp-card/openpgp-card"
 documentation = "https://docs.rs/crate/card-backend-pcsc"
 
 [dependencies]
-card-backend = { path = "../card-backend", version = "0.1" }
+card-backend = { path = "../card-backend", version = "0.2" }
 iso7816-tlv = "0.4"
 pcsc = "2.7"
 log = "0.4"
