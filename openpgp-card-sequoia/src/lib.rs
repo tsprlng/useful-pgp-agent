@@ -476,18 +476,35 @@ impl<'a> Card<Transaction<'a>> {
         unimplemented!()
     }
 
-    /// Get algorithm attributes for a key slot.
-    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<AlgorithmAttributes, Error> {
-        self.state.ard.algorithm_attributes(key_type)
-    }
-
     /// PW status Bytes
     pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
         self.state.ard.pw_status_bytes()
     }
 
+    /// Get algorithm attributes for a key slot.
+    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<AlgorithmAttributes, Error> {
+        self.state.ard.algorithm_attributes(key_type)
+    }
+
     pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
         self.state.ard.fingerprints()
+    }
+
+    pub fn fingerprint(&mut self, key_type: KeyType) -> Result<Option<Fingerprint>, Error> {
+        let fp = match key_type {
+            KeyType::Signing => self.fingerprints()?.signature().cloned(),
+            KeyType::Decryption => self.fingerprints()?.decryption().cloned(),
+            KeyType::Authentication => self.fingerprints()?.authentication().cloned(),
+            KeyType::Attestation => self.state.ard.attestation_key_fingerprint()?,
+            _ => {
+                return Err(Error::UnsupportedFeature(format!(
+                    "Can't get fingerprint for key_type {:?}",
+                    key_type,
+                )))
+            }
+        };
+
+        Ok(fp)
     }
 
     pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
@@ -496,6 +513,26 @@ impl<'a> Card<Transaction<'a>> {
 
     pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
         self.state.ard.key_generation_times()
+    }
+
+    pub fn key_generation_time(
+        &mut self,
+        key_type: KeyType,
+    ) -> Result<Option<KeyGenerationTime>, Error> {
+        let ts = match key_type {
+            KeyType::Signing => self.key_generation_times()?.signature().cloned(),
+            KeyType::Decryption => self.key_generation_times()?.decryption().cloned(),
+            KeyType::Authentication => self.key_generation_times()?.authentication().cloned(),
+            KeyType::Attestation => self.state.ard.attestation_key_generation_time()?,
+            _ => {
+                return Err(Error::UnsupportedFeature(format!(
+                    "Can't get creation time for key_type {:?}",
+                    key_type,
+                )))
+            }
+        };
+
+        Ok(ts)
     }
 
     pub fn key_information(&self) -> Result<Option<KeyInformation>, Error> {
@@ -623,20 +660,6 @@ impl<'a> Card<Transaction<'a>> {
         self.state.opt.attestation_certificate()
     }
 
-    pub fn attestation_key_fingerprint(&mut self) -> Result<Option<Fingerprint>, Error> {
-        self.state.ard.attestation_key_fingerprint()
-    }
-
-    pub fn attestation_key_algorithm_attributes(
-        &mut self,
-    ) -> Result<Option<AlgorithmAttributes>, Error> {
-        self.state.ard.attestation_key_algorithm_attributes()
-    }
-
-    pub fn attestation_key_generation_time(&mut self) -> Result<Option<KeyGenerationTime>, Error> {
-        self.state.ard.attestation_key_generation_time()
-    }
-
     /// Firmware Version, YubiKey specific (?)
     pub fn firmware_version(&mut self) -> Result<Vec<u8>, Error> {
         self.state.opt.firmware_version()
@@ -673,19 +696,26 @@ impl<'a> Card<Transaction<'a>> {
 
     /// Get PublicKey representation for a key slot on the card
     pub fn public_key(&mut self, kt: KeyType) -> Result<Option<PublicKey>, Error> {
-        // FIXME: only read these once, if multiple subkeys are retrieved from the card
-        let times = self.key_generation_times()?;
         let fps = self.fingerprints()?;
+
+        let ts = self.key_generation_time(kt)?;
+
+        let fp = match kt {
+            KeyType::Signing => fps.signature(),
+            KeyType::Decryption => fps.decryption(),
+            KeyType::Authentication => fps.authentication(),
+            _ => None,
+        };
 
         match kt {
             KeyType::Signing => {
-                if let Ok(pkm) = self.public_key_material(KeyType::Signing) {
-                    if let Some(ts) = times.signature() {
+                if let Ok(pkm) = self.public_key_material(kt) {
+                    if let Some(ts) = ts {
                         return Ok(Some(public_key_material_and_fp_to_key(
                             &pkm,
                             KeyType::Signing,
-                            ts,
-                            fps.signature().expect("Signature fingerprint is unset"),
+                            &ts,
+                            fp.expect("Signature fingerprint is unset"),
                         )?));
                     }
                 }
@@ -693,12 +723,12 @@ impl<'a> Card<Transaction<'a>> {
             }
             KeyType::Decryption => {
                 if let Ok(pkm) = self.public_key_material(KeyType::Decryption) {
-                    if let Some(ts) = times.decryption() {
+                    if let Some(ts) = ts {
                         return Ok(Some(public_key_material_and_fp_to_key(
                             &pkm,
                             KeyType::Decryption,
-                            ts,
-                            fps.decryption().expect("Decryption fingerprint is unset"),
+                            &ts,
+                            fp.expect("Decryption fingerprint is unset"),
                         )?));
                     }
                 }
@@ -706,13 +736,12 @@ impl<'a> Card<Transaction<'a>> {
             }
             KeyType::Authentication => {
                 if let Ok(pkm) = self.public_key_material(KeyType::Authentication) {
-                    if let Some(ts) = times.authentication() {
+                    if let Some(ts) = ts {
                         return Ok(Some(public_key_material_and_fp_to_key(
                             &pkm,
                             KeyType::Authentication,
-                            ts,
-                            fps.authentication()
-                                .expect("Authentication fingerprint is unset"),
+                            &ts,
+                            fp.expect("Authentication fingerprint is unset"),
                         )?));
                     }
                 }
