@@ -250,7 +250,7 @@ impl ApplicationRelatedData {
     }
 
     /// Get Attestation key generation time.
-    pub fn attestation_key_generation_time(&mut self) -> Result<Option<KeyGenerationTime>, Error> {
+    pub fn attestation_key_generation_time(&self) -> Result<Option<KeyGenerationTime>, Error> {
         match self.0.find(Tags::GenerationTimeAttestation) {
             None => Ok(None),
             Some(data) => {
