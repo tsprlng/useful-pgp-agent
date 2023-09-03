@@ -539,7 +539,10 @@ impl<'a> Card<Transaction<'a>> {
         self.state.ard.key_information()
     }
 
-    pub fn uif(&self, key_type: KeyType) -> Result<Option<UserInteractionFlag>, Error> {
+    pub fn user_interaction_flag(
+        &self,
+        key_type: KeyType,
+    ) -> Result<Option<UserInteractionFlag>, Error> {
         match key_type {
             KeyType::Signing => self.state.ard.uif_pso_cds(),
             KeyType::Decryption => self.state.ard.uif_pso_dec(),
@@ -929,7 +932,11 @@ impl Card<Admin<'_, '_>> {
         self.card().set_pw_status_bytes(pw_status, long)
     }
 
-    pub fn set_uif(&mut self, key: KeyType, policy: TouchPolicy) -> Result<(), Error> {
+    pub fn set_user_interaction_flag(
+        &mut self,
+        key: KeyType,
+        policy: TouchPolicy,
+    ) -> Result<(), Error> {
         let uif = match key {
             KeyType::Signing => self.state.tx.state.ard.uif_pso_cds()?,
             KeyType::Decryption => self.state.tx.state.ard.uif_pso_dec()?,
