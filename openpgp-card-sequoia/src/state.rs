@@ -42,7 +42,7 @@ pub struct Transaction<'a> {
     //
     // This field should probably be an Option<> that gets invalidated when appropriate and
     // re-fetched lazily.
-    pub(crate) ard: ApplicationRelatedData,
+    ard: ApplicationRelatedData,
 
     // verify status of pw1
     pub(crate) pw1: bool,
@@ -52,6 +52,26 @@ pub struct Transaction<'a> {
 
     // verify status of pw3
     pub(crate) pw3: bool,
+}
+
+impl<'a> Transaction<'a> {
+    pub(crate) fn new(opt: openpgp_card::Transaction<'a>, ard: ApplicationRelatedData) -> Self {
+        Transaction {
+            opt,
+            ard,
+            pw1: false,
+            pw1_sign: false,
+            pw3: false,
+        }
+    }
+
+    pub(crate) fn ard(&self) -> &ApplicationRelatedData {
+        &self.ard
+    }
+
+    pub(crate) fn set_ard(&mut self, ard: ApplicationRelatedData) {
+        self.ard = ard
+    }
 }
 
 /// State of an OpenPGP card after successfully verifying the User PIN

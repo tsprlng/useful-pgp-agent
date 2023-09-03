@@ -226,7 +226,7 @@ impl Card<Open> {
 
             let aid = {
                 let tx = card.transaction()?;
-                tx.state.ard.application_id()?
+                tx.state.ard().application_id()?
             };
 
             if aid.ident() == ident.to_ascii_uppercase() {
@@ -269,13 +269,7 @@ impl<'a> Card<Transaction<'a>> {
         let ard = opt.application_related_data()?;
 
         Ok(Self {
-            state: Transaction {
-                opt,
-                ard,
-                pw1: false,
-                pw1_sign: false,
-                pw3: false,
-            },
+            state: Transaction::new(opt, ard),
         })
     }
 
@@ -286,7 +280,11 @@ impl<'a> Card<Transaction<'a>> {
     /// see these changes reflected in `self.ard`.
     pub fn reload_ard(&mut self) -> Result<(), Error> {
         // FIXME: this should be implemented internally, transparent to users
-        self.state.ard = self.state.opt.application_related_data()?;
+
+        let ard = self.state.opt.application_related_data()?;
+
+        self.state.set_ard(ard);
+
         Ok(())
     }
 
@@ -478,16 +476,16 @@ impl<'a> Card<Transaction<'a>> {
 
     /// PW status Bytes
     pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
-        self.state.ard.pw_status_bytes()
+        self.state.ard().pw_status_bytes()
     }
 
     /// Get algorithm attributes for a key slot.
     pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<AlgorithmAttributes, Error> {
-        self.state.ard.algorithm_attributes(key_type)
+        self.state.ard().algorithm_attributes(key_type)
     }
 
     pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
-        self.state.ard.fingerprints()
+        self.state.ard().fingerprints()
     }
 
     pub fn fingerprint(&mut self, key_type: KeyType) -> Result<Option<Fingerprint>, Error> {
@@ -495,7 +493,7 @@ impl<'a> Card<Transaction<'a>> {
             KeyType::Signing => self.fingerprints()?.signature().cloned(),
             KeyType::Decryption => self.fingerprints()?.decryption().cloned(),
             KeyType::Authentication => self.fingerprints()?.authentication().cloned(),
-            KeyType::Attestation => self.state.ard.attestation_key_fingerprint()?,
+            KeyType::Attestation => self.state.ard().attestation_key_fingerprint()?,
             _ => {
                 return Err(Error::UnsupportedFeature(format!(
                     "Can't get fingerprint for key_type {:?}",
@@ -508,11 +506,11 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
-        self.state.ard.ca_fingerprints()
+        self.state.ard().ca_fingerprints()
     }
 
     pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
-        self.state.ard.key_generation_times()
+        self.state.ard().key_generation_times()
     }
 
     pub fn key_generation_time(
@@ -523,7 +521,7 @@ impl<'a> Card<Transaction<'a>> {
             KeyType::Signing => self.key_generation_times()?.signature().cloned(),
             KeyType::Decryption => self.key_generation_times()?.decryption().cloned(),
             KeyType::Authentication => self.key_generation_times()?.authentication().cloned(),
-            KeyType::Attestation => self.state.ard.attestation_key_generation_time()?,
+            KeyType::Attestation => self.state.ard().attestation_key_generation_time()?,
             _ => {
                 return Err(Error::UnsupportedFeature(format!(
                     "Can't get creation time for key_type {:?}",
@@ -536,7 +534,7 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     pub fn key_information(&self) -> Result<Option<KeyInformation>, Error> {
-        self.state.ard.key_information()
+        self.state.ard().key_information()
     }
 
     pub fn user_interaction_flag(
@@ -544,10 +542,10 @@ impl<'a> Card<Transaction<'a>> {
         key_type: KeyType,
     ) -> Result<Option<UserInteractionFlag>, Error> {
         match key_type {
-            KeyType::Signing => self.state.ard.uif_pso_cds(),
-            KeyType::Decryption => self.state.ard.uif_pso_dec(),
-            KeyType::Authentication => self.state.ard.uif_pso_aut(),
-            KeyType::Attestation => self.state.ard.uif_attestation(),
+            KeyType::Signing => self.state.ard().uif_pso_cds(),
+            KeyType::Decryption => self.state.ard().uif_pso_dec(),
+            KeyType::Authentication => self.state.ard().uif_pso_aut(),
+            KeyType::Attestation => self.state.ard().uif_attestation(),
             _ => Err(Error::UnsupportedFeature(format!(
                 "Can't get UIF for key_type {:?}",
                 key_type,
@@ -846,7 +844,7 @@ impl<'app, 'open> Card<Sign<'app, 'open>> {
         // Touch is required if:
         // - the card supports the feature
         // - and the policy is set to a value other than 'Off'
-        if let Some(uif) = self.state.tx.state.ard.uif_attestation()? {
+        if let Some(uif) = self.state.tx.state.ard().uif_attestation()? {
             if uif.touch_policy().touch_required() {
                 (touch_prompt)();
             }
@@ -938,10 +936,10 @@ impl Card<Admin<'_, '_>> {
         policy: TouchPolicy,
     ) -> Result<(), Error> {
         let uif = match key {
-            KeyType::Signing => self.state.tx.state.ard.uif_pso_cds()?,
-            KeyType::Decryption => self.state.tx.state.ard.uif_pso_dec()?,
-            KeyType::Authentication => self.state.tx.state.ard.uif_pso_aut()?,
-            KeyType::Attestation => self.state.tx.state.ard.uif_attestation()?,
+            KeyType::Signing => self.state.tx.state.ard().uif_pso_cds()?,
+            KeyType::Decryption => self.state.tx.state.ard().uif_pso_dec()?,
+            KeyType::Authentication => self.state.tx.state.ard().uif_pso_aut()?,
+            KeyType::Attestation => self.state.tx.state.ard().uif_attestation()?,
             _ => unimplemented!(),
         };
 
