@@ -442,15 +442,28 @@ impl<'a> Card<Transaction<'a>> {
     // --- application data ---
 
     pub fn application_identifier(&self) -> Result<ApplicationIdentifier, Error> {
-        self.state.ard.application_id()
+        // Use immutable data cache from underlying Card
+        self.state.opt.application_identifier()
+    }
+
+    pub fn extended_capabilities(&self) -> Result<ExtendedCapabilities, Error> {
+        // Use immutable data cache from underlying Card
+        self.state.opt.extended_capabilities()
     }
 
     pub fn historical_bytes(&self) -> Result<HistoricalBytes, Error> {
-        self.state.ard.historical_bytes()
+        // Use immutable data cache from underlying Card
+        match self.state.opt.historical_bytes()? {
+            Some(hb) => Ok(hb),
+            None => Err(Error::NotFound(
+                "Card doesn't have historical bytes DO".to_string(),
+            )),
+        }
     }
 
     pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>, Error> {
-        self.state.ard.extended_length_information()
+        // Use immutable data cache from underlying Card
+        self.state.opt.extended_length_info()
     }
 
     #[allow(dead_code)]
@@ -463,10 +476,7 @@ impl<'a> Card<Transaction<'a>> {
         unimplemented!()
     }
 
-    pub fn extended_capabilities(&self) -> Result<ExtendedCapabilities, Error> {
-        self.state.ard.extended_capabilities()
-    }
-
+    /// Get algorithm attributes for a key slot.
     pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<AlgorithmAttributes, Error> {
         self.state.ard.algorithm_attributes(key_type)
     }
