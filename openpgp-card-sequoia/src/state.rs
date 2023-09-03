@@ -18,7 +18,7 @@ impl State for User<'_, '_> {}
 impl State for Sign<'_, '_> {}
 impl State for Admin<'_, '_> {}
 
-/// State of an OpenPGP card in its base state, no transaction has been started.
+/// An OpenPGP card in its base state, no transaction has been started.
 ///
 /// A transaction can be started on the card, in this state.
 pub struct Open {
@@ -45,12 +45,15 @@ pub struct Transaction<'a> {
     ard: ApplicationRelatedData,
 
     // verify status of pw1
+    // FIXME: this mechanism needs more thought
     pub(crate) pw1: bool,
 
     // verify status of pw1 for signing
+    // FIXME: this mechanism needs more thought
     pub(crate) pw1_sign: bool,
 
     // verify status of pw3
+    // FIXME: this mechanism needs more thought
     pub(crate) pw3: bool,
 }
 

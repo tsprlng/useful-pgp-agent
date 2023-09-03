@@ -55,16 +55,16 @@
 //!
 //! ## Decryption
 //!
-//! To use a card for decryption, it needs to be opened, user authorization
-//! needs to be available. A `sequoia_openpgp::crypto::Decryptor`
-//! implementation can then be obtained:
+//! To use a card for decryption, it needs to be opened, and user
+//! authorization needs to be available.
+//! A [`sequoia_openpgp::crypto::Decryptor`] implementation can then be obtained:
 //!
 //! ```no_run
 //! use card_backend_pcsc::PcscBackend;
 //! use openpgp_card_sequoia::{state::Open, Card};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!
 //! // Open card via PCSC
-//! use sequoia_openpgp::policy::StandardPolicy;
 //! let cards = PcscBackend::card_backends(None)?;
 //! let mut card = Card::<Open>::open_by_ident(cards, "abcd:01234567")?;
 //! let mut transaction = card.transaction()?;
@@ -84,9 +84,9 @@
 //!
 //! ## Signing
 //!
-//! To use a card for signing, it needs to be opened, signing authorization
-//! needs to be available. A `sequoia_openpgp::crypto::Signer`
-//! implementation can then be obtained.
+//! To use a card for signing, it needs to be opened, and signing
+//! authorization needs to be available.
+//! A [`sequoia_openpgp::crypto::Signer`] implementation can then be obtained.
 //!
 //! (Note that by default, some OpenPGP Cards will only allow one signing
 //! operation to be performed after the password has been presented for
@@ -208,7 +208,7 @@ impl<'p, const S: usize> From<&'p [u8; S]> for OptionalPin<'p> {
 ///
 /// Depending on the `State` of the card, and the access privileges that are associated with that
 /// state, different operations can be performed. In many cases, client software will want to
-/// transition between states while performing one activity for the user.
+/// transition between states while performing one workflow for the user.
 pub struct Card<S>
 where
     S: State,
@@ -217,6 +217,10 @@ where
 }
 
 impl Card<Open> {
+    /// Takes an iterator over CardBackends, tries to SELECT the OpenPGP card
+    /// application on each of them, and checks if its application id matches
+    /// `ident`.
+    /// Returns a [`Card<Open>`] for the first match, if any.
     pub fn open_by_ident(
         cards: impl Iterator<Item = Result<Box<dyn CardBackend + Send + Sync>, SmartcardError>>,
         ident: &str,
@@ -237,6 +241,8 @@ impl Card<Open> {
         Err(Error::NotFound(format!("Couldn't find card {}", ident)))
     }
 
+    /// Returns a [`Card<Open>`] based on `backend` (after SELECTing the
+    /// OpenPGP card application).
     pub fn new<B>(backend: B) -> Result<Self, Error>
     where
         B: Into<Box<dyn CardBackend + Send + Sync>>,
@@ -248,23 +254,30 @@ impl Card<Open> {
         })
     }
 
+    /// Starts a transaction on the underlying backend (if the backend
+    /// implementation supports transactions, otherwise the backend
+    /// will operate without transactions guarantees).
+    ///
+    /// The resulting [`Card<Transaction>`] object allows performing
+    /// operations on the card.
     pub fn transaction(&mut self) -> Result<Card<Transaction>, Error> {
         let opt = self.state.pgp.transaction()?;
 
         Card::<Transaction>::new(opt)
     }
 
-    /// Get the internal `CardBackend`.
+    /// Retrieve the underlying [`CardBackend`].
     ///
-    /// This is useful to perform operations on the card with a different crate,
-    /// e.g. `yubikey-management`.
+    /// This is useful to take the card object into a different context
+    /// (e.g. to perform operations on the card with the `yubikey-management`
+    /// crate, without closing the connection to the card).
     pub fn into_card(self) -> Box<dyn CardBackend + Send + Sync> {
         self.state.pgp.into_card()
     }
 }
 
 impl<'a> Card<Transaction<'a>> {
-    // Internal constructor
+    /// Internal constructor
     fn new(mut opt: openpgp_card::Transaction<'a>) -> Result<Self, Error> {
         let ard = opt.application_related_data()?;
 
@@ -288,20 +301,25 @@ impl<'a> Card<Transaction<'a>> {
         Ok(())
     }
 
+    /// True if the reader for this card supports PIN verification with a pin pad.
     pub fn feature_pinpad_verify(&mut self) -> bool {
         self.state.opt.feature_pinpad_verify()
     }
 
+    /// True if the reader for this card supports PIN modification with a pin pad.
     pub fn feature_pinpad_modify(&mut self) -> bool {
         self.state.opt.feature_pinpad_modify()
     }
 
+    /// Verify the User PIN (for operations such as decryption)
     pub fn verify_user(&mut self, pin: &[u8]) -> Result<(), Error> {
         self.state.opt.verify_pw1_user(pin)?;
         self.state.pw1 = true;
         Ok(())
     }
 
+    /// Verify the User PIN with a physical PIN pad (if available,
+    /// see [`Self::feature_pinpad_verify`]).
     pub fn verify_user_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
         pinpad_prompt();
 
@@ -310,6 +328,11 @@ impl<'a> Card<Transaction<'a>> {
         Ok(())
     }
 
+    /// Verify the User PIN for signing operations.
+    ///
+    /// (Note that depending on the configuration of the card, this may enable
+    /// performing just one signing operation, or an unlimited amount of
+    /// signing operations).
     pub fn verify_user_for_signing(&mut self, pin: &[u8]) -> Result<(), Error> {
         self.state.opt.verify_pw1_sign(pin)?;
 
@@ -319,6 +342,8 @@ impl<'a> Card<Transaction<'a>> {
         Ok(())
     }
 
+    /// Verify the User PIN for signing operations with a physical PIN pad
+    /// (if available, see [`Self::feature_pinpad_verify`]).
     pub fn verify_user_for_signing_pinpad(
         &mut self,
         pinpad_prompt: &dyn Fn(),
@@ -333,12 +358,15 @@ impl<'a> Card<Transaction<'a>> {
         Ok(())
     }
 
+    /// Verify the Admin PIN.
     pub fn verify_admin(&mut self, pin: &[u8]) -> Result<(), Error> {
         self.state.opt.verify_pw3(pin)?;
         self.state.pw3 = true;
         Ok(())
     }
 
+    /// Verify the Admin PIN with a physical PIN pad
+    /// (if available, see [`Self::feature_pinpad_verify`]).
     pub fn verify_admin_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
         pinpad_prompt();
 
@@ -349,41 +377,51 @@ impl<'a> Card<Transaction<'a>> {
 
     /// Ask the card if the user password has been successfully verified.
     ///
-    /// NOTE: on some cards this functionality seems broken.
+    /// NOTE: on some cards this functionality seems broken and may decrease
+    /// the pin's error count!
     pub fn check_user_verified(&mut self) -> Result<(), Error> {
         self.state.opt.check_pw1_user()
     }
 
     /// Ask the card if the admin password has been successfully verified.
     ///
-    /// NOTE: on some cards this functionality seems broken.
+    /// NOTE: on some cards this functionality seems broken and may decrease
+    /// the pin's error count!
     pub fn check_admin_verified(&mut self) -> Result<(), Error> {
         self.state.opt.check_pw3()
     }
 
+    /// Change the User PIN, based on the old User PIN.
     pub fn change_user_pin(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
         self.state.opt.change_pw1(old, new)
     }
 
+    /// Change the User PIN, based on the old User PIN, with a physical PIN
+    /// pad (if available, see [`Self::feature_pinpad_modify`]).
     pub fn change_user_pin_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
         pinpad_prompt();
         self.state.opt.change_pw1_pinpad()
     }
 
+    /// Change the User PIN, based on the resetting code `rst`.
     pub fn reset_user_pin(&mut self, rst: &[u8], new: &[u8]) -> Result<(), Error> {
         self.state.opt.reset_retry_counter_pw1(new, Some(rst))
     }
 
+    /// Change the Admin PIN, based on the old Admin PIN.
     pub fn change_admin_pin(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
         self.state.opt.change_pw3(old, new)
     }
 
+    /// Change the Admin PIN, based on the old Admin PIN, with a physical PIN
+    /// pad (if available, see [`Self::feature_pinpad_modify`]).
     pub fn change_admin_pin_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
         pinpad_prompt();
         self.state.opt.change_pw3_pinpad()
     }
 
-    /// Get a view of the card authenticated for "User" commands.
+    /// Get a view of the card in the [`Card<User>`] state, and authenticate
+    /// for that state with `pin`, if available.
     ///
     /// If `pin` is not None, `verify_user` is called with that pin.
     pub fn to_user_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<User<'a, 'b>>, Error>
@@ -401,7 +439,8 @@ impl<'a> Card<Transaction<'a>> {
         })
     }
 
-    /// Get a view of the card authenticated for Signing.
+    /// Get a view of the card in the [`Card<Sign>`] state, and authenticate
+    /// for that state with `pin`, if available.
     ///
     /// If `pin` is not None, `verify_user_for_signing` is called with that pin.
     pub fn to_signing_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<Sign<'a, 'b>>, Error>
@@ -419,7 +458,8 @@ impl<'a> Card<Transaction<'a>> {
         })
     }
 
-    /// Get a view of the card authenticated for "Admin" commands.
+    /// Get a view of the card in the [`Card<Admin>`] state, and authenticate
+    /// for that state with `pin`, if available.
     ///
     /// If `pin` is not None, `verify_admin` is called with that pin.
     pub fn to_admin_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<Admin<'a, 'b>>, Error>
@@ -439,18 +479,40 @@ impl<'a> Card<Transaction<'a>> {
 
     // --- application data ---
 
+    /// The Application Identifier is unique for each card.
+    /// It includes a manufacturer code and serial number.
+    ///
+    /// (This is an immutable field on the card. The value is cached in the
+    /// underlying Card object. It can be retrieved without incurring a call
+    /// to the card)
     pub fn application_identifier(&self) -> Result<ApplicationIdentifier, Error> {
-        // Use immutable data cache from underlying Card
+        // Use immutable data cache from underlying Card object
         self.state.opt.application_identifier()
     }
 
+    /// The "Extended Capabilities" data object describes features of a card
+    /// to the caller.
+    /// This includes the availability and length of various data fields.
+    ///
+    /// (This is an immutable field on the card. The value is cached in the
+    /// underlying Card object. It can be retrieved without incurring a call
+    /// to the card)
     pub fn extended_capabilities(&self) -> Result<ExtendedCapabilities, Error> {
-        // Use immutable data cache from underlying Card
+        // Use immutable data cache from underlying Card object
         self.state.opt.extended_capabilities()
     }
 
+    /// The "Historical Bytes" data object describes features of a card
+    /// to the caller.
+    /// The information in this field is probably not relevant for most
+    /// users of this library, however, some of it is used for the internal
+    /// operation of the `openpgp-card` library.
+    ///
+    /// (This is an immutable field on the card. The value is cached in the
+    /// underlying Card object. It can be retrieved without incurring a call
+    /// to the card)
     pub fn historical_bytes(&self) -> Result<HistoricalBytes, Error> {
-        // Use immutable data cache from underlying Card
+        // Use immutable data cache from underlying Card object
         match self.state.opt.historical_bytes()? {
             Some(hb) => Ok(hb),
             None => Err(Error::NotFound(
@@ -459,8 +521,19 @@ impl<'a> Card<Transaction<'a>> {
         }
     }
 
+    /// The "Extended Length Information" data object was introduced in
+    /// version 3.0 of the OpenPGP card standard.
+    ///
+    /// The information in this field should not be relevant for
+    /// users of this library.
+    /// However, it is used for the internal operation of the `openpgp-card`
+    /// library.
+    ///
+    /// (This is an immutable field on the card. The value is cached in the
+    /// underlying Card object. It can be retrieved without incurring a call
+    /// to the card)
     pub fn extended_length_information(&self) -> Result<Option<ExtendedLengthInfo>, Error> {
-        // Use immutable data cache from underlying Card
+        // Use immutable data cache from underlying Card object
         self.state.opt.extended_length_info()
     }
 
@@ -474,7 +547,7 @@ impl<'a> Card<Transaction<'a>> {
         unimplemented!()
     }
 
-    /// PW status Bytes
+    /// PW Status Bytes
     pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
         self.state.ard().pw_status_bytes()
     }
@@ -484,10 +557,18 @@ impl<'a> Card<Transaction<'a>> {
         self.state.ard().algorithm_attributes(key_type)
     }
 
+    /// Get the Fingerprints for the three basic [`KeyType`]s.
+    ///
+    /// (The fingerprints for the three basic key slots are stored in a
+    /// shared field on the card, thus they can be retrieved in one go)
     pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
         self.state.ard().fingerprints()
     }
 
+    /// Get the Fingerprint for one [`KeyType`].
+    ///
+    /// This function allows retrieval for all slots, including
+    /// [`KeyType::Attestation`], if available.
     pub fn fingerprint(&mut self, key_type: KeyType) -> Result<Option<Fingerprint>, Error> {
         let fp = match key_type {
             KeyType::Signing => self.fingerprints()?.signature().cloned(),
@@ -505,14 +586,18 @@ impl<'a> Card<Transaction<'a>> {
         Ok(fp)
     }
 
-    pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
-        self.state.ard().ca_fingerprints()
-    }
-
+    /// Get the Key Creation Times for the three basic [`KeyType`]s.
+    ///
+    /// (The creation time for the three basic key slots are stored in a
+    /// shared field on the card, thus they can be retrieved in one go)
     pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
         self.state.ard().key_generation_times()
     }
 
+    /// Get the Key Creation Time for one [`KeyType`].
+    ///
+    /// This function allows retrieval for all slots, including
+    /// [`KeyType::Attestation`], if available.
     pub fn key_generation_time(
         &mut self,
         key_type: KeyType,
@@ -537,6 +622,9 @@ impl<'a> Card<Transaction<'a>> {
         self.state.ard().key_information()
     }
 
+    /// Get the [`UserInteractionFlag`] for a key slot.
+    /// This includes the [`TouchPolicy`], if the card supports touch
+    /// confirmation.
     pub fn user_interaction_flag(
         &self,
         key_type: KeyType,
@@ -553,7 +641,26 @@ impl<'a> Card<Transaction<'a>> {
         }
     }
 
-    // --- optional private DOs (0101 - 0104) ---
+    /// List of CA-Fingerprints of “Ultimately Trusted Keys”.
+    /// May be used to verify Public Keys from servers.
+    pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
+        self.state.ard().ca_fingerprints()
+    }
+
+    /// Get optional "Private use" data from the card.
+    ///
+    /// The presence and maximum length of these DOs is announced
+    /// in [`ExtendedCapabilities`].
+    ///
+    /// If available, there are 4 data fields for private use:
+    ///
+    /// - `1`: read accessible without PIN verification
+    /// - `2`: read accessible without PIN verification
+    /// - `3`: read accessible with User PIN verification
+    /// - `4`: read accessible with Admin PIN verification
+    pub fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>, Error> {
+        self.state.opt.private_use_do(num)
+    }
 
     /// Login Data
     ///
@@ -567,7 +674,7 @@ impl<'a> Card<Transaction<'a>> {
 
     // --- URL (5f50) ---
 
-    /// Get "hardholder" URL from the card.
+    /// Get "cardholder" URL from the card.
     ///
     /// "The URL should contain a link to a set of public keys in OpenPGP format, related to
     /// the card."
@@ -575,7 +682,7 @@ impl<'a> Card<Transaction<'a>> {
         Ok(String::from_utf8_lossy(&self.state.opt.url()?).to_string())
     }
 
-    // --- cardholder related data (65) ---
+    /// Cardholder related data (contains the fields: Name, Language preferences and Sex)
     pub fn cardholder_related_data(&mut self) -> Result<CardholderRelatedData, Error> {
         self.state.opt.cardholder_related_data()
     }
@@ -604,7 +711,7 @@ impl<'a> Card<Transaction<'a>> {
         }
     }
 
-    // --- security support template (7a) ---
+    /// Get security support template (contains the digital signature count).
     pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate, Error> {
         self.state.opt.security_support_template()
     }
@@ -630,7 +737,7 @@ impl<'a> Card<Transaction<'a>> {
         self.state.opt.next_cardholder_certificate()
     }
 
-    // DO "Algorithm Information" (0xFA)
+    /// Algorithm Information (list of supported Algorithm attributes).
     pub fn algorithm_information(&mut self) -> Result<Option<AlgorithmInformation>, Error> {
         // The DO "Algorithm Information" (Tag FA) shall be present if
         // Algorithm attributes can be changed
@@ -644,8 +751,9 @@ impl<'a> Card<Transaction<'a>> {
         self.state.opt.algorithm_information()
     }
 
-    /// "MANAGE SECURITY ENVIRONMENT"
-    /// Make `key_ref` usable for the operation normally done by the key designated by `for_operation`
+    /// "MANAGE SECURITY ENVIRONMENT".
+    /// Make `key_ref` usable for the operation normally done by the key
+    /// designated by `for_operation`
     pub fn manage_security_environment(
         &mut self,
         for_operation: KeyType,
@@ -684,20 +792,15 @@ impl<'a> Card<Transaction<'a>> {
 
     // ----------
 
+    /// Get the raw public key material for a key slot on the card
+    /// (also see [`Self::public_key`] for getting a Sequoia PGP key object)
     pub fn public_key_material(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial, Error> {
         self.state.opt.public_key(key_type)
     }
 
-    // ----------
-
-    /// Delete all state on this OpenPGP card
-    pub fn factory_reset(&mut self) -> Result<(), Error> {
-        self.state.opt.factory_reset()
-    }
-
-    // -- higher level abstractions
-
-    /// Get PublicKey representation for a key slot on the card
+    /// Get a sequoia public key representation
+    /// ([`Key<key::PublicParts, key::UnspecifiedRole>`])
+    /// for a key slot on the card
     pub fn public_key(&mut self, kt: KeyType) -> Result<Option<PublicKey>, Error> {
         let fps = self.fingerprints()?;
 
@@ -753,6 +856,13 @@ impl<'a> Card<Transaction<'a>> {
             _ => unimplemented!(),
         }
     }
+
+    // ----------
+
+    /// Reset all state on this OpenPGP card
+    pub fn factory_reset(&mut self) -> Result<(), Error> {
+        self.state.opt.factory_reset()
+    }
 }
 
 impl<'app, 'open> Card<User<'app, 'open>> {
@@ -804,6 +914,21 @@ impl<'app, 'open> Card<User<'app, 'open>> {
         touch_prompt: &'open (dyn Fn() + Send + Sync),
     ) -> CardSigner<'_, 'app> {
         CardSigner::with_pubkey_for_auth(self.card(), pubkey, touch_prompt)
+    }
+
+    /// Set optional "Private use" data on the card.
+    ///
+    /// The presence and maximum length of these DOs is announced
+    /// in [`ExtendedCapabilities`].
+    ///
+    /// If available, there are 4 data fields for private use:
+    ///
+    /// - `1`: write accessible with User PIN verification
+    /// - `2`: write accessible with Admin PIN verification
+    /// - `3`: write accessible with User PIN verification
+    /// - `4`: write accessible with Admin PIN verification
+    pub fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<(), Error> {
+        self.card().set_private_use_do(num, data)
     }
 }
 
@@ -898,6 +1023,21 @@ impl Card<Admin<'_, '_>> {
         self.card().set_sex(sex)
     }
 
+    /// Set optional "Private use" data on the card.
+    ///
+    /// The presence and maximum length of these DOs is announced
+    /// in [`ExtendedCapabilities`].
+    ///
+    /// If available, there are 4 data fields for private use:
+    ///
+    /// - `1`: write accessible with User PIN verification
+    /// - `2`: write accessible with Admin PIN verification
+    /// - `3`: write accessible with User PIN verification
+    /// - `4`: write accessible with Admin PIN verification
+    pub fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<(), Error> {
+        self.card().set_private_use_do(num, data)
+    }
+
     pub fn set_login_data(&mut self, login_data: &[u8]) -> Result<(), Error> {
         self.card().set_login(login_data)
     }
@@ -927,6 +1067,16 @@ impl Card<Admin<'_, '_>> {
         }
     }
 
+    /// Set PW Status Bytes.
+    ///
+    /// According to the spec, length information should not be changed.
+    ///
+    /// If `long` is false, sends 1 byte to the card, otherwise 4.
+    ///
+    /// So, effectively, with `long == false` the setting `pw1_cds_multi`
+    /// can be changed.
+    /// With `long == true`, the settings `pw1_pin_block` and `pw3_pin_block`
+    /// can also be changed.
     pub fn set_pw_status_bytes(
         &mut self,
         pw_status: &PWStatusBytes,
@@ -1005,8 +1155,8 @@ impl Card<Admin<'_, '_>> {
             pkm,
             &time,
             key_type,
-            Some(HashAlgorithm::SHA256),
-            Some(SymmetricAlgorithm::AES128),
+            Some(HashAlgorithm::SHA256),      // FIXME
+            Some(SymmetricAlgorithm::AES128), // FIXME
         )
     }
 
