@@ -539,20 +539,17 @@ impl<'a> Card<Transaction<'a>> {
         self.state.ard.key_information()
     }
 
-    pub fn uif_signing(&self) -> Result<Option<UserInteractionFlag>, Error> {
-        self.state.ard.uif_pso_cds()
-    }
-
-    pub fn uif_decryption(&self) -> Result<Option<UserInteractionFlag>, Error> {
-        self.state.ard.uif_pso_dec()
-    }
-
-    pub fn uif_authentication(&self) -> Result<Option<UserInteractionFlag>, Error> {
-        self.state.ard.uif_pso_aut()
-    }
-
-    pub fn uif_attestation(&self) -> Result<Option<UserInteractionFlag>, Error> {
-        self.state.ard.uif_attestation()
+    pub fn uif(&self, key_type: KeyType) -> Result<Option<UserInteractionFlag>, Error> {
+        match key_type {
+            KeyType::Signing => self.state.ard.uif_pso_cds(),
+            KeyType::Decryption => self.state.ard.uif_pso_dec(),
+            KeyType::Authentication => self.state.ard.uif_pso_aut(),
+            KeyType::Attestation => self.state.ard.uif_attestation(),
+            _ => Err(Error::UnsupportedFeature(format!(
+                "Can't get UIF for key_type {:?}",
+                key_type,
+            ))),
+        }
     }
 
     // --- optional private DOs (0101 - 0104) ---
