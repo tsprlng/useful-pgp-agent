@@ -132,7 +132,7 @@
 //! let mut admin = transaction.to_admin_card("12345678")?;
 //!
 //! // Set the Name and URL fields on the card
-//! admin.set_name("Alice Adams")?;
+//! admin.set_cardholder_name("Alice Adams")?;
 //! admin.set_url("https://example.org/openpgp.asc")?;
 //!
 //! # Ok(())
@@ -692,22 +692,25 @@ impl<'a> Card<Transaction<'a>> {
         s.iter().map(|&c| c as char).collect()
     }
 
-    /// Get cardholder name as a String (this also normalizes the "<" and "<<" filler chars)
-    pub fn cardholder_name(&mut self) -> Result<Option<String>, Error> {
+    /// Get cardholder name.
+    ///
+    /// This is an ISO 8859-1 (Latin 1) String of up to 39 characters.
+    ///
+    /// Note that the standard specifies that this field should be encoded
+    /// according to ISO/IEC 7501-1:
+    ///
+    /// "The data element consists of surname (e. g. family name and given
+    /// name(s)) and forename(s) (including name suffix, e. g., Jr. and number).
+    /// Each item is separated by a ´<´ filler character (3C), the family- and
+    /// fore-name(s) are separated by two ´<<´ filler characters."
+    ///
+    /// This library doesn't perform this encoding.
+    pub fn cardholder_name(&mut self) -> Result<String, Error> {
         let crd = self.state.opt.cardholder_related_data()?;
-        if let Some(name) = crd.name() {
-            let name = Self::latin1_to_string(name);
 
-            // re-format name ("last<<first")
-            let name: Vec<_> = name.split("<<").collect();
-            let name = name.iter().cloned().rev().collect::<Vec<_>>().join(" ");
-
-            // replace item separators with spaces
-            let name = name.replace('<', " ");
-
-            Ok(Some(name))
-        } else {
-            Ok(None)
+        match crd.name() {
+            Some(name) => Ok(Self::latin1_to_string(name)),
+            None => Ok("".to_string()),
         }
     }
 
@@ -996,7 +999,20 @@ impl<'app, 'open> Card<Admin<'app, 'open>> {
 }
 
 impl Card<Admin<'_, '_>> {
-    pub fn set_name(&mut self, name: &str) -> Result<(), Error> {
+    /// Set cardholder name.
+    ///
+    /// This is an ISO 8859-1 (Latin 1) String of max. 39 characters.
+    ///
+    /// Note that the standard specifies that this field should be encoded according
+    /// to ISO/IEC 7501-1:
+    ///
+    /// "The data element consists of surname (e. g. family name and given
+    /// name(s)) and forename(s) (including name suffix, e. g., Jr. and number).
+    /// Each item is separated by a ´<´ filler character (3C), the family- and
+    /// fore-name(s) are separated by two ´<<´ filler characters."
+    ///
+    /// This library doesn't perform this encoding.
+    pub fn set_cardholder_name(&mut self, name: &str) -> Result<(), Error> {
         // All chars must be in ASCII7
         if name.chars().any(|c| !c.is_ascii()) {
             return Err(Error::InternalError("Invalid char in name".into()));

@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             println!();
 
-            admin.set_name("Bar<<Foo")?;
+            admin.set_cardholder_name("Bar<<Foo")?;
             println!("set name - ok");
 
             admin.set_sex(Sex::NotApplicable)?;

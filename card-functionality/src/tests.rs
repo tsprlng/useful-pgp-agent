@@ -320,7 +320,7 @@ pub fn test_set_user_data(
     let mut admin = tx.to_admin_card("12345678")?;
 
     // name
-    admin.set_name("Bar<<Foo")?;
+    admin.set_cardholder_name("Bar<<Foo")?;
 
     // lang
     admin.set_lang(&[['d', 'e'].into(), ['e', 'n'].into()])?;
@@ -505,7 +505,7 @@ pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, 
 
     // try to set name without verify, assert result is not ok!
     let mut admin = transaction.to_admin_card(None)?;
-    let res = admin.set_name("Notverified<<Hello");
+    let res = admin.set_cardholder_name("Notverified<<Hello");
 
     if let Err(Error::CardStatus(s)) = res {
         assert_eq!(s, StatusBytes::SecurityStatusNotSatisfied);
@@ -528,7 +528,7 @@ pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, 
 
     let mut admin = transaction.to_admin_card(None)?;
 
-    admin.set_name("Admin<<Hello")?;
+    admin.set_cardholder_name("Admin<<Hello")?;
 
     transaction.reload_ard()?;
 
@@ -550,7 +550,7 @@ pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, 
 
     let mut admin = transaction.to_admin_card(None)?;
 
-    admin.set_name("There<<Hello")?;
+    admin.set_cardholder_name("There<<Hello")?;
 
     transaction.reload_ard()?;
     let cardholder = transaction.cardholder_related_data()?;
