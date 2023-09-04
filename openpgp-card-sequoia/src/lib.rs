@@ -555,9 +555,14 @@ impl<'a> Card<Transaction<'a>> {
 
     // --- optional private DOs (0101 - 0104) ---
 
-    // --- login data (5e) ---
-    pub fn login_data(&mut self) -> Result<String, Error> {
-        Ok(String::from_utf8_lossy(&self.state.opt.login_data()?).to_string())
+    /// Login Data
+    ///
+    /// This DO can be used to store any information used for the Log-In
+    /// process in a client/server authentication (e.g. user name of a
+    /// network).
+    /// The maximum length of this DO is announced in Extended Capabilities.
+    pub fn login_data(&mut self) -> Result<Vec<u8>, Error> {
+        self.state.opt.login_data()
     }
 
     // --- URL (5f50) ---
@@ -893,8 +898,8 @@ impl Card<Admin<'_, '_>> {
         self.card().set_sex(sex)
     }
 
-    pub fn set_login_data(&mut self, login_data: &str) -> Result<(), Error> {
-        self.card().set_login(login_data.as_bytes())
+    pub fn set_login_data(&mut self, login_data: &[u8]) -> Result<(), Error> {
+        self.card().set_login(login_data)
     }
 
     /// Set "hardholder" URL on the card.

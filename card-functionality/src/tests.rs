@@ -357,12 +357,12 @@ pub fn test_set_login_data(
     let mut admin = tx.to_admin_card("12345678")?;
 
     let test_login = "someone@somewhere.com";
-    admin.set_login_data(test_login)?;
+    admin.set_login_data(test_login.as_bytes())?;
 
     // Read the previously set login data
     let read_login_data = tx.login_data()?;
 
-    assert_eq!(read_login_data, test_login);
+    assert_eq!(&read_login_data, test_login.as_bytes());
 
     Ok(vec![])
 }
