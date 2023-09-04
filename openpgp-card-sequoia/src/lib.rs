@@ -560,8 +560,8 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// SELECT DATA ("select a DO in the current template").
-    pub fn select_data(&mut self, num: u8, tag: &[u8], yk_workaround: bool) -> Result<(), Error> {
-        self.state.opt.select_data(num, tag, yk_workaround)
+    pub fn select_data(&mut self, num: u8, tag: &[u8]) -> Result<(), Error> {
+        self.state.opt.select_data(num, tag)
     }
 
     /// Get cardholder certificate.

@@ -582,13 +582,7 @@ impl<'a> Transaction<'a> {
     /// [`cardholder_certificate`](Transaction::cardholder_certificate) and
     /// [`set_cardholder_certificate`](Transaction::set_cardholder_certificate)
     /// in OpenPGP card.
-    ///
-    /// `yk_workaround`: YubiKey 5 up to (and including) firmware version 5.4.3 need a workaround
-    /// for this command. Set to `true` to apply this workaround.
-    /// (When sending the SELECT DATA command as defined in the card spec, without enabling the
-    /// workaround, bad YubiKey firmware versions (<= 5.4.3) return
-    /// [`IncorrectParametersCommandDataField`](StatusBytes::IncorrectParametersCommandDataField))
-    ///
+
     /// (This library leaves it up to consumers to decide on a strategy for dealing with this
     /// issue. Possible strategies include:
     /// - asking the card for its [`Transaction::firmware_version`]
@@ -597,7 +591,7 @@ impl<'a> Transaction<'a> {
     ///   returns [`StatusBytes::IncorrectParametersCommandDataField`]
     /// - for read operations: using [`Transaction::next_cardholder_certificate`]
     ///   instead of SELECT DATA)
-    pub fn select_data(&mut self, num: u8, tag: &[u8], yk_workaround: bool) -> Result<(), Error> {
+    pub fn select_data(&mut self, num: u8, tag: &[u8]) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: select_data");
 
         let tlv = Tlv::new(
@@ -607,14 +601,27 @@ impl<'a> Transaction<'a> {
 
         let mut data = tlv.serialize();
 
-        if yk_workaround {
-            // Workaround for YubiKey 5.
-            // This hack is needed <= 5.4.3 according to ykman sources
-            // (see _select_certificate() in ykman/openpgp.py).
+        // YubiKey 5 up to (and including) firmware version 5.4.3 need a workaround
+        // for this command.
+        //
+        // When sending the SELECT DATA command as defined in the card spec, without enabling the
+        // workaround, bad YubiKey firmware versions (<= 5.4.3) return
+        // `StatusBytes::IncorrectParametersCommandDataField`
+        //
+        // FIXME: caching for `firmware_version`?
+        if let Ok(version) = self.firmware_version() {
+            if version.len() == 3
+                && version[0] == 5
+                && (version[1] < 4 || (version[1] == 4 && version[2] <= 3))
+            {
+                // Workaround for YubiKey 5.
+                // This hack is needed <= 5.4.3 according to ykman sources
+                // (see _select_certificate() in ykman/openpgp.py).
 
-            assert!(data.len() <= 255); // catch blatant misuse: tags are 1-2 bytes long
+                assert!(data.len() <= 255); // catch blatant misuse: tags are 1-2 bytes long
 
-            data.insert(0, data.len() as u8);
+                data.insert(0, data.len() as u8);
+            }
         }
 
         let cmd = commands::select_data(num, data);
