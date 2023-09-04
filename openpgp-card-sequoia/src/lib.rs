@@ -144,7 +144,7 @@ use openpgp_card::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformat
 use openpgp_card::card_do::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
     Fingerprint, HistoricalBytes, KeyGenerationTime, KeyInformation, KeySet, Lang, PWStatusBytes,
-    SecuritySupportTemplate, Sex, TouchPolicy, UserInteractionFlag,
+    Sex, TouchPolicy, UserInteractionFlag,
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
 use openpgp_card::{Error, KeyType};
@@ -714,9 +714,13 @@ impl<'a> Card<Transaction<'a>> {
         }
     }
 
-    /// Get security support template (contains the digital signature count).
-    pub fn security_support_template(&mut self) -> Result<SecuritySupportTemplate, Error> {
-        self.state.opt.security_support_template()
+    /// Get the current digital signature count (how many signatures have been issued by the card)
+    pub fn digital_signature_count(&mut self) -> Result<u32, Error> {
+        Ok(self
+            .state
+            .opt
+            .security_support_template()?
+            .signature_count())
     }
 
     /// SELECT DATA ("select a DO in the current template").
