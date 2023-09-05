@@ -268,7 +268,7 @@ impl Card<Open> {
     /// This is useful to take the card object into a different context
     /// (e.g. to perform operations on the card with the `yubikey-management`
     /// crate, without closing the connection to the card).
-    pub fn into_card(self) -> Box<dyn CardBackend + Send + Sync> {
+    pub fn into_backend(self) -> Box<dyn CardBackend + Send + Sync> {
         self.state.pgp.into_card()
     }
 }
