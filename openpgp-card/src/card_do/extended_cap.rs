@@ -9,12 +9,86 @@ use crate::card_do::ExtendedCapabilities;
 use crate::Error;
 
 impl ExtendedCapabilities {
+    /// Secure Messaging supported.
+    ///
+    /// (This feature is currently only available in the SmartPGP implementation)
+    pub fn secure_messaging(&self) -> bool {
+        self.secure_messaging
+    }
+
+    /// Support for GET CHALLENGE.
+    ///
+    /// (GET CHALLENGE generates a random number of a specified length on the smart card)
+    pub fn get_challenge(&self) -> bool {
+        self.get_challenge
+    }
+
+    /// Maximum length of random number that can be requested from the card
+    /// (if GET CHALLENGE is supported).
+    ///
+    /// If GET CHALLENGE is not supported, the coding is 0
+    pub fn max_len_challenge(&self) -> u16 {
+        self.max_len_challenge
+    }
+
+    /// Support for Key Import
+    pub fn key_import(&self) -> bool {
+        self.key_import
+    }
+
+    /// PW Status changeable
+    /// (also see [`crate::card_do::PWStatusBytes`])
+    pub fn pw_status_change(&self) -> bool {
+        self.pw_status_change
+    }
+
+    /// Support for Private use DOs
+    pub fn private_use_dos(&self) -> bool {
+        self.private_use_dos
+    }
+
+    /// Algorithm attributes changeable
+    /// (also see [`crate::algorithm::AlgorithmAttributes`])
+    pub fn algo_attrs_changeable(&self) -> bool {
+        self.algo_attrs_changeable
+    }
+
+    /// Support for encryption/decryption with AES
+    pub fn aes(&self) -> bool {
+        self.aes
+    }
+
+    /// KDF-related functionality available
+    pub fn kdf_do(&self) -> bool {
+        self.kdf_do
+    }
+
+    /// Maximum length of Cardholder Certificates
+    pub fn max_len_cardholder_cert(&self) -> u16 {
+        self.max_len_cardholder_cert
+    }
+
+    /// Maximum length of "special DOs"
+    /// (Private Use, Login data, URL, Algorithm attributes, KDF etc.)
+    ///
+    /// (OpenPGP card version 3.x only)
     pub fn max_len_special_do(&self) -> Option<u16> {
         self.max_len_special_do
     }
 
-    pub fn algo_attrs_changeable(&self) -> bool {
-        self.algo_attrs_changeable
+    /// (Private Use, Login data, URL, Algorithm attributes, KDF etc.)
+    ///
+    /// (OpenPGP card version 3.x only)
+    pub fn pin_block_2_format_support(&self) -> Option<bool> {
+        self.pin_block_2_format_support
+    }
+
+    /// MANAGE SECURITY ENVIRONMENT supported (for DEC and AUT keys).
+    /// (See [`crate::Transaction::manage_security_environment`])
+    ///
+    /// (OpenPGP card version 3.x only)
+    pub fn mse_command_support(&self) -> Option<bool> {
+        self.mse_command_support
     }
 
     /// Only available in OpenPGP card version 2.x
