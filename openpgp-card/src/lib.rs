@@ -634,7 +634,12 @@ impl<'a> Transaction<'a> {
     pub fn private_use_do(&mut self, num: u8) -> Result<Vec<u8>, Error> {
         log::info!("OpenPgpTransaction: private_use_do");
 
-        assert!((1..=4).contains(&num));
+        if !(1..=4).contains(&num) {
+            return Err(Error::UnsupportedFeature(format!(
+                "Illegal Private Use DO num '{}'",
+                num,
+            )));
+        }
 
         let cmd = commands::private_use_do(num);
         self.send_command(cmd, true)?.try_into()
@@ -1049,15 +1054,18 @@ impl<'a> Transaction<'a> {
     /// Access condition:
     /// - 1/3 need PW1 (82)
     /// - 2/4 need PW3
-    pub fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<Vec<u8>, Error> {
+    pub fn set_private_use_do(&mut self, num: u8, data: Vec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_private_use_do");
 
-        assert!((1..=4).contains(&num));
+        if !(1..=4).contains(&num) {
+            return Err(Error::UnsupportedFeature(format!(
+                "Illegal Private Use DO num '{}'",
+                num,
+            )));
+        }
 
         let cmd = commands::put_private_use_do(num, data);
-        let resp = self.send_command(cmd, true)?;
-
-        Ok(resp.data()?.to_vec())
+        self.send_command(cmd, true)?.try_into()
     }
 
     pub fn set_login(&mut self, login: &[u8]) -> Result<(), Error> {
