@@ -203,10 +203,10 @@ impl<'p, const S: usize> From<&'p [u8; S]> for OptionalPin<'p> {
 
 /// Representation of an OpenPGP card.
 ///
-/// A card transitions between `State`s by starting a transaction (that groups together a number
+/// A card transitions between [`State`]s by starting a transaction (that groups together a number
 /// of operations into an atomic sequence) and via PIN presentation.
 ///
-/// Depending on the `State` of the card, and the access privileges that are associated with that
+/// Depending on the [`State`] of the card, and the access privileges that are associated with that
 /// state, different operations can be performed. In many cases, client software will want to
 /// transition between states while performing one workflow for the user.
 pub struct Card<S>
@@ -217,7 +217,7 @@ where
 }
 
 impl Card<Open> {
-    /// Takes an iterator over CardBackends, tries to SELECT the OpenPGP card
+    /// Takes an iterator over [`CardBackend`]s, tries to SELECT the OpenPGP card
     /// application on each of them, and checks if its application id matches
     /// `ident`.
     /// Returns a [`Card<Open>`] for the first match, if any.
@@ -256,7 +256,7 @@ impl Card<Open> {
 
     /// Starts a transaction on the underlying backend (if the backend
     /// implementation supports transactions, otherwise the backend
-    /// will operate without transactions guarantees).
+    /// will operate without transaction guarantees).
     ///
     /// The resulting [`Card<Transaction>`] object allows performing
     /// operations on the card.
@@ -290,7 +290,8 @@ impl<'a> Card<Transaction<'a>> {
     /// with the current data on the card.
     ///
     /// This is needed e.g. after importing or generating keys on a card, to
-    /// see these changes reflected in `self.ard`.
+    /// see these changes reflected in the internal cached
+    /// [`openpgp_card::card_do::ApplicationRelatedData`].
     pub fn reload_ard(&mut self) -> Result<(), Error> {
         // FIXME: this should be implemented internally, transparent to users
 
@@ -1150,19 +1151,28 @@ impl Card<Admin<'_, '_>> {
         Ok(())
     }
 
-    pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
-        self.card().set_resetting_code(pin.as_bytes())
-    }
-
-    pub fn set_pso_enc_dec_key(&mut self, key: &[u8]) -> Result<(), Error> {
-        self.card().set_pso_enc_dec_key(key)
-    }
-
+    /// Set the User PIN on the card (also resets the User PIN error count)
     pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
         self.card().reset_retry_counter_pw1(new.as_bytes(), None)
     }
 
-    /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.
+    /// Define the "resetting code" on the card
+    pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
+        self.card().set_resetting_code(pin.as_bytes())
+    }
+
+    /// Set optional AES encryption/decryption key
+    /// (32 bytes for AES256, or 16 bytes for AES128),
+    /// if the card supports this feature.
+    ///
+    /// The availability of this feature is announced in
+    /// [`Card<Transaction>::extended_capabilities`].
+    pub fn set_pso_enc_dec_key(&mut self, key: &[u8]) -> Result<(), Error> {
+        self.card().set_pso_enc_dec_key(key)
+    }
+
+    /// Upload a Sequoia PGP [`ValidErasedKeyAmalgamation`] to the card into
+    /// a specific key slot.
     ///
     /// (The caller needs to make sure that `vka` is suitable as `key_type`)
     pub fn upload_key(
@@ -1193,6 +1203,18 @@ impl Card<Admin<'_, '_>> {
         )
     }
 
+    /// Configure the `algorithm_attributes` for key slot `key_type` based on
+    /// the algorithm `algo`.
+    /// This can be useful in preparation for [`Self::generate_key`].
+    ///
+    /// This is a convenience wrapper for [`Self::set_algorithm_attributes`]
+    /// that determines the exact appropriate [`AlgorithmAttributes`] by
+    /// reading information from the card.
+    pub fn set_algorithm(&mut self, key_type: KeyType, algo: AlgoSimple) -> Result<(), Error> {
+        let attr = algo.matching_algorithm_attributes(self.card(), key_type)?;
+        self.set_algorithm_attributes(key_type, &attr)
+    }
+
     /// Configure the key slot `key_type` to `algorithm_attributes`.
     /// This can be useful in preparation for [`Self::generate_key`].
     ///
@@ -1200,6 +1222,9 @@ impl Card<Admin<'_, '_>> {
     /// Different OpenPGP card implementations may support different
     /// algorithms, sometimes with differing requirements for the encoding
     /// (e.g. field sizes)
+    ///
+    /// See [`Self::set_algorithm`] for a convenience function that sets
+    /// the algorithm attributes based on an [`AlgoSimple`].
     pub fn set_algorithm_attributes(
         &mut self,
         key_type: KeyType,
@@ -1207,13 +1232,6 @@ impl Card<Admin<'_, '_>> {
     ) -> Result<(), Error> {
         self.card()
             .set_algorithm_attributes(key_type, algorithm_attributes)
-    }
-
-    /// Configure the key slot `key_type` to the algorithm `algo`.
-    /// This can be useful in preparation for [`Self::generate_key`].
-    pub fn set_algorithm(&mut self, key_type: KeyType, algo: AlgoSimple) -> Result<(), Error> {
-        let attr = algo.matching_algorithm_attributes(self.card(), key_type)?;
-        self.set_algorithm_attributes(key_type, &attr)
     }
 
     /// Generate a new cryptographic key in slot `key_type`, with the currently
