@@ -1104,6 +1104,19 @@ impl Card<Admin<'_, '_>> {
         self.card().set_pw_status_bytes(pw_status, long)
     }
 
+    /// Configure the "only valid for one PSO:CDS" setting in PW Status Bytes.
+    ///
+    /// If `once` is `true`, the User PIN must be verified before each
+    /// signing operation on the card.
+    /// If `once` is `false`, one User PIN verification is good for an
+    /// unlimited number of signing operations.
+    pub fn set_user_pin_signing_validity(&mut self, once: bool) -> Result<(), Error> {
+        let mut pws = self.as_transaction().pw_status_bytes()?;
+        pws.set_pw1_cds_valid_once(once);
+
+        self.set_pw_status_bytes(&pws, false)
+    }
+
     /// Set the touch policy for a key slot (if the card supports this
     /// feature).
     ///
