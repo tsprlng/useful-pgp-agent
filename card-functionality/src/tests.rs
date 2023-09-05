@@ -513,7 +513,7 @@ pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, 
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
 
-    transaction.verify_admin("12345678")?;
+    transaction.verify_admin_pin("12345678")?;
 
     match transaction.check_admin_verified() {
         Err(Error::CardStatus(s)) => {
@@ -535,7 +535,7 @@ pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, 
     let cardholder = transaction.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("Admin<<Hello".as_bytes()));
 
-    transaction.verify_user("123456")?;
+    transaction.verify_user_pin("123456")?;
 
     match transaction.check_user_verified() {
         Err(Error::CardStatus(s)) => {
@@ -580,7 +580,7 @@ pub fn test_change_pw(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutpu
     // ca.change_pw1("123456", "abcdef")?;
 
     println!("verify bad pw1");
-    match transaction.verify_user("123456ab") {
+    match transaction.verify_user_pin("123456ab") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -591,10 +591,10 @@ pub fn test_change_pw(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutpu
     }
 
     println!("verify good pw1");
-    transaction.verify_user("abcdef")?;
+    transaction.verify_user_pin("abcdef")?;
 
     println!("verify bad pw3");
-    match transaction.verify_admin("00000000") {
+    match transaction.verify_admin_pin("00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -605,7 +605,7 @@ pub fn test_change_pw(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutpu
     }
 
     println!("verify good pw3");
-    transaction.verify_admin("abcdefgh")?;
+    transaction.verify_admin_pin("abcdefgh")?;
 
     println!("change pw3 back to default");
     transaction.change_admin_pin("abcdefgh", "12345678")?;
@@ -631,10 +631,10 @@ pub fn test_reset_retry_counter(
     transaction.change_user_pin("123456", "123456")?;
 
     println!("break pw1");
-    let _ = transaction.verify_user("wrong0");
-    let _ = transaction.verify_user("wrong0");
-    let _ = transaction.verify_user("wrong0");
-    let res = transaction.verify_user("wrong0");
+    let _ = transaction.verify_user_pin("wrong0");
+    let _ = transaction.verify_user_pin("wrong0");
+    let _ = transaction.verify_user_pin("wrong0");
+    let res = transaction.verify_user_pin("wrong0");
 
     match res {
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
@@ -653,7 +653,7 @@ pub fn test_reset_retry_counter(
     }
 
     println!("verify pw3");
-    transaction.verify_admin("12345678")?;
+    transaction.verify_admin_pin("12345678")?;
 
     println!("set resetting code");
     let mut admin = transaction.to_admin_card(None)?;
@@ -664,10 +664,10 @@ pub fn test_reset_retry_counter(
     let _res = transaction.reset_user_pin("abcdef", "abcdefgh");
 
     println!("verify good pw1");
-    transaction.verify_user("abcdef")?;
+    transaction.verify_user_pin("abcdef")?;
 
     println!("verify bad pw1");
-    match transaction.verify_user("00000000") {
+    match transaction.verify_user_pin("00000000") {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }

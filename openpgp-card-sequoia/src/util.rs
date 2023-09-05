@@ -54,9 +54,9 @@ pub fn make_cert(
         |op: &mut dyn Fn(&mut dyn sequoia_openpgp::crypto::Signer) -> Result<Signature>| {
             // Allow signing on the card
             if let Some(pw1) = pw1 {
-                open.verify_user_for_signing(pw1)?;
+                open.verify_user_signing_pin(pw1)?;
             } else {
-                open.verify_user_for_signing_pinpad(pinpad_prompt)?;
+                open.verify_user_signing_pinpad(pinpad_prompt)?;
             }
             let mut sign = open.to_signing_card(None)?;
 

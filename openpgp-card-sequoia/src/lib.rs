@@ -312,7 +312,7 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Verify the User PIN (for operations such as decryption)
-    pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
+    pub fn verify_user_pin(&mut self, pin: &str) -> Result<(), Error> {
         self.state.opt.verify_pw1_user(pin.as_bytes())?;
         self.state.pw1 = true;
         Ok(())
@@ -333,7 +333,7 @@ impl<'a> Card<Transaction<'a>> {
     /// (Note that depending on the configuration of the card, this may enable
     /// performing just one signing operation, or an unlimited amount of
     /// signing operations).
-    pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
+    pub fn verify_user_signing_pin(&mut self, pin: &str) -> Result<(), Error> {
         self.state.opt.verify_pw1_sign(pin.as_bytes())?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
@@ -344,10 +344,7 @@ impl<'a> Card<Transaction<'a>> {
 
     /// Verify the User PIN for signing operations with a physical PIN pad
     /// (if available, see [`Self::feature_pinpad_verify`]).
-    pub fn verify_user_for_signing_pinpad(
-        &mut self,
-        pinpad_prompt: &dyn Fn(),
-    ) -> Result<(), Error> {
+    pub fn verify_user_signing_pinpad(&mut self, pinpad_prompt: &dyn Fn()) -> Result<(), Error> {
         pinpad_prompt();
 
         self.state.opt.verify_pw1_sign_pinpad()?;
@@ -359,7 +356,7 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Verify the Admin PIN.
-    pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
+    pub fn verify_admin_pin(&mut self, pin: &str) -> Result<(), Error> {
         self.state.opt.verify_pw3(pin.as_bytes())?;
         self.state.pw3 = true;
         Ok(())
@@ -433,7 +430,7 @@ impl<'a> Card<Transaction<'a>> {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_user(String::from_utf8_lossy(pin).as_ref())?;
+            self.verify_user_pin(String::from_utf8_lossy(pin).as_ref())?;
         }
 
         Ok(Card::<User> {
@@ -452,7 +449,7 @@ impl<'a> Card<Transaction<'a>> {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_user_for_signing(String::from_utf8_lossy(pin).as_ref())?;
+            self.verify_user_signing_pin(String::from_utf8_lossy(pin).as_ref())?;
         }
 
         Ok(Card::<Sign> {
@@ -471,7 +468,7 @@ impl<'a> Card<Transaction<'a>> {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_admin(String::from_utf8_lossy(pin).as_ref())?;
+            self.verify_admin_pin(String::from_utf8_lossy(pin).as_ref())?;
         }
 
         Ok(Card::<Admin> {
