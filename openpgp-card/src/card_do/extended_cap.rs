@@ -21,7 +21,7 @@ impl ExtendedCapabilities {
     ///
     /// (For OpenPGP card version 3.x, see
     /// [`crate::card_do::ExtendedLengthInfo`])
-    pub fn max_cmd_len(&self) -> Option<u16> {
+    pub(crate) fn max_cmd_len(&self) -> Option<u16> {
         self.max_cmd_len
     }
 
@@ -29,7 +29,7 @@ impl ExtendedCapabilities {
     ///
     /// (For OpenPGP card version 3.x, see
     /// [`crate::card_do::ExtendedLengthInfo`])
-    pub fn max_resp_len(&self) -> Option<u16> {
+    pub(crate) fn max_resp_len(&self) -> Option<u16> {
         self.max_resp_len
     }
 }
