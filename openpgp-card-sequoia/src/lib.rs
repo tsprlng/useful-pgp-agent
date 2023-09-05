@@ -1104,11 +1104,12 @@ impl Card<Admin<'_, '_>> {
         self.card().set_pw_status_bytes(pw_status, long)
     }
 
-    pub fn set_user_interaction_flag(
-        &mut self,
-        key: KeyType,
-        policy: TouchPolicy,
-    ) -> Result<(), Error> {
+    /// Set the touch policy for a key slot (if the card supports this
+    /// feature).
+    ///
+    /// Note that the current touch policy setting (if available) can be read
+    /// via [`Card<Transaction>::user_interaction_flag`].
+    pub fn set_touch_policy(&mut self, key: KeyType, policy: TouchPolicy) -> Result<(), Error> {
         let uif = match key {
             KeyType::Signing => self.state.tx.state.ard().uif_pso_cds()?,
             KeyType::Decryption => self.state.tx.state.ard().uif_pso_dec()?,
