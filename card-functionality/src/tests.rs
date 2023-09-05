@@ -18,7 +18,6 @@ use openpgp_card_sequoia::Card;
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::StandardPolicy;
 use sequoia_openpgp::serialize::SerializeInto;
-use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 use sequoia_openpgp::Cert;
 use thiserror;
 
@@ -225,13 +224,7 @@ pub fn test_keygen(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOut
     println!(" Generate subkey for Decryption");
     admin.set_algorithm(KeyType::Decryption, alg)?;
     let (pkm, ts) = admin.generate_key(KeyType::Decryption)?;
-    let key_dec = public_key_material_to_key(
-        &pkm,
-        KeyType::Decryption,
-        &ts,
-        Some(HashAlgorithm::SHA256),
-        Some(SymmetricAlgorithm::AES128),
-    )?;
+    let key_dec = public_key_material_to_key(&pkm, KeyType::Decryption, &ts, None, None)?;
 
     println!(" Generate subkey for Authentication");
     admin.set_algorithm(KeyType::Authentication, alg)?;

@@ -151,14 +151,11 @@ use openpgp_card::{Error, KeyType};
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::packet::{key, Key};
-use sequoia_openpgp::types::{HashAlgorithm, SymmetricAlgorithm};
 
 use crate::decryptor::CardDecryptor;
 use crate::signer::CardSigner;
 use crate::state::{Admin, Open, Sign, State, Transaction, User};
-use crate::util::{
-    public_key_material_and_fp_to_key, public_to_fingerprint, vka_as_uploadable_key,
-};
+use crate::util::{public_key_material_and_fp_to_key, vka_as_uploadable_key};
 
 mod decryptor;
 mod privkey;
@@ -1185,24 +1182,6 @@ impl Card<Admin<'_, '_>> {
         self.card().key_import(key, key_type)
     }
 
-    /// Wrapper fn for `public_to_fingerprint` that uses SHA256/AES128 as default parameters.
-    ///
-    /// FIXME: This is a hack.
-    /// These parameters should probably be automatically determined based on the algorithm used?
-    fn ptf(
-        pkm: &PublicKeyMaterial,
-        time: KeyGenerationTime,
-        key_type: KeyType,
-    ) -> Result<Fingerprint, Error> {
-        public_to_fingerprint(
-            pkm,
-            &time,
-            key_type,
-            Some(HashAlgorithm::SHA256),      // FIXME
-            Some(SymmetricAlgorithm::AES128), // FIXME
-        )
-    }
-
     /// Configure the `algorithm_attributes` for key slot `key_type` based on
     /// the algorithm `algo`.
     /// This can be useful in preparation for [`Self::generate_key`].
@@ -1241,6 +1220,7 @@ impl Card<Admin<'_, '_>> {
         &mut self,
         key_type: KeyType,
     ) -> Result<(PublicKeyMaterial, KeyGenerationTime), Error> {
-        self.card().generate_key(Self::ptf, key_type)
+        self.card()
+            .generate_key(crate::util::public_to_fingerprint, key_type)
     }
 }

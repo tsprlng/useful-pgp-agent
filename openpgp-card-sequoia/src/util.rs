@@ -321,16 +321,16 @@ pub fn public_key_material_to_key(
 /// Mapping function to get a fingerprint from "PublicKeyMaterial +
 /// timestamp + KeyType" (intended for use with `CardApp.generate_key()`).
 ///
-/// For ECC decryption keys, `hash` and `sym` can be optionally specified.
+/// For ECC decryption keys, `hash` and `sym` are set by Sequoia.
+/// This fingerprint calculation is based on the parameters that get
+/// selected in [`public_key_material_to_key`].
 pub(crate) fn public_to_fingerprint(
     pkm: &PublicKeyMaterial,
-    time: &KeyGenerationTime,
+    time: KeyGenerationTime,
     kt: KeyType,
-    hash: Option<HashAlgorithm>,
-    sym: Option<SymmetricAlgorithm>,
 ) -> Result<Fingerprint, Error> {
     // Transform PublicKeyMaterial into a Sequoia Key
-    let key = public_key_material_to_key(pkm, kt, time, hash, sym)?;
+    let key = public_key_material_to_key(pkm, kt, &time, None, None)?;
 
     // Get fingerprint from the Sequoia Key
     let fp = key.fingerprint();
