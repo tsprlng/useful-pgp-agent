@@ -42,7 +42,7 @@ pub fn make_cert(
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
-    pw1: Option<&[u8]>,
+    pw1: Option<&str>,
     pinpad_prompt: &dyn Fn(),
     touch_prompt: &(dyn Fn() + Send + Sync),
     user_ids: &[String],

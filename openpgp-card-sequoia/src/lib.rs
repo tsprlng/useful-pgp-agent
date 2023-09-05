@@ -312,8 +312,8 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Verify the User PIN (for operations such as decryption)
-    pub fn verify_user(&mut self, pin: &[u8]) -> Result<(), Error> {
-        self.state.opt.verify_pw1_user(pin)?;
+    pub fn verify_user(&mut self, pin: &str) -> Result<(), Error> {
+        self.state.opt.verify_pw1_user(pin.as_bytes())?;
         self.state.pw1 = true;
         Ok(())
     }
@@ -333,8 +333,8 @@ impl<'a> Card<Transaction<'a>> {
     /// (Note that depending on the configuration of the card, this may enable
     /// performing just one signing operation, or an unlimited amount of
     /// signing operations).
-    pub fn verify_user_for_signing(&mut self, pin: &[u8]) -> Result<(), Error> {
-        self.state.opt.verify_pw1_sign(pin)?;
+    pub fn verify_user_for_signing(&mut self, pin: &str) -> Result<(), Error> {
+        self.state.opt.verify_pw1_sign(pin.as_bytes())?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -359,8 +359,8 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Verify the Admin PIN.
-    pub fn verify_admin(&mut self, pin: &[u8]) -> Result<(), Error> {
-        self.state.opt.verify_pw3(pin)?;
+    pub fn verify_admin(&mut self, pin: &str) -> Result<(), Error> {
+        self.state.opt.verify_pw3(pin.as_bytes())?;
         self.state.pw3 = true;
         Ok(())
     }
@@ -392,8 +392,8 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Change the User PIN, based on the old User PIN.
-    pub fn change_user_pin(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
-        self.state.opt.change_pw1(old, new)
+    pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
+        self.state.opt.change_pw1(old.as_bytes(), new.as_bytes())
     }
 
     /// Change the User PIN, based on the old User PIN, with a physical PIN
@@ -404,13 +404,15 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Change the User PIN, based on the resetting code `rst`.
-    pub fn reset_user_pin(&mut self, rst: &[u8], new: &[u8]) -> Result<(), Error> {
-        self.state.opt.reset_retry_counter_pw1(new, Some(rst))
+    pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<(), Error> {
+        self.state
+            .opt
+            .reset_retry_counter_pw1(new.as_bytes(), Some(rst.as_bytes()))
     }
 
     /// Change the Admin PIN, based on the old Admin PIN.
-    pub fn change_admin_pin(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
-        self.state.opt.change_pw3(old, new)
+    pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
+        self.state.opt.change_pw3(old.as_bytes(), new.as_bytes())
     }
 
     /// Change the Admin PIN, based on the old Admin PIN, with a physical PIN
@@ -431,7 +433,7 @@ impl<'a> Card<Transaction<'a>> {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_user(pin)?;
+            self.verify_user(String::from_utf8_lossy(pin).as_ref())?;
         }
 
         Ok(Card::<User> {
@@ -450,7 +452,7 @@ impl<'a> Card<Transaction<'a>> {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_user_for_signing(pin)?;
+            self.verify_user_for_signing(String::from_utf8_lossy(pin).as_ref())?;
         }
 
         Ok(Card::<Sign> {
@@ -469,7 +471,7 @@ impl<'a> Card<Transaction<'a>> {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_admin(pin)?;
+            self.verify_admin(String::from_utf8_lossy(pin).as_ref())?;
         }
 
         Ok(Card::<Admin> {
@@ -1137,16 +1139,16 @@ impl Card<Admin<'_, '_>> {
         Ok(())
     }
 
-    pub fn set_resetting_code(&mut self, pin: &[u8]) -> Result<(), Error> {
-        self.card().set_resetting_code(pin)
+    pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
+        self.card().set_resetting_code(pin.as_bytes())
     }
 
     pub fn set_pso_enc_dec_key(&mut self, key: &[u8]) -> Result<(), Error> {
         self.card().set_pso_enc_dec_key(key)
     }
 
-    pub fn reset_user_pin(&mut self, new: &[u8]) -> Result<(), Error> {
-        self.card().reset_retry_counter_pw1(new, None)
+    pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
+        self.card().reset_retry_counter_pw1(new.as_bytes(), None)
     }
 
     /// Upload a ValidErasedKeyAmalgamation to the card as a specific KeyType.

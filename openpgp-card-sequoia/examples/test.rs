@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("factory reset\n");
             transaction.factory_reset()?;
 
-            transaction.verify_admin(b"12345678")?;
+            transaction.verify_admin("12345678")?;
             println!("verify for admin ok");
 
             let check = transaction.check_user_verified();
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let check = transaction.check_user_verified();
             println!("has user (pw1/82) been verified yet?\n{check:x?}\n");
 
-            transaction.verify_user(b"123456")?;
+            transaction.verify_user("123456")?;
             println!("verify for user (pw1/82) ok");
 
             let check = transaction.check_user_verified();
@@ -187,7 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut transaction = card.transaction()?;
 
         // Sign
-        transaction.verify_user_for_signing(b"123456")?;
+        transaction.verify_user_for_signing("123456")?;
         println!("verify for sign (pw1/81) ok\n");
 
         // Use Sign access to card
