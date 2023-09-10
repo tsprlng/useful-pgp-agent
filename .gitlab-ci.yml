@@ -47,22 +47,6 @@ cargo-fmt:
     - cargo +nightly fmt -- --check
   cache: [ ]
 
-cargo-deny:
-  stage: lint
-  image: rust:latest
-  before_script:
-    # The cargo deny binary is cached, so installing it errors if it was
-    # restored from cache. Ignore that error.
-    # Clear the cache to force a rebuild.
-    - cargo install --locked cargo-deny || true
-    - *report-rust
-  script:
-    - cargo deny check
-  cache:
-    paths:
-      - cargo/bin/cargo-deny
-    key: "deny"
-
 cargo-clippy:
   stage: lint
   image: rust:latest
@@ -81,6 +65,41 @@ cargo-clippy:
     <<: *general_cache_config
     # override the key
     key: "rust-latest"
+
+semver-checks:
+  stage: lint
+  image: rust:latest
+  before_script:
+    - mkdir -p /run/user/$UID
+    - apt update -y -qq
+    - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
+    - apt clean
+    - *report-rust
+  script:
+    - cargo install cargo-semver-checks
+    - cargo semver-checks -p card-backend -p card-backend-pcsc -p card-backend-scdc -p openpgp-card -p openpgp-card-sequoia
+  allow_failure: true
+  cache:
+    # inherit all general cache settings
+    <<: *general_cache_config
+    # override the key
+    key: "rust-latest"
+
+cargo-deny:
+  stage: lint
+  image: rust:latest
+  before_script:
+    # The cargo deny binary is cached, so installing it errors if it was
+    # restored from cache. Ignore that error.
+    # Clear the cache to force a rebuild.
+    - cargo install --locked cargo-deny || true
+    - *report-rust
+  script:
+    - cargo deny check
+  cache:
+    paths:
+      - cargo/bin/cargo-deny
+    key: "deny"
 
 udeps:
   stage: udeps
