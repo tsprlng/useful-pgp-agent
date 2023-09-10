@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2021-2022 Heiko Schaefer <heiko@schaefer.name>
+SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
@@ -12,7 +12,7 @@ It offers convenient access to
 [OpenPGP card](https://en.wikipedia.org/wiki/OpenPGP_card)
 functionality using [Sequoia PGP](https://sequoia-pgp.org/).
 
-Note: the current API of this crate is an early draft, reflected by version numbers in the 0.0.x range.
+Note: The API of this crate is not finalized yet, please expect occasional breaking changes.
 
 **Example code**
 
