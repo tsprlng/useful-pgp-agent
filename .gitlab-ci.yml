@@ -72,7 +72,7 @@ semver-checks:
   before_script:
     - mkdir -p /run/user/$UID
     - apt update -y -qq
-    - apt install -y -qq --no-install-recommends git clang make pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
+    - apt install -y -qq --no-install-recommends git clang make cmake pkg-config nettle-dev libssl-dev capnproto ca-certificates libpcsclite-dev
     - apt clean
     - *report-rust
   script:
