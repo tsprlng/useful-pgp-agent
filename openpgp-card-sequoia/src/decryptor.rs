@@ -114,6 +114,7 @@ impl<'a, 'app> crypto::Decryptor for CardDecryptor<'a, 'app> {
                 #[allow(non_snake_case)]
                 let S: crypto::mem::Protected = dec.into();
 
+                #[allow(deprecated)]
                 Ok(crypto::ecdh::decrypt_unwrap(&self.public, &S, ciphertext)?)
             }
 

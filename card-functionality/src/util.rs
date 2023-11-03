@@ -14,6 +14,7 @@ use sequoia_openpgp::parse::stream::{
 };
 use sequoia_openpgp::parse::Parse;
 use sequoia_openpgp::policy::{Policy, StandardPolicy};
+#[allow(deprecated)]
 use sequoia_openpgp::serialize::stream::{Armorer, Encryptor, LiteralWriter, Message};
 use sequoia_openpgp::Cert;
 
@@ -124,6 +125,7 @@ pub fn encrypt_to(cleartext: &str, cert: &Cert) -> Result<String> {
 
     let message = Message::new(&mut sink);
     let message = Armorer::new(message).build()?;
+    #[allow(deprecated)]
     let message = Encryptor::for_recipients(message, recipients).build()?;
     let mut w = LiteralWriter::new(message).build()?;
     w.write_all(cleartext.as_bytes())?;
