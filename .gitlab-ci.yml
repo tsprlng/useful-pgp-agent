@@ -144,6 +144,9 @@ cargo-test-debian-bookworm:
     - apt clean
     - *report-rust
     - cargo update
+    - cargo update -p sequoia-openpgp --precise 1.15.0
+    - cargo update -p buffered-reader --precise 1.1.5
+    - cargo update -p regex --precise 1.9.6
     - cargo update -p lalrpop@0.20.0 --precise 0.19.12 # hack to work with Rust 1.63
     - cargo update -p petgraph --precise 0.6.3 # hack to work with Rust 1.63
   script:
@@ -227,6 +230,9 @@ run_cardtest_ykneo:
     - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
     - cargo update
+    - cargo update -p sequoia-openpgp --precise 1.15.0
+    - cargo update -p buffered-reader --precise 1.1.5
+    - cargo update -p regex --precise 1.9.6
     - cargo update -p lalrpop@0.20.0 --precise 0.19.12 # hack to work with Rust 1.63
     - cargo update -p petgraph --precise 0.6.3 # hack to work with Rust 1.63
   script:
@@ -251,6 +257,9 @@ run_cardtest_fluffypgp:
     - export PATH="$HOME/.cargo/bin:$PATH"
     - *report-rust
     - cargo update
+    - cargo update -p sequoia-openpgp --precise 1.15.0
+    - cargo update -p buffered-reader --precise 1.1.5
+    - cargo update -p regex --precise 1.9.6
     - cargo update -p lalrpop@0.20.0 --precise 0.19.12 # hack to work with Rust 1.63
     - cargo update -p petgraph --precise 0.6.3 # hack to work with Rust 1.63
   script:
