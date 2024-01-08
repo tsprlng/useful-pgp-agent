@@ -1205,13 +1205,7 @@ impl<'a> Transaction<'a> {
         log::info!("OpenPgpTransaction: set_creation_time");
 
         // Timestamp update
-        let time_value: Vec<u8> = time
-            .get()
-            .to_be_bytes()
-            .iter()
-            .skip_while(|&&e| e == 0)
-            .copied()
-            .collect();
+        let time_value: Vec<u8> = time.get().to_be_bytes().to_vec();
 
         let cmd = commands::put_data(key_type.timestamp_put_tag(), time_value);
 
