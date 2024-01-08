@@ -11,6 +11,7 @@ notice = "warn"
 ignore = [
     # Ignore time issue for now as there is no solution
     "RUSTSEC-2020-0071",
+    "RUSTSEC-2023-0071",
 ]
 [licenses]
 unlicensed = "deny"
