@@ -57,6 +57,9 @@ impl ApplicationIdentifier {
 
     /// Mapping of manufacturer id to a name, data from:
     /// <https://en.wikipedia.org/wiki/OpenPGP_card> [2022-04-07]
+    ///
+    /// Also see:
+    /// https://git.gnupg.org/cgi-bin/gitweb.cgi?p=gnupg.git;a=blob;f=scd/app-openpgp.c;hb=HEAD#l292
     pub fn manufacturer_name(&self) -> &'static str {
         match self.manufacturer {
             0x0000 => "Testcard",
@@ -70,6 +73,7 @@ impl ApplicationIdentifier {
             0x0008 => "LogoEmail",
             0x0009 => "Fidesmo AB",
             0x000A => "Dangerous Things",
+            0x000F => "Nitrokey GmbH",
             0x000B => "Feitian Technologies",
             0x002A => "Magrathea",
             0x0042 => "GnuPG e.V.",
