@@ -1209,7 +1209,6 @@ impl<'a> Transaction<'a> {
             .get()
             .to_be_bytes()
             .iter()
-            .skip_while(|&&e| e == 0)
             .copied()
             .collect();
 
