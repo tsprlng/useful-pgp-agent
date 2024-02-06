@@ -95,6 +95,12 @@ Offers a higher level interface, based around Sequoia PGP datastructures.
 Most client projects will probably want to use only this crate, and 
 ignore the lower level crates as implementation details.
 
+### Using this library from C
+
+A small wrapper to use a subset of the `openpgp-card` Rust interface via a C API is offered by the external project <https://github.com/wiktor-k/openpgp-card-ffi>. `openpgp-card-ffi` uses the Rust "Foreign Function Interface" (FFI).
+
+The subset of functionality in `openpgp-card-ffi` is aimed at applications that want to enumerate connected cards and use their cryptographic signing and decryption facilities. It doesn't expose the functionality for detailed inspection of card state or for provisioning cards.
+
 ## Testing
 
 The subcrate `openpgp-card-tests` (in the directory `card-functionality`) 
