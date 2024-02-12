@@ -3,6 +3,8 @@ SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
+# OpenPGP card client software in Rust
+
 This project implements client software for the
 [OpenPGP card](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf)
 standard, in Rust.
@@ -168,3 +170,11 @@ Other helpful resources included:
   which implements an OpenPGP card client for Java/Android.
 - The Rust/Sequoia-based OpenPGP card client code by 
   [Robin Krahl](https://git.sr.ht/~ireas/sqsc).
+
+# Funding
+
+This project has been funded in part through [NGI Assure](https://nlnet.nl/assure), a fund established by [NLnet](https://nlnet.nl) with financial support from the European Commission's [Next Generation Internet](https://ngi.eu) program.
+
+[<img src="https://nlnet.nl/image/logos/NGIAssure_tag.svg" alt="NGI Assure Logo" width="100px" />](https://nlnet.nl/assure)
+
+Learn more at the [NLnet project page](https://nlnet.nl/OpenPGPCA-HSM).

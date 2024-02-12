@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 SPDX-License-Identifier: MIT OR Apache-2.0
 -->
 
-**OpenPGP card usage with Sequoia PGP**
+# Using openpgp-card with Sequoia PGP
 
 This crate is a higher level wrapper for the
 [openpgp-card](https://crates.io/crates/openpgp-card) crate.
@@ -14,7 +14,7 @@ functionality using [Sequoia PGP](https://sequoia-pgp.org/).
 
 Note: The API of this crate is not finalized yet, please expect occasional breaking changes.
 
-**Example code**
+## Example code
 
 The program `examples/test.rs` performs a number of functions on an OpenPGP card.
 To run it, you need to set an environment variable to the identifier of 
@@ -33,3 +33,11 @@ You can see more debugging output by increasing the log-level, like this:
 ```
 $ RUST_LOG=trace cargo run --example test
 ```
+
+# Funding
+
+This project has been funded in part through [NGI Assure](https://nlnet.nl/assure), a fund established by [NLnet](https://nlnet.nl) with financial support from the European Commission's [Next Generation Internet](https://ngi.eu) program.
+
+[<img src="https://nlnet.nl/image/logos/NGIAssure_tag.svg" alt="NGI Assure Logo" width="100px" />](https://nlnet.nl/assure)
+
+Learn more at the [NLnet project page](https://nlnet.nl/OpenPGPCA-HSM).
