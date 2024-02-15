@@ -49,8 +49,8 @@ use crate::apdu::command::Command;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
-    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
-    SecuritySupportTemplate, Sex, UserInteractionFlag,
+    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KdfDo, KeyGenerationTime, Lang,
+    PWStatusBytes, SecuritySupportTemplate, Sex, UserInteractionFlag,
 };
 use crate::crypto_data::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial};
 pub use crate::errors::{Error, StatusBytes};
@@ -521,6 +521,20 @@ impl<'a> Transaction<'a> {
 
         self.send_command(commands::get_next_cardholder_certificate(), true)?
             .try_into()
+    }
+
+    /// Get "KDF-DO" (announced in Extended Capabilities)
+    pub fn kdf_do(&mut self) -> Result<KdfDo, Error> {
+        log::info!("OpenPgpTransaction: kdf_do");
+
+        let kdf_do = self
+            .send_command(commands::kdf_do(), true)?
+            .data()?
+            .try_into()?;
+
+        log::trace!(" KDF DO value: {:02x?}", kdf_do);
+
+        Ok(kdf_do)
     }
 
     /// Get "Algorithm Information"

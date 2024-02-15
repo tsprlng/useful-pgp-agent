@@ -72,6 +72,11 @@ pub(crate) fn algo_info() -> Command {
     get_data(Tags::AlgorithmInformation)
 }
 
+/// GET DO "KDF DO"
+pub(crate) fn kdf_do() -> Command {
+    get_data(Tags::KdfDo)
+}
+
 /// GET DO "Attestation Certificate (Yubico)"
 pub(crate) fn attestation_certificate() -> Command {
     get_data(Tags::AttestationCertificate)

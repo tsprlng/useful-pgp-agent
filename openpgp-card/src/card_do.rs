@@ -20,6 +20,7 @@ mod extended_cap;
 mod extended_length_info;
 mod fingerprint;
 mod historical;
+mod kdf_do;
 mod key_generation_times;
 mod pw_status;
 
@@ -1019,6 +1020,39 @@ impl Fingerprint {
 
         fp
     }
+}
+
+// KDF DO
+
+#[derive(Debug, Clone)]
+pub struct KdfDo {
+    // 81 01 KDF algorithm byte:
+    // 00 = NONE (not used)
+    // 03 = KDF_ITERSALTED_S2K
+    kdf_algo: u8,
+
+    // 82 01 Hash algorithm byte:
+    // 08 = SHA256
+    // 0A = SHA512
+    hash_algo: Option<u8>,
+
+    // 83 04 Iteration count (long integer)
+    iter_count: Option<u32>,
+
+    // 84 xx Salt bytes for User password (PW1)
+    salt_pw1: Option<Vec<u8>>,
+
+    // 85 xx Salt bytes for Resetting Code of PW1
+    salt_rc: Option<Vec<u8>>,
+
+    // 86 xx Salt bytes for Admin password (PW3)
+    salt_pw3: Option<Vec<u8>>,
+
+    // 87 xx Initial password hash for User-PW
+    initial_hash_pw1: Option<Vec<u8>>,
+
+    // 88 xx Initial password hash for Admin-PW
+    initial_hash_pw3: Option<Vec<u8>>,
 }
 
 /// Helper fn for nom parsing
