@@ -143,8 +143,8 @@ use card_backend::{CardBackend, SmartcardError};
 use openpgp_card::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
 use openpgp_card::card_do::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
-    Fingerprint, HistoricalBytes, KeyGenerationTime, KeyInformation, KeySet, Lang, PWStatusBytes,
-    Sex, TouchPolicy, UserInteractionFlag,
+    Fingerprint, HistoricalBytes, KdfDo, KeyGenerationTime, KeyInformation, KeySet, Lang,
+    PWStatusBytes, Sex, TouchPolicy, UserInteractionFlag,
 };
 use openpgp_card::crypto_data::PublicKeyMaterial;
 use openpgp_card::{Error, KeyType};
@@ -158,6 +158,7 @@ use crate::state::{Admin, Open, Sign, State, Transaction, User};
 use crate::util::{public_key_material_and_fp_to_key, vka_as_uploadable_key};
 
 mod decryptor;
+mod kdf;
 mod privkey;
 mod signer;
 pub mod sq_util;
@@ -167,6 +168,13 @@ pub mod util;
 
 /// Shorthand for Sequoia public key data (a single public (sub)key)
 pub type PublicKey = Key<key::PublicParts, key::UnspecifiedRole>;
+
+/// For caching DOs in a Transaction
+enum Cached<T> {
+    Uncached,
+    None,
+    Value(T),
+}
 
 /// Optional PIN, used as a parameter to `Card<Transaction>::into_*_card`.
 ///
@@ -739,6 +747,15 @@ impl<'a> Card<Transaction<'a>> {
     /// cardholder_certificate(), followed by up to two calls to  next_cardholder_certificate().
     pub fn next_cardholder_certificate(&mut self) -> Result<Vec<u8>, Error> {
         self.state.opt.next_cardholder_certificate()
+    }
+
+    /// Get KDF DO configuration (from cache).
+    pub fn kdf_do(&mut self) -> Result<KdfDo, Error> {
+        if let Some(kdf) = self.state.kdf_do() {
+            Ok(kdf.clone())
+        } else {
+            Err(Error::NotFound("No KDF DO found".to_string()))
+        }
     }
 
     /// Algorithm Information (list of supported Algorithm attributes).
