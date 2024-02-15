@@ -234,7 +234,7 @@ pub fn public_key_material_to_key(
             Ok(k4.into())
         }
         PublicKeyMaterial::E(ecc) => {
-            let algo = ecc.algo().clone(); // FIXME?
+            let algo = &ecc.algo();
             if let AlgorithmAttributes::Ecc(algo_ecc) = algo {
                 let curve = match algo_ecc.curve() {
                     Curve::NistP256r1 => sequoia_openpgp::types::Curve::NistP256,
