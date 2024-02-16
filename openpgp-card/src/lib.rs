@@ -675,6 +675,7 @@ impl<'a> Transaction<'a> {
                         StatusBytes::ExecutionErrorNonVolatileMemoryUnchanged
                     ))
                     | Err(Error::CardStatus(StatusBytes::PasswordNotChecked(_)))
+                    | Err(Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied))
             )) {
                 return Err(Error::InternalError(
                     "Unexpected status for reset, at pw1.".into(),
@@ -694,6 +695,7 @@ impl<'a> Transaction<'a> {
                         StatusBytes::ExecutionErrorNonVolatileMemoryUnchanged
                     ))
                     | Err(Error::CardStatus(StatusBytes::PasswordNotChecked(_)))
+                    | Err(Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied))
             )) {
                 return Err(Error::InternalError(
                     "Unexpected status for reset, at pw3.".into(),
