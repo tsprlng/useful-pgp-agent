@@ -49,8 +49,8 @@ use crate::apdu::command::Command;
 use crate::apdu::response::RawResponse;
 use crate::card_do::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
-    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KeyGenerationTime, Lang, PWStatusBytes,
-    SecuritySupportTemplate, Sex, UserInteractionFlag,
+    ExtendedLengthInfo, Fingerprint, HistoricalBytes, KdfDo, KeyGenerationTime, Lang,
+    PWStatusBytes, SecuritySupportTemplate, Sex, UserInteractionFlag,
 };
 use crate::crypto_data::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial};
 pub use crate::errors::{Error, StatusBytes};
@@ -523,6 +523,20 @@ impl<'a> Transaction<'a> {
             .try_into()
     }
 
+    /// Get "KDF-DO" (announced in Extended Capabilities)
+    pub fn kdf_do(&mut self) -> Result<KdfDo, Error> {
+        log::info!("OpenPgpTransaction: kdf_do");
+
+        let kdf_do = self
+            .send_command(commands::kdf_do(), true)?
+            .data()?
+            .try_into()?;
+
+        log::trace!(" KDF DO value: {:02x?}", kdf_do);
+
+        Ok(kdf_do)
+    }
+
     /// Get "Algorithm Information"
     pub fn algorithm_information(&mut self) -> Result<Option<AlgorithmInformation>, Error> {
         log::info!("OpenPgpTransaction: algorithm_information");
@@ -675,6 +689,7 @@ impl<'a> Transaction<'a> {
                         StatusBytes::ExecutionErrorNonVolatileMemoryUnchanged
                     ))
                     | Err(Error::CardStatus(StatusBytes::PasswordNotChecked(_)))
+                    | Err(Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied))
             )) {
                 return Err(Error::InternalError(
                     "Unexpected status for reset, at pw1.".into(),
@@ -694,6 +709,7 @@ impl<'a> Transaction<'a> {
                         StatusBytes::ExecutionErrorNonVolatileMemoryUnchanged
                     ))
                     | Err(Error::CardStatus(StatusBytes::PasswordNotChecked(_)))
+                    | Err(Error::CardStatus(StatusBytes::ConditionOfUseNotSatisfied))
             )) {
                 return Err(Error::InternalError(
                     "Unexpected status for reset, at pw3.".into(),

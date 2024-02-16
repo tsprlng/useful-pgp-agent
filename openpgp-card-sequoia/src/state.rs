@@ -3,9 +3,9 @@
 
 //! States of a card are modeled by the types `Open`, `Transaction`, `User`, `Sign`, `Admin`.
 
-use openpgp_card::card_do::ApplicationRelatedData;
+use openpgp_card::card_do::{ApplicationRelatedData, KdfDo};
 
-use crate::Card;
+use crate::{Cached, Card};
 
 /// States that a `Card` can be in.
 ///
@@ -44,6 +44,10 @@ pub struct Transaction<'a> {
     // re-fetched lazily.
     ard: ApplicationRelatedData,
 
+    // Cache of the card's KdfDo
+    // FIXME: invalidate when changed!
+    kdf_do: Cached<KdfDo>,
+
     // verify status of pw1
     // FIXME: this mechanism needs more thought
     pub(crate) pw1: bool,
@@ -62,6 +66,7 @@ impl<'a> Transaction<'a> {
         Transaction {
             opt,
             ard,
+            kdf_do: Cached::Uncached,
             pw1: false,
             pw1_sign: false,
             pw3: false,
@@ -70,6 +75,25 @@ impl<'a> Transaction<'a> {
 
     pub(crate) fn ard(&self) -> &ApplicationRelatedData {
         &self.ard
+    }
+
+    pub(crate) fn kdf_do(&mut self) -> Option<&KdfDo> {
+        if matches!(self.kdf_do, Cached::Uncached) {
+            match self.opt.kdf_do() {
+                Ok(kdf) => {
+                    self.kdf_do = Cached::Value(kdf.clone());
+                }
+                Err(_) => {
+                    self.kdf_do = Cached::None;
+                }
+            }
+        }
+
+        match &self.kdf_do {
+            Cached::None => None,
+            Cached::Value(kdf) => Some(kdf),
+            Cached::Uncached => unreachable!(),
+        }
     }
 
     pub(crate) fn set_ard(&mut self, ard: ApplicationRelatedData) {
