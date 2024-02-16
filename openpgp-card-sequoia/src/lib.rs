@@ -1059,7 +1059,7 @@ impl Card<Admin<'_, '_>> {
         self.card().set_login(login_data)
     }
 
-    /// Set "hardholder" URL on the card.
+    /// Set "cardholder" URL on the card.
     ///
     /// "The URL should contain a link to a set of public keys in OpenPGP format, related to
     /// the card."
