@@ -20,6 +20,7 @@ anyhow = "1"
 thiserror = "1"
 log = "0.4"
 rsa = "0.8.1"
+sha2 = "0.10"
 
 [dev-dependencies]
 card-backend-pcsc = { path = "../pcsc", version = "0.5" }

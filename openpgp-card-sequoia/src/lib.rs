@@ -153,6 +153,7 @@ use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::packet::{key, Key};
 
 use crate::decryptor::CardDecryptor;
+use crate::kdf::map_pin;
 use crate::signer::CardSigner;
 use crate::state::{Admin, Open, Sign, State, Transaction, User};
 use crate::util::{public_key_material_and_fp_to_key, vka_as_uploadable_key};
@@ -174,6 +175,12 @@ enum Cached<T> {
     Uncached,
     None,
     Value(T),
+}
+
+pub(crate) enum PinType {
+    Pw1,
+    Rc,
+    Pw3,
 }
 
 /// Optional PIN, used as a parameter to `Card<Transaction>::into_*_card`.
@@ -319,7 +326,9 @@ impl<'a> Card<Transaction<'a>> {
 
     /// Verify the User PIN (for operations such as decryption)
     pub fn verify_user_pin(&mut self, pin: &str) -> Result<(), Error> {
-        self.state.opt.verify_pw1_user(pin.as_bytes())?;
+        let pin = map_pin(pin, PinType::Pw1, self.state.kdf_do())?;
+
+        self.state.opt.verify_pw1_user(&pin)?;
         self.state.pw1 = true;
         Ok(())
     }
@@ -340,7 +349,9 @@ impl<'a> Card<Transaction<'a>> {
     /// performing just one signing operation, or an unlimited amount of
     /// signing operations).
     pub fn verify_user_signing_pin(&mut self, pin: &str) -> Result<(), Error> {
-        self.state.opt.verify_pw1_sign(pin.as_bytes())?;
+        let pin = map_pin(pin, PinType::Pw1, self.state.kdf_do())?;
+
+        self.state.opt.verify_pw1_sign(&pin)?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -363,7 +374,9 @@ impl<'a> Card<Transaction<'a>> {
 
     /// Verify the Admin PIN.
     pub fn verify_admin_pin(&mut self, pin: &str) -> Result<(), Error> {
-        self.state.opt.verify_pw3(pin.as_bytes())?;
+        let pin = map_pin(pin, PinType::Pw3, self.state.kdf_do())?;
+
+        self.state.opt.verify_pw3(&pin)?;
         self.state.pw3 = true;
         Ok(())
     }
@@ -396,7 +409,10 @@ impl<'a> Card<Transaction<'a>> {
 
     /// Change the User PIN, based on the old User PIN.
     pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.state.opt.change_pw1(old.as_bytes(), new.as_bytes())
+        let old = map_pin(old, PinType::Pw1, self.state.kdf_do())?;
+        let new = map_pin(new, PinType::Pw1, self.state.kdf_do())?;
+
+        self.state.opt.change_pw1(&old, &new)
     }
 
     /// Change the User PIN, based on the old User PIN, with a physical PIN
@@ -408,14 +424,18 @@ impl<'a> Card<Transaction<'a>> {
 
     /// Change the User PIN, based on the resetting code `rst`.
     pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<(), Error> {
-        self.state
-            .opt
-            .reset_retry_counter_pw1(new.as_bytes(), Some(rst.as_bytes()))
+        let rst = map_pin(rst, PinType::Rc, self.state.kdf_do())?;
+        let new = map_pin(new, PinType::Pw1, self.state.kdf_do())?;
+
+        self.state.opt.reset_retry_counter_pw1(&new, Some(&rst))
     }
 
     /// Change the Admin PIN, based on the old Admin PIN.
     pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
-        self.state.opt.change_pw3(old.as_bytes(), new.as_bytes())
+        let old = map_pin(old, PinType::Pw3, self.state.kdf_do())?;
+        let new = map_pin(new, PinType::Pw3, self.state.kdf_do())?;
+
+        self.state.opt.change_pw3(&old, &new)
     }
 
     /// Change the Admin PIN, based on the old Admin PIN, with a physical PIN
@@ -1167,12 +1187,16 @@ impl Card<Admin<'_, '_>> {
 
     /// Set the User PIN on the card (also resets the User PIN error count)
     pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
-        self.card().reset_retry_counter_pw1(new.as_bytes(), None)
+        let new = map_pin(new, PinType::Pw1, self.state.tx.state.kdf_do())?;
+
+        self.card().reset_retry_counter_pw1(&new, None)
     }
 
     /// Define the "resetting code" on the card
     pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
-        self.card().set_resetting_code(pin.as_bytes())
+        let pin = map_pin(pin, PinType::Rc, self.state.tx.state.kdf_do())?;
+
+        self.card().set_resetting_code(&pin)
     }
 
     /// Set optional AES encryption/decryption key
