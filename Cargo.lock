@@ -842,6 +842,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "openpgp-card-rpgp"
+version = "0.0.1"
+dependencies = [
+ "card-backend-pcsc",
+ "chrono",
+ "openpgp-card",
+ "pgp",
+ "rand",
+ "sha2",
+ "smallvec",
+ "testresult",
+ "unimpl",
+]
+
+[[package]]
 name = "p256"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1238,21 +1253,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "test-rpgp"
-version = "0.1.0"
-dependencies = [
- "card-backend-pcsc",
- "chrono",
- "openpgp-card",
- "pgp",
- "rand",
- "sha2",
- "smallvec",
- "testresult",
- "unimpl",
 ]
 
 [[package]]
