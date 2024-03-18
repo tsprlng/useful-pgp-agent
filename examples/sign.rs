@@ -5,7 +5,7 @@
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::KeyType;
 use openpgp_card_rpgp::CardSlot;
-use pgp::crypto::{hash::HashAlgorithm, public_key::PublicKeyAlgorithm};
+use pgp::crypto::hash::HashAlgorithm;
 use pgp::packet::{self, SignatureConfig};
 use pgp::types::KeyTrait;
 use pgp::StandaloneSignature;
@@ -33,7 +33,7 @@ fn main() -> testresult::TestResult {
     let signature = SignatureConfig::new_v4(
         packet::SignatureVersion::V4,
         packet::SignatureType::Binary,
-        PublicKeyAlgorithm::EdDSA,
+        cs.public_key().algorithm(),
         HashAlgorithm::SHA2_256,
         vec![
             packet::Subpacket::regular(packet::SubpacketData::SignatureCreationTime(
