@@ -853,7 +853,6 @@ dependencies = [
  "sha2",
  "smallvec",
  "testresult",
- "unimpl",
 ]
 
 [[package]]
@@ -1318,16 +1317,6 @@ name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
-
-[[package]]
-name = "unimpl"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ed69c1839b7449a9cfefa8aa67b588e258d6eaee06daf661f610fee7d0150f6"
-dependencies = [
- "quote",
- "syn 2.0.52",
-]
 
 [[package]]
 name = "untrusted"

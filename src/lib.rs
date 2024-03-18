@@ -13,7 +13,6 @@ use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::packet::PublicKey;
 use pgp::types::{KeyId, KeyTrait, Mpi, PublicKeyTrait, SecretKeyRepr, SecretKeyTrait};
 use rand::{CryptoRng, Rng};
-use unimpl::unimpl;
 
 /// An individual OpenPGP card key slot
 pub struct CardSlot<'a> {
@@ -82,23 +81,26 @@ impl KeyTrait for CardSlot<'_> {
 }
 
 impl PublicKeyTrait for CardSlot<'_> {
-    #[unimpl]
     fn verify_signature(
         &self,
-        _hash: HashAlgorithm,
-        _data: &[u8],
-        _sig: &[Mpi],
-    ) -> pgp::errors::Result<()>;
+        hash: HashAlgorithm,
+        data: &[u8],
+        sig: &[Mpi],
+    ) -> pgp::errors::Result<()> {
+        self.pubkey.verify_signature(hash, data, sig)
+    }
 
-    #[unimpl]
     fn encrypt<R: CryptoRng + Rng>(
         &self,
-        _rng: &mut R,
-        _plain: &[u8],
-    ) -> pgp::errors::Result<Vec<Mpi>>;
+        rng: &mut R,
+        plain: &[u8],
+    ) -> pgp::errors::Result<Vec<Mpi>> {
+        self.pubkey.encrypt(rng, plain)
+    }
 
-    #[unimpl]
-    fn to_writer_old(&self, _writer: &mut impl std::io::Write) -> pgp::errors::Result<()>;
+    fn to_writer_old(&self, writer: &mut impl std::io::Write) -> pgp::errors::Result<()> {
+        self.pubkey.to_writer_old(writer)
+    }
 }
 
 impl SecretKeyTrait for CardSlot<'_> {
