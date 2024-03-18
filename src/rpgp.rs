@@ -44,7 +44,7 @@ fn map_curve(c: &Curve) -> Result<ECCCurve, pgp::errors::Error> {
     })
 }
 
-fn map_card_err(e: openpgp_card::Error) -> pgp::errors::Error {
+pub(crate) fn map_card_err(e: openpgp_card::Error) -> pgp::errors::Error {
     pgp::errors::Error::Message(format!("openpgp_card error: {:?}", e))
 }
 

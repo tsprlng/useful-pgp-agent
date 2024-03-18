@@ -7,12 +7,18 @@ mod rpgp;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
 
+use openpgp_card::crypto_data::Hash;
 use openpgp_card::{KeyType, Transaction};
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::packet::PublicKey;
-use pgp::types::{KeyId, KeyTrait, Mpi, PublicKeyTrait, SecretKeyRepr, SecretKeyTrait};
+use pgp::types::{
+    EcdsaPublicParams, KeyId, KeyTrait, Mpi, PublicKeyTrait, PublicParams, SecretKeyRepr,
+    SecretKeyTrait,
+};
 use rand::{CryptoRng, Rng};
+
+use crate::rpgp::map_card_err;
 
 /// An individual OpenPGP card key slot, which can be used for private key operations.
 pub struct CardSlot<'a> {
@@ -37,6 +43,8 @@ impl<'a> CardSlot<'a> {
         key_type: KeyType,
         public_key: PublicKey,
     ) -> Result<Self, pgp::errors::Error> {
+        // FIXME: compare the fingerprint?
+
         Ok(Self {
             tx: Mutex::new(tx),
             public_key,
@@ -133,7 +141,7 @@ impl SecretKeyTrait for CardSlot<'_> {
     fn create_signature<F>(
         &self,
         _key_pw: F,
-        _hash: HashAlgorithm,
+        hash: HashAlgorithm,
         data: &[u8],
     ) -> pgp::errors::Result<Vec<Mpi>>
     where
@@ -141,20 +149,73 @@ impl SecretKeyTrait for CardSlot<'_> {
     {
         let mut tx = self.tx.lock().unwrap();
 
+        let hash = match self.public_key.algorithm() {
+            PublicKeyAlgorithm::RSA => match hash {
+                HashAlgorithm::SHA2_256 => Hash::SHA256(data.try_into().expect("FIXME")),
+                HashAlgorithm::SHA2_384 => Hash::SHA384(data.try_into().expect("FIXME")),
+                HashAlgorithm::SHA2_512 => Hash::SHA512(data.try_into().expect("FIXME")),
+                _ => {
+                    return Err(pgp::errors::Error::Unimplemented(format!(
+                        "Unsupported HashAlgorithm for RSA: {:?}",
+                        hash
+                    )))
+                }
+            },
+            PublicKeyAlgorithm::ECDSA => Hash::ECDSA({
+                match self.public_key.public_params() {
+                    PublicParams::ECDSA(EcdsaPublicParams::P256 { .. }) => &data[..32],
+                    PublicParams::ECDSA(EcdsaPublicParams::P384 { .. }) => &data[..48],
+                    PublicParams::ECDSA(EcdsaPublicParams::P521 { .. }) => &data[..64],
+                    _ => data,
+                }
+            }),
+            PublicKeyAlgorithm::EdDSA => Hash::EdDSA(data),
+
+            _ => {
+                return Err(pgp::errors::Error::Unimplemented(format!(
+                    "Unsupported PublicKeyAlgorithm for signature creation: {:?}",
+                    self.public_key.algorithm()
+                )))
+            }
+        };
+
         let sig = match self.key_type {
-            KeyType::Signing => tx.pso_compute_digital_signature(data.into()).expect("sig"),
+            KeyType::Signing => tx.signature_for_hash(hash).map_err(map_card_err)?,
+            KeyType::Authentication => tx.authenticate_for_hash(hash).map_err(map_card_err)?,
             _ => unimplemented!(),
         };
 
-        // FIXME
+        let mpis = match self.public_key.algorithm() {
+            PublicKeyAlgorithm::RSA => vec![sig.into()],
 
-        Ok(vec![
-            Mpi::from_raw_slice(&sig[..32]),
-            Mpi::from_raw_slice(&sig[32..]),
-        ])
+            PublicKeyAlgorithm::ECDSA => {
+                let mid = sig.len() / 2;
+
+                vec![
+                    Mpi::from_raw_slice(&sig[..mid]),
+                    Mpi::from_raw_slice(&sig[mid..]),
+                ]
+            }
+            PublicKeyAlgorithm::EdDSA => {
+                assert_eq!(sig.len(), 64); // FIXME: check curve; add error handling
+
+                vec![
+                    Mpi::from_raw_slice(&sig[..32]),
+                    Mpi::from_raw_slice(&sig[32..]),
+                ]
+            }
+
+            _ => unimplemented!(), // FIXME
+        };
+
+        Ok(mpis)
     }
 
     fn public_key(&self) -> Self::PublicKey {
         self.public_key.clone()
+    }
+
+    fn public_params(&self) -> &PublicParams {
+        self.public_key.public_params()
     }
 }
