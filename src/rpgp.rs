@@ -7,7 +7,16 @@ use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
 use pgp::packet::PublicKey;
-use pgp::types::{EcdsaPublicParams, KeyVersion, PublicParams, Version};
+use pgp::types::{EcdsaPublicParams, KeyTrait, KeyVersion, PublicParams, Version};
+
+/// value pairs that we'll consider in ECDH parameter auto-detection
+const ECDH_PARAM: &[(HashAlgorithm, SymmetricKeyAlgorithm)] = &[
+    (HashAlgorithm::SHA2_256, SymmetricKeyAlgorithm::AES128),
+    (HashAlgorithm::SHA2_512, SymmetricKeyAlgorithm::AES256),
+    (HashAlgorithm::SHA2_384, SymmetricKeyAlgorithm::AES256),
+    (HashAlgorithm::SHA2_384, SymmetricKeyAlgorithm::AES192),
+    (HashAlgorithm::SHA2_256, SymmetricKeyAlgorithm::AES256),
+];
 
 fn pubkey(
     algo: PublicKeyAlgorithm,
@@ -93,15 +102,54 @@ pub(crate) fn pubkey_from_card(
                 let curve = map_curve(ecc_attr.curve())?;
 
                 let (pka, pp) = match typ {
-                    EccType::ECDH => (
-                        PublicKeyAlgorithm::ECDH,
-                        PublicParams::ECDH {
-                            curve,
-                            p: ecc.data().into(),
-                            hash: HashAlgorithm::SHA2_512, // FIXME
-                            alg_sym: SymmetricKeyAlgorithm::AES256, // FIXME
-                        },
-                    ),
+                    EccType::ECDH => {
+                        if key_type != KeyType::Decryption {
+                            return Err(pgp::errors::Error::Message(format!(
+                                "ECDH is unsupported in key slot {:?}",
+                                key_type
+                            )));
+                        }
+
+                        // read key slot fingerprint from card
+                        let Some(fingerprint) = ard
+                            .fingerprints()
+                            .map_err(map_card_err)?
+                            .decryption()
+                            .cloned()
+                        else {
+                            return Err(pgp::errors::Error::Message(
+                                "No fingerprint found in decryption key slot".to_string(),
+                            ));
+                        };
+
+                        let mut p = ecc.data().to_vec();
+                        if curve == ECCCurve::Curve25519 && p.len() == 32 {
+                            // prepend OpenPGP 0x40 prefix for curve 25519 MPI
+                            p.insert(0, 0x40);
+                        }
+
+                        // find hash/alg_sym combination that matches the fingerprint on the card
+                        let pk = ECDH_PARAM
+                            .iter()
+                            .map(|&(hash, alg_sym)| PublicParams::ECDH {
+                                curve: curve.clone(),
+                                p: p.clone().into(),
+                                hash,
+                                alg_sym,
+                            })
+                            .flat_map(|pp| pubkey(PublicKeyAlgorithm::ECDH, created, pp))
+                            .find(|pk| pk.fingerprint() == fingerprint.as_bytes());
+
+                        if let Some(pk) = pk {
+                            // suitable parameters were found -> return them
+                            (PublicKeyAlgorithm::ECDH, pk.public_params().clone())
+                        } else {
+                            return Err(pgp::errors::Error::Message(
+                                "No suitable ECDH parameters found for decryption key slot"
+                                    .to_string(),
+                            ));
+                        }
+                    }
 
                     EccType::ECDSA => (
                         PublicKeyAlgorithm::ECDSA,
