@@ -9,12 +9,14 @@ use std::sync::Mutex;
 
 use openpgp_card::crypto_data::Hash;
 use openpgp_card::{KeyType, Transaction};
+use pgp::crypto::checksum;
+use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
+use pgp::crypto::sym::SymmetricKeyAlgorithm;
 use pgp::packet::PublicKey;
 use pgp::types::{
-    EcdsaPublicParams, KeyId, KeyTrait, Mpi, PublicKeyTrait, PublicParams, SecretKeyRepr,
-    SecretKeyTrait,
+    EcdsaPublicParams, KeyId, KeyTrait, Mpi, PublicKeyTrait, PublicParams, SecretKeyTrait,
 };
 use rand::{CryptoRng, Rng};
 
@@ -121,21 +123,20 @@ impl PublicKeyTrait for CardSlot<'_> {
     }
 }
 
+pub struct Unlocked;
+
 impl SecretKeyTrait for CardSlot<'_> {
     // We model the key data as a public primary key packet for this type.
     // FIXME: The choice of this type is a bit arbitrary.
     type PublicKey = PublicKey;
+    type Unlocked = Self;
 
-    fn unlock<F, G>(&self, _pw: F, _work: G) -> pgp::errors::Result<()>
+    fn unlock<F, G, T>(&self, _pw: F, work: G) -> pgp::errors::Result<T>
     where
         F: FnOnce() -> String,
-        G: FnOnce(&SecretKeyRepr) -> pgp::errors::Result<()>,
+        G: FnOnce(&Self::Unlocked) -> pgp::errors::Result<T>,
     {
-        // FIXME: does this get called? if so, what happens to `work`?
-
-        Err(pgp::errors::Error::Unimplemented(
-            "CardSlot::unlock is not implemented".to_string(),
-        ))
+        work(self)
     }
 
     fn create_signature<F>(
@@ -217,5 +218,86 @@ impl SecretKeyTrait for CardSlot<'_> {
 
     fn public_params(&self) -> &PublicParams {
         self.public_key.public_params()
+    }
+}
+
+impl CardSlot<'_> {
+    pub fn decrypt(&self, mpis: &[Mpi]) -> pgp::errors::Result<(Vec<u8>, SymmetricKeyAlgorithm)> {
+        let decrypted_key = match self.public_key.public_params() {
+            PublicParams::RSA { .. } => {
+                let ciphertext = mpis[0].as_bytes();
+                let cryptogram = openpgp_card::crypto_data::Cryptogram::RSA(ciphertext);
+
+                self.tx
+                    .lock()
+                    .unwrap()
+                    .decipher(cryptogram)
+                    .expect("decipher")
+            }
+
+            PublicParams::ECDH {
+                curve,
+                alg_sym,
+                hash,
+                ..
+            } => {
+                let ciphertext = mpis[0].as_bytes();
+
+                // encrypted and wrapped value derived from the session key
+                let encrypted_session_key = mpis[2].as_bytes();
+
+                let ciphertext = if *curve == ECCCurve::Curve25519 {
+                    assert_eq!(
+                        ciphertext[0], 0x40,
+                        "Unexpected shape of Cv25519 encrypted data"
+                    );
+
+                    // Strip trailing 0x40
+                    &ciphertext[1..]
+                } else {
+                    // For NIST and brainpool: we decrypt the ciphertext as is
+                    ciphertext
+                };
+
+                let cryptogram = openpgp_card::crypto_data::Cryptogram::ECDH(ciphertext);
+
+                let shared_secret: [u8; 32] = self
+                    .tx
+                    .lock()
+                    .unwrap()
+                    .decipher(cryptogram)
+                    .expect("decipher")
+                    .try_into()
+                    .unwrap();
+
+                let encrypted_key_len: usize =
+                    mpis[1].first().copied().map(Into::into).unwrap_or(0);
+
+                let decrypted_key: Vec<u8> = pgp::crypto::ecdh::derive_session_key(
+                    shared_secret,
+                    encrypted_session_key,
+                    encrypted_key_len,
+                    &(curve.oid(), *alg_sym, *hash),
+                    &self.public_key.fingerprint(),
+                )?;
+
+                decrypted_key
+            }
+
+            _ => unimplemented!(),
+        };
+
+        // strip off the leading session key algorithm octet, and the two trailing checksum octets
+        let dec_len = decrypted_key.len();
+        let (sessionkey, checksum) = (
+            &decrypted_key[1..dec_len - 2],
+            &decrypted_key[dec_len - 2..],
+        );
+
+        // ... check the checksum, while we have it at hand
+        checksum::simple(checksum, sessionkey)?;
+
+        let session_key_algorithm = decrypted_key[0].into();
+        Ok((sessionkey.to_vec(), session_key_algorithm))
     }
 }
