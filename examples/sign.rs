@@ -7,7 +7,7 @@ use openpgp_card::KeyType;
 use openpgp_card_rpgp::CardSlot;
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::packet::{self, SignatureConfig};
-use pgp::types::KeyTrait;
+use pgp::types::{KeyTrait, KeyVersion};
 use pgp::StandaloneSignature;
 
 fn main() -> testresult::TestResult {
@@ -40,6 +40,10 @@ fn main() -> testresult::TestResult {
                 std::time::SystemTime::now().into(),
             )),
             packet::Subpacket::regular(packet::SubpacketData::Issuer(cs.key_id())),
+            packet::Subpacket::regular(packet::SubpacketData::IssuerFingerprint(
+                KeyVersion::V4,
+                cs.fingerprint().into(),
+            )),
         ],
         vec![],
     );
