@@ -23,6 +23,9 @@ use rand::{CryptoRng, Rng};
 use crate::rpgp::map_card_err;
 
 /// An individual OpenPGP card key slot, which can be used for private key operations.
+///
+/// A CardSlot owns the `Transaction` object while it exists. In the course of destroying the
+/// CardSlot, the Transaction can be obtained again by calling [into_transaction].
 pub struct CardSlot<'a> {
     tx: Mutex<Transaction<'a>>,
 
@@ -45,7 +48,7 @@ impl<'a> CardSlot<'a> {
         key_type: KeyType,
         public_key: PublicKey,
     ) -> Result<Self, pgp::errors::Error> {
-        // FIXME: compare the fingerprint?
+        // FIXME: compare the fingerprint between card slot and public_key?
 
         Ok(Self {
             tx: Mutex::new(tx),
@@ -54,7 +57,7 @@ impl<'a> CardSlot<'a> {
         })
     }
 
-    /// Set up a CardSigner for the card behind `tx`, using the key slot for `key_type`.
+    /// Set up a CardSlot for the card behind `tx`, using the key slot for `key_type`.
     ///
     /// Initializes the CardSigner based on public key information obtained from the card.
     pub fn init_from_card(
@@ -74,6 +77,14 @@ impl<'a> CardSlot<'a> {
     /// The card slot that this CardSlot uses
     pub fn key_type(&self) -> KeyType {
         self.key_type
+    }
+
+    pub fn mut_transaction(&mut self) -> &mut Transaction<'a> {
+        self.tx.get_mut().unwrap()
+    }
+
+    pub fn into_transaction(self) -> Transaction<'a> {
+        self.tx.into_inner().unwrap()
     }
 }
 
