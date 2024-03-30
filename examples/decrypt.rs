@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Wiktor Kwapisiewicz <wiktor@metacode.biz>
+// SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use std::fs::File;
 
 use card_backend_pcsc::PcscBackend;
