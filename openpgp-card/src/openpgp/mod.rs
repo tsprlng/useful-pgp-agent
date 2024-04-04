@@ -35,7 +35,6 @@ pub(crate) const OPENPGP_APPLICATION: &[u8] = &[0xD2, 0x76, 0x00, 0x01, 0x24, 0x
 
 /// Identify a Key slot on an OpenPGP card
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-#[non_exhaustive]
 pub enum KeyType {
     Signing,
     Decryption,

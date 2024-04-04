@@ -6,7 +6,6 @@ use crate::openpgp::tlv::tag::Tag;
 /// Tags, as specified and used in the OpenPGP card 3.4.1 spec.
 /// All tags in OpenPGP card are either 1 or 2 bytes long.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-#[non_exhaustive]
 #[allow(dead_code)]
 pub(crate) enum Tags {
     // BER identifiers

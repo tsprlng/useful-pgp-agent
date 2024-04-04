@@ -600,12 +600,6 @@ impl<'a> Card<Transaction<'a>> {
             KeyType::Decryption => self.fingerprints()?.decryption().cloned(),
             KeyType::Authentication => self.fingerprints()?.authentication().cloned(),
             KeyType::Attestation => self.state.ard().attestation_key_fingerprint()?,
-            _ => {
-                return Err(Error::UnsupportedFeature(format!(
-                    "Can't get fingerprint for key_type {:?}",
-                    key_type,
-                )))
-            }
         };
 
         Ok(fp)
@@ -632,12 +626,6 @@ impl<'a> Card<Transaction<'a>> {
             KeyType::Decryption => self.key_generation_times()?.decryption().cloned(),
             KeyType::Authentication => self.key_generation_times()?.authentication().cloned(),
             KeyType::Attestation => self.state.ard().attestation_key_generation_time()?,
-            _ => {
-                return Err(Error::UnsupportedFeature(format!(
-                    "Can't get creation time for key_type {:?}",
-                    key_type,
-                )))
-            }
         };
 
         Ok(ts)
@@ -659,10 +647,6 @@ impl<'a> Card<Transaction<'a>> {
             KeyType::Decryption => self.state.ard().uif_pso_dec(),
             KeyType::Authentication => self.state.ard().uif_pso_aut(),
             KeyType::Attestation => self.state.ard().uif_attestation(),
-            _ => Err(Error::UnsupportedFeature(format!(
-                "Can't get UIF for key_type {:?}",
-                key_type,
-            ))),
         }
     }
 
@@ -1163,7 +1147,6 @@ impl Card<Admin<'_, '_>> {
             KeyType::Decryption => self.state.tx.state.ard().uif_pso_dec()?,
             KeyType::Authentication => self.state.tx.state.ard().uif_pso_aut()?,
             KeyType::Attestation => self.state.tx.state.ard().uif_attestation()?,
-            _ => unimplemented!(),
         };
 
         if let Some(mut uif) = uif {
@@ -1174,7 +1157,6 @@ impl Card<Admin<'_, '_>> {
                 KeyType::Decryption => self.card().set_uif_pso_dec(&uif)?,
                 KeyType::Authentication => self.card().set_uif_pso_aut(&uif)?,
                 KeyType::Attestation => self.card().set_uif_attestation(&uif)?,
-                _ => unimplemented!(),
             }
         } else {
             return Err(Error::UnsupportedFeature(

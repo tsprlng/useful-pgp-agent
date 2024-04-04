@@ -314,7 +314,6 @@ pub fn public_key_material_to_key(
                 panic!("unexpected algo {:?}", algo);
             }
         }
-        _ => unimplemented!("Unexpected PublicKeyMaterial type"),
     }
 }
 

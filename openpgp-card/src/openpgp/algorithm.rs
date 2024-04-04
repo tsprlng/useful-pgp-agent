@@ -19,7 +19,6 @@ use crate::Error;
 
 /// A shorthand way to specify algorithms (e.g. for key generation).
 #[derive(Clone, Copy, Debug)]
-#[non_exhaustive]
 pub enum AlgoSimple {
     RSA1k,
     RSA2k,
@@ -182,7 +181,6 @@ pub struct AlgorithmInformation(pub(crate) Vec<(KeyType, AlgorithmAttributes)>);
 /// - Key generation
 /// - Export of public key data from the card (e.g. after key generation)
 #[derive(Debug, Clone, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum AlgorithmAttributes {
     Rsa(RsaAttributes),
     Ecc(EccAttributes),
@@ -335,7 +333,6 @@ impl EccAttributes {
 
 /// Enum for naming ECC curves, and mapping them to/from their OIDs.
 #[derive(Debug, Clone, Eq, PartialEq)]
-#[non_exhaustive]
 pub enum Curve {
     NistP256r1,
     NistP384r1,

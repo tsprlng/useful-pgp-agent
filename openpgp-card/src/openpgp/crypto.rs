@@ -11,7 +11,6 @@ use crate::openpgp::oid;
 use crate::Error;
 
 /// A hash value that can be signed by the card.
-#[non_exhaustive]
 pub enum Hash<'a> {
     SHA256([u8; 0x20]),
     SHA384([u8; 0x30]),
@@ -45,7 +44,6 @@ impl Hash<'_> {
 }
 
 /// Data that can be decrypted on the card.
-#[non_exhaustive]
 pub enum Cryptogram<'a> {
     // message/ciphertext
     RSA(&'a [u8]),
@@ -71,7 +69,6 @@ pub trait CardUploadableKey {
 
 /// Algorithm-independent container for private key material to upload to
 /// an OpenPGP card
-#[non_exhaustive]
 pub enum PrivateKeyMaterial {
     R(Box<dyn RSAKey>),
     E(Box<dyn EccKey>),
@@ -109,7 +106,6 @@ pub trait EccKey {
 /// Algorithm-independent container for public key material retrieved from
 /// an OpenPGP card
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum PublicKeyMaterial {
     R(RSAPub),
     E(EccPub),
@@ -142,7 +138,6 @@ impl std::fmt::Display for PublicKeyMaterial {
 
 /// RSA-specific container for public key material from an OpenPGP card.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct RSAPub {
     /// Modulus (a number denoted as n coded on x bytes)
     n: Vec<u8>,
@@ -167,7 +162,6 @@ impl RSAPub {
 
 /// ECC-specific container for public key material from an OpenPGP card.
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct EccPub {
     data: Vec<u8>,
     algo: AlgorithmAttributes,
@@ -189,7 +183,6 @@ impl EccPub {
 /// A marker to distinguish between elliptic curve algorithms (ECDH, ECDSA,
 /// EdDSA)
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-#[non_exhaustive]
 pub enum EccType {
     ECDH,
     ECDSA,
