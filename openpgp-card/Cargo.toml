@@ -13,11 +13,12 @@ documentation = "https://docs.rs/crate/openpgp-card"
 
 [dependencies]
 card-backend = { path = "../card-backend", version = "0.2" }
-nom = "7"
-hex-slice = "0.1"
-thiserror = "1"
-log = "0.4"
 chrono = "0.4"
+hex-slice = "0.1"
+log = "0.4"
+nom = "7"
+sha2 = "0.10"
+thiserror = "1"
 
 [dev-dependencies]
 hex-literal = "0.4"

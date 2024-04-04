@@ -26,6 +26,7 @@ pub(crate) mod apdu;
 mod commands;
 pub mod crypto;
 pub mod data;
+pub mod kdf;
 mod keys;
 pub(crate) mod oid;
 pub(crate) mod tags;
