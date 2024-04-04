@@ -86,7 +86,7 @@ impl KeyType {
 }
 
 /// A struct to cache immutable information of a card.
-/// Some of the data is stored during [`Card::new`].
+/// Some of the data is stored during [`OpenPGP::new`].
 /// Other information can optionally be cached later (e.g. `ai`)
 #[derive(Debug)]
 struct CardImmutable {
@@ -104,9 +104,9 @@ struct CardImmutable {
 ///
 /// Most users will probably want to use the `PcscCard` backend from the `card-backend-pcsc` crate.
 ///
-/// Users of this crate can keep a long-lived [`Card`] object, including in long-running programs.
+/// Users of this crate can keep a long-lived [`OpenPGP`] object, including in long-running programs.
 /// All operations must be performed on a [`Transaction`] (which must be short-lived).
-pub struct Card {
+pub struct OpenPGP {
     /// A connection to the smart card
     card: Box<dyn CardBackend + Send + Sync>,
 
@@ -120,8 +120,8 @@ pub struct Card {
     immutable: Option<CardImmutable>,
 }
 
-impl Card {
-    /// Turn a [`CardBackend`] into a [`Card`] object:
+impl OpenPGP {
+    /// Turn a [`CardBackend`] into a [`OpenPGP`] object:
     ///
     /// The OpenPGP application is `SELECT`ed, and the card capabilities
     /// of the card are retrieved from the "Application Related Data".
@@ -246,7 +246,7 @@ impl Card {
     }
 }
 
-/// To perform commands on a [`Card`], a [`Transaction`] must be started.
+/// To perform commands on a [`OpenPGP`], a [`Transaction`] must be started.
 /// This struct offers low-level access to OpenPGP card functionality.
 ///
 /// On backends that support transactions, operations are grouped together in transaction, while

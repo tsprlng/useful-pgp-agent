@@ -137,7 +137,7 @@ fn check_key_upload_algo_attrs() -> Result<()> {
 }
 
 pub fn test_print_caps(
-    pgp: &mut openpgp_card::openpgp::Card,
+    pgp: &mut openpgp_card::openpgp::OpenPGP,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgpt = pgp.transaction()?;
@@ -160,7 +160,7 @@ pub fn test_print_caps(
 }
 
 pub fn test_print_algo_info(
-    pgp: &mut openpgp_card::openpgp::Card,
+    pgp: &mut openpgp_card::openpgp::OpenPGP,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgpt = pgp.transaction()?;

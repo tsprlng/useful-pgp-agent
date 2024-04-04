@@ -259,7 +259,7 @@ impl Card<Open> {
     where
         B: Into<Box<dyn CardBackend + Send + Sync>>,
     {
-        let pgp = openpgp_card::openpgp::Card::new(backend)?;
+        let pgp = openpgp_card::openpgp::OpenPGP::new(backend)?;
 
         Ok(Card::<Open> {
             state: Open { pgp },

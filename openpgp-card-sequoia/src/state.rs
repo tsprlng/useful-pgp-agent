@@ -22,7 +22,7 @@ impl State for Admin<'_, '_> {}
 ///
 /// A transaction can be started on the card, in this state.
 pub struct Open {
-    pub(crate) pgp: openpgp_card::openpgp::Card,
+    pub(crate) pgp: openpgp_card::openpgp::OpenPGP,
 }
 
 /// State of an OpenPGP card once a transaction has been started.
