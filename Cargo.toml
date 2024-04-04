@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
+# SPDX-License-Identifier: CC0-1.0
+
 [package]
 name = "openpgp-card-rpgp"
 description = "Companion crate for using openpgp-card with rPGP"
@@ -8,12 +11,10 @@ license = "MIT OR Apache-2.0"
 repository = "https://codeberg.org/openpgp-card/rpgp"
 documentation = "https://docs.rs/openpgp-card-rpgp"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 chrono = "0.4"
 openpgp-card = "0.4"
-pgp = "0.12.0-alpha.1"
+pgp = "0.12.0-alpha.2"
 rand = "0.8"
 
 [dev-dependencies]

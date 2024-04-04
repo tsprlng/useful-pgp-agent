@@ -8,7 +8,7 @@ use openpgp_card_rpgp::CardSlot;
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::packet::{self, SignatureConfig};
 use pgp::types::{KeyTrait, KeyVersion};
-use pgp::StandaloneSignature;
+use pgp::{ArmorOptions, StandaloneSignature};
 
 fn main() -> testresult::TestResult {
     const DATA: &[u8] = b"Hello World";
@@ -52,7 +52,10 @@ fn main() -> testresult::TestResult {
 
     let signature = StandaloneSignature { signature };
     signature
-        .to_armored_writer(&mut std::fs::File::create("sig.asc").unwrap(), None)
+        .to_armored_writer(
+            &mut std::fs::File::create("sig.asc").unwrap(),
+            ArmorOptions::default(),
+        )
         .unwrap();
     Ok(())
 }
