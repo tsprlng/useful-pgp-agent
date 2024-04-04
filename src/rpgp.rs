@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use chrono::{DateTime, Utc};
-use openpgp_card::algorithm::{AlgorithmAttributes, Curve};
-use openpgp_card::crypto_data::{EccType, PublicKeyMaterial};
-use openpgp_card::{KeyType, Transaction};
+use openpgp_card::ocard::algorithm::{AlgorithmAttributes, Curve};
+use openpgp_card::ocard::crypto::{EccType, PublicKeyMaterial};
+use openpgp_card::ocard::{KeyType, Transaction};
 use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
@@ -77,7 +77,6 @@ pub(crate) fn pubkey_from_card(
         KeyType::Attestation => ard.attestation_key_generation_time().map_err(|e| {
             pgp::errors::Error::Message(format!("Get attestation_key_generation_time: {:?}", e,))
         })?,
-        _ => unimplemented!(), // FIXME: this openpgp-card type should be exhaustive
     }) else {
         // KeyGenerationTime is None
         return Err(pgp::errors::Error::Message(format!(
@@ -176,8 +175,6 @@ pub(crate) fn pubkey_from_card(
                             PublicParams::EdDSA { curve, q: q.into() },
                         )
                     }
-
-                    _ => unimplemented!(), // FIXME: openpgp-card EccType type should be exhaustive
                 };
 
                 pubkey(pka, created, pp)
@@ -188,9 +185,5 @@ pub(crate) fn pubkey_from_card(
                 ecc.algo(),
             ))),
         },
-        _ => Err(pgp::errors::Error::Message(format!(
-            "Unexpected PublicKeyMaterial type {:?}",
-            pk,
-        ))),
     }
 }

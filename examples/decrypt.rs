@@ -5,13 +5,13 @@
 use std::fs::File;
 
 use card_backend_pcsc::PcscBackend;
-use openpgp_card::KeyType;
+use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
 use pgp::{types::SecretKeyTrait, Deserializable, Esk, Message, PlainSessionKey};
 
 fn main() -> testresult::TestResult {
     let card = PcscBackend::cards(None)?.next().unwrap()?;
-    let mut card = openpgp_card::Card::new(card)?;
+    let mut card = openpgp_card::ocard::OpenPGP::new(card)?;
     let mut tx = card.transaction()?;
 
     let pwd = &std::env::args().collect::<Vec<_>>()[1];

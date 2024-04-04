@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use card_backend_pcsc::PcscBackend;
-use openpgp_card::KeyType;
+use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::packet::{self, SignatureConfig};
@@ -22,7 +22,7 @@ fn main() -> testresult::TestResult {
         .next()
         .unwrap()
         .expect("card");
-    let mut card = openpgp_card::Card::new(card).expect("card new");
+    let mut card = openpgp_card::ocard::OpenPGP::new(card).expect("card new");
     let mut tx = card.transaction().expect("tx");
 
     tx.verify_pw1_sign(pwd.as_bytes()).expect("Verify");

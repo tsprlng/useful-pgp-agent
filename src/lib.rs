@@ -7,8 +7,8 @@ mod rpgp;
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
 
-use openpgp_card::crypto_data::Hash;
-use openpgp_card::{KeyType, Transaction};
+use openpgp_card::ocard::crypto::Hash;
+use openpgp_card::ocard::{KeyType, Transaction};
 use pgp::crypto::checksum;
 use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::crypto::hash::HashAlgorithm;
@@ -237,7 +237,7 @@ impl CardSlot<'_> {
         let decrypted_key = match self.public_key.public_params() {
             PublicParams::RSA { .. } => {
                 let ciphertext = mpis[0].as_bytes();
-                let cryptogram = openpgp_card::crypto_data::Cryptogram::RSA(ciphertext);
+                let cryptogram = openpgp_card::ocard::crypto::Cryptogram::RSA(ciphertext);
 
                 self.tx
                     .lock()
@@ -270,7 +270,7 @@ impl CardSlot<'_> {
                     ciphertext
                 };
 
-                let cryptogram = openpgp_card::crypto_data::Cryptogram::ECDH(ciphertext);
+                let cryptogram = openpgp_card::ocard::crypto::Cryptogram::ECDH(ciphertext);
 
                 let shared_secret: [u8; 32] = self
                     .tx
