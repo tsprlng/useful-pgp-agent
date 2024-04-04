@@ -14,7 +14,7 @@ documentation = "https://docs.rs/crate/openpgp-card-sequoia"
 [dependencies]
 card-backend = { path = "../card-backend", version = "0.2" }
 sequoia-openpgp = { version = "1.4", default-features = false }
-openpgp-card = { path = "../openpgp-card", version = "0.4.2" }
+openpgp-card = { path = "../openpgp-card", version = "0.5.0-alpha.1" }
 chrono = "0.4"
 anyhow = "1"
 thiserror = "1"
