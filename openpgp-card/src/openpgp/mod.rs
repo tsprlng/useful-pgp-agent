@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021-2024 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Low-level access to OpenPGP card applications
+//! Low-level access to an OpenPGP card application
 
 use std::convert::{TryFrom, TryInto};
 
@@ -116,7 +116,7 @@ pub struct OpenPGP {
 
     /// A cache data structure for information that is immutable on OpenPGP cards.
     /// Some of the information gets initialized when connecting to the card.
-    /// Other information my be cached on first read.
+    /// Other information may be cached on first read.
     immutable: Option<CardImmutable>,
 }
 

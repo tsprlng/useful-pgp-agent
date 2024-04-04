@@ -13,6 +13,10 @@
 //! - without relying on a particular
 //! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
+//! The library exposes two modes of access to cards:
+//! - low-level, unmediated, access to card functionality (see [crate::openpgp]), and
+//! - a more opinionated, typed wrapper API that performs some amount of caching.
+//!
 //! Note that this library can't directly access cards by itself.
 //! Instead, users need to supply a backend that implements the
 //! [`card_backend::CardBackend`] and [`card_backend::CardTransaction`] traits.
