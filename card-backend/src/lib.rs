@@ -12,8 +12,8 @@
 /// A [CardBackend] is only used to get access to a [CardTransaction] object,
 /// which supports transmitting commands to the card.
 pub trait CardBackend {
-    /// If a CardBackend introduces a additional (possibly backend-specific)
-    /// limits for any fields in CardCaps, this fn can indicate that limit by
+    /// If a CardBackend introduces additional (possibly backend-specific)
+    /// limits for any fields in CardCaps, `limit_card_caps` can indicate that limit by
     /// returning an amended [`CardCaps`].
     fn limit_card_caps(&self, card_caps: CardCaps) -> CardCaps;
 
