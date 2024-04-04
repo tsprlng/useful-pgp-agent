@@ -12,8 +12,10 @@
 use std::convert::TryFrom;
 use std::fmt;
 
-use crate::crypto_data::EccType;
-use crate::{keys, oid, Error, KeyType, Transaction};
+use crate::openpgp::crypto::EccType;
+use crate::openpgp::keys;
+use crate::openpgp::{oid, KeyType, Transaction};
+use crate::Error;
 
 /// A shorthand way to specify algorithms (e.g. for key generation).
 #[derive(Clone, Copy, Debug)]

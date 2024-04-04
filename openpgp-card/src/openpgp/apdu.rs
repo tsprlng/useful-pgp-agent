@@ -11,10 +11,11 @@ use std::convert::TryFrom;
 
 use card_backend::{CardCaps, CardTransaction};
 
-use crate::apdu::command::{Command, Expect};
-use crate::apdu::response::RawResponse;
-use crate::commands;
-use crate::{Error, StatusBytes};
+use crate::openpgp::apdu::command::{Command, Expect};
+use crate::openpgp::apdu::response::RawResponse;
+use crate::openpgp::commands;
+use crate::openpgp::StatusBytes;
+use crate::Error;
 
 /// "Maximum amount of bytes in a short APDU command or response" (from pcsc)
 const MAX_BUFFER_SIZE: usize = 264;

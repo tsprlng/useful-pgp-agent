@@ -3,9 +3,9 @@
 
 //! Pre-defined `Command` values for the OpenPGP card application
 
-use crate::apdu::command::Command;
-use crate::tags::{ShortTag, Tags};
-use crate::{KeyType, OPENPGP_APPLICATION};
+use crate::openpgp::apdu::command::Command;
+use crate::openpgp::tags::{ShortTag, Tags};
+use crate::openpgp::{KeyType, OPENPGP_APPLICATION};
 
 /// 7.2.1 SELECT
 /// (select the OpenPGP application on the card)

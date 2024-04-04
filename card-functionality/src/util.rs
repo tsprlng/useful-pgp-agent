@@ -5,8 +5,8 @@ use std::io::Write;
 use std::time::SystemTime;
 
 use anyhow::Result;
-use openpgp_card::card_do::KeyGenerationTime;
-use openpgp_card::KeyType;
+use openpgp_card::openpgp::data::KeyGenerationTime;
+use openpgp_card::openpgp::KeyType;
 use openpgp_card_sequoia::state::Admin;
 use openpgp_card_sequoia::{sq_util, Card};
 use sequoia_openpgp::parse::stream::{

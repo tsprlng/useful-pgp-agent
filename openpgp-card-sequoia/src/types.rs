@@ -3,7 +3,8 @@
 
 //! Re-exports of openpgp-card types to enable standalone-use of openpgp-card-sequoia.
 
-pub use openpgp_card::algorithm::{AlgoSimple, AlgorithmAttributes, Curve};
-pub use openpgp_card::card_do::{Fingerprint, Sex, TouchPolicy};
-pub use openpgp_card::crypto_data::{EccType, PublicKeyMaterial};
-pub use openpgp_card::{Error, KeyType, StatusBytes};
+pub use openpgp_card::openpgp::algorithm::{AlgoSimple, AlgorithmAttributes, Curve};
+pub use openpgp_card::openpgp::crypto::{EccType, PublicKeyMaterial};
+pub use openpgp_card::openpgp::data::{Fingerprint, Sex, TouchPolicy};
+pub use openpgp_card::openpgp::StatusBytes;
+pub use openpgp_card::{openpgp::KeyType, Error};

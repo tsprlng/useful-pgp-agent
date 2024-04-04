@@ -5,7 +5,7 @@
 
 use std::convert::TryFrom;
 
-use crate::card_do::ExtendedCapabilities;
+use crate::openpgp::data::ExtendedCapabilities;
 use crate::Error;
 
 impl ExtendedCapabilities {
@@ -37,7 +37,7 @@ impl ExtendedCapabilities {
     }
 
     /// PW Status changeable
-    /// (also see [`crate::card_do::PWStatusBytes`])
+    /// (also see [`crate::openpgp::data::PWStatusBytes`])
     pub fn pw_status_change(&self) -> bool {
         self.pw_status_change
     }
@@ -48,7 +48,7 @@ impl ExtendedCapabilities {
     }
 
     /// Algorithm attributes changeable
-    /// (also see [`crate::algorithm::AlgorithmAttributes`])
+    /// (also see [`crate::openpgp::algorithm::AlgorithmAttributes`])
     pub fn algo_attrs_changeable(&self) -> bool {
         self.algo_attrs_changeable
     }
@@ -84,7 +84,7 @@ impl ExtendedCapabilities {
     }
 
     /// MANAGE SECURITY ENVIRONMENT supported (for DEC and AUT keys).
-    /// (See [`crate::Transaction::manage_security_environment`])
+    /// (See [`crate::openpgp::Transaction::manage_security_environment`])
     ///
     /// (OpenPGP card version 3.x only)
     pub fn mse_command_support(&self) -> Option<bool> {
@@ -94,7 +94,7 @@ impl ExtendedCapabilities {
     /// Only available in OpenPGP card version 2.x
     ///
     /// (For OpenPGP card version 3.x, see
-    /// [`crate::card_do::ExtendedLengthInfo`])
+    /// [`crate::openpgp::data::ExtendedLengthInfo`])
     pub(crate) fn max_cmd_len(&self) -> Option<u16> {
         self.max_cmd_len
     }
@@ -102,7 +102,7 @@ impl ExtendedCapabilities {
     /// Only available in OpenPGP card version 2.x
     ///
     /// (For OpenPGP card version 3.x, see
-    /// [`crate::card_do::ExtendedLengthInfo`])
+    /// [`crate::openpgp::data::ExtendedLengthInfo`])
     pub(crate) fn max_resp_len(&self) -> Option<u16> {
         self.max_resp_len
     }
@@ -206,7 +206,7 @@ mod test {
 
     use hex_literal::hex;
 
-    use crate::card_do::extended_cap::ExtendedCapabilities;
+    use crate::openpgp::data::extended_cap::ExtendedCapabilities;
 
     #[test]
     fn test_yk5() {

@@ -10,9 +10,10 @@ use nom::branch::alt;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 
-use crate::algorithm::{AlgorithmAttributes, AlgorithmInformation};
-use crate::card_do::{algo_attrs, complete};
-use crate::KeyType;
+use crate::openpgp::algorithm::{AlgorithmAttributes, AlgorithmInformation};
+use crate::openpgp::data::{algo_attrs, complete};
+use crate::openpgp::tlv;
+use crate::openpgp::KeyType;
 
 impl AlgorithmInformation {
     pub fn for_keytype(&self, kt: KeyType) -> Vec<&AlgorithmAttributes> {
@@ -54,7 +55,7 @@ fn unknown(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
 
 fn parse_one(input: &[u8]) -> nom::IResult<&[u8], AlgorithmAttributes> {
     let (input, a) = combinator::map(
-        combinator::flat_map(crate::tlv::length::length, bytes::take),
+        combinator::flat_map(tlv::length::length, bytes::take),
         |i| alt((combinator::all_consuming(algo_attrs::parse), unknown))(i),
     )(input)?;
 
@@ -67,7 +68,7 @@ fn parse_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, AlgorithmAttrib
 
 fn parse_tl_list(input: &[u8]) -> nom::IResult<&[u8], Vec<(KeyType, AlgorithmAttributes)>> {
     let (input, (_, _, list)) =
-        sequence::tuple((bytes::tag([0xfa]), crate::tlv::length::length, parse_list))(input)?;
+        sequence::tuple((bytes::tag([0xfa]), tlv::length::length, parse_list))(input)?;
 
     Ok((input, list))
 }
@@ -99,11 +100,11 @@ impl TryFrom<&[u8]> for AlgorithmInformation {
 mod test {
     use std::convert::TryFrom;
 
-    use crate::algorithm::{
+    use crate::openpgp::algorithm::{
         AlgorithmAttributes::*, AlgorithmInformation, Curve::*, EccAttributes, RsaAttributes,
     };
-    use crate::crypto_data::EccType::*;
-    use crate::KeyType::*;
+    use crate::openpgp::crypto::EccType::*;
+    use crate::openpgp::KeyType::*;
 
     #[test]
     fn test_gnuk() {

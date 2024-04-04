@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 
 use nom::{bytes::complete as bytes, number::complete as number};
 
-use crate::card_do::{complete, ApplicationIdentifier};
+use crate::openpgp::data::{complete, ApplicationIdentifier};
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], ApplicationIdentifier> {
     let (input, _) = bytes::tag([0xd2, 0x76, 0x0, 0x1, 0x24])(input)?;
@@ -59,7 +59,7 @@ impl ApplicationIdentifier {
     /// <https://en.wikipedia.org/wiki/OpenPGP_card> [2022-04-07]
     ///
     /// Also see:
-    /// https://git.gnupg.org/cgi-bin/gitweb.cgi?p=gnupg.git;a=blob;f=scd/app-openpgp.c;hb=HEAD#l292
+    /// <https://git.gnupg.org/cgi-bin/gitweb.cgi?p=gnupg.git;a=blob;f=scd/app-openpgp.c;hb=HEAD#l292>
     pub fn manufacturer_name(&self) -> &'static str {
         match self.manufacturer {
             0x0000 => "Testcard",

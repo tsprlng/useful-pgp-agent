@@ -10,9 +10,9 @@ use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, number::complete as number};
 
-use crate::algorithm::{AlgorithmAttributes, Curve, EccAttributes, RsaAttributes};
-use crate::card_do::complete;
-use crate::crypto_data::EccType;
+use crate::openpgp::algorithm::{AlgorithmAttributes, Curve, EccAttributes, RsaAttributes};
+use crate::openpgp::crypto::EccType;
+use crate::openpgp::data::complete;
 
 fn parse_oid_cv25519(input: &[u8]) -> nom::IResult<&[u8], Curve> {
     map(tag(Curve::Cv25519.oid()), |_| Curve::Cv25519)(input)

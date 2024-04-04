@@ -3,7 +3,8 @@
 
 use std::convert::{TryFrom, TryInto};
 
-use crate::{Error, StatusBytes};
+use crate::openpgp::StatusBytes;
+use crate::Error;
 
 /// Response from the card to a command.
 ///
@@ -117,7 +118,7 @@ impl TryFrom<Vec<u8>> for RawResponse {
 mod tests {
     use std::convert::TryFrom;
 
-    use crate::apdu::response::RawResponse;
+    use crate::openpgp::apdu::response::RawResponse;
 
     #[test]
     fn test_two_bytes_data_response() {

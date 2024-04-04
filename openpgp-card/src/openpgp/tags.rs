@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::tlv::tag::Tag;
+use crate::openpgp::tlv::tag::Tag;
 
 /// Tags, as specified and used in the OpenPGP card 3.4.1 spec.
 /// All tags in OpenPGP card are either 1 or 2 bytes long.
@@ -223,7 +223,7 @@ impl From<Tags> for ShortTag {
 /// (The type tlv::Tag will usually/always contain 1 or 2 byte long tags, in this library.
 /// But its length is not guaranteed by the type system)
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum ShortTag {
+pub(crate) enum ShortTag {
     One(u8),
     Two(u8, u8),
 }

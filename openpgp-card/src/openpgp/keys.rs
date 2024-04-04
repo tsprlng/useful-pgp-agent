@@ -6,19 +6,20 @@
 use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::algorithm::{
+use crate::openpgp::algorithm::{
     AlgorithmAttributes, AlgorithmInformation, Curve, EccAttributes, RsaAttributes,
 };
-use crate::apdu::command::Command;
-use crate::card_do::{Fingerprint, KeyGenerationTime};
-use crate::commands;
-use crate::crypto_data::{
+use crate::openpgp::apdu::command::Command;
+use crate::openpgp::commands;
+use crate::openpgp::crypto::{
     CardUploadableKey, EccKey, EccPub, EccType, PrivateKeyMaterial, PublicKeyMaterial, RSAKey,
     RSAPub,
 };
-use crate::tags::Tags;
-use crate::tlv::{length::tlv_encode_length, value::Value, Tlv};
-use crate::{Error, KeyType, Tag, Transaction};
+use crate::openpgp::data::{Fingerprint, KeyGenerationTime};
+use crate::openpgp::tags::Tags;
+use crate::openpgp::tlv::{length::tlv_encode_length, tag::Tag, value::Value, Tlv};
+use crate::openpgp::{KeyType, Transaction};
+use crate::Error;
 
 /// Generate asymmetric key pair on the card and set metadata (time, fingerprint).
 ///

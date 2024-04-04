@@ -9,8 +9,11 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 
-use crate::tags::Tags;
-use crate::{algorithm::AlgorithmAttributes, tlv::Tlv, Error, KeyType};
+use crate::openpgp::algorithm::AlgorithmAttributes;
+use crate::openpgp::tags::Tags;
+use crate::openpgp::tlv::Tlv;
+use crate::openpgp::KeyType;
+use crate::Error;
 
 mod algo_attrs;
 mod algo_info;

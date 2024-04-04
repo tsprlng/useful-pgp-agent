@@ -91,7 +91,7 @@ fn single_byte_tag(input: &[u8]) -> nom::IResult<&[u8], &[u8]> {
     })(input)
 }
 
-pub(super) fn tag(input: &[u8]) -> nom::IResult<&[u8], Tag> {
+pub(crate) fn tag(input: &[u8]) -> nom::IResult<&[u8], Tag> {
     combinator::map(branch::alt((multi_byte_tag, single_byte_tag)), Tag::from)(input)
 }
 

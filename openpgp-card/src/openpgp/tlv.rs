@@ -9,8 +9,8 @@ use std::convert::TryFrom;
 
 use nom::{bytes::complete as bytes, combinator};
 
-use crate::card_do::complete;
-use crate::tlv::{length::tlv_encode_length, tag::Tag, value::Value};
+use crate::openpgp::data::complete;
+use crate::openpgp::tlv::{length::tlv_encode_length, tag::Tag, value::Value};
 
 /// TLV (Tag-Length-Value) data structure.
 ///
@@ -87,7 +87,7 @@ mod test {
     use hex_literal::hex;
 
     use super::{Tlv, Value};
-    use crate::tags::Tags;
+    use crate::openpgp::tags::Tags;
     use crate::Error;
 
     #[test]

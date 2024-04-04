@@ -5,7 +5,7 @@
 
 use std::convert::TryFrom;
 
-use crate::card_do::PWStatusBytes;
+use crate::openpgp::data::PWStatusBytes;
 use crate::Error;
 
 impl PWStatusBytes {

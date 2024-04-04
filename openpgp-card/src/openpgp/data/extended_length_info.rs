@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 
 use nom::{bytes::complete::tag, number::complete as number, sequence};
 
-use crate::card_do::{complete, ExtendedLengthInfo};
+use crate::openpgp::data::{complete, ExtendedLengthInfo};
 
 fn parse(input: &[u8]) -> nom::IResult<&[u8], (u16, u16)> {
     let (input, (_, cmd, _, resp)) = nom::combinator::all_consuming(sequence::tuple((

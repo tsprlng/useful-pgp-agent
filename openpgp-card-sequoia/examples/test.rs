@@ -6,8 +6,8 @@ use std::error::Error;
 
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
-use openpgp_card::card_do::Sex;
-use openpgp_card::KeyType;
+use openpgp_card::openpgp::data::Sex;
+use openpgp_card::openpgp::KeyType;
 use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::{state::Open, Card};
 use sequoia_openpgp::parse::Parse;

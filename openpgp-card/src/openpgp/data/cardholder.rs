@@ -5,9 +5,9 @@
 
 use std::convert::TryFrom;
 
-use crate::card_do::{CardholderRelatedData, Lang, Sex};
-use crate::tags::Tags;
-use crate::tlv::{value::Value, Tlv};
+use crate::openpgp::data::{CardholderRelatedData, Lang, Sex};
+use crate::openpgp::tags::Tags;
+use crate::openpgp::tlv::{value::Value, Tlv};
 
 impl CardholderRelatedData {
     pub fn name(&self) -> Option<&[u8]> {
