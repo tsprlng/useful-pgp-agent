@@ -5,7 +5,7 @@
 
 use std::convert::TryFrom;
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use nom::{combinator, number::complete as number, sequence};
 
 use crate::openpgp::data::{KeyGenerationTime, KeySet};
@@ -13,10 +13,7 @@ use crate::Error;
 
 impl From<KeyGenerationTime> for DateTime<Utc> {
     fn from(kg: KeyGenerationTime) -> Self {
-        let naive_datetime = NaiveDateTime::from_timestamp_opt(kg.0 as i64, 0)
-            .expect("invalid or out-of-range datetime");
-
-        DateTime::from_naive_utc_and_offset(naive_datetime, Utc)
+        DateTime::from_timestamp(kg.0 as i64, 0).expect("invalid or out-of-range datetime")
     }
 }
 
