@@ -5,7 +5,6 @@
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter, Write};
-use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 
@@ -303,16 +302,11 @@ impl KeyGenerationTime {
     pub fn get(&self) -> u32 {
         self.0
     }
-
-    pub fn to_datetime(&self) -> DateTime<Utc> {
-        let d = UNIX_EPOCH + Duration::from_secs(self.get() as u64);
-        DateTime::<Utc>::from(d)
-    }
 }
 
 impl Display for KeyGenerationTime {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_datetime())
+        write!(f, "{}", DateTime::<Utc>::from(*self))
     }
 }
 
