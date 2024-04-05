@@ -36,12 +36,9 @@ pub struct Transaction<'a> {
 
     // Cache of "application related data".
     //
-    // FIXME: Should be invalidated when changing data on the card!
+    // FIXME: Should be automatically invalidated when changing data on the card!
     // (e.g. uploading keys, etc)
-    //
-    // This field should probably be an Option<> that gets invalidated when appropriate and
-    // re-fetched lazily.
-    ard: ApplicationRelatedData,
+    ard: Cached<ApplicationRelatedData>,
 
     // Cache of the card's KdfDo
     // FIXME: invalidate when changed!
@@ -64,7 +61,7 @@ impl<'a> Transaction<'a> {
     pub(crate) fn new(opt: crate::ocard::Transaction<'a>, ard: ApplicationRelatedData) -> Self {
         Transaction {
             opt,
-            ard,
+            ard: Cached::Value(ard),
             kdf_do: Cached::Uncached,
             pw1: false,
             pw1_sign: false,
@@ -72,8 +69,23 @@ impl<'a> Transaction<'a> {
         }
     }
 
-    pub(crate) fn ard(&self) -> &ApplicationRelatedData {
-        &self.ard
+    pub(crate) fn ard(&mut self) -> &ApplicationRelatedData {
+        if matches!(self.ard, Cached::Uncached) {
+            match self.opt.application_related_data() {
+                Ok(ard) => {
+                    self.ard = Cached::Value(ard);
+                }
+                Err(_) => {
+                    self.ard = Cached::None;
+                }
+            }
+        }
+
+        match &self.ard {
+            Cached::Value(ard) => ard,
+            Cached::Uncached => unreachable!(),
+            Cached::None => unreachable!(),
+        }
     }
 
     pub(crate) fn kdf_do(&mut self) -> Option<&KdfDo> {
@@ -95,8 +107,9 @@ impl<'a> Transaction<'a> {
         }
     }
 
-    pub(crate) fn set_ard(&mut self, ard: ApplicationRelatedData) {
-        self.ard = ard
+    pub(crate) fn invalidate_cache(&mut self) {
+        self.ard = Cached::Uncached;
+        self.kdf_do = Cached::Uncached;
     }
 }
 

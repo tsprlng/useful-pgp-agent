@@ -122,7 +122,7 @@ impl Card<Open> {
             let mut card = Self::new(b)?;
 
             let aid = {
-                let tx = card.transaction()?;
+                let mut tx = card.transaction()?;
                 tx.state.ard().application_id()?
             };
 
@@ -179,19 +179,12 @@ impl<'a> Card<Transaction<'a>> {
         })
     }
 
-    /// Replace cached "application related data" in this instance of Open
-    /// with the current data on the card.
+    /// Drop cached "application related data" and "kdf do" in this [Card] instance.
     ///
-    /// This is needed e.g. after importing or generating keys on a card, to
-    /// see these changes reflected in the internal cached
-    /// [`crate::ocard::data::ApplicationRelatedData`].
-    pub fn reload_ard(&mut self) -> Result<(), Error> {
-        // FIXME: this should be implemented internally, transparent to users
-
-        let ard = self.state.opt.application_related_data()?;
-
-        self.state.set_ard(ard);
-
+    /// This is necessary e.g. after importing or generating keys on a card, to
+    /// drop the now obsolete cached [`ApplicationRelatedData`] and [`KdfDo`].
+    pub fn invalidate_cache(&mut self) -> Result<(), Error> {
+        self.state.invalidate_cache();
         Ok(())
     }
 
@@ -454,12 +447,15 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// PW Status Bytes
-    pub fn pw_status_bytes(&self) -> Result<PWStatusBytes, Error> {
+    pub fn pw_status_bytes(&mut self) -> Result<PWStatusBytes, Error> {
         self.state.ard().pw_status_bytes()
     }
 
     /// Get algorithm attributes for a key slot.
-    pub fn algorithm_attributes(&self, key_type: KeyType) -> Result<AlgorithmAttributes, Error> {
+    pub fn algorithm_attributes(
+        &mut self,
+        key_type: KeyType,
+    ) -> Result<AlgorithmAttributes, Error> {
         self.state.ard().algorithm_attributes(key_type)
     }
 
@@ -467,7 +463,7 @@ impl<'a> Card<Transaction<'a>> {
     ///
     /// (The fingerprints for the three basic key slots are stored in a
     /// shared field on the card, thus they can be retrieved in one go)
-    pub fn fingerprints(&self) -> Result<KeySet<Fingerprint>, Error> {
+    pub fn fingerprints(&mut self) -> Result<KeySet<Fingerprint>, Error> {
         self.state.ard().fingerprints()
     }
 
@@ -490,7 +486,7 @@ impl<'a> Card<Transaction<'a>> {
     ///
     /// (The creation time for the three basic key slots are stored in a
     /// shared field on the card, thus they can be retrieved in one go)
-    pub fn key_generation_times(&self) -> Result<KeySet<KeyGenerationTime>, Error> {
+    pub fn key_generation_times(&mut self) -> Result<KeySet<KeyGenerationTime>, Error> {
         self.state.ard().key_generation_times()
     }
 
@@ -512,7 +508,7 @@ impl<'a> Card<Transaction<'a>> {
         Ok(ts)
     }
 
-    pub fn key_information(&self) -> Result<Option<KeyInformation>, Error> {
+    pub fn key_information(&mut self) -> Result<Option<KeyInformation>, Error> {
         self.state.ard().key_information()
     }
 
@@ -520,7 +516,7 @@ impl<'a> Card<Transaction<'a>> {
     /// This includes the [`TouchPolicy`], if the card supports touch
     /// confirmation.
     pub fn user_interaction_flag(
-        &self,
+        &mut self,
         key_type: KeyType,
     ) -> Result<Option<UserInteractionFlag>, Error> {
         match key_type {
@@ -533,7 +529,7 @@ impl<'a> Card<Transaction<'a>> {
 
     /// List of CA-Fingerprints of “Ultimately Trusted Keys”.
     /// May be used to verify Public Keys from servers.
-    pub fn ca_fingerprints(&self) -> Result<[Option<Fingerprint>; 3], Error> {
+    pub fn ca_fingerprints(&mut self) -> Result<[Option<Fingerprint>; 3], Error> {
         self.state.ard().ca_fingerprints()
     }
 
