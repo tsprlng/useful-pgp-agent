@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod privkey;
 mod rpgp;
 
 use std::fmt::{Debug, Formatter};
@@ -18,6 +19,7 @@ use pgp::packet::PublicKey;
 use pgp::types::{
     EcdsaPublicParams, KeyId, KeyTrait, Mpi, PublicKeyTrait, PublicParams, SecretKeyTrait,
 };
+pub use privkey::UploadableKey;
 use rand::{CryptoRng, Rng};
 pub use rpgp::{public_key_material_and_fp_to_key, public_key_material_to_key};
 
