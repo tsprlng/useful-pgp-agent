@@ -12,7 +12,10 @@ use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
 use pgp::packet::PublicKey;
-use pgp::types::{EcdsaPublicParams, KeyTrait, KeyVersion, PublicParams, Version};
+use pgp::types::{EcdsaPublicParams, KeyTrait, KeyVersion, PublicParams, SecretKeyTrait, Version};
+use pgp::{Esk, Message, PlainSessionKey};
+
+use crate::CardSlot;
 
 /// value pairs that we'll consider in ECDH parameter auto-detection
 const ECDH_PARAM: &[(Option<HashAlgorithm>, Option<SymmetricKeyAlgorithm>)] = &[
@@ -257,4 +260,29 @@ pub(crate) fn pubkey_from_card(
     };
 
     public_key_material_and_fp_to_key(&pkm, key_type, &created, &fingerprint)
+}
+
+pub fn decrypt(message: Message, cs: CardSlot) -> Result<Message, pgp::errors::Error> {
+    //let (decrypted, _ids) = message.decrypt(|| String::new(), &[&decrypt_key])?;
+    let Message::Encrypted { esk, edata } = message else {
+        panic!("not encrypted");
+    };
+
+    let mpis = if let Esk::PublicKeyEncryptedSessionKey(ref k) = esk[0] {
+        k.mpis()
+    } else {
+        panic!("whoops")
+    };
+
+    let (session_key, session_key_algorithm) =
+        cs.unlock(String::new, |priv_key| priv_key.decrypt(mpis))?;
+
+    let plain_session_key = PlainSessionKey::V4 {
+        key: session_key,
+        sym_alg: session_key_algorithm,
+    };
+
+    let decrypted = edata.decrypt(plain_session_key)?;
+
+    Ok(decrypted)
 }
