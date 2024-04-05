@@ -5,6 +5,7 @@
 use chrono::{DateTime, Utc};
 use openpgp_card::ocard::algorithm::{AlgorithmAttributes, Curve};
 use openpgp_card::ocard::crypto::{EccType, PublicKeyMaterial};
+use openpgp_card::ocard::data::{Fingerprint, KeyGenerationTime};
 use openpgp_card::ocard::{KeyType, Transaction};
 use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::crypto::hash::HashAlgorithm;
@@ -14,12 +15,27 @@ use pgp::packet::PublicKey;
 use pgp::types::{EcdsaPublicParams, KeyTrait, KeyVersion, PublicParams, Version};
 
 /// value pairs that we'll consider in ECDH parameter auto-detection
-const ECDH_PARAM: &[(HashAlgorithm, SymmetricKeyAlgorithm)] = &[
-    (HashAlgorithm::SHA2_256, SymmetricKeyAlgorithm::AES128),
-    (HashAlgorithm::SHA2_512, SymmetricKeyAlgorithm::AES256),
-    (HashAlgorithm::SHA2_384, SymmetricKeyAlgorithm::AES256),
-    (HashAlgorithm::SHA2_384, SymmetricKeyAlgorithm::AES192),
-    (HashAlgorithm::SHA2_256, SymmetricKeyAlgorithm::AES256),
+const ECDH_PARAM: &[(Option<HashAlgorithm>, Option<SymmetricKeyAlgorithm>)] = &[
+    (
+        Some(HashAlgorithm::SHA2_256),
+        Some(SymmetricKeyAlgorithm::AES128),
+    ),
+    (
+        Some(HashAlgorithm::SHA2_512),
+        Some(SymmetricKeyAlgorithm::AES256),
+    ),
+    (
+        Some(HashAlgorithm::SHA2_384),
+        Some(SymmetricKeyAlgorithm::AES256),
+    ),
+    (
+        Some(HashAlgorithm::SHA2_384),
+        Some(SymmetricKeyAlgorithm::AES192),
+    ),
+    (
+        Some(HashAlgorithm::SHA2_256),
+        Some(SymmetricKeyAlgorithm::AES256),
+    ),
 ];
 
 fn pubkey(
@@ -61,34 +77,57 @@ pub(crate) fn map_card_err(e: openpgp_card::Error) -> pgp::errors::Error {
     pgp::errors::Error::Message(format!("openpgp_card error: {:?}", e))
 }
 
-pub(crate) fn pubkey_from_card(
-    tx: &mut Transaction,
+/// Get PublicKey for an openpgp-card PublicKeyMaterial, KeyGenerationTime and Fingerprint.
+///
+/// For ECC decryption keys, possible values for the parameters `hash` and `alg_sym` will be tested.
+/// If a key with matching fingerprint is found in this way, it is considered the correct key,
+/// and returned.
+///
+/// The Fingerprint of the retrieved PublicKey is always validated against the `Fingerprint` as
+/// stored on the card. If the fingerprints don't match, an Error is returned.
+pub fn public_key_material_and_fp_to_key(
+    pkm: &PublicKeyMaterial,
     key_type: KeyType,
+    created: &KeyGenerationTime,
+    fingerprint: &Fingerprint,
 ) -> Result<PublicKey, pgp::errors::Error> {
-    let pk = tx.public_key(key_type).map_err(map_card_err)?;
+    // Possible hash/sym parameters based on statistics over 2019-12 SKS dump:
+    // https://gitlab.com/sequoia-pgp/sequoia/-/issues/838#note_909813463
 
-    let ard = tx.application_related_data().map_err(map_card_err)?;
-    let kgt = ard.key_generation_times().map_err(map_card_err)?;
-
-    let Some(created) = (match key_type {
-        KeyType::Signing => kgt.signature().cloned(),
-        KeyType::Decryption => kgt.decryption().cloned(),
-        KeyType::Authentication => kgt.authentication().cloned(),
-        KeyType::Attestation => ard.attestation_key_generation_time().map_err(|e| {
-            pgp::errors::Error::Message(format!("Get attestation_key_generation_time: {:?}", e,))
-        })?,
-    }) else {
-        // KeyGenerationTime is None
-        return Err(pgp::errors::Error::Message(format!(
-            "No creation time set for OpenPGP card key type {:?}",
-            key_type,
-        )));
+    let param: &[_] = match (pkm, key_type) {
+        (PublicKeyMaterial::E(_), KeyType::Decryption) => ECDH_PARAM,
+        _ => &[(None, None)],
     };
 
+    for (hash, alg_sym) in param {
+        if let Ok(key) = public_key_material_to_key(pkm, key_type, created, *hash, *alg_sym) {
+            // check FP
+            if key.fingerprint() == fingerprint.as_bytes() {
+                // return if match
+                return Ok(key);
+            }
+        }
+    }
+
+    Err(pgp::errors::Error::Message(
+        "Couldn't find key with matching fingerprint".to_string(),
+    ))
+}
+
+/// Helper fn: get a PublicKey from an openpgp-card PublicKeyMaterial.
+///
+/// For ECC decryption keys, `hash` and `alg_sym` can be optionally specified.
+pub fn public_key_material_to_key(
+    pkm: &PublicKeyMaterial,
+    key_type: KeyType,
+    created: &KeyGenerationTime,
+    hash: Option<HashAlgorithm>,
+    alg_sym: Option<SymmetricKeyAlgorithm>,
+) -> Result<PublicKey, pgp::errors::Error> {
     let created =
         DateTime::<Utc>::from_timestamp(created.get() as i64, 0).expect("u32 time from card");
 
-    match pk {
+    match pkm {
         PublicKeyMaterial::R(rsa) => pubkey(
             PublicKeyAlgorithm::RSA,
             created,
@@ -113,45 +152,23 @@ pub(crate) fn pubkey_from_card(
                             )));
                         }
 
-                        // read key slot fingerprint from card
-                        let Some(fingerprint) = ard
-                            .fingerprints()
-                            .map_err(map_card_err)?
-                            .decryption()
-                            .cloned()
-                        else {
-                            return Err(pgp::errors::Error::Message(
-                                "No fingerprint found in decryption key slot".to_string(),
-                            ));
-                        };
-
                         let mut p = ecc.data().to_vec();
                         if curve == ECCCurve::Curve25519 && p.len() == 32 {
                             // prepend OpenPGP 0x40 prefix for curve 25519 MPI
                             p.insert(0, 0x40);
                         }
 
-                        // find hash/alg_sym combination that matches the fingerprint on the card
-                        let pk = ECDH_PARAM
-                            .iter()
-                            .map(|&(hash, alg_sym)| PublicParams::ECDH {
-                                curve: curve.clone(),
-                                p: p.clone().into(),
-                                hash,
-                                alg_sym,
-                            })
-                            .flat_map(|pp| pubkey(PublicKeyAlgorithm::ECDH, created, pp))
-                            .find(|pk| pk.fingerprint() == fingerprint.as_bytes());
+                        let hash = hash.unwrap_or(HashAlgorithm::SHA2_256); // FIXME: default?
+                        let alg_sym = alg_sym.unwrap_or(SymmetricKeyAlgorithm::AES128); // FIXME: default?
 
-                        if let Some(pk) = pk {
-                            // suitable parameters were found -> return them
-                            (PublicKeyAlgorithm::ECDH, pk.public_params().clone())
-                        } else {
-                            return Err(pgp::errors::Error::Message(
-                                "No suitable ECDH parameters found for decryption key slot"
-                                    .to_string(),
-                            ));
-                        }
+                        let pp = PublicParams::ECDH {
+                            curve: curve.clone(),
+                            p: p.clone().into(),
+                            hash,
+                            alg_sym,
+                        };
+
+                        (PublicKeyAlgorithm::ECDH, pp)
                     }
 
                     EccType::ECDSA => (
@@ -186,4 +203,56 @@ pub(crate) fn pubkey_from_card(
             ))),
         },
     }
+}
+
+pub(crate) fn pubkey_from_card(
+    tx: &mut Transaction,
+    key_type: KeyType,
+) -> Result<PublicKey, pgp::errors::Error> {
+    let pkm = tx.public_key(key_type).map_err(map_card_err)?;
+
+    let ard = tx.application_related_data().map_err(map_card_err)?;
+    let kgt = ard.key_generation_times().map_err(map_card_err)?;
+
+    let Some(created) = (match key_type {
+        KeyType::Signing => kgt.signature().cloned(),
+        KeyType::Decryption => kgt.decryption().cloned(),
+        KeyType::Authentication => kgt.authentication().cloned(),
+        KeyType::Attestation => ard.attestation_key_generation_time().map_err(|e| {
+            pgp::errors::Error::Message(format!("Get attestation_key_generation_time: {:?}", e,))
+        })?,
+    }) else {
+        // KeyGenerationTime is None
+        return Err(pgp::errors::Error::Message(format!(
+            "No creation time set for OpenPGP card key type {:?}",
+            key_type,
+        )));
+    };
+
+    // FIXME: simplify, use getter in Card<>
+    let Some(fingerprint) = (match key_type {
+        KeyType::Signing => ard
+            .fingerprints()
+            .map_err(map_card_err)?
+            .signature()
+            .cloned(),
+        KeyType::Decryption => ard
+            .fingerprints()
+            .map_err(map_card_err)?
+            .decryption()
+            .cloned(),
+        KeyType::Authentication => ard
+            .fingerprints()
+            .map_err(map_card_err)?
+            .authentication()
+            .cloned(),
+        _ => panic!(),
+    }) else {
+        return Err(pgp::errors::Error::Message(format!(
+            "No fingerprint found for key slot {:?}",
+            key_type
+        )));
+    };
+
+    public_key_material_and_fp_to_key(&pkm, key_type, &created, &fingerprint)
 }

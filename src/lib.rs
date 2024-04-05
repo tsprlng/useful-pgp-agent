@@ -19,6 +19,7 @@ use pgp::types::{
     EcdsaPublicParams, KeyId, KeyTrait, Mpi, PublicKeyTrait, PublicParams, SecretKeyTrait,
 };
 use rand::{CryptoRng, Rng};
+pub use rpgp::{public_key_material_and_fp_to_key, public_key_material_to_key};
 
 use crate::rpgp::map_card_err;
 
