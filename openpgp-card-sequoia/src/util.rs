@@ -7,10 +7,10 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use anyhow::Result;
-use openpgp_card::openpgp::algorithm::{AlgorithmAttributes, Curve};
-use openpgp_card::openpgp::crypto::{CardUploadableKey, PublicKeyMaterial};
-use openpgp_card::openpgp::data::{Fingerprint, KeyGenerationTime};
-use openpgp_card::{openpgp::KeyType, Error};
+use openpgp_card::ocard::algorithm::{AlgorithmAttributes, Curve};
+use openpgp_card::ocard::crypto::{CardUploadableKey, PublicKeyMaterial};
+use openpgp_card::ocard::data::{Fingerprint, KeyGenerationTime};
+use openpgp_card::{ocard::KeyType, Error};
 use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::crypto::mpi;
 use sequoia_openpgp::packet::Signature;

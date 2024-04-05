@@ -10,10 +10,10 @@ use nom::branch::alt;
 use nom::combinator::map;
 use nom::{branch, bytes::complete as bytes, combinator, multi, sequence};
 
-use crate::openpgp::algorithm::{AlgorithmAttributes, AlgorithmInformation};
-use crate::openpgp::data::{algo_attrs, complete};
-use crate::openpgp::tlv;
-use crate::openpgp::KeyType;
+use crate::ocard::algorithm::{AlgorithmAttributes, AlgorithmInformation};
+use crate::ocard::data::{algo_attrs, complete};
+use crate::ocard::tlv;
+use crate::ocard::KeyType;
 
 impl AlgorithmInformation {
     pub fn for_keytype(&self, kt: KeyType) -> Vec<&AlgorithmAttributes> {
@@ -100,11 +100,11 @@ impl TryFrom<&[u8]> for AlgorithmInformation {
 mod test {
     use std::convert::TryFrom;
 
-    use crate::openpgp::algorithm::{
+    use crate::ocard::algorithm::{
         AlgorithmAttributes::*, AlgorithmInformation, Curve::*, EccAttributes, RsaAttributes,
     };
-    use crate::openpgp::crypto::EccType::*;
-    use crate::openpgp::KeyType::*;
+    use crate::ocard::crypto::EccType::*;
+    use crate::ocard::KeyType::*;
 
     #[test]
     fn test_gnuk() {

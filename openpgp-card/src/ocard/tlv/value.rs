@@ -3,8 +3,8 @@
 
 //! Value in a TLV data structure
 
-use crate::openpgp::data::complete;
-use crate::openpgp::tlv::Tlv;
+use crate::ocard::data::complete;
+use crate::ocard::tlv::Tlv;
 
 /// A TLV "value"
 #[derive(Debug, Eq, PartialEq)]

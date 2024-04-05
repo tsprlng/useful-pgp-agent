@@ -9,7 +9,7 @@ use std::fmt;
 
 use nom::{bytes::complete as bytes, combinator, sequence};
 
-use crate::openpgp::data::{Fingerprint, KeySet};
+use crate::ocard::data::{Fingerprint, KeySet};
 use crate::Error;
 
 impl From<[u8; 20]> for Fingerprint {

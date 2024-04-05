@@ -5,11 +5,11 @@ use std::convert::{TryFrom, TryInto};
 
 use nom::AsBytes;
 
-use crate::openpgp::data::KdfDo;
-use crate::openpgp::tags::Tags;
-use crate::openpgp::tlv::tag::Tag;
-use crate::openpgp::tlv::value::Value;
-use crate::openpgp::tlv::Tlv;
+use crate::ocard::data::KdfDo;
+use crate::ocard::tags::Tags;
+use crate::ocard::tlv::tag::Tag;
+use crate::ocard::tlv::value::Value;
+use crate::ocard::tlv::Tlv;
 use crate::Error;
 
 impl TryFrom<&[u8]> for KdfDo {

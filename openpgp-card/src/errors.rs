@@ -12,7 +12,7 @@
 
 use card_backend::SmartcardError;
 
-use crate::openpgp::StatusBytes;
+use crate::ocard::StatusBytes;
 
 /// Enum wrapper for the error types of this crate
 #[derive(thiserror::Error, Debug)]

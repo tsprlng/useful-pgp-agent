@@ -4,7 +4,7 @@
 //! Handle transformation of user-provided PINs according to the KDF configuration on the card,
 //! if any.
 
-use openpgp_card::openpgp::data::KdfDo;
+use openpgp_card::ocard::data::KdfDo;
 use openpgp_card::Error;
 use sha2::Digest;
 

@@ -5,7 +5,7 @@
 
 use std::convert::TryFrom;
 
-use crate::openpgp::data::{CardCapabilities, CardServiceData, HistoricalBytes};
+use crate::ocard::data::{CardCapabilities, CardServiceData, HistoricalBytes};
 use crate::Error;
 
 impl CardCapabilities {

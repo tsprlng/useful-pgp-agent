@@ -5,9 +5,9 @@
 //! Private key data, public key data, cryptograms for decryption, hash
 //! data for signing.
 
-use crate::openpgp::algorithm::AlgorithmAttributes;
-use crate::openpgp::data::{Fingerprint, KeyGenerationTime};
-use crate::openpgp::oid;
+use crate::ocard::algorithm::AlgorithmAttributes;
+use crate::ocard::data::{Fingerprint, KeyGenerationTime};
+use crate::ocard::oid;
 use crate::Error;
 
 /// A hash value that can be signed by the card.

@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 use chrono::{DateTime, Utc};
 use nom::{combinator, number::complete as number, sequence};
 
-use crate::openpgp::data::{KeyGenerationTime, KeySet};
+use crate::ocard::data::{KeyGenerationTime, KeySet};
 use crate::Error;
 
 impl From<KeyGenerationTime> for DateTime<Utc> {

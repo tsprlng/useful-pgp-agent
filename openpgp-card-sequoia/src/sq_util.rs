@@ -8,7 +8,7 @@
 use std::io;
 
 use anyhow::{anyhow, Context, Result};
-use openpgp_card::{openpgp::KeyType, Error};
+use openpgp_card::{ocard::KeyType, Error};
 use sequoia_openpgp::armor;
 use sequoia_openpgp::cert::amalgamation::key::{ErasedKeyAmalgamation, ValidErasedKeyAmalgamation};
 use sequoia_openpgp::crypto;

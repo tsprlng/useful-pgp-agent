@@ -7,18 +7,18 @@ use std::convert::{TryFrom, TryInto};
 
 use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
 
-use crate::openpgp::algorithm::{AlgorithmAttributes, AlgorithmInformation};
-use crate::openpgp::apdu::command::Command;
-use crate::openpgp::apdu::response::RawResponse;
-use crate::openpgp::crypto::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial};
-use crate::openpgp::data::{
+use crate::ocard::algorithm::{AlgorithmAttributes, AlgorithmInformation};
+use crate::ocard::apdu::command::Command;
+use crate::ocard::apdu::response::RawResponse;
+use crate::ocard::crypto::{CardUploadableKey, Cryptogram, Hash, PublicKeyMaterial};
+use crate::ocard::data::{
     ApplicationIdentifier, ApplicationRelatedData, CardholderRelatedData, ExtendedCapabilities,
     ExtendedLengthInfo, Fingerprint, HistoricalBytes, KdfDo, KeyGenerationTime, Lang,
     PWStatusBytes, SecuritySupportTemplate, Sex, UserInteractionFlag,
 };
-use crate::openpgp::tags::{ShortTag, Tags};
-use crate::openpgp::tlv::value::Value;
-use crate::openpgp::tlv::Tlv;
+use crate::ocard::tags::{ShortTag, Tags};
+use crate::ocard::tlv::value::Value;
+use crate::ocard::tlv::Tlv;
 use crate::Error;
 
 pub mod algorithm;
@@ -946,7 +946,7 @@ impl<'a> Transaction<'a> {
     /// and then sets the *Decryption* key to be used for [`Self::internal_authenticate`].
     ///
     /// ```no_run
-    /// # use openpgp_card::openpgp::{KeyType, Transaction};
+    /// # use openpgp_card::ocard::{KeyType, Transaction};
     /// # let mut tx: Transaction<'static> = panic!();
     /// tx.manage_security_environment(KeyType::Decryption, KeyType::Authentication)?;
     /// tx.manage_security_environment(KeyType::Authentication, KeyType::Decryption)?;

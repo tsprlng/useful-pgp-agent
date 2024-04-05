@@ -4,10 +4,8 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use openpgp_card::openpgp::crypto::{
-    CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey,
-};
-use openpgp_card::openpgp::data::{Fingerprint, KeyGenerationTime};
+use openpgp_card::ocard::crypto::{CardUploadableKey, EccKey, EccType, PrivateKeyMaterial, RSAKey};
+use openpgp_card::ocard::data::{Fingerprint, KeyGenerationTime};
 use openpgp_card::Error;
 use sequoia_openpgp::cert::amalgamation::key::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::crypto::{mpi, mpi::ProtectedMPI, mpi::MPI};

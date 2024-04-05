@@ -9,12 +9,12 @@
 //! This library aims to offer
 //! - low-level access to all features in the OpenPGP
 //! [card specification](https://gnupg.org/ftp/specs/OpenPGP-smart-card-application-3.4.1.pdf)
-//! via the [crate::openpgp] package,
+//! via the [crate::ocard] package,
 //! - without relying on a particular
 //! [OpenPGP implementation](https://www.openpgp.org/software/developer/).
 //!
 //! The library exposes two modes of access to cards:
-//! - low-level, unmediated, access to card functionality (see [crate::openpgp]), and
+//! - low-level, unmediated, access to card functionality (see [crate::ocard]), and
 //! - a more opinionated, typed wrapper API that performs some amount of caching.
 //!
 //! Note that this library can't directly access cards by itself.
@@ -30,6 +30,6 @@
 extern crate core;
 
 mod errors;
-pub mod openpgp;
+pub mod ocard;
 
 pub use crate::errors::Error;

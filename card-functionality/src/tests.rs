@@ -6,9 +6,9 @@ use std::str::FromStr;
 use std::string::FromUtf8Error;
 
 use anyhow::Result;
-use openpgp_card::openpgp::algorithm::AlgoSimple;
-use openpgp_card::openpgp::data::{KeyGenerationTime, Sex};
-use openpgp_card::openpgp::{KeyType, StatusBytes};
+use openpgp_card::ocard::algorithm::AlgoSimple;
+use openpgp_card::ocard::data::{KeyGenerationTime, Sex};
+use openpgp_card::ocard::{KeyType, StatusBytes};
 use openpgp_card::Error;
 use openpgp_card_sequoia::sq_util;
 use openpgp_card_sequoia::state::{Admin, Open, Transaction};
@@ -137,7 +137,7 @@ fn check_key_upload_algo_attrs() -> Result<()> {
 }
 
 pub fn test_print_caps(
-    pgp: &mut openpgp_card::openpgp::OpenPGP,
+    pgp: &mut openpgp_card::ocard::OpenPGP,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgpt = pgp.transaction()?;
@@ -160,7 +160,7 @@ pub fn test_print_caps(
 }
 
 pub fn test_print_algo_info(
-    pgp: &mut openpgp_card::openpgp::OpenPGP,
+    pgp: &mut openpgp_card::ocard::OpenPGP,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
     let mut pgpt = pgp.transaction()?;

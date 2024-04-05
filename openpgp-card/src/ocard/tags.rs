@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021-2023 Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::openpgp::tlv::tag::Tag;
+use crate::ocard::tlv::tag::Tag;
 
 /// Tags, as specified and used in the OpenPGP card 3.4.1 spec.
 /// All tags in OpenPGP card are either 1 or 2 bytes long.

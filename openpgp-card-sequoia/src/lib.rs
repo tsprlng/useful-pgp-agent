@@ -140,14 +140,14 @@
 //! ```
 
 use card_backend::{CardBackend, SmartcardError};
-use openpgp_card::openpgp::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
-use openpgp_card::openpgp::crypto::PublicKeyMaterial;
-use openpgp_card::openpgp::data::{
+use openpgp_card::ocard::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
+use openpgp_card::ocard::crypto::PublicKeyMaterial;
+use openpgp_card::ocard::data::{
     ApplicationIdentifier, CardholderRelatedData, ExtendedCapabilities, ExtendedLengthInfo,
     Fingerprint, HistoricalBytes, KdfDo, KeyGenerationTime, KeyInformation, KeySet, Lang,
     PWStatusBytes, Sex, TouchPolicy, UserInteractionFlag,
 };
-use openpgp_card::{openpgp::KeyType, Error};
+use openpgp_card::{ocard::KeyType, Error};
 use sequoia_openpgp::cert::prelude::ValidErasedKeyAmalgamation;
 use sequoia_openpgp::packet::key::SecretParts;
 use sequoia_openpgp::packet::{key, Key};
@@ -259,7 +259,7 @@ impl Card<Open> {
     where
         B: Into<Box<dyn CardBackend + Send + Sync>>,
     {
-        let pgp = openpgp_card::openpgp::OpenPGP::new(backend)?;
+        let pgp = openpgp_card::ocard::OpenPGP::new(backend)?;
 
         Ok(Card::<Open> {
             state: Open { pgp },
@@ -290,7 +290,7 @@ impl Card<Open> {
 
 impl<'a> Card<Transaction<'a>> {
     /// Internal constructor
-    fn new(mut opt: openpgp_card::openpgp::Transaction<'a>) -> Result<Self, Error> {
+    fn new(mut opt: openpgp_card::ocard::Transaction<'a>) -> Result<Self, Error> {
         let ard = opt.application_related_data()?;
 
         Ok(Self {
@@ -303,7 +303,7 @@ impl<'a> Card<Transaction<'a>> {
     ///
     /// This is needed e.g. after importing or generating keys on a card, to
     /// see these changes reflected in the internal cached
-    /// [`openpgp_card::openpgp::data::ApplicationRelatedData`].
+    /// [`openpgp_card::ocard::data::ApplicationRelatedData`].
     pub fn reload_ard(&mut self) -> Result<(), Error> {
         // FIXME: this should be implemented internally, transparent to users
 
@@ -892,7 +892,7 @@ impl<'a> Card<Transaction<'a>> {
 
 impl<'app, 'open> Card<User<'app, 'open>> {
     /// Helper fn to easily access underlying openpgp_card object
-    fn card(&mut self) -> &mut openpgp_card::openpgp::Transaction<'app> {
+    fn card(&mut self) -> &mut openpgp_card::ocard::Transaction<'app> {
         &mut self.state.tx.state.opt
     }
 
@@ -959,7 +959,7 @@ impl<'app, 'open> Card<User<'app, 'open>> {
 
 impl<'app, 'open> Card<Sign<'app, 'open>> {
     /// Helper fn to easily access underlying openpgp_card object
-    fn card(&mut self) -> &mut openpgp_card::openpgp::Transaction<'app> {
+    fn card(&mut self) -> &mut openpgp_card::ocard::Transaction<'app> {
         &mut self.state.tx.state.opt
     }
 
@@ -1015,7 +1015,7 @@ impl<'app, 'open> Card<Admin<'app, 'open>> {
     }
 
     /// Helper fn to easily access underlying openpgp_card object
-    fn card(&mut self) -> &mut openpgp_card::openpgp::Transaction<'app> {
+    fn card(&mut self) -> &mut openpgp_card::ocard::Transaction<'app> {
         &mut self.state.tx.state.opt
     }
 }
