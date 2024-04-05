@@ -11,15 +11,15 @@ use pgp::{types::SecretKeyTrait, Deserializable, Esk, Message, PlainSessionKey};
 
 fn main() -> testresult::TestResult {
     let card = PcscBackend::cards(None)?.next().unwrap()?;
-    let mut card = openpgp_card::ocard::OpenPGP::new(card)?;
+    let mut card = openpgp_card::Card::new(card)?;
     let mut tx = card.transaction()?;
 
     let pwd = &std::env::args().collect::<Vec<_>>()[1];
     eprintln!("with pwd = {pwd}");
 
-    tx.verify_pw1_user(pwd.as_bytes()).expect("Verify");
+    tx.card().verify_pw1_user(pwd.as_bytes()).expect("Verify");
 
-    let cs = CardSlot::init_from_card(tx, KeyType::Decryption)?;
+    let cs = CardSlot::init_from_card(&mut tx, KeyType::Decryption)?;
     let (message, _headers) = Message::from_armor_single(File::open("message2.asc")?)?;
     eprintln!("message: {:?}", &message);
 
@@ -35,7 +35,7 @@ fn main() -> testresult::TestResult {
     };
 
     let (session_key, session_key_algorithm) =
-        cs.unlock(|| String::new(), |priv_key| priv_key.decrypt(mpis))?;
+        cs.unlock(String::new, |priv_key| priv_key.decrypt(mpis))?;
     eprintln!("session key: {session_key:?}, {session_key_algorithm:?}");
 
     let plain_session_key = PlainSessionKey::V4 {
@@ -47,7 +47,7 @@ fn main() -> testresult::TestResult {
     eprintln!("decrypted: {:?}", &decrypted);
 
     if let Message::Literal(data) = decrypted {
-        println!("{}", String::from_utf8_lossy(&data.data()));
+        println!("{}", String::from_utf8_lossy(data.data()));
     }
 
     Ok(())

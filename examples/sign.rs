@@ -22,12 +22,12 @@ fn main() -> testresult::TestResult {
         .next()
         .unwrap()
         .expect("card");
-    let mut card = openpgp_card::ocard::OpenPGP::new(card).expect("card new");
+    let mut card = openpgp_card::Card::new(card).expect("card new");
     let mut tx = card.transaction().expect("tx");
 
-    tx.verify_pw1_sign(pwd.as_bytes()).expect("Verify");
+    tx.card().verify_pw1_sign(pwd.as_bytes()).expect("Verify");
 
-    let cs = CardSlot::init_from_card(tx, KeyType::Signing)?;
+    let cs = CardSlot::init_from_card(&mut tx, KeyType::Signing)?;
 
     // -- use card signer
     let signature = SignatureConfig::new_v4(

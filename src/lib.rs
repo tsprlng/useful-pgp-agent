@@ -9,7 +9,9 @@ use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
 
 use openpgp_card::ocard::crypto::Hash;
-use openpgp_card::ocard::{KeyType, Transaction};
+use openpgp_card::ocard::KeyType;
+use openpgp_card::state::Transaction;
+use openpgp_card::Card;
 use pgp::crypto::checksum;
 use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::crypto::hash::HashAlgorithm;
@@ -28,9 +30,9 @@ use crate::rpgp::map_card_err;
 /// An individual OpenPGP card key slot, which can be used for private key operations.
 ///
 /// A CardSlot owns the `Transaction` object while it exists. In the course of destroying the
-/// CardSlot, the Transaction can be obtained again by calling [into_transaction].
-pub struct CardSlot<'a> {
-    tx: Mutex<Transaction<'a>>,
+/// CardSlot, the Transaction can be obtained again by calling [CardSlot::into_card].
+pub struct CardSlot<'cs, 't> {
+    tx: Mutex<&'cs mut Card<Transaction<'t>>>,
 
     // Which key slot does this OpenPGP card operate on
     key_type: KeyType,
@@ -42,12 +44,12 @@ pub struct CardSlot<'a> {
     public_key: PublicKey,
 }
 
-impl<'a> CardSlot<'a> {
+impl<'cs, 't> CardSlot<'cs, 't> {
     /// Set up a CardSigner for the card behind `tx`, using the key slot for `key_type`.
     ///
     /// Initializes the CardSigner based on public key information obtained from `public_key`.
     pub fn with_public_key(
-        tx: Transaction<'a>,
+        tx: &'cs mut Card<Transaction<'t>>,
         key_type: KeyType,
         public_key: PublicKey,
     ) -> Result<Self, pgp::errors::Error> {
@@ -64,10 +66,10 @@ impl<'a> CardSlot<'a> {
     ///
     /// Initializes the CardSigner based on public key information obtained from the card.
     pub fn init_from_card(
-        mut tx: Transaction<'a>,
+        tx: &'cs mut Card<Transaction<'t>>,
         key_type: KeyType,
     ) -> Result<Self, pgp::errors::Error> {
-        let pk = rpgp::pubkey_from_card(&mut tx, key_type)?;
+        let pk = rpgp::pubkey_from_card(tx, key_type)?;
 
         Self::with_public_key(tx, key_type, pk)
     }
@@ -81,26 +83,18 @@ impl<'a> CardSlot<'a> {
     pub fn key_type(&self) -> KeyType {
         self.key_type
     }
-
-    pub fn mut_transaction(&mut self) -> &mut Transaction<'a> {
-        self.tx.get_mut().unwrap()
-    }
-
-    pub fn into_transaction(self) -> Transaction<'a> {
-        self.tx.into_inner().unwrap()
-    }
 }
 
-impl Debug for CardSlot<'_> {
+impl Debug for CardSlot<'_, '_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // FIXME: also show card identifier
-        write!(f, "CardSigner for {:?}", self.public_key)?;
+        write!(f, "CardSlot for {:?}", self.public_key)?;
 
         Ok(())
     }
 }
 
-impl KeyTrait for CardSlot<'_> {
+impl KeyTrait for CardSlot<'_, '_> {
     fn fingerprint(&self) -> Vec<u8> {
         self.public_key.fingerprint()
     }
@@ -114,7 +108,7 @@ impl KeyTrait for CardSlot<'_> {
     }
 }
 
-impl PublicKeyTrait for CardSlot<'_> {
+impl PublicKeyTrait for CardSlot<'_, '_> {
     fn verify_signature(
         &self,
         hash: HashAlgorithm,
@@ -139,7 +133,7 @@ impl PublicKeyTrait for CardSlot<'_> {
 
 pub struct Unlocked;
 
-impl SecretKeyTrait for CardSlot<'_> {
+impl SecretKeyTrait for CardSlot<'_, '_> {
     // We model the key data as a public primary key packet for this type.
     // FIXME: The choice of this type is a bit arbitrary.
     type PublicKey = PublicKey;
@@ -195,8 +189,11 @@ impl SecretKeyTrait for CardSlot<'_> {
         };
 
         let sig = match self.key_type {
-            KeyType::Signing => tx.signature_for_hash(hash).map_err(map_card_err)?,
-            KeyType::Authentication => tx.authenticate_for_hash(hash).map_err(map_card_err)?,
+            KeyType::Signing => tx.card().signature_for_hash(hash).map_err(map_card_err)?,
+            KeyType::Authentication => tx
+                .card()
+                .authenticate_for_hash(hash)
+                .map_err(map_card_err)?,
             _ => unimplemented!(),
         };
 
@@ -235,7 +232,7 @@ impl SecretKeyTrait for CardSlot<'_> {
     }
 }
 
-impl CardSlot<'_> {
+impl CardSlot<'_, '_> {
     pub fn decrypt(&self, mpis: &[Mpi]) -> pgp::errors::Result<(Vec<u8>, SymmetricKeyAlgorithm)> {
         let decrypted_key = match self.public_key.public_params() {
             PublicParams::RSA { .. } => {
@@ -245,6 +242,7 @@ impl CardSlot<'_> {
                 self.tx
                     .lock()
                     .unwrap()
+                    .card()
                     .decipher(cryptogram)
                     .expect("decipher")
             }
@@ -279,6 +277,7 @@ impl CardSlot<'_> {
                     .tx
                     .lock()
                     .unwrap()
+                    .card()
                     .decipher(cryptogram)
                     .expect("decipher")
                     .try_into()

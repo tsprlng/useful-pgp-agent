@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use openpgp_card::ocard::algorithm::{AlgorithmAttributes, Curve};
 use openpgp_card::ocard::crypto::{EccType, PublicKeyMaterial};
 use openpgp_card::ocard::data::{Fingerprint, KeyGenerationTime};
-use openpgp_card::ocard::{KeyType, Transaction};
+use openpgp_card::ocard::KeyType;
 use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
@@ -206,9 +206,11 @@ pub fn public_key_material_to_key(
 }
 
 pub(crate) fn pubkey_from_card(
-    tx: &mut Transaction,
+    tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
     key_type: KeyType,
 ) -> Result<PublicKey, pgp::errors::Error> {
+    let tx = tx.card();
+
     let pkm = tx.public_key(key_type).map_err(map_card_err)?;
 
     let ard = tx.application_related_data().map_err(map_card_err)?;
