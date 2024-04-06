@@ -24,7 +24,8 @@ use pgp::types::{
 pub use privkey::UploadableKey;
 use rand::{CryptoRng, Rng};
 pub use rpgp::{
-    decrypt, fp_from_pub, public_key_material_and_fp_to_key, public_key_material_to_key,
+    decrypt, fp_from_pub, make_certificate, public_key_material_and_fp_to_key,
+    public_key_material_to_key,
 };
 
 use crate::rpgp::map_card_err;

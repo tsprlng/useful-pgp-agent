@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Heiko Schaefer <heiko@schaefer.name>
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SubsecRound, Utc};
 use openpgp_card::ocard::algorithm::{AlgorithmAttributes, Curve};
 use openpgp_card::ocard::crypto::{EccType, PublicKeyMaterial};
 use openpgp_card::ocard::data::{Fingerprint, KeyGenerationTime};
@@ -11,9 +11,14 @@ use pgp::crypto::ecc_curve::ECCCurve;
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
-use pgp::packet::PublicKey;
-use pgp::types::{EcdsaPublicParams, KeyTrait, KeyVersion, PublicParams, SecretKeyTrait, Version};
-use pgp::{Esk, Message, PlainSessionKey};
+use pgp::packet::{
+    KeyFlags, PacketTrait, PublicKey, PublicSubkey, SignatureConfigBuilder, SignatureType,
+    Subpacket, SubpacketData, UserId,
+};
+use pgp::types::{
+    EcdsaPublicParams, KeyTrait, KeyVersion, PublicParams, SecretKeyTrait, SignedUser, Version,
+};
+use pgp::{Esk, Message, PlainSessionKey, SignedKeyDetails, SignedPublicKey, SignedPublicSubKey};
 
 use crate::CardSlot;
 
@@ -298,4 +303,187 @@ pub fn fp_from_pub(
 
     let fp = openpgp_card::ocard::data::Fingerprint::try_from(fp.as_slice()).expect("FIXME");
     Ok(fp)
+}
+
+// FIXME: upstream?
+fn pri_to_sub(pubkey: PublicKey) -> pgp::errors::Result<PublicSubkey> {
+    PublicSubkey::new(
+        pubkey.packet_version(),
+        pubkey.version(),
+        pubkey.algorithm(),
+        *pubkey.created_at(),
+        pubkey.expiration(),
+        pubkey.public_params().clone(),
+    )
+}
+
+/// Generate a SignedPublicKey from the three subkeys on a card.
+///
+/// When pw1 is None, attempt to verify via pinpad.
+///
+/// `prompt` notifies the user when a pinpad needs the user pin as input.
+///
+/// FIXME: accept optional metadata for user_id(s)?
+#[allow(clippy::too_many_arguments)]
+pub fn make_certificate(
+    tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
+    key_sig: PublicKey,
+    key_dec: Option<PublicKey>,
+    key_aut: Option<PublicKey>,
+    pw1: Option<&str>,
+    pinpad_prompt: &dyn Fn(),
+    touch_prompt: &(dyn Fn() + Send + Sync),
+    user_ids: &[String],
+) -> Result<SignedPublicKey, openpgp_card::Error> {
+    let primary = key_sig;
+
+    if user_ids.is_empty() {
+        // FIXME
+        panic!("a user id must be added to make a valid cert");
+    }
+
+    // helper: use the card to perform a signing operation
+    let mut verify_signing_pin = |txx: &mut openpgp_card::Card<
+        openpgp_card::state::Transaction,
+    >|
+     -> Result<(), openpgp_card::Error> {
+        // Allow signing on the card
+        if let Some(pw1) = pw1 {
+            txx.verify_user_signing_pin(pw1)?;
+        } else {
+            txx.verify_user_signing_pinpad(pinpad_prompt)?;
+        }
+        Ok(())
+    };
+
+    let mut subkeys = vec![];
+
+    if let Some(key_dec) = key_dec {
+        // add decryption key as subkey
+        let key = pri_to_sub(key_dec).expect("FIXME");
+
+        verify_signing_pin(tx).expect("FIXME");
+
+        // make binding signature, sign with cs
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone()).expect("FIXME");
+
+        let mut kf = KeyFlags::default();
+        kf.set_encrypt_comms(true);
+        kf.set_encrypt_storage(true);
+
+        let config = SignatureConfigBuilder::default()
+            .typ(SignatureType::SubkeyBinding)
+            .pub_alg(cs.algorithm())
+            .hash_alg(cs.hash_alg())
+            .hashed_subpackets(vec![
+                Subpacket::regular(SubpacketData::SignatureCreationTime(
+                    Utc::now().trunc_subsecs(0),
+                )),
+                Subpacket::regular(SubpacketData::IssuerFingerprint(
+                    KeyVersion::V4,
+                    cs.fingerprint().into(),
+                )),
+                Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
+            ])
+            .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
+            .build()
+            .expect("FIXME");
+
+        let sig = config
+            .sign_key_binding(&cs, String::default, &key)
+            .expect("FIXME");
+
+        let sps = SignedPublicSubKey {
+            key,
+            signatures: vec![sig],
+        };
+
+        subkeys.push(sps);
+    }
+
+    if let Some(key_aut) = key_aut {
+        // add decryption key as subkey
+        let key = pri_to_sub(key_aut).expect("FIXME");
+
+        verify_signing_pin(tx).expect("FIXME");
+
+        // make binding signature, sign with cs
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone()).expect("FIXME");
+
+        let mut kf = KeyFlags::default();
+        kf.set_authentication(true);
+
+        let config = SignatureConfigBuilder::default()
+            .typ(SignatureType::SubkeyBinding)
+            .pub_alg(cs.algorithm())
+            .hash_alg(cs.hash_alg())
+            .hashed_subpackets(vec![
+                Subpacket::regular(SubpacketData::SignatureCreationTime(
+                    Utc::now().trunc_subsecs(0),
+                )),
+                Subpacket::regular(SubpacketData::IssuerFingerprint(
+                    KeyVersion::V4,
+                    cs.fingerprint().into(),
+                )),
+                Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
+            ])
+            .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
+            .build()
+            .expect("FIXME");
+
+        let sig = config
+            .sign_key_binding(&cs, String::default, &key)
+            .expect("FIXME");
+
+        let sps = SignedPublicSubKey {
+            key,
+            signatures: vec![sig],
+        };
+
+        subkeys.push(sps);
+    }
+
+    let mut users = vec![];
+
+    // add `user_ids`.
+    for uid in user_ids.iter().map(|uid| uid.as_bytes()) {
+        let uid = UserId::from_slice(Version::New, uid).expect("FIXME");
+
+        let mut kf = KeyFlags::default();
+        kf.set_certify(true);
+        kf.set_sign(true);
+
+        verify_signing_pin(tx).expect("FIXME");
+
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone()).expect("FIXME");
+        let config = SignatureConfigBuilder::default()
+            .typ(SignatureType::CertPositive)
+            .pub_alg(cs.algorithm())
+            .hash_alg(cs.hash_alg())
+            .hashed_subpackets(vec![
+                Subpacket::regular(SubpacketData::SignatureCreationTime(
+                    Utc::now().trunc_subsecs(0),
+                )),
+                Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
+            ])
+            .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
+            .build()
+            .expect("FIXME");
+
+        let sig = config
+            .sign_certification(&cs, String::default, uid.tag(), &uid)
+            .expect("FIXME");
+
+        let suid = SignedUser::new(uid, vec![sig]);
+
+        users.push(suid);
+    }
+
+    // FIXME: generate a direct key signature?
+
+    let details = SignedKeyDetails::new(vec![], vec![], users, vec![]);
+
+    let spk = SignedPublicKey::new(primary, details, subkeys);
+
+    Ok(spk)
 }
