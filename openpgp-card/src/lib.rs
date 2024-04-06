@@ -179,6 +179,11 @@ impl<'a> Card<Transaction<'a>> {
         })
     }
 
+    // FIXME: remove later?
+    pub fn card(&mut self) -> &mut crate::ocard::Transaction<'a> {
+        &mut self.state.opt
+    }
+
     /// Drop cached "application related data" and "kdf do" in this [Card] instance.
     ///
     /// This is necessary e.g. after importing or generating keys on a card, to
