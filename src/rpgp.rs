@@ -286,3 +286,16 @@ pub fn decrypt(message: Message, cs: CardSlot) -> Result<Message, pgp::errors::E
 
     Ok(decrypted)
 }
+
+pub fn fp_from_pub(
+    pkm: &PublicKeyMaterial,
+    kgt: KeyGenerationTime,
+    kt: KeyType,
+) -> Result<Fingerprint, openpgp_card::Error> {
+    let key = public_key_material_to_key(pkm, kt, &kgt, None, None).expect("FIXME");
+
+    let fp = key.fingerprint();
+
+    let fp = openpgp_card::ocard::data::Fingerprint::try_from(fp.as_slice()).expect("FIXME");
+    Ok(fp)
+}
