@@ -343,7 +343,7 @@ pub fn make_certificate(
     }
 
     // helper: use the card to perform a signing operation
-    let mut verify_signing_pin = |txx: &mut openpgp_card::Card<
+    let verify_signing_pin = |txx: &mut openpgp_card::Card<
         openpgp_card::state::Transaction,
     >|
      -> Result<(), openpgp_card::Error> {
@@ -365,7 +365,8 @@ pub fn make_certificate(
         verify_signing_pin(tx).expect("FIXME");
 
         // make binding signature, sign with cs
-        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone()).expect("FIXME");
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)
+            .expect("FIXME");
 
         let mut kf = KeyFlags::default();
         kf.set_encrypt_comms(true);
@@ -408,7 +409,8 @@ pub fn make_certificate(
         verify_signing_pin(tx).expect("FIXME");
 
         // make binding signature, sign with cs
-        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone()).expect("FIXME");
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)
+            .expect("FIXME");
 
         let mut kf = KeyFlags::default();
         kf.set_authentication(true);
@@ -455,7 +457,8 @@ pub fn make_certificate(
 
         verify_signing_pin(tx).expect("FIXME");
 
-        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone()).expect("FIXME");
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)
+            .expect("FIXME");
         let config = SignatureConfigBuilder::default()
             .typ(SignatureType::CertPositive)
             .pub_alg(cs.algorithm())

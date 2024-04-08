@@ -69,7 +69,10 @@ pub fn test_decrypt(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOu
 
     let (msg, _) = pgp::Message::from_armor_single(msg.as_bytes()).expect("parse message");
 
-    let cs = CardSlot::init_from_card(tx, KeyType::Decryption).expect("FIXME");
+    let cs = CardSlot::init_from_card(tx, KeyType::Decryption, &|| {
+        eprintln!("touch confirmation required")
+    })
+    .expect("FIXME");
 
     let res = openpgp_card_rpgp::decrypt(msg, cs).expect("FIXME");
 
@@ -94,7 +97,10 @@ pub fn test_sign(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutpu
 
     let msg = Message::Literal(LiteralData::from_bytes((&[]).into(), cleartext.as_bytes()));
 
-    let cs = CardSlot::init_from_card(tx, KeyType::Signing).expect("FIXME");
+    let cs = CardSlot::init_from_card(tx, KeyType::Signing, &|| {
+        eprintln!("touch confirmation required")
+    })
+    .expect("FIXME");
 
     let signed = msg
         .sign(&cs, String::default, HashAlgorithm::SHA2_256)

@@ -45,6 +45,8 @@ pub struct CardSlot<'cs, 't> {
     // The distinction between primary and subkey is irrelevant here, but we have to use some type.
     // So we model the key data as a public primary key packet.
     public_key: PublicKey,
+
+    touch_prompt: &'cs (dyn Fn() + Send + Sync),
 }
 
 impl<'cs, 't> CardSlot<'cs, 't> {
@@ -55,6 +57,7 @@ impl<'cs, 't> CardSlot<'cs, 't> {
         tx: &'cs mut Card<Transaction<'t>>,
         key_type: KeyType,
         public_key: PublicKey,
+        touch_prompt: &'cs (dyn Fn() + Send + Sync),
     ) -> Result<Self, pgp::errors::Error> {
         // FIXME: compare the fingerprint between card slot and public_key?
 
@@ -62,6 +65,7 @@ impl<'cs, 't> CardSlot<'cs, 't> {
             tx: Mutex::new(tx),
             public_key,
             key_type,
+            touch_prompt,
         })
     }
 
@@ -71,10 +75,11 @@ impl<'cs, 't> CardSlot<'cs, 't> {
     pub fn init_from_card(
         tx: &'cs mut Card<Transaction<'t>>,
         key_type: KeyType,
+        touch_prompt: &'cs (dyn Fn() + Send + Sync),
     ) -> Result<Self, pgp::errors::Error> {
         let pk = rpgp::pubkey_from_card(tx, key_type)?;
 
-        Self::with_public_key(tx, key_type, pk)
+        Self::with_public_key(tx, key_type, pk, touch_prompt)
     }
 
     /// The OpenPGP public key material that corresponds to the key in this CardSlot
@@ -85,6 +90,17 @@ impl<'cs, 't> CardSlot<'cs, 't> {
     /// The card slot that this CardSlot uses
     pub fn key_type(&self) -> KeyType {
         self.key_type
+    }
+
+    fn touch_required(&self, tx: &mut Card<Transaction<'_>>) -> bool {
+        // Touch is required if:
+        // - the card supports the feature
+        // - and the policy is set to a value other than 'Off'
+        if let Ok(Some(uif)) = tx.user_interaction_flag(self.key_type) {
+            uif.touch_policy().touch_required()
+        } else {
+            false
+        }
     }
 }
 
@@ -191,6 +207,10 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
             }
         };
 
+        if self.touch_required(&mut tx) {
+            (self.touch_prompt)();
+        }
+
         let sig = match self.key_type {
             KeyType::Signing => tx.card().signature_for_hash(hash).map_err(map_card_err)?,
             KeyType::Authentication => tx
@@ -237,17 +257,18 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
 
 impl CardSlot<'_, '_> {
     pub fn decrypt(&self, mpis: &[Mpi]) -> pgp::errors::Result<(Vec<u8>, SymmetricKeyAlgorithm)> {
+        let mut tx = self.tx.lock().unwrap();
+
         let decrypted_key = match self.public_key.public_params() {
             PublicParams::RSA { .. } => {
                 let ciphertext = mpis[0].as_bytes();
                 let cryptogram = openpgp_card::ocard::crypto::Cryptogram::RSA(ciphertext);
 
-                self.tx
-                    .lock()
-                    .unwrap()
-                    .card()
-                    .decipher(cryptogram)
-                    .expect("decipher")
+                if self.touch_required(&mut tx) {
+                    (self.touch_prompt)();
+                }
+
+                tx.card().decipher(cryptogram).expect("decipher")
             }
 
             PublicParams::ECDH {
@@ -276,10 +297,11 @@ impl CardSlot<'_, '_> {
 
                 let cryptogram = openpgp_card::ocard::crypto::Cryptogram::ECDH(ciphertext);
 
-                let shared_secret: [u8; 32] = self
-                    .tx
-                    .lock()
-                    .unwrap()
+                if self.touch_required(&mut tx) {
+                    (self.touch_prompt)();
+                }
+
+                let shared_secret: [u8; 32] = tx
                     .card()
                     .decipher(cryptogram)
                     .expect("decipher")

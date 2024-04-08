@@ -27,7 +27,9 @@ fn main() -> testresult::TestResult {
 
     tx.card().verify_pw1_sign(pwd.as_bytes()).expect("Verify");
 
-    let cs = CardSlot::init_from_card(&mut tx, KeyType::Signing)?;
+    let cs = CardSlot::init_from_card(&mut tx, KeyType::Signing, &|| {
+        eprintln!("touch confirmation needed")
+    })?;
 
     // -- use card signer
     let signature = SignatureConfig::new_v4(

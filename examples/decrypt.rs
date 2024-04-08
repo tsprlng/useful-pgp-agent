@@ -19,7 +19,9 @@ fn main() -> testresult::TestResult {
 
     tx.card().verify_pw1_user(pwd.as_bytes()).expect("Verify");
 
-    let cs = CardSlot::init_from_card(&mut tx, KeyType::Decryption)?;
+    let cs = CardSlot::init_from_card(&mut tx, KeyType::Decryption, &|| {
+        eprintln!("touch confirmation needed")
+    })?;
     let (message, _headers) = Message::from_armor_single(File::open("message2.asc")?)?;
     eprintln!("message: {:?}", &message);
 
