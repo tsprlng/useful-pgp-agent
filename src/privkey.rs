@@ -53,7 +53,17 @@ impl CardUploadableKey for UploadableKey {
                         EcdsaPublicParams::P256 { p, .. } => (ECCCurve::P256, p),
                         EcdsaPublicParams::P384 { p, .. } => (ECCCurve::P384, p),
                         EcdsaPublicParams::P521 { p, .. } => (ECCCurve::P521, p),
-                        _ => todo!(),
+                        EcdsaPublicParams::Secp256k1 { .. } => {
+                            return Err(Error::UnsupportedAlgo(
+                                "ECDSA with curve Secp256k1 is unsupported".to_string(),
+                            ))
+                        }
+                        EcdsaPublicParams::Unsupported { curve, .. } => {
+                            return Err(Error::UnsupportedAlgo(format!(
+                                "ECDSA with curve {} is unsupported",
+                                curve.name()
+                            )))
+                        }
                     };
 
                     let ecc = Ecc::new(curve, p.clone(), m.clone(), EccType::ECDSA);
@@ -67,9 +77,21 @@ impl CardUploadableKey for UploadableKey {
                     let ecc = Ecc::new(curve.clone(), m.clone(), p.clone(), EccType::ECDH);
                     PrivateKeyMaterial::E(Box::new(ecc))
                 }
-                _ => todo!(),
+
+                _ => {
+                    return Err(Error::UnsupportedAlgo(format!(
+                        "Unsupported key material {:?}",
+                        pp
+                    )))
+                }
             },
-            SecretParams::Encrypted(_esp) => todo!(), // FIXME!
+            SecretParams::Encrypted(_esp) => {
+                // FIXME!
+
+                Err(Error::InternalError(
+                    "Encrypted secret key packets are not yet supported".to_string(),
+                ))
+            }?,
         };
 
         Ok(pkm)

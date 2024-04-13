@@ -20,7 +20,7 @@ use pgp::types::{
 };
 use pgp::{Esk, Message, PlainSessionKey, SignedKeyDetails, SignedPublicKey, SignedPublicSubKey};
 
-use crate::CardSlot;
+use crate::{CardSlot, Error};
 
 /// value pairs that we'll consider in ECDH parameter auto-detection
 const ECDH_PARAM: &[(Option<HashAlgorithm>, Option<SymmetricKeyAlgorithm>)] = &[
@@ -132,6 +132,7 @@ pub fn public_key_material_to_key(
     hash: Option<HashAlgorithm>,
     alg_sym: Option<SymmetricKeyAlgorithm>,
 ) -> Result<PublicKey, pgp::errors::Error> {
+    #[allow(clippy::expect_used)]
     let created =
         DateTime::<Utc>::from_timestamp(created.get() as i64, 0).expect("u32 time from card");
 
@@ -297,7 +298,9 @@ pub fn fp_from_pub(
     kgt: KeyGenerationTime,
     kt: KeyType,
 ) -> Result<Fingerprint, openpgp_card::Error> {
-    let key = public_key_material_to_key(pkm, kt, &kgt, None, None).expect("FIXME");
+    let key = public_key_material_to_key(pkm, kt, &kgt, None, None).map_err(|e| {
+        openpgp_card::Error::InternalError(format!("public_key_material_to_key: {}", e))
+    })?;
 
     let fp = key.fingerprint();
 
@@ -334,12 +337,13 @@ pub fn make_certificate(
     pinpad_prompt: &dyn Fn(),
     touch_prompt: &(dyn Fn() + Send + Sync),
     user_ids: &[String],
-) -> Result<SignedPublicKey, openpgp_card::Error> {
+) -> Result<SignedPublicKey, crate::Error> {
     let primary = key_sig;
 
     if user_ids.is_empty() {
-        // FIXME
-        panic!("a user id must be added to make a valid cert");
+        return Err(Error::Message(
+            "a user id must be added to make a valid cert".to_string(),
+        ));
     }
 
     // helper: use the card to perform a signing operation
@@ -360,13 +364,12 @@ pub fn make_certificate(
 
     if let Some(key_dec) = key_dec {
         // add decryption key as subkey
-        let key = pri_to_sub(key_dec).expect("FIXME");
+        let key = pri_to_sub(key_dec)?;
 
-        verify_signing_pin(tx).expect("FIXME");
+        verify_signing_pin(tx)?;
 
         // make binding signature, sign with cs
-        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)
-            .expect("FIXME");
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)?;
 
         let mut kf = KeyFlags::default();
         kf.set_encrypt_comms(true);
@@ -387,12 +390,9 @@ pub fn make_certificate(
                 Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
             ])
             .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
-            .build()
-            .expect("FIXME");
+            .build()?;
 
-        let sig = config
-            .sign_key_binding(&cs, String::default, &key)
-            .expect("FIXME");
+        let sig = config.sign_key_binding(&cs, String::default, &key)?;
 
         let sps = SignedPublicSubKey {
             key,
@@ -404,13 +404,12 @@ pub fn make_certificate(
 
     if let Some(key_aut) = key_aut {
         // add decryption key as subkey
-        let key = pri_to_sub(key_aut).expect("FIXME");
+        let key = pri_to_sub(key_aut)?;
 
-        verify_signing_pin(tx).expect("FIXME");
+        verify_signing_pin(tx)?;
 
         // make binding signature, sign with cs
-        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)
-            .expect("FIXME");
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)?;
 
         let mut kf = KeyFlags::default();
         kf.set_authentication(true);
@@ -430,12 +429,9 @@ pub fn make_certificate(
                 Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
             ])
             .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
-            .build()
-            .expect("FIXME");
+            .build()?;
 
-        let sig = config
-            .sign_key_binding(&cs, String::default, &key)
-            .expect("FIXME");
+        let sig = config.sign_key_binding(&cs, String::default, &key)?;
 
         let sps = SignedPublicSubKey {
             key,
@@ -449,16 +445,15 @@ pub fn make_certificate(
 
     // add `user_ids`.
     for uid in user_ids.iter().map(|uid| uid.as_bytes()) {
-        let uid = UserId::from_slice(Version::New, uid).expect("FIXME");
+        let uid = UserId::from_slice(Version::New, uid)?;
 
         let mut kf = KeyFlags::default();
         kf.set_certify(true);
         kf.set_sign(true);
 
-        verify_signing_pin(tx).expect("FIXME");
+        verify_signing_pin(tx)?;
 
-        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)
-            .expect("FIXME");
+        let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)?;
         let config = SignatureConfigBuilder::default()
             .typ(SignatureType::CertPositive)
             .pub_alg(cs.algorithm())
@@ -470,12 +465,9 @@ pub fn make_certificate(
                 Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
             ])
             .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
-            .build()
-            .expect("FIXME");
+            .build()?;
 
-        let sig = config
-            .sign_certification(&cs, String::default, uid.tag(), &uid)
-            .expect("FIXME");
+        let sig = config.sign_certification(&cs, String::default, uid.tag(), &uid)?;
 
         let suid = SignedUser::new(uid, vec![sig]);
 

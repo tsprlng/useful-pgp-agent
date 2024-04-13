@@ -268,7 +268,12 @@ impl CardSlot<'_, '_> {
                     (self.touch_prompt)();
                 }
 
-                tx.card().decipher(cryptogram).expect("decipher")
+                tx.card().decipher(cryptogram).map_err(|e| {
+                    pgp::errors::Error::Message(format!(
+                        "RSA decipher operation on card failed: {}",
+                        e
+                    ))
+                })?
             }
 
             PublicParams::ECDH {
@@ -304,9 +309,19 @@ impl CardSlot<'_, '_> {
                 let shared_secret: [u8; 32] = tx
                     .card()
                     .decipher(cryptogram)
-                    .expect("decipher")
+                    .map_err(|e| {
+                        pgp::errors::Error::Message(format!(
+                            "ECDH decipher operation on card failed {}",
+                            e
+                        ))
+                    })?
                     .try_into()
-                    .unwrap();
+                    .map_err(|res: Vec<u8>| {
+                        pgp::errors::Error::Message(format!(
+                            "ECDH decipher produced a result of unexpected length {}",
+                            res.len()
+                        ))
+                    })?;
 
                 let encrypted_key_len: usize =
                     mpis[1].first().copied().map(Into::into).unwrap_or(0);
@@ -322,7 +337,12 @@ impl CardSlot<'_, '_> {
                 decrypted_key
             }
 
-            _ => unimplemented!(),
+            pp => {
+                return Err(pgp::errors::Error::Message(format!(
+                    "decrypt: Unsupported key type  {:?}",
+                    pp
+                )));
+            }
         };
 
         // strip off the leading session key algorithm octet, and the two trailing checksum octets
@@ -337,5 +357,31 @@ impl CardSlot<'_, '_> {
 
         let session_key_algorithm = decrypted_key[0].into();
         Ok((sessionkey.to_vec(), session_key_algorithm))
+    }
+}
+
+/// Enum wrapper for the error types of this crate
+#[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
+pub enum Error {
+    #[error("rPGP error: {0}")]
+    Rpgp(pgp::errors::Error),
+
+    #[error("OpenPGP card error: {0}")]
+    Ocard(openpgp_card::Error),
+
+    #[error("Internal error: {0}")]
+    Message(String),
+}
+
+impl From<pgp::errors::Error> for Error {
+    fn from(value: pgp::errors::Error) -> Self {
+        Error::Rpgp(value)
+    }
+}
+
+impl From<openpgp_card::Error> for Error {
+    fn from(value: openpgp_card::Error) -> Self {
+        Error::Ocard(value)
     }
 }

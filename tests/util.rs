@@ -55,6 +55,12 @@ pub enum TestError {
     Utf8Error(#[from] FromUtf8Error),
 }
 
+impl From<openpgp_card_rpgp::Error> for TestError {
+    fn from(value: openpgp_card_rpgp::Error) -> Self {
+        TestError::Other(value.into())
+    }
+}
+
 /// Run after each "upload keys", if key *was* uploaded (?)
 pub fn test_decrypt(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutput, TestError> {
     assert_eq!(
