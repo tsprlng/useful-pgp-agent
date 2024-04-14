@@ -3,6 +3,8 @@
 
 #![allow(dead_code)]
 
+use std::env;
+
 use anyhow::Result;
 use openpgp_card::state::Open;
 use openpgp_card::Card;
@@ -22,13 +24,9 @@ mod util;
 fn import() -> Result<()> {
     env_logger::init();
 
-    let args: Vec<String> = std::env::args().collect();
-
-    // FIXME: use env var?
-    let config = if args.len() <= 1 {
-        TestConfig::load("config/test-cards.toml")?
-    } else {
-        TestConfig::load(&args[2])?
+    let config = match env::var("TEST_CONFIG") {
+        Ok(path) => TestConfig::load(&path)?,
+        Err(_) => TestConfig::load("config/test-cards.toml")?, // fallback
     };
 
     let cards = config.into_cardapps();
