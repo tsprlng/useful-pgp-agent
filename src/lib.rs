@@ -175,20 +175,11 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
     where
         F: FnOnce() -> String,
     {
+        #[allow(clippy::unwrap_used)]
         let mut tx = self.tx.lock().unwrap();
 
         let hash = match self.public_key.algorithm() {
-            PublicKeyAlgorithm::RSA => match hash {
-                HashAlgorithm::SHA2_256 => Hash::SHA256(data.try_into().expect("FIXME")),
-                HashAlgorithm::SHA2_384 => Hash::SHA384(data.try_into().expect("FIXME")),
-                HashAlgorithm::SHA2_512 => Hash::SHA512(data.try_into().expect("FIXME")),
-                _ => {
-                    return Err(pgp::errors::Error::Unimplemented(format!(
-                        "Unsupported HashAlgorithm for RSA: {:?}",
-                        hash
-                    )))
-                }
-            },
+            PublicKeyAlgorithm::RSA => to_hash_rsa(data, hash)?,
             PublicKeyAlgorithm::ECDSA => Hash::ECDSA({
                 match self.public_key.public_params() {
                     PublicParams::ECDSA(EcdsaPublicParams::P256 { .. }) => &data[..32],
@@ -217,7 +208,12 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
                 .card()
                 .authenticate_for_hash(hash)
                 .map_err(map_card_err)?,
-            _ => unimplemented!(),
+            _ => {
+                return Err(pgp::errors::Error::Unimplemented(format!(
+                    "Unsupported KeyType for signature creation: {:?}",
+                    self.key_type
+                )))
+            }
         };
 
         let mpis = match self.public_key.algorithm() {
@@ -240,7 +236,12 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
                 ]
             }
 
-            _ => unimplemented!(), // FIXME
+            alg => {
+                return Err(pgp::errors::Error::Unimplemented(format!(
+                    "Unsupported algorithm for signature creation: {:?}",
+                    alg
+                )))
+            }
         };
 
         Ok(mpis)
@@ -257,6 +258,7 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
 
 impl CardSlot<'_, '_> {
     pub fn decrypt(&self, mpis: &[Mpi]) -> pgp::errors::Result<(Vec<u8>, SymmetricKeyAlgorithm)> {
+        #[allow(clippy::unwrap_used)]
         let mut tx = self.tx.lock().unwrap();
 
         let decrypted_key = match self.public_key.public_params() {
@@ -357,6 +359,48 @@ impl CardSlot<'_, '_> {
 
         let session_key_algorithm = decrypted_key[0].into();
         Ok((sessionkey.to_vec(), session_key_algorithm))
+    }
+}
+
+fn to_hash_rsa(data: &[u8], hash: HashAlgorithm) -> pgp::errors::Result<Hash> {
+    match hash {
+        HashAlgorithm::SHA2_256 => {
+            if data.len() == 0x20 {
+                #[allow(clippy::unwrap_used)]
+                Ok(Hash::SHA256(data.try_into().unwrap()))
+            } else {
+                Err(pgp::errors::Error::Message(format!(
+                    "Illegal digest len for SHA256: {}",
+                    data.len()
+                )))
+            }
+        }
+        HashAlgorithm::SHA2_384 => {
+            if data.len() == 0x30 {
+                #[allow(clippy::unwrap_used)]
+                Ok(Hash::SHA384(data.try_into().unwrap()))
+            } else {
+                Err(pgp::errors::Error::Message(format!(
+                    "Illegal digest len for SHA384: {}",
+                    data.len()
+                )))
+            }
+        }
+        HashAlgorithm::SHA2_512 => {
+            if data.len() == 0x40 {
+                #[allow(clippy::unwrap_used)]
+                Ok(Hash::SHA512(data.try_into().unwrap()))
+            } else {
+                Err(pgp::errors::Error::Message(format!(
+                    "Illegal digest len for SHA512: {}",
+                    data.len()
+                )))
+            }
+        }
+        _ => Err(pgp::errors::Error::Message(format!(
+            "Unsupported HashAlgorithm for RSA: {:?}",
+            hash
+        ))),
     }
 }
 

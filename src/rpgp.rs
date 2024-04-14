@@ -218,21 +218,9 @@ pub(crate) fn pubkey_from_card(
     tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
     key_type: KeyType,
 ) -> Result<PublicKey, pgp::errors::Error> {
-    let tx = tx.card();
+    let pkm = tx.public_key_material(key_type).map_err(map_card_err)?;
 
-    let pkm = tx.public_key(key_type).map_err(map_card_err)?;
-
-    let ard = tx.application_related_data().map_err(map_card_err)?;
-    let kgt = ard.key_generation_times().map_err(map_card_err)?;
-
-    let Some(created) = (match key_type {
-        KeyType::Signing => kgt.signature().cloned(),
-        KeyType::Decryption => kgt.decryption().cloned(),
-        KeyType::Authentication => kgt.authentication().cloned(),
-        KeyType::Attestation => ard.attestation_key_generation_time().map_err(|e| {
-            pgp::errors::Error::Message(format!("Get attestation_key_generation_time: {:?}", e,))
-        })?,
-    }) else {
+    let Some(created) = tx.key_generation_time(key_type).map_err(map_card_err)? else {
         // KeyGenerationTime is None
         return Err(pgp::errors::Error::Message(format!(
             "No creation time set for OpenPGP card key type {:?}",
@@ -240,25 +228,8 @@ pub(crate) fn pubkey_from_card(
         )));
     };
 
-    // FIXME: simplify, use getter in Card<>
-    let Some(fingerprint) = (match key_type {
-        KeyType::Signing => ard
-            .fingerprints()
-            .map_err(map_card_err)?
-            .signature()
-            .cloned(),
-        KeyType::Decryption => ard
-            .fingerprints()
-            .map_err(map_card_err)?
-            .decryption()
-            .cloned(),
-        KeyType::Authentication => ard
-            .fingerprints()
-            .map_err(map_card_err)?
-            .authentication()
-            .cloned(),
-        _ => panic!(),
-    }) else {
+    let Some(fingerprint) = tx.fingerprint(key_type).map_err(map_card_err)? else {
+        // Fingerprint is None
         return Err(pgp::errors::Error::Message(format!(
             "No fingerprint found for key slot {:?}",
             key_type
@@ -269,15 +240,19 @@ pub(crate) fn pubkey_from_card(
 }
 
 pub fn decrypt(message: Message, cs: CardSlot) -> Result<Message, pgp::errors::Error> {
-    //let (decrypted, _ids) = message.decrypt(|| String::new(), &[&decrypt_key])?;
     let Message::Encrypted { esk, edata } = message else {
-        panic!("not encrypted");
+        return Err(pgp::errors::Error::Message(
+            "message must be Message::Encrypted".to_string(),
+        ));
     };
 
-    let mpis = if let Esk::PublicKeyEncryptedSessionKey(ref k) = esk[0] {
-        k.mpis()
-    } else {
-        panic!("whoops")
+    let mpis = match &esk[0] {
+        Esk::PublicKeyEncryptedSessionKey(ref k) => k.mpis(),
+        _ => {
+            return Err(pgp::errors::Error::Message(
+                "Expected PublicKeyEncryptedSessionKey".to_string(),
+            ))
+        }
     };
 
     let (session_key, session_key_algorithm) =
@@ -304,8 +279,7 @@ pub fn fp_from_pub(
 
     let fp = key.fingerprint();
 
-    let fp = openpgp_card::ocard::data::Fingerprint::try_from(fp.as_slice()).expect("FIXME");
-    Ok(fp)
+    openpgp_card::ocard::data::Fingerprint::try_from(fp.as_slice())
 }
 
 // FIXME: upstream?

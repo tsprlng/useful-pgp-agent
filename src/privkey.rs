@@ -113,8 +113,7 @@ impl CardUploadableKey for UploadableKey {
             Sec::SubKey(ssk) => ssk.fingerprint(),
         };
 
-        let fp = Fingerprint::try_from(fp.as_slice()).expect("FIXME");
-        Ok(fp)
+        Fingerprint::try_from(fp.as_slice())
     }
 }
 
