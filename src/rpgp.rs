@@ -16,7 +16,7 @@ use pgp::packet::{
     Subpacket, SubpacketData, UserId,
 };
 use pgp::types::{
-    EcdsaPublicParams, KeyTrait, KeyVersion, PublicParams, SecretKeyTrait, SignedUser, Version,
+    EcdsaPublicParams, KeyTrait, KeyVersion, Mpi, PublicParams, SecretKeyTrait, SignedUser, Version,
 };
 use pgp::{Esk, Message, PlainSessionKey, SignedKeyDetails, SignedPublicKey, SignedPublicSubKey};
 
@@ -141,8 +141,8 @@ pub fn public_key_material_to_key(
             PublicKeyAlgorithm::RSA,
             created,
             PublicParams::RSA {
-                n: rsa.n().into(),
-                e: rsa.v().into(),
+                n: Mpi::from_raw_slice(rsa.n()),
+                e: Mpi::from_raw_slice(rsa.v()),
             },
         ),
 
