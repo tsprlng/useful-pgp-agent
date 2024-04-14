@@ -31,9 +31,6 @@ pub use rpgp::{
 use crate::rpgp::map_card_err;
 
 /// An individual OpenPGP card key slot, which can be used for private key operations.
-///
-/// A CardSlot owns the `Transaction` object while it exists. In the course of destroying the
-/// CardSlot, the Transaction can be obtained again by calling [CardSlot::into_card].
 pub struct CardSlot<'cs, 't> {
     tx: Mutex<&'cs mut Card<Transaction<'t>>>,
 
