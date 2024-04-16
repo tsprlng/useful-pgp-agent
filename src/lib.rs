@@ -259,9 +259,28 @@ impl CardSlot<'_, '_> {
         let mut tx = self.tx.lock().unwrap();
 
         let decrypted_key = match self.public_key.public_params() {
-            PublicParams::RSA { .. } => {
-                let ciphertext = mpis[0].as_bytes();
-                let cryptogram = openpgp_card::ocard::crypto::Cryptogram::RSA(ciphertext);
+            PublicParams::RSA { n, .. } => {
+                let mut ciphertext = mpis[0].to_vec();
+
+                // RSA modulus length. We use this length to pad the ciphertext, in case it was
+                // zero truncated.
+                //
+                // FIXME: There might be a problematic corner case when the modulus itself is
+                // zero-stripped, and as a consequence we don't pad enough?
+                // (We might want to use rounding to "round" to a typical RSA modulus size?)
+                let modulus_len = n.len();
+
+                // Left zero-pad `ciphertext` to the length of the RSA modulus
+                // (that is: if the ciphertext was zero-stripped, undo that stripping).
+                //
+                // This padding is not required in most cases. Typically, the ciphertext and
+                // modulus should be the same length. However, there is a 1:256 likelihood that
+                // the ciphertext happens to start with a 0x0 byte, which OpenPGP will truncate.
+                while modulus_len > ciphertext.len() {
+                    ciphertext.insert(0, 0u8);
+                }
+
+                let cryptogram = openpgp_card::ocard::crypto::Cryptogram::RSA(&ciphertext);
 
                 if self.touch_required(&mut tx) {
                     (self.touch_prompt)();
