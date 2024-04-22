@@ -4,7 +4,7 @@
 [package]
 name = "openpgp-card-rpgp"
 description = "Companion crate for using openpgp-card with rPGP"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 authors = ["Wiktor Kwapisiewicz <wiktor@metacode.biz>", "Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
@@ -26,7 +26,7 @@ card-backend-scdc = "0.5"
 env_logger = "0.11"
 hex = "0.4"
 log = "0.4"
-rpgpie = "0.0.5"
+rpgpie = "0.0.6"
 serde = { version = "1", features = ["derive"] }
 testresult = "0.4"
 toml = "0.8"
