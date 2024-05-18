@@ -306,7 +306,7 @@ impl KeyGenerationTime {
 
 impl Display for KeyGenerationTime {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", DateTime::<Utc>::from(*self))
+        write!(f, "{}", DateTime::<Utc>::from(self))
     }
 }
 

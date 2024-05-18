@@ -11,8 +11,8 @@ use nom::{combinator, number::complete as number, sequence};
 use crate::ocard::data::{KeyGenerationTime, KeySet};
 use crate::Error;
 
-impl From<KeyGenerationTime> for DateTime<Utc> {
-    fn from(kg: KeyGenerationTime) -> Self {
+impl From<&KeyGenerationTime> for DateTime<Utc> {
+    fn from(kg: &KeyGenerationTime) -> Self {
         DateTime::from_timestamp(kg.0 as i64, 0).expect("invalid or out-of-range datetime")
     }
 }
