@@ -999,6 +999,10 @@ impl PWStatusBytes {
 pub struct Fingerprint([u8; 20]);
 
 impl Fingerprint {
+    pub fn to_hex(&self) -> String {
+        self.0.map(|byte| format!("{:02X}", byte)).join("")
+    }
+
     pub fn to_spaced_hex(&self) -> String {
         let mut fp = String::new();
 
