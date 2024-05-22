@@ -6,6 +6,7 @@ use openpgp_card::ocard::crypto::{CardUploadableKey, EccKey, EccType, PrivateKey
 use openpgp_card::ocard::data::{Fingerprint, KeyGenerationTime};
 use openpgp_card::Error;
 use pgp::crypto::ecc_curve::ECCCurve;
+use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::types::{EcdsaPublicParams, KeyTrait, Mpi, PlainSecretParams, PublicParams, SecretParams};
 use rsa::traits::PrivateKeyParts;
 
@@ -14,15 +15,40 @@ enum Sec {
     SubKey(pgp::packet::SecretSubkey),
 }
 
+impl Sec {
+    fn algorithm(&self) -> PublicKeyAlgorithm {
+        match self {
+            Sec::Key(sk) => sk.algorithm(),
+            Sec::SubKey(ssk) => ssk.algorithm(),
+        }
+    }
+
+    fn public_params(&self) -> &PublicParams {
+        match self {
+            Sec::Key(sk) => sk.public_params(),
+            Sec::SubKey(ssk) => ssk.public_params(),
+        }
+    }
+
+    fn secret_params(&self) -> &SecretParams {
+        match self {
+            Sec::Key(sk) => sk.secret_params(),
+            Sec::SubKey(ssk) => ssk.secret_params(),
+        }
+    }
+}
+
 /// OpenPGP secret key packet wrapped, to enable uploading to a card
 pub struct UploadableKey {
     key: Sec,
+    unlocked: Option<PlainSecretParams>,
 }
 
 impl From<pgp::packet::SecretKey> for UploadableKey {
     fn from(value: pgp::packet::SecretKey) -> Self {
         Self {
             key: Sec::Key(value),
+            unlocked: None,
         }
     }
 }
@@ -31,22 +57,52 @@ impl From<pgp::packet::SecretSubkey> for UploadableKey {
     fn from(value: pgp::packet::SecretSubkey) -> Self {
         Self {
             key: Sec::SubKey(value),
+            unlocked: None,
+        }
+    }
+}
+
+impl UploadableKey {
+    pub fn is_locked(&self) -> bool {
+        match self.key.secret_params() {
+            SecretParams::Plain(_) => false,
+            SecretParams::Encrypted(_) => true,
+        }
+    }
+
+    /// Returns:
+    /// - `Ok(false)` for keys that are not password protected
+    /// - `Ok(true)` for protected keys that were successfully unlocked
+    /// - `Err` when the password did not unlock the key (in this case, the key cannot be imported to a card).
+    pub fn try_unlock(&mut self, pw: &str) -> Result<bool, Error> {
+        match self.key.secret_params() {
+            SecretParams::Plain(_) => Ok(false),
+            SecretParams::Encrypted(esp) => {
+                if let Ok(psp) = esp.unlock(
+                    || pw.to_string(),
+                    self.key.algorithm(),
+                    self.key.public_params(),
+                ) {
+                    self.unlocked = Some(psp);
+                    return Ok(true);
+                }
+
+                Err(Error::InternalError("Could not unlock key".to_string()))
+            }
         }
     }
 }
 
 impl CardUploadableKey for UploadableKey {
     fn private_key(&self) -> Result<PrivateKeyMaterial, Error> {
-        let (pp, sp) = match &self.key {
-            Sec::Key(sk) => (sk.public_params(), sk.secret_params()),
-            Sec::SubKey(ssk) => (ssk.public_params(), ssk.secret_params()),
-        };
-
-        let pkm = match sp {
-            SecretParams::Plain(psp) => match (psp, pp) {
+        fn to_privatekeymaterial(
+            psp: &PlainSecretParams,
+            pp: &PublicParams,
+        ) -> Result<PrivateKeyMaterial, Error> {
+            match (psp, pp) {
                 (PlainSecretParams::RSA { p, q, d, .. }, PublicParams::RSA { n, e }) => {
                     let rsa_key = Rsa::new(e.clone(), d.clone(), n.clone(), p.clone(), q.clone())?;
-                    PrivateKeyMaterial::R(Box::new(rsa_key))
+                    Ok(PrivateKeyMaterial::R(Box::new(rsa_key)))
                 }
                 (PlainSecretParams::ECDSA(m), PublicParams::ECDSA(ecdsa)) => {
                     let (curve, p) = match ecdsa {
@@ -67,34 +123,40 @@ impl CardUploadableKey for UploadableKey {
                     };
 
                     let ecc = Ecc::new(curve, p.clone(), m.clone(), EccType::ECDSA);
-                    PrivateKeyMaterial::E(Box::new(ecc))
+                    Ok(PrivateKeyMaterial::E(Box::new(ecc)))
                 }
                 (PlainSecretParams::EdDSA(m), PublicParams::EdDSA { curve, q }) => {
                     let ecc = Ecc::new(curve.clone(), m.clone(), q.clone(), EccType::EdDSA);
-                    PrivateKeyMaterial::E(Box::new(ecc))
+                    Ok(PrivateKeyMaterial::E(Box::new(ecc)))
                 }
                 (PlainSecretParams::ECDH(m), PublicParams::ECDH { curve, p, .. }) => {
                     let ecc = Ecc::new(curve.clone(), m.clone(), p.clone(), EccType::ECDH);
-                    PrivateKeyMaterial::E(Box::new(ecc))
+                    Ok(PrivateKeyMaterial::E(Box::new(ecc)))
                 }
 
-                _ => {
-                    return Err(Error::UnsupportedAlgo(format!(
-                        "Unsupported key material {:?}",
-                        pp
-                    )))
-                }
-            },
-            SecretParams::Encrypted(_esp) => {
-                // FIXME!
+                _ => Err(Error::UnsupportedAlgo(format!(
+                    "Unsupported key material {:?}",
+                    pp
+                ))),
+            }
+        }
 
-                Err(Error::InternalError(
-                    "Encrypted secret key packets are not yet supported".to_string(),
-                ))
-            }?,
+        let pp = self.key.public_params();
+
+        let psp = match self.key.secret_params() {
+            SecretParams::Plain(psp) => psp,
+            SecretParams::Encrypted(_) => {
+                if let Some(psp) = &self.unlocked {
+                    psp
+                } else {
+                    return Err(Error::InternalError(
+                        "Secret key packet wasn't unlocked".to_string(),
+                    ));
+                }
+            }
         };
 
-        Ok(pkm)
+        to_privatekeymaterial(psp, pp)
     }
 
     fn timestamp(&self) -> KeyGenerationTime {
