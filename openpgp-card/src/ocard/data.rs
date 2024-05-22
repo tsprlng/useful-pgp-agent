@@ -1000,14 +1000,14 @@ pub struct Fingerprint([u8; 20]);
 
 impl Fingerprint {
     pub fn to_hex(&self) -> String {
-        self.0.map(|byte| format!("{:02X}", byte)).join("")
+        self.0.map(|byte| format!("{:02x}", byte)).join("")
     }
 
     pub fn to_spaced_hex(&self) -> String {
         let mut fp = String::new();
 
         for i in 0..20 {
-            let _ = write!(&mut fp, "{:02X}", self.0[i]);
+            let _ = write!(&mut fp, "{:02x}", self.0[i]);
 
             if i < 19 && (i % 2 == 1) {
                 fp.push(' ');
