@@ -167,8 +167,8 @@ pub fn public_key_material_to_key(
                             p.insert(0, 0x40);
                         }
 
-                        let hash = hash.unwrap_or(HashAlgorithm::SHA2_256); // FIXME: default?
-                        let alg_sym = alg_sym.unwrap_or(SymmetricKeyAlgorithm::AES128); // FIXME: default?
+                        let hash = hash.unwrap_or(HashAlgorithm::SHA2_256); // FIXME: get curve default from rpgp!
+                        let alg_sym = alg_sym.unwrap_or(SymmetricKeyAlgorithm::AES128); // FIXME: get curve default from rpgp!
 
                         let pp = PublicParams::ECDH {
                             curve: curve.clone(),
