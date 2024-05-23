@@ -70,7 +70,7 @@ fn map_curve(c: &Curve) -> Result<ECCCurve, pgp::errors::Error> {
         Curve::BrainpoolP384r1 => ECCCurve::BrainpoolP384r1,
         Curve::BrainpoolP512r1 => ECCCurve::BrainpoolP512r1,
         Curve::Ed25519 => ECCCurve::Ed25519,
-        Curve::Cv25519 => ECCCurve::Curve25519,
+        Curve::Curve25519 => ECCCurve::Curve25519,
 
         _ => {
             return Err(pgp::errors::Error::Unimplemented(format!(
