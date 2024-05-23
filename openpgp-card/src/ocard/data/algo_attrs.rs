@@ -15,7 +15,7 @@ use crate::ocard::crypto::EccType;
 use crate::ocard::data::complete;
 
 fn parse_oid_cv25519(input: &[u8]) -> nom::IResult<&[u8], Curve> {
-    map(tag(Curve::Cv25519.oid()), |_| Curve::Cv25519)(input)
+    map(tag(Curve::Curve25519.oid()), |_| Curve::Curve25519)(input)
 }
 
 fn parse_oid_ed25519(input: &[u8]) -> nom::IResult<&[u8], Curve> {

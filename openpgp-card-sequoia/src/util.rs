@@ -241,7 +241,7 @@ pub fn public_key_material_to_key(
                     Curve::NistP384r1 => sequoia_openpgp::types::Curve::NistP384,
                     Curve::NistP521r1 => sequoia_openpgp::types::Curve::NistP521,
                     Curve::Ed25519 => sequoia_openpgp::types::Curve::Ed25519,
-                    Curve::Cv25519 => sequoia_openpgp::types::Curve::Cv25519,
+                    Curve::Curve25519 => sequoia_openpgp::types::Curve::Cv25519,
                     c => unimplemented!("unhandled curve: {:?}", c),
                 };
 
@@ -277,7 +277,7 @@ pub fn public_key_material_to_key(
                         }
                     }
                     KeyType::Decryption => {
-                        if algo_ecc.curve() == &Curve::Cv25519 {
+                        if algo_ecc.curve() == &Curve::Curve25519 {
                             // EdDSA
                             let k4 = Key4::import_public_cv25519(ecc.data(), hash, sym, time)
                                 .map_err(|e| {

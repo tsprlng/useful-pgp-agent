@@ -135,7 +135,7 @@ mod test {
                 (Decryption, Rsa(RsaAttributes::new(4096, 32, 0))),
                 (Decryption, Ecc(EccAttributes::new(ECDSA, NistP256r1, None))),
                 (Decryption, Ecc(EccAttributes::new(ECDSA, Secp256k1, None))),
-                (Decryption, Ecc(EccAttributes::new(ECDH, Cv25519, None))),
+                (Decryption, Ecc(EccAttributes::new(ECDH, Curve25519, None))),
                 (Authentication, Rsa(RsaAttributes::new(2048, 32, 0))),
                 (Authentication, Rsa(RsaAttributes::new(4096, 32, 0))),
                 (
@@ -309,7 +309,7 @@ mod test {
                     Ecc(EccAttributes::new(ECDSA, BrainpoolP512r1, None))
                 ),
                 (Signing, Ecc(EccAttributes::new(EdDSA, Ed25519, None))),
-                (Signing, Ecc(EccAttributes::new(EdDSA, Cv25519, None))),
+                (Signing, Ecc(EccAttributes::new(EdDSA, Curve25519, None))),
                 (Decryption, Rsa(RsaAttributes::new(2048, 17, 0))),
                 (Decryption, Rsa(RsaAttributes::new(3072, 17, 0))),
                 (Decryption, Rsa(RsaAttributes::new(4096, 17, 0))),
@@ -330,7 +330,7 @@ mod test {
                     Ecc(EccAttributes::new(ECDH, BrainpoolP512r1, None))
                 ),
                 (Decryption, Ecc(EccAttributes::new(EdDSA, Ed25519, None))),
-                (Decryption, Ecc(EccAttributes::new(EdDSA, Cv25519, None))),
+                (Decryption, Ecc(EccAttributes::new(EdDSA, Curve25519, None))),
                 (Authentication, Rsa(RsaAttributes::new(2048, 17, 0))),
                 (Authentication, Rsa(RsaAttributes::new(3072, 17, 0))),
                 (Authentication, Rsa(RsaAttributes::new(4096, 17, 0))),
@@ -368,7 +368,7 @@ mod test {
                 ),
                 (
                     Authentication,
-                    Ecc(EccAttributes::new(EdDSA, Cv25519, None))
+                    Ecc(EccAttributes::new(EdDSA, Curve25519, None))
                 ),
                 (Attestation, Rsa(RsaAttributes::new(2048, 17, 0))),
                 (Attestation, Rsa(RsaAttributes::new(3072, 17, 0))),
@@ -399,7 +399,10 @@ mod test {
                     Ecc(EccAttributes::new(ECDSA, BrainpoolP512r1, None))
                 ),
                 (Attestation, Ecc(EccAttributes::new(EdDSA, Ed25519, None))),
-                (Attestation, Ecc(EccAttributes::new(EdDSA, Cv25519, None)))
+                (
+                    Attestation,
+                    Ecc(EccAttributes::new(EdDSA, Curve25519, None))
+                )
             ])
         );
     }

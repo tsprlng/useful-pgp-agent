@@ -90,7 +90,7 @@ impl AlgoSimple {
     fn curve_for_25519(key_type: KeyType) -> Curve {
         match key_type {
             KeyType::Signing | KeyType::Authentication | KeyType::Attestation => Curve::Ed25519,
-            KeyType::Decryption => Curve::Cv25519,
+            KeyType::Decryption => Curve::Curve25519,
         }
     }
 
@@ -358,7 +358,7 @@ pub enum Curve {
     BrainpoolP512r1,
     Secp256k1,
     Ed25519,
-    Cv25519,
+    Curve25519,
     Ed448,
     X448,
 
@@ -377,7 +377,7 @@ impl Curve {
             BrainpoolP512r1 => oid::BRAINPOOL_P512R1,
             Secp256k1 => oid::SECP256K1,
             Ed25519 => oid::ED25519,
-            Cv25519 => oid::CV25519,
+            Curve25519 => oid::CV25519,
             Ed448 => oid::ED448,
             X448 => oid::X448,
 
@@ -404,7 +404,7 @@ impl TryFrom<&[u8]> for Curve {
             oid::SECP256K1 => Secp256k1,
 
             oid::ED25519 => Ed25519,
-            oid::CV25519 => Cv25519,
+            oid::CV25519 => Curve25519,
 
             oid::ED448 => Ed448,
             oid::X448 => X448,
