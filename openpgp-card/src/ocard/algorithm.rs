@@ -180,14 +180,14 @@ pub struct AlgorithmInformation(pub(crate) Vec<(KeyType, AlgorithmAttributes)>);
 /// - Key import
 /// - Key generation
 /// - Export of public key data from the card (e.g. after key generation)
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum AlgorithmAttributes {
     Rsa(RsaAttributes),
     Ecc(EccAttributes),
     Unknown(Vec<u8>),
 }
 
-impl fmt::Display for AlgorithmAttributes {
+impl fmt::Debug for AlgorithmAttributes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Rsa(rsa) => {
@@ -207,14 +207,30 @@ impl fmt::Display for AlgorithmAttributes {
                 write!(
                     f,
                     "{:?} ({:?}){}",
-                    ecc.curve,
                     ecc.ecc_type,
+                    ecc.curve,
                     if ecc.import_format == Some(0xff) {
                         " with pub"
                     } else {
                         ""
                     }
                 )
+            }
+            Self::Unknown(u) => {
+                write!(f, "Unknown: {u:?}")
+            }
+        }
+    }
+}
+
+impl fmt::Display for AlgorithmAttributes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Rsa(rsa) => {
+                write!(f, "RSA {}", rsa.len_n)
+            }
+            Self::Ecc(ecc) => {
+                write!(f, "{:?} ({:?})", ecc.ecc_type, ecc.curve)
             }
             Self::Unknown(u) => {
                 write!(f, "Unknown: {u:?}")
