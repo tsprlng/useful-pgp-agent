@@ -652,9 +652,24 @@ impl<'a> Transaction<'a> {
     pub fn factory_reset(&mut self) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: factory_reset");
 
+        let mut bad_pw_len = 8;
+
+        // In KDF mode, the "bad password" we try must have the correct length for the KDF hash
+        // algorithm. Otherwise, the PIN retry counter doesn't decrement, and don't lock the card
+        // (which means we don't get to do a reset).
+        if let Ok(kdf_do) = self.kdf_do() {
+            if kdf_do.hash_algo() == Some(0x08) {
+                bad_pw_len = 0x20;
+            } else if kdf_do.hash_algo() == Some(0x0a) {
+                bad_pw_len = 0x40;
+            }
+        }
+
+        let bad_pw: Vec<_> = std::iter::repeat(0x40).take(bad_pw_len).collect();
+
         // send 4 bad requests to verify pw1
         for _ in 0..4 {
-            let resp = self.verify_pw1_sign(&[0x40; 8]);
+            let resp = self.verify_pw1_sign(&bad_pw);
 
             if !(matches!(
                 resp,
@@ -674,7 +689,7 @@ impl<'a> Transaction<'a> {
 
         // send 4 bad requests to verify pw3
         for _ in 0..4 {
-            let resp = self.verify_pw3(&[0x40; 8]);
+            let resp = self.verify_pw3(&bad_pw);
 
             if !(matches!(
                 resp,
