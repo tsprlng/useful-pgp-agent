@@ -87,7 +87,7 @@ pub(crate) fn map_pin(
 }
 
 /// see https://www.rfc-editor.org/rfc/rfc4880.html#section-3.7.1.3
-fn itersalt(
+pub(crate) fn itersalt(
     pw: &str,
     hash_algo: Option<u8>,
     count: Option<u32>,

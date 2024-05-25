@@ -1279,7 +1279,13 @@ impl<'a> Transaction<'a> {
 
     // FIXME: SM keys (ENC and MAC) with Tags D1 and D2
 
-    // FIXME: KDF DO
+    /// Set KDF DO attributes
+    pub fn set_kdf_do(&mut self, kdf_do: &KdfDo) -> Result<(), Error> {
+        log::info!("OpenPgpTransaction: set_kdf_do");
+
+        let cmd = commands::put_data(Tags::KdfDo, kdf_do.serialize());
+        self.send_command(cmd, false)?.try_into()
+    }
 
     // FIXME: certificate used with secure messaging
 

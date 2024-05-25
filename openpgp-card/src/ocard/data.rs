@@ -10,6 +10,7 @@ use chrono::{DateTime, Utc};
 
 use crate::ocard::algorithm::AlgorithmAttributes;
 use crate::ocard::tags::Tags;
+use crate::ocard::tlv::length::tlv_encode_length;
 use crate::ocard::tlv::Tlv;
 use crate::ocard::KeyType;
 use crate::Error;
@@ -1052,6 +1053,115 @@ pub struct KdfDo {
 
     // 88 xx Initial password hash for Admin-PW
     initial_hash_pw3: Option<Vec<u8>>,
+}
+
+impl KdfDo {
+    pub(crate) fn serialize(&self) -> Vec<u8> {
+        // FIXME: encode as tlv, then serialize?
+
+        // FIXME: check that lengths of salts and initials fits in u16?
+
+        let mut ser = vec![];
+
+        ser.push(0x81);
+        ser.push(0x01);
+        ser.push(self.kdf_algo);
+
+        if let Some(hash_algo) = self.hash_algo {
+            ser.push(0x82);
+            ser.push(0x01);
+            ser.push(hash_algo);
+        }
+
+        if let Some(iter_count) = self.iter_count {
+            ser.push(0x83);
+            ser.push(0x04);
+            ser.extend_from_slice(&iter_count.to_be_bytes());
+        }
+
+        if let Some(salt_pw1) = &self.salt_pw1 {
+            ser.push(0x84);
+            ser.extend_from_slice(&tlv_encode_length(salt_pw1.len() as u16));
+            ser.extend_from_slice(salt_pw1);
+        }
+
+        if let Some(salt_rc) = &self.salt_rc {
+            ser.push(0x85);
+            ser.extend_from_slice(&tlv_encode_length(salt_rc.len() as u16));
+            ser.extend_from_slice(salt_rc);
+        }
+
+        if let Some(salt_pw3) = &self.salt_pw3 {
+            ser.push(0x86);
+            ser.extend_from_slice(&tlv_encode_length(salt_pw3.len() as u16));
+            ser.extend_from_slice(salt_pw3);
+        }
+
+        if let Some(initial_hash_pw1) = &self.initial_hash_pw1 {
+            ser.push(0x87);
+            ser.extend_from_slice(&tlv_encode_length(initial_hash_pw1.len() as u16));
+            ser.extend_from_slice(initial_hash_pw1);
+        }
+        if let Some(initial_hash_pw3) = &self.initial_hash_pw3 {
+            ser.push(0x88);
+            ser.extend_from_slice(&tlv_encode_length(initial_hash_pw3.len() as u16));
+            ser.extend_from_slice(initial_hash_pw3);
+        }
+        ser
+    }
+
+    pub fn iter_salted(
+        hash_algo: u8,
+        salt_pw1: Vec<u8>,
+        salt_rc: Vec<u8>,
+        salt_pw3: Vec<u8>,
+    ) -> Result<Self, Error> {
+        const PW1_INITIAL: &str = "123456";
+        const PW3_INITIAL: &str = "12345678";
+
+        const ITER_COUNT: u32 = 0x03000000;
+
+        // 08 = SHA256
+        // 0A = SHA512
+        if hash_algo != 0x08 && hash_algo != 0x0a {
+            return Err(Error::UnsupportedAlgo(
+                "Unsupported hash algorithm".to_string(),
+            ));
+        }
+
+        let kdf_algo = 0x03; // KDF_ITERSALTED_S2K
+        let hash_algo = Some(hash_algo);
+        let iter_count = Some(ITER_COUNT);
+
+        let salt_pw1 = Some(salt_pw1);
+        let salt_rc = Some(salt_rc);
+        let salt_pw3 = Some(salt_pw3);
+
+        let initial_hash_pw1 = Some(crate::ocard::kdf::itersalt(
+            PW1_INITIAL,
+            hash_algo,
+            iter_count,
+            salt_pw1.as_deref(),
+        )?);
+
+        let initial_hash_pw3 = Some(crate::ocard::kdf::itersalt(
+            PW3_INITIAL,
+            hash_algo,
+            iter_count,
+            salt_pw3.as_deref(),
+        )?);
+
+        Ok(Self {
+            kdf_algo,
+            hash_algo,
+            iter_count,
+            salt_pw1,
+            salt_rc,
+            salt_pw3,
+            initial_hash_pw1,
+            initial_hash_pw3,
+        })
+    }
 }
 
 /// Helper fn for nom parsing
