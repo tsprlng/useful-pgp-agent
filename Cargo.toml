@@ -4,7 +4,7 @@
 [package]
 name = "openpgp-card-rpgp"
 description = "Companion crate for using openpgp-card with rPGP"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 authors = ["Wiktor Kwapisiewicz <wiktor@metacode.biz>", "Heiko Schaefer <heiko@schaefer.name>"]
 license = "MIT OR Apache-2.0"
