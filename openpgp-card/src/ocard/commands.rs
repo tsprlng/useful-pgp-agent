@@ -3,6 +3,8 @@
 
 //! Pre-defined `Command` values for the OpenPGP card application
 
+use secrecy::SecretVec;
+
 use crate::ocard::apdu::command::Command;
 use crate::ocard::tags::{ShortTag, Tags};
 use crate::ocard::{KeyType, OPENPGP_APPLICATION};
@@ -103,17 +105,17 @@ pub(crate) fn select_data(num: u8, data: Vec<u8>) -> Command {
 }
 
 /// VERIFY pin for PW1 (81)
-pub(crate) fn verify_pw1_81(pin: Vec<u8>) -> Command {
+pub(crate) fn verify_pw1_81(pin: SecretVec<u8>) -> Command {
     Command::new(0x00, 0x20, 0x00, 0x81, pin)
 }
 
 /// VERIFY pin for PW1 (82)
-pub(crate) fn verify_pw1_82(pin: Vec<u8>) -> Command {
+pub(crate) fn verify_pw1_82(pin: SecretVec<u8>) -> Command {
     Command::new(0x00, 0x20, 0x00, 0x82, pin)
 }
 
 /// VERIFY pin for PW3 (83)
-pub(crate) fn verify_pw3(pin: Vec<u8>) -> Command {
+pub(crate) fn verify_pw3(pin: SecretVec<u8>) -> Command {
     Command::new(0x00, 0x20, 0x00, 0x83, pin)
 }
 

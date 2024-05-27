@@ -10,8 +10,9 @@ pub mod response;
 use std::convert::TryFrom;
 
 use card_backend::{CardCaps, CardTransaction};
+use secrecy::ExposeSecret as _;
 
-use crate::ocard::apdu::command::{Command, Expect};
+use crate::ocard::apdu::command::{Command, Data, Expect};
 use crate::ocard::apdu::response::RawResponse;
 use crate::ocard::commands;
 use crate::ocard::StatusBytes;
@@ -37,7 +38,7 @@ where
 
     let mut resp = RawResponse::try_from(send_command_low_level(
         card_tx,
-        cmd.clone(),
+        &cmd,
         card_caps,
         if expect_reply {
             Expect::Some
@@ -49,7 +50,7 @@ where
     if let StatusBytes::UnknownStatus(0x6c, size) = resp.status() {
         resp = RawResponse::try_from(send_command_low_level(
             card_tx,
-            cmd,
+            &cmd,
             card_caps,
             Expect::Short(size),
         )?)?;
@@ -62,7 +63,7 @@ where
         // Get next chunk of data
         let next = RawResponse::try_from(send_command_low_level(
             card_tx,
-            commands::get_response(),
+            &commands::get_response(),
             card_caps,
             Expect::Short(bytes),
         )?)?;
@@ -95,7 +96,7 @@ where
 /// needs to re-assemble the chained response-parts.
 fn send_command_low_level<C>(
     card_tx: &mut C,
-    cmd: Command,
+    cmd: &Command,
     card_caps: Option<CardCaps>,
     expect_response: Expect,
 ) -> Result<Vec<u8>, Error>
@@ -153,7 +154,12 @@ where
         let cmd_chunk_size = if ext_support { max_cmd_bytes } else { 255 };
 
         // Break up payload into chunks that fit into one command, each
-        let chunks: Vec<_> = cmd.data().chunks(cmd_chunk_size).collect();
+        let chunks: Vec<_> = match cmd.data() {
+            Data::Plain(vec) => vec.chunks(cmd_chunk_size).collect(),
+            Data::Sensitive(sensitive) => {
+                sensitive.expose_secret().chunks(cmd_chunk_size).collect()
+            }
+        };
 
         for (i, d) in chunks.iter().enumerate() {
             let last = i == chunks.len() - 1;
