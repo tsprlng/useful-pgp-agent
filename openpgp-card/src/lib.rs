@@ -187,7 +187,7 @@ impl<'a> Card<Transaction<'a>> {
     /// Drop cached "application related data" and "kdf do" in this [Card] instance.
     ///
     /// This is necessary e.g. after importing or generating keys on a card, to
-    /// drop the now obsolete cached [`ApplicationRelatedData`] and [`KdfDo`].
+    /// drop the now obsolete cached [`crate::ocard::data::ApplicationRelatedData`] and [`KdfDo`].
     pub fn invalidate_cache(&mut self) -> Result<(), Error> {
         self.state.invalidate_cache();
         Ok(())
@@ -700,71 +700,9 @@ impl<'a> Card<Transaction<'a>> {
     // ----------
 
     /// Get the raw public key material for a key slot on the card
-    /// (also see [`Self::public_key`] for getting a Sequoia PGP key object)
     pub fn public_key_material(&mut self, key_type: KeyType) -> Result<PublicKeyMaterial, Error> {
         self.state.opt.public_key(key_type)
     }
-
-    // FIXME
-
-    // /// Get a sequoia public key representation
-    // /// ([`Key<key::PublicParts, key::UnspecifiedRole>`])
-    // /// for a key slot on the card
-    // pub fn public_key(&mut self, kt: KeyType) -> Result<Option<PublicKey>, Error> {
-    //     let fps = self.fingerprints()?;
-    //
-    //     let ts = self.key_generation_time(kt)?;
-    //
-    //     let fp = match kt {
-    //         KeyType::Signing => fps.signature(),
-    //         KeyType::Decryption => fps.decryption(),
-    //         KeyType::Authentication => fps.authentication(),
-    //         _ => None,
-    //     };
-    //
-    //     match kt {
-    //         KeyType::Signing => {
-    //             if let Ok(pkm) = self.public_key_material(kt) {
-    //                 if let Some(ts) = ts {
-    //                     return Ok(Some(public_key_material_and_fp_to_key(
-    //                         &pkm,
-    //                         KeyType::Signing,
-    //                         &ts,
-    //                         fp.expect("Signature fingerprint is unset"),
-    //                     )?));
-    //                 }
-    //             }
-    //             Ok(None)
-    //         }
-    //         KeyType::Decryption => {
-    //             if let Ok(pkm) = self.public_key_material(KeyType::Decryption) {
-    //                 if let Some(ts) = ts {
-    //                     return Ok(Some(public_key_material_and_fp_to_key(
-    //                         &pkm,
-    //                         KeyType::Decryption,
-    //                         &ts,
-    //                         fp.expect("Decryption fingerprint is unset"),
-    //                     )?));
-    //                 }
-    //             }
-    //             Ok(None)
-    //         }
-    //         KeyType::Authentication => {
-    //             if let Ok(pkm) = self.public_key_material(KeyType::Authentication) {
-    //                 if let Some(ts) = ts {
-    //                     return Ok(Some(public_key_material_and_fp_to_key(
-    //                         &pkm,
-    //                         KeyType::Authentication,
-    //                         &ts,
-    //                         fp.expect("Authentication fingerprint is unset"),
-    //                     )?));
-    //                 }
-    //             }
-    //             Ok(None)
-    //         }
-    //         _ => unimplemented!(),
-    //     }
-    // }
 
     // ----------
 
