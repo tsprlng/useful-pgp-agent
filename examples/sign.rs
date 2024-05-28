@@ -25,7 +25,9 @@ fn main() -> testresult::TestResult {
     let mut card = openpgp_card::Card::new(card).expect("card new");
     let mut tx = card.transaction().expect("tx");
 
-    tx.card().verify_pw1_sign(pwd.as_bytes()).expect("Verify");
+    tx.card()
+        .verify_pw1_sign(pwd.as_bytes().to_vec().into())
+        .expect("Verify");
 
     let cs = CardSlot::init_from_card(&mut tx, KeyType::Signing, &|| {
         eprintln!("touch confirmation needed")

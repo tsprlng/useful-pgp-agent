@@ -17,7 +17,9 @@ fn main() -> testresult::TestResult {
     let pwd = &std::env::args().collect::<Vec<_>>()[1];
     eprintln!("with pwd = {pwd}");
 
-    tx.card().verify_pw1_user(pwd.as_bytes()).expect("Verify");
+    tx.card()
+        .verify_pw1_user(pwd.as_bytes().to_vec().into())
+        .expect("Verify");
 
     let cs = CardSlot::init_from_card(&mut tx, KeyType::Decryption, &|| {
         eprintln!("touch confirmation needed")

@@ -71,7 +71,7 @@ pub fn test_decrypt(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOu
 
     let msg = param[1].to_string();
 
-    let _user = tx.to_user_card("123456")?;
+    let _user = tx.to_user_card(Some("123456".to_string().into()))?;
 
     let (msg, _) = pgp::Message::from_armor_single(msg.as_bytes()).expect("parse message");
 
@@ -97,7 +97,9 @@ pub fn test_decrypt(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOu
 pub fn test_sign(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutput, TestError> {
     assert_eq!(param.len(), 1, "test_sign needs a filename for 'cert'");
 
-    let _sign = tx.to_signing_card("123456").unwrap();
+    let _sign = tx
+        .to_signing_card(Some("123456".to_string().into()))
+        .unwrap();
 
     let cleartext = "Hello world, I am signed.";
 
@@ -244,7 +246,7 @@ pub fn test_upload_keys(
 
     let tsk = Tsk::try_from(key.as_bytes()).expect("parse tsk");
 
-    let mut admin = tx.to_admin_card("12345678")?;
+    let mut admin = tx.to_admin_card(Some("12345678".to_string().into()))?;
 
     let meta = upload_subkeys(&mut admin, &tsk)
         .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
@@ -260,7 +262,7 @@ pub fn test_upload_keys(
 /// Generate keys for each of the three KeyTypes
 pub fn test_keygen(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutput, TestError> {
     let mut admin = tx
-        .to_admin_card("12345678")
+        .to_admin_card(Some("12345678".to_string().into()))
         .expect("Couldn't get Admin card");
 
     // Generate all three subkeys on card
@@ -294,7 +296,7 @@ pub fn test_keygen(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOut
         key_sig,
         Some(key_dec),
         Some(key_aut),
-        Some("123456"),
+        Some("123456".to_string().into()),
         &|| {},
         &|| eprintln!("touch confirmation needed"),
         &["cardtest@example.org".to_string()],
@@ -375,7 +377,7 @@ pub fn test_set_user_data(
     tx: &mut Card<Transaction>,
     _param: &[&str],
 ) -> Result<TestOutput, TestError> {
-    let mut admin = tx.to_admin_card("12345678")?;
+    let mut admin = tx.to_admin_card(Some("12345678".to_string().into()))?;
 
     // name
     admin.set_cardholder_name("Bar<<Foo")?;
@@ -412,7 +414,7 @@ pub fn test_set_login_data(
     tx: &mut Card<Transaction>,
     _params: &[&str],
 ) -> std::result::Result<TestOutput, TestError> {
-    let mut admin = tx.to_admin_card("12345678")?;
+    let mut admin = tx.to_admin_card(Some("12345678".to_string().into()))?;
 
     let test_login = "someone@somewhere.com";
     admin.set_login_data(test_login.as_bytes())?;
@@ -526,7 +528,7 @@ pub fn test_pw_status(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutpu
 
     println!("pws {pws:?}");
 
-    let mut admin = transaction.to_admin_card("12345678")?;
+    let mut admin = transaction.to_admin_card(Some("12345678".to_string().into()))?;
 
     pws.set_pw1_cds_valid_once(false);
     pws.set_pw1_pin_block(true);
@@ -571,7 +573,7 @@ pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, 
         panic!("Status should be 'SecurityStatusNotSatisfied'");
     }
 
-    transaction.verify_admin_pin("12345678")?;
+    transaction.verify_admin_pin("12345678".to_string().into())?;
 
     match transaction.check_admin_verified() {
         Err(Error::CardStatus(s)) => {
@@ -593,7 +595,7 @@ pub fn test_verify(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutput, 
     let cardholder = transaction.cardholder_related_data()?;
     assert_eq!(cardholder.name(), Some("Admin<<Hello".as_bytes()));
 
-    transaction.verify_user_pin("123456")?;
+    transaction.verify_user_pin("123456".to_string().into())?;
 
     match transaction.check_user_verified() {
         Err(Error::CardStatus(s)) => {
@@ -625,20 +627,20 @@ pub fn test_change_pw(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutpu
     // first do admin-less pw1 on gnuk
     // (NOTE: Gnuk requires a key to be loaded before allowing pw changes!)
     println!("change pw1");
-    transaction.change_user_pin("123456", "abcdef00")?;
+    transaction.change_user_pin("123456".to_string().into(), "abcdef00".to_string().into())?;
 
     // also set admin pw, which means pw1 is now only user-pw again, on gnuk
     println!("change pw3");
     // ca.change_pw3("abcdef00", "abcdefgh")?; // gnuk
-    transaction.change_admin_pin("12345678", "abcdefgh")?;
+    transaction.change_admin_pin("12345678".to_string().into(), "abcdefgh".to_string().into())?;
 
     println!("change pw1");
-    transaction.change_user_pin("abcdef00", "abcdef")?; // gnuk
+    transaction.change_user_pin("abcdef00".to_string().into(), "abcdef".to_string().into())?; // gnuk
 
     // ca.change_pw1("123456", "abcdef")?;
 
     println!("verify bad pw1");
-    match transaction.verify_user_pin("123456ab") {
+    match transaction.verify_user_pin("123456ab".to_string().into()) {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -649,10 +651,10 @@ pub fn test_change_pw(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutpu
     }
 
     println!("verify good pw1");
-    transaction.verify_user_pin("abcdef")?;
+    transaction.verify_user_pin("abcdef".to_string().into())?;
 
     println!("verify bad pw3");
-    match transaction.verify_admin_pin("00000000") {
+    match transaction.verify_admin_pin("00000000".to_string().into()) {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
@@ -663,13 +665,13 @@ pub fn test_change_pw(mut card: Card<Open>, _param: &[&str]) -> Result<TestOutpu
     }
 
     println!("verify good pw3");
-    transaction.verify_admin_pin("abcdefgh")?;
+    transaction.verify_admin_pin("abcdefgh".to_string().into())?;
 
     println!("change pw3 back to default");
-    transaction.change_admin_pin("abcdefgh", "12345678")?;
+    transaction.change_admin_pin("abcdefgh".to_string().into(), "12345678".to_string().into())?;
 
     println!("change pw1 back to default");
-    transaction.change_user_pin("abcdef", "123456")?;
+    transaction.change_user_pin("abcdef".to_string().into(), "123456".to_string().into())?;
 
     Ok(out)
 }
@@ -684,15 +686,15 @@ pub fn test_reset_retry_counter(
 
     // set pw3, then pw1 (to bring gnuk into non-admin mode)
     println!("set pw3");
-    transaction.change_admin_pin("12345678", "12345678")?;
+    transaction.change_admin_pin("12345678".to_string().into(), "12345678".to_string().into())?;
     println!("set pw1");
-    transaction.change_user_pin("123456", "123456")?;
+    transaction.change_user_pin("123456".to_string().into(), "123456".to_string().into())?;
 
     println!("break pw1");
-    let _ = transaction.verify_user_pin("wrong0");
-    let _ = transaction.verify_user_pin("wrong0");
-    let _ = transaction.verify_user_pin("wrong0");
-    let res = transaction.verify_user_pin("wrong0");
+    let _ = transaction.verify_user_pin("wrong0".to_string().into());
+    let _ = transaction.verify_user_pin("wrong0".to_string().into());
+    let _ = transaction.verify_user_pin("wrong0".to_string().into());
+    let res = transaction.verify_user_pin("wrong0".to_string().into());
 
     match res {
         Err(Error::CardStatus(StatusBytes::AuthenticationMethodBlocked)) => {
@@ -711,21 +713,22 @@ pub fn test_reset_retry_counter(
     }
 
     println!("verify pw3");
-    transaction.verify_admin_pin("12345678")?;
+    transaction.verify_admin_pin("12345678".to_string().into())?;
 
     println!("set resetting code");
     let mut admin = transaction.to_admin_card(None)?;
-    admin.set_resetting_code("abcdefgh")?;
+    admin.set_resetting_code("abcdefgh".to_string().into())?;
 
     println!("reset retry counter");
     // ca.reset_retry_counter_pw1("abcdef".as_bytes().to_vec(), None)?;
-    let _res = transaction.reset_user_pin("abcdef", "abcdefgh");
+    let _res =
+        transaction.reset_user_pin("abcdef".to_string().into(), "abcdefgh".to_string().into());
 
     println!("verify good pw1");
-    transaction.verify_user_pin("abcdef")?;
+    transaction.verify_user_pin("abcdef".to_string().into())?;
 
     println!("verify bad pw1");
-    match transaction.verify_user_pin("00000000") {
+    match transaction.verify_user_pin("00000000".to_string().into()) {
         Err(Error::CardStatus(StatusBytes::SecurityStatusNotSatisfied)) => {
             // this is expected
         }
