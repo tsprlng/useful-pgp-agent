@@ -207,7 +207,7 @@ impl<'a> Card<Transaction<'a>> {
     pub fn verify_user_pin(&mut self, pin: &str) -> Result<(), Error> {
         let pin = map_pin(pin, PinType::Pw1, self.state.kdf_do())?;
 
-        self.state.opt.verify_pw1_user(&pin)?;
+        self.state.opt.verify_pw1_user(pin.into())?;
         self.state.pw1 = true;
         Ok(())
     }
@@ -230,7 +230,7 @@ impl<'a> Card<Transaction<'a>> {
     pub fn verify_user_signing_pin(&mut self, pin: &str) -> Result<(), Error> {
         let pin = map_pin(pin, PinType::Pw1, self.state.kdf_do())?;
 
-        self.state.opt.verify_pw1_sign(&pin)?;
+        self.state.opt.verify_pw1_sign(pin.into())?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -255,7 +255,7 @@ impl<'a> Card<Transaction<'a>> {
     pub fn verify_admin_pin(&mut self, pin: &str) -> Result<(), Error> {
         let pin = map_pin(pin, PinType::Pw3, self.state.kdf_do())?;
 
-        self.state.opt.verify_pw3(&pin)?;
+        self.state.opt.verify_pw3(pin.into())?;
         self.state.pw3 = true;
         Ok(())
     }

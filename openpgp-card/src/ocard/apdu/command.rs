@@ -4,6 +4,9 @@
 //! Data structure for APDU Commands
 //! (Commands get sent to the card, which will usually send back a `Response`)
 
+use secrecy::ExposeSecret as _;
+use secrecy::SecretVec;
+
 #[derive(Clone, Copy)]
 pub enum Expect {
     Empty,
@@ -11,7 +14,7 @@ pub enum Expect {
     Short(u8),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct Command {
     // Class byte (CLA)
     cla: u8,
@@ -24,7 +27,7 @@ pub(crate) struct Command {
     p2: u8,
 
     // NOTE: data must be smaller than 64 kbyte
-    data: Vec<u8>,
+    data: Data,
 }
 
 impl Command {
@@ -32,9 +35,10 @@ impl Command {
     ///
     /// `data` must be smaller than 64 kbyte. If a larger `data` is passed,
     /// this fn will panic.
-    pub fn new(cla: u8, ins: u8, p1: u8, p2: u8, data: Vec<u8>) -> Self {
+    pub fn new(cla: u8, ins: u8, p1: u8, p2: u8, data: impl Into<Data>) -> Self {
         // This constructor is the only place `data` gets set, so it's
         // sufficient to check it here.
+        let data = data.into();
         if data.len() > u16::MAX as usize {
             panic!("'data' too big, must be <64 kbyte");
         }
@@ -60,7 +64,7 @@ impl Command {
         self.p2
     }
 
-    pub(crate) fn data(&self) -> &[u8] {
+    pub(crate) fn data(&self) -> &Data {
         &self.data
     }
 
@@ -82,7 +86,12 @@ impl Command {
 
         let mut buf = vec![self.cla, self.ins, self.p1, self.p2];
         buf.extend(Self::make_lc(nc, ext_len)?);
-        buf.extend(&self.data);
+
+        match &self.data {
+            Data::Plain(data) => buf.extend(data),
+            Data::Sensitive(sensitive) => buf.extend(sensitive.expose_secret()),
+        }
+
         buf.extend(Self::make_le(nc, ext_len, expect_response));
 
         Ok(buf)
@@ -137,5 +146,46 @@ impl Command {
                 unreachable!("This should not happen")
             }
         }
+    }
+}
+
+pub(crate) enum Data {
+    Plain(Vec<u8>),
+    Sensitive(SecretVec<u8>),
+}
+
+impl std::fmt::Debug for Data {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Data::Plain(vec) => write!(f, "{vec:02x?}"),
+            Data::Sensitive(_) => write!(f, "REDACTED"),
+        }
+    }
+}
+
+impl Data {
+    #[must_use]
+    fn len(&self) -> usize {
+        match self {
+            Data::Plain(vec) => vec.len(),
+            Data::Sensitive(secret_vec) => secret_vec.expose_secret().len(),
+        }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl From<Vec<u8>> for Data {
+    fn from(value: Vec<u8>) -> Self {
+        Data::Plain(value)
+    }
+}
+
+impl From<SecretVec<u8>> for Data {
+    fn from(value: SecretVec<u8>) -> Self {
+        Data::Sensitive(value)
     }
 }

@@ -6,6 +6,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
+use secrecy::SecretVec;
 
 use crate::ocard::algorithm::{AlgorithmAttributes, AlgorithmInformation};
 use crate::ocard::apdu::command::Command;
@@ -669,7 +670,7 @@ impl<'a> Transaction<'a> {
 
         // send 4 bad requests to verify pw1
         for _ in 0..4 {
-            let resp = self.verify_pw1_sign(&bad_pw);
+            let resp = self.verify_pw1_sign(bad_pw.clone().into());
 
             if !(matches!(
                 resp,
@@ -689,7 +690,7 @@ impl<'a> Transaction<'a> {
 
         // send 4 bad requests to verify pw3
         for _ in 0..4 {
-            let resp = self.verify_pw3(&bad_pw);
+            let resp = self.verify_pw3(bad_pw.clone().into());
 
             if !(matches!(
                 resp,
@@ -720,10 +721,10 @@ impl<'a> Transaction<'a> {
     /// Depending on the PW1 status byte (see Extended Capabilities) this
     /// access condition is only valid for one PSO:CDS command or remains
     /// valid for several attempts.
-    pub fn verify_pw1_sign(&mut self, pin: &[u8]) -> Result<(), Error> {
+    pub fn verify_pw1_sign(&mut self, pin: SecretVec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: verify_pw1_sign");
 
-        let cmd = commands::verify_pw1_81(pin.to_vec());
+        let cmd = commands::verify_pw1_81(pin);
 
         self.send_command(cmd, false)?.try_into()
     }
@@ -755,16 +756,16 @@ impl<'a> Transaction<'a> {
     pub fn check_pw1_sign(&mut self) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: check_pw1_sign");
 
-        let verify = commands::verify_pw1_81(vec![]);
+        let verify = commands::verify_pw1_81(vec![].into());
         self.send_command(verify, false)?.try_into()
     }
 
     /// Verify PW1 (user).
     /// (For operations except signing, mode 82).
-    pub fn verify_pw1_user(&mut self, pin: &[u8]) -> Result<(), Error> {
+    pub fn verify_pw1_user(&mut self, pin: SecretVec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: verify_pw1_user");
 
-        let verify = commands::verify_pw1_82(pin.to_vec());
+        let verify = commands::verify_pw1_82(pin);
         self.send_command(verify, false)?.try_into()
     }
 
@@ -793,15 +794,15 @@ impl<'a> Transaction<'a> {
     pub fn check_pw1_user(&mut self) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: check_pw1_user");
 
-        let verify = commands::verify_pw1_82(vec![]);
+        let verify = commands::verify_pw1_82(vec![].into());
         self.send_command(verify, false)?.try_into()
     }
 
     /// Verify PW3 (admin).
-    pub fn verify_pw3(&mut self, pin: &[u8]) -> Result<(), Error> {
+    pub fn verify_pw3(&mut self, pin: SecretVec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: verify_pw3");
 
-        let verify = commands::verify_pw3(pin.to_vec());
+        let verify = commands::verify_pw3(pin);
         self.send_command(verify, false)?.try_into()
     }
 
@@ -827,7 +828,7 @@ impl<'a> Transaction<'a> {
     pub fn check_pw3(&mut self) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: check_pw3");
 
-        let verify = commands::verify_pw3(vec![]);
+        let verify = commands::verify_pw3(vec![].into());
         self.send_command(verify, false)?.try_into()
     }
 
