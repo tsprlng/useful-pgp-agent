@@ -19,6 +19,7 @@ use pgp::types::{
     EcdsaPublicParams, KeyTrait, KeyVersion, Mpi, PublicParams, SecretKeyTrait, SignedUser, Version,
 };
 use pgp::{Esk, Message, PlainSessionKey, SignedKeyDetails, SignedPublicKey, SignedPublicSubKey};
+use secrecy::SecretString;
 
 use crate::{CardSlot, Error};
 
@@ -307,7 +308,7 @@ pub fn make_certificate(
     key_sig: PublicKey,
     key_dec: Option<PublicKey>,
     key_aut: Option<PublicKey>,
-    pw1: Option<&str>,
+    pw1: Option<SecretString>,
     pinpad_prompt: &dyn Fn(),
     touch_prompt: &(dyn Fn() + Send + Sync),
     user_ids: &[String],
@@ -326,7 +327,7 @@ pub fn make_certificate(
     >|
      -> Result<(), openpgp_card::Error> {
         // Allow signing on the card
-        if let Some(pw1) = pw1 {
+        if let Some(pw1) = pw1.clone() {
             txx.verify_user_signing_pin(pw1)?;
         } else {
             txx.verify_user_signing_pinpad(pinpad_prompt)?;
