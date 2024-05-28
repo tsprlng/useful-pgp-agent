@@ -1351,7 +1351,7 @@ impl<'a> Transaction<'a> {
 
 fn digestinfo(hash: Hash) -> Vec<u8> {
     match hash {
-        Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
+        Hash::SHA1(_) | Hash::SHA256(_) | Hash::SHA384(_) | Hash::SHA512(_) => {
             let tlv = Tlv::new(
                 Tags::Sequence,
                 Value::C(vec![

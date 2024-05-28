@@ -12,6 +12,7 @@ use crate::Error;
 
 /// A hash value that can be signed by the card.
 pub enum Hash<'a> {
+    SHA1([u8; 0x14]),
     SHA256([u8; 0x20]),
     SHA384([u8; 0x30]),
     SHA512([u8; 0x40]),
@@ -24,6 +25,7 @@ impl Hash<'_> {
     /// digestinfo for SHA*. Other OIDs are not implemented.
     pub(crate) fn oid(&self) -> Option<&'static [u8]> {
         match self {
+            Self::SHA1(_) => Some(oid::SHA1),
             Self::SHA256(_) => Some(oid::SHA256),
             Self::SHA384(_) => Some(oid::SHA384),
             Self::SHA512(_) => Some(oid::SHA512),
@@ -34,6 +36,7 @@ impl Hash<'_> {
 
     pub(crate) fn digest(&self) -> &[u8] {
         match self {
+            Self::SHA1(d) => &d[..],
             Self::SHA256(d) => &d[..],
             Self::SHA384(d) => &d[..],
             Self::SHA512(d) => &d[..],
