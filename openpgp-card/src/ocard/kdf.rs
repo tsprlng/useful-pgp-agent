@@ -4,6 +4,7 @@
 //! Handle transformation of user-provided PINs according to the KDF configuration on the card,
 //! if any.
 
+use secrecy::{ExposeSecret, SecretString, SecretVec};
 use sha2::Digest;
 
 use crate::ocard::data::KdfDo;
@@ -47,29 +48,29 @@ impl Hasher for crate::ocard::kdf::Sha2_512 {
     }
 }
 
-/// Map user-provided pw/pin value to a `Vec<u8>`.
+/// Map user-provided pw/pin value to a `SecretVec<u8>`.
 ///
 /// This performs a KDF transformation, if the KDF mode is enabled on the card.
 pub(crate) fn map_pin(
-    pw: &str,
+    pw: SecretString,
     pin_type: PinType,
     kdf_do: Option<&KdfDo>,
-) -> Result<Vec<u8>, Error> {
+) -> Result<SecretVec<u8>, Error> {
     match kdf_do {
         None => {
             // KDF DO is not set at all -> use the raw pw bytes as PIN
-            Ok(pw.as_bytes().to_vec())
+            Ok(pw.expose_secret().as_bytes().to_vec().into())
         }
         Some(kdf) if kdf.kdf_algo() == 0 => {
             //  KDF algo is "0" -> use the raw pw bytes as PIN
-            Ok(pw.as_bytes().to_vec())
+            Ok(pw.expose_secret().as_bytes().to_vec().into())
         }
         Some(kdf) => {
             // KDF transformation needs to be applied to PIN
 
             match kdf.kdf_algo() {
-                3 => itersalt(
-                    pw,
+                3 => Ok(itersalt(
+                    pw.expose_secret(),
                     kdf.hash_algo(),
                     kdf.iter_count(),
                     match pin_type {
@@ -77,7 +78,8 @@ pub(crate) fn map_pin(
                         PinType::Rc => kdf.salt_rc(),
                         PinType::Pw3 => kdf.salt_pw3(),
                     },
-                ),
+                )?
+                .into()),
                 _ => Err(Error::UnsupportedFeature(
                     "The KDF mode on the card is currently unsupported".to_string(),
                 )),

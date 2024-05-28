@@ -34,6 +34,7 @@ pub mod ocard;
 pub mod state;
 
 use card_backend::{CardBackend, SmartcardError};
+use secrecy::SecretString;
 
 pub use crate::errors::Error;
 use crate::ocard::algorithm::{AlgoSimple, AlgorithmAttributes, AlgorithmInformation};
@@ -66,30 +67,18 @@ pub(crate) enum PinType {
 
 /// Optional PIN, used as a parameter to `Card<Transaction>::into_*_card`.
 ///
-/// Effectively acts like a `Option<&[u8]>`, but with a number of `From`
+/// Effectively acts like a `Option<SecretString>`, but with a number of `From`
 /// implementations for convenience.
-pub struct OptionalPin<'p>(Option<&'p [u8]>);
+pub struct OptionalPin(Option<SecretString>);
 
-impl<'p> From<Option<&'p [u8]>> for OptionalPin<'p> {
-    fn from(value: Option<&'p [u8]>) -> Self {
+impl From<Option<SecretString>> for OptionalPin {
+    fn from(value: Option<SecretString>) -> Self {
         OptionalPin(value)
     }
 }
 
-impl<'p> From<&'p str> for OptionalPin<'p> {
-    fn from(value: &'p str) -> Self {
-        OptionalPin(Some(value.as_bytes()))
-    }
-}
-
-impl<'p> From<&'p Vec<u8>> for OptionalPin<'p> {
-    fn from(value: &'p Vec<u8>) -> Self {
-        OptionalPin(Some(value))
-    }
-}
-
-impl<'p, const S: usize> From<&'p [u8; S]> for OptionalPin<'p> {
-    fn from(value: &'p [u8; S]) -> Self {
+impl From<SecretString> for OptionalPin {
+    fn from(value: SecretString) -> Self {
         OptionalPin(Some(value))
     }
 }
@@ -204,10 +193,10 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Verify the User PIN (for operations such as decryption)
-    pub fn verify_user_pin(&mut self, pin: &str) -> Result<(), Error> {
+    pub fn verify_user_pin(&mut self, pin: SecretString) -> Result<(), Error> {
         let pin = map_pin(pin, PinType::Pw1, self.state.kdf_do())?;
 
-        self.state.opt.verify_pw1_user(pin.into())?;
+        self.state.opt.verify_pw1_user(pin)?;
         self.state.pw1 = true;
         Ok(())
     }
@@ -227,10 +216,10 @@ impl<'a> Card<Transaction<'a>> {
     /// (Note that depending on the configuration of the card, this may enable
     /// performing just one signing operation, or an unlimited amount of
     /// signing operations).
-    pub fn verify_user_signing_pin(&mut self, pin: &str) -> Result<(), Error> {
+    pub fn verify_user_signing_pin(&mut self, pin: SecretString) -> Result<(), Error> {
         let pin = map_pin(pin, PinType::Pw1, self.state.kdf_do())?;
 
-        self.state.opt.verify_pw1_sign(pin.into())?;
+        self.state.opt.verify_pw1_sign(pin)?;
 
         // FIXME: depending on card mode, pw1_sign is only usable once
 
@@ -252,10 +241,10 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Verify the Admin PIN.
-    pub fn verify_admin_pin(&mut self, pin: &str) -> Result<(), Error> {
+    pub fn verify_admin_pin(&mut self, pin: SecretString) -> Result<(), Error> {
         let pin = map_pin(pin, PinType::Pw3, self.state.kdf_do())?;
 
-        self.state.opt.verify_pw3(pin.into())?;
+        self.state.opt.verify_pw3(pin)?;
         self.state.pw3 = true;
         Ok(())
     }
@@ -287,11 +276,11 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Change the User PIN, based on the old User PIN.
-    pub fn change_user_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
+    pub fn change_user_pin(&mut self, old: SecretString, new: SecretString) -> Result<(), Error> {
         let old = map_pin(old, PinType::Pw1, self.state.kdf_do())?;
         let new = map_pin(new, PinType::Pw1, self.state.kdf_do())?;
 
-        self.state.opt.change_pw1(&old, &new)
+        self.state.opt.change_pw1(old, new)
     }
 
     /// Change the User PIN, based on the old User PIN, with a physical PIN
@@ -302,19 +291,19 @@ impl<'a> Card<Transaction<'a>> {
     }
 
     /// Change the User PIN, based on the resetting code `rst`.
-    pub fn reset_user_pin(&mut self, rst: &str, new: &str) -> Result<(), Error> {
+    pub fn reset_user_pin(&mut self, rst: SecretString, new: SecretString) -> Result<(), Error> {
         let rst = map_pin(rst, PinType::Rc, self.state.kdf_do())?;
         let new = map_pin(new, PinType::Pw1, self.state.kdf_do())?;
 
-        self.state.opt.reset_retry_counter_pw1(&new, Some(&rst))
+        self.state.opt.reset_retry_counter_pw1(new, Some(rst))
     }
 
     /// Change the Admin PIN, based on the old Admin PIN.
-    pub fn change_admin_pin(&mut self, old: &str, new: &str) -> Result<(), Error> {
+    pub fn change_admin_pin(&mut self, old: SecretString, new: SecretString) -> Result<(), Error> {
         let old = map_pin(old, PinType::Pw3, self.state.kdf_do())?;
         let new = map_pin(new, PinType::Pw3, self.state.kdf_do())?;
 
-        self.state.opt.change_pw3(&old, &new)
+        self.state.opt.change_pw3(old, new)
     }
 
     /// Change the Admin PIN, based on the old Admin PIN, with a physical PIN
@@ -328,14 +317,14 @@ impl<'a> Card<Transaction<'a>> {
     /// for that state with `pin`, if available.
     ///
     /// If `pin` is not None, `verify_user` is called with that pin.
-    pub fn to_user_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<User<'a, 'b>>, Error>
+    pub fn to_user_card<'b, P>(&'b mut self, pin: P) -> Result<Card<User<'a, 'b>>, Error>
     where
-        P: Into<OptionalPin<'p>>,
+        P: Into<OptionalPin>,
     {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_user_pin(String::from_utf8_lossy(pin).as_ref())?;
+            self.verify_user_pin(pin)?;
         }
 
         Ok(Card::<User> {
@@ -347,14 +336,14 @@ impl<'a> Card<Transaction<'a>> {
     /// for that state with `pin`, if available.
     ///
     /// If `pin` is not None, `verify_user_for_signing` is called with that pin.
-    pub fn to_signing_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<Sign<'a, 'b>>, Error>
+    pub fn to_signing_card<'b, P>(&'b mut self, pin: P) -> Result<Card<Sign<'a, 'b>>, Error>
     where
-        P: Into<OptionalPin<'p>>,
+        P: Into<OptionalPin>,
     {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_user_signing_pin(String::from_utf8_lossy(pin).as_ref())?;
+            self.verify_user_signing_pin(pin)?;
         }
 
         Ok(Card::<Sign> {
@@ -366,14 +355,14 @@ impl<'a> Card<Transaction<'a>> {
     /// for that state with `pin`, if available.
     ///
     /// If `pin` is not None, `verify_admin` is called with that pin.
-    pub fn to_admin_card<'b, 'p, P>(&'b mut self, pin: P) -> Result<Card<Admin<'a, 'b>>, Error>
+    pub fn to_admin_card<'b, P>(&'b mut self, pin: P) -> Result<Card<Admin<'a, 'b>>, Error>
     where
-        P: Into<OptionalPin<'p>>,
+        P: Into<OptionalPin>,
     {
         let pin: OptionalPin = pin.into();
 
         if let Some(pin) = pin.0 {
-            self.verify_admin_pin(String::from_utf8_lossy(pin).as_ref())?;
+            self.verify_admin_pin(pin)?;
         }
 
         Ok(Card::<Admin> {
@@ -994,17 +983,17 @@ impl Card<Admin<'_, '_>> {
     }
 
     /// Set the User PIN on the card (also resets the User PIN error count)
-    pub fn reset_user_pin(&mut self, new: &str) -> Result<(), Error> {
+    pub fn reset_user_pin(&mut self, new: SecretString) -> Result<(), Error> {
         let new = map_pin(new, PinType::Pw1, self.state.tx.state.kdf_do())?;
 
-        self.card().reset_retry_counter_pw1(&new, None)
+        self.card().reset_retry_counter_pw1(new, None)
     }
 
     /// Define the "resetting code" on the card
-    pub fn set_resetting_code(&mut self, pin: &str) -> Result<(), Error> {
+    pub fn set_resetting_code(&mut self, pin: SecretString) -> Result<(), Error> {
         let pin = map_pin(pin, PinType::Rc, self.state.tx.state.kdf_do())?;
 
-        self.card().set_resetting_code(&pin)
+        self.card().set_resetting_code(pin)
     }
 
     /// Set optional AES encryption/decryption key

@@ -3,9 +3,9 @@
 
 //! Pre-defined `Command` values for the OpenPGP card application
 
-use secrecy::SecretVec;
+use secrecy::{ExposeSecret, SecretVec};
 
-use crate::ocard::apdu::command::Command;
+use crate::ocard::apdu::command::{Command, Data};
 use crate::ocard::tags::{ShortTag, Tags};
 use crate::ocard::{KeyType, OPENPGP_APPLICATION};
 
@@ -120,7 +120,9 @@ pub(crate) fn verify_pw3(pin: SecretVec<u8>) -> Command {
 }
 
 /// 7.2.8 PUT DATA,
-pub(crate) fn put_data<T: Into<ShortTag>>(tag: T, data: Vec<u8>) -> Command {
+pub(crate) fn put_data<T: Into<ShortTag>, D: Into<Data>>(tag: T, data: D) -> Command {
+    let data: Data = data.into();
+
     match tag.into() {
         ShortTag::One(tag0) => Command::new(0x00, 0xda, 0, tag0, data),
         ShortTag::Two(tag0, tag1) => Command::new(0x00, 0xda, tag0, tag1, data),
@@ -175,30 +177,33 @@ pub(crate) fn put_cardholder_certificate(data: Vec<u8>) -> Command {
 
 /// "RESET RETRY COUNTER" (PW1, user pin)
 /// Reset the counter of PW1 and set a new pin.
-pub(crate) fn reset_retry_counter_pw1(resetting_code: Option<&[u8]>, new_pin: &[u8]) -> Command {
+pub(crate) fn reset_retry_counter_pw1(
+    resetting_code: Option<SecretVec<u8>>,
+    new_pin: SecretVec<u8>,
+) -> Command {
     if let Some(resetting_code) = resetting_code {
         // Present the Resetting Code (DO D3) in the command data (P1 = 00)
 
         // Data field: Resetting Code + New PW
         let mut data = vec![];
-        data.extend(resetting_code);
-        data.extend(new_pin);
+        data.extend(resetting_code.expose_secret());
+        data.extend(new_pin.expose_secret());
 
-        Command::new(0x00, 0x2C, 0x00, 0x81, data)
+        Command::new(0x00, 0x2C, 0x00, 0x81, SecretVec::new(data))
     } else {
         // Use after correct verification of PW3 (P1 = 02)
         // (Usage of secure messaging is equivalent to PW3)
-        Command::new(0x00, 0x2C, 0x02, 0x81, new_pin.to_vec())
+        Command::new(0x00, 0x2C, 0x02, 0x81, new_pin)
     }
 }
 
 /// "CHANGE REFERENCE DATA" - change PW1 (user pin)
-pub(crate) fn change_pw1(data: Vec<u8>) -> Command {
+pub(crate) fn change_pw1(data: SecretVec<u8>) -> Command {
     Command::new(0x00, 0x24, 0x00, 0x81, data)
 }
 
 /// "CHANGE REFERENCE DATA" - change PW3 (admin pin)
-pub(crate) fn change_pw3(data: Vec<u8>) -> Command {
+pub(crate) fn change_pw3(data: SecretVec<u8>) -> Command {
     Command::new(0x00, 0x24, 0x00, 0x83, data)
 }
 

@@ -6,7 +6,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
-use secrecy::SecretVec;
+use secrecy::{ExposeSecret, SecretVec};
 
 use crate::ocard::algorithm::{AlgorithmAttributes, AlgorithmInformation};
 use crate::ocard::apdu::command::Command;
@@ -835,14 +835,14 @@ impl<'a> Transaction<'a> {
     /// Change the value of PW1 (user password).
     ///
     /// The current value of PW1 must be presented in `old` for authorization.
-    pub fn change_pw1(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
+    pub fn change_pw1(&mut self, old: SecretVec<u8>, new: SecretVec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: change_pw1");
 
         let mut data = vec![];
-        data.extend(old);
-        data.extend(new);
+        data.extend(old.expose_secret());
+        data.extend(new.expose_secret());
 
-        let change = commands::change_pw1(data);
+        let change = commands::change_pw1(data.into());
         self.send_command(change, false)?.try_into()
     }
 
@@ -862,14 +862,14 @@ impl<'a> Transaction<'a> {
     /// Change the value of PW3 (admin password).
     ///
     /// The current value of PW3 must be presented in `old` for authorization.
-    pub fn change_pw3(&mut self, old: &[u8], new: &[u8]) -> Result<(), Error> {
+    pub fn change_pw3(&mut self, old: SecretVec<u8>, new: SecretVec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: change_pw3");
 
         let mut data = vec![];
-        data.extend(old);
-        data.extend(new);
+        data.extend(old.expose_secret());
+        data.extend(new.expose_secret());
 
-        let change = commands::change_pw3(data);
+        let change = commands::change_pw3(data.into());
         self.send_command(change, false)?.try_into()
     }
 
@@ -893,8 +893,8 @@ impl<'a> Transaction<'a> {
     /// - the resetting_code must be presented.
     pub fn reset_retry_counter_pw1(
         &mut self,
-        new_pw1: &[u8],
-        resetting_code: Option<&[u8]>,
+        new_pw1: SecretVec<u8>,
+        resetting_code: Option<SecretVec<u8>>,
     ) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: reset_retry_counter_pw1");
 
@@ -1225,10 +1225,10 @@ impl<'a> Transaction<'a> {
 
     /// Set resetting code
     /// (4.3.4 Resetting Code)
-    pub fn set_resetting_code(&mut self, resetting_code: &[u8]) -> Result<(), Error> {
+    pub fn set_resetting_code(&mut self, resetting_code: SecretVec<u8>) -> Result<(), Error> {
         log::info!("OpenPgpTransaction: set_resetting_code");
 
-        let cmd = commands::put_data(Tags::ResettingCode, resetting_code.to_vec());
+        let cmd = commands::put_data(Tags::ResettingCode, resetting_code);
         self.send_command(cmd, false)?.try_into()
     }
 

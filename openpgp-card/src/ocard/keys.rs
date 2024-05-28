@@ -313,7 +313,7 @@ pub(crate) fn determine_ecc_attrs(
         if algos.is_empty() {
             // If oid is not in algo_info, return error.
             return Err(Error::UnsupportedAlgo(format!(
-                "Oid {oid:?} unsupported according to algo_info"
+                "Oid {oid:02x?} unsupported according to algo_info"
             )));
         }
 
