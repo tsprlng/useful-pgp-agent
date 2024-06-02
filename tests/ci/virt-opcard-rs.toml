@@ -5,13 +5,13 @@
 backend.pcsc = "0000:00000000"
 config.keygen = [
     "RSA2k", "RSA3k", "RSA4k",
-#    "NIST256",
+    "NIST256",
     "Curve25519"
 ]
 config.import = [
     "tests/keys/rsa2k.tsk",
     "tests/keys/rsa3k.tsk",
     "tests/keys/rsa4k.tsk",
-#    "tests/keys/nist256.tsk",
+    "tests/keys/nist256.tsk",
     "tests/keys/25519.tsk",
 ]
