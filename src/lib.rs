@@ -324,22 +324,12 @@ impl CardSlot<'_, '_> {
                     (self.touch_prompt)();
                 }
 
-                let shared_secret: [u8; 32] = tx
-                    .card()
-                    .decipher(cryptogram)
-                    .map_err(|e| {
-                        pgp::errors::Error::Message(format!(
-                            "ECDH decipher operation on card failed {}",
-                            e
-                        ))
-                    })?
-                    .try_into()
-                    .map_err(|res: Vec<u8>| {
-                        pgp::errors::Error::Message(format!(
-                            "ECDH decipher produced a result of unexpected length {}",
-                            res.len()
-                        ))
-                    })?;
+                let shared_secret: Vec<u8> = tx.card().decipher(cryptogram).map_err(|e| {
+                    pgp::errors::Error::Message(format!(
+                        "ECDH decipher operation on card failed {}",
+                        e
+                    ))
+                })?;
 
                 let encrypted_key_len: usize =
                     mpis[1].first().copied().map(Into::into).unwrap_or(0);
