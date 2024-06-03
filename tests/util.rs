@@ -16,10 +16,10 @@ use openpgp_card_rpgp::{
     make_certificate, public_key_material_and_fp_to_key, public_key_material_to_key, CardSlot,
     UploadableKey,
 };
-use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
 use pgp::packet::LiteralData;
 use pgp::ser::Serialize;
+use pgp::types::SecretKeyTrait;
 use pgp::{
     ArmorOptions, Deserializable, Message, PublicOrSecret, SignedPublicKey, StandaloneSignature,
 };
@@ -111,7 +111,7 @@ pub fn test_sign(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutpu
     .expect("FIXME");
 
     let signed = msg
-        .sign(&cs, String::default, HashAlgorithm::SHA2_256)
+        .sign(&cs, String::default, cs.hash_alg())
         .expect("signing on card");
 
     let sig = match signed {
