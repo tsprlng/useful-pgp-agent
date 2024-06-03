@@ -122,7 +122,7 @@ impl CardUploadableKey for UploadableKey {
                         }
                     };
 
-                    let ecc = Ecc::new(curve, p.clone(), m.clone(), EccType::ECDSA);
+                    let ecc = Ecc::new(curve, m.clone(), p.clone(), EccType::ECDSA);
                     Ok(PrivateKeyMaterial::E(Box::new(ecc)))
                 }
                 (PlainSecretParams::EdDSA(m), PublicParams::EdDSA { curve, q }) => {
