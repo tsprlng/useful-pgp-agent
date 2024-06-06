@@ -10,6 +10,7 @@ use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::types::{EcdsaPublicParams, KeyTrait, Mpi, PlainSecretParams, PublicParams, SecretParams};
 use rsa::traits::PrivateKeyParts;
 
+/// Shared type for rPGP "secret key" packets (primary or subkey)
 enum Sec {
     Key(pgp::packet::SecretKey),
     SubKey(pgp::packet::SecretSubkey),
@@ -38,7 +39,9 @@ impl Sec {
     }
 }
 
-/// OpenPGP secret key packet wrapped, to enable uploading to a card
+/// Private key material that can be uploaded to a card slot.
+///
+/// The data in an `UploadableKey` corresponds to an OpenPGP secret key packet.
 pub struct UploadableKey {
     key: Sec,
     unlocked: Option<PlainSecretParams>,

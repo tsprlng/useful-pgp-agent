@@ -123,9 +123,13 @@ pub fn public_key_material_and_fp_to_key(
     ))
 }
 
-/// Helper fn: get a PublicKey from an openpgp-card PublicKeyMaterial.
+/// Transform an openpgp-card `PublicKeyMaterial` and `KeyGenerationTime`
+///  into an rpgp `PublicKey` representation.
 ///
-/// For ECC decryption keys, `hash` and `alg_sym` can be optionally specified.
+/// For ECDH decryption keys, `hash` and `alg_sym` can be optionally specified.
+///
+/// If `hash` and `alg_sym` are required, and the caller passes `None`,
+///  curve-specific default parameters are used.
 pub fn public_key_material_to_key(
     pkm: &PublicKeyMaterial,
     key_type: KeyType,
@@ -168,8 +172,8 @@ pub fn public_key_material_to_key(
                             p.insert(0, 0x40);
                         }
 
-                        let hash = hash.unwrap_or(HashAlgorithm::SHA2_256); // FIXME: get curve default from rpgp!
-                        let alg_sym = alg_sym.unwrap_or(SymmetricKeyAlgorithm::AES128); // FIXME: get curve default from rpgp!
+                        let hash = hash.unwrap_or(curve.hash_algo()?);
+                        let alg_sym = alg_sym.unwrap_or(curve.sym_algo()?);
 
                         let pp = PublicParams::ECDH {
                             curve: curve.clone(),
@@ -240,7 +244,8 @@ pub(crate) fn pubkey_from_card(
     public_key_material_and_fp_to_key(&pkm, key_type, &created, &fingerprint)
 }
 
-pub fn fp_from_pub(
+/// Calculate the `Fingerprint` for `PublicKeyMaterial` and `KeyGenerationTime`
+pub fn public_to_fingerprint(
     pkm: &PublicKeyMaterial,
     kgt: KeyGenerationTime,
     kt: KeyType,
@@ -266,29 +271,37 @@ fn pri_to_sub(pubkey: PublicKey) -> pgp::errors::Result<PublicSubkey> {
     )
 }
 
-/// Generate a SignedPublicKey from the three subkeys on a card.
+/// Bind the subkeys of a card into a `SignedPublicKey`.
 ///
-/// When pw1 is None, attempt to verify via pinpad.
+/// At least one User ID is required.
 ///
-/// `prompt` notifies the user when a pinpad needs the user pin as input.
+/// This function assumes that the signing slot of the card serves as the
+/// primary key, and uses it to issue binding self-signatures.
 ///
-/// FIXME: accept optional metadata for user_id(s)?
+/// If `user_pin` is None, pinpad verification is attempted.
+/// `pinpad_prompt` is called to notify the user when pinpad input (of the
+///  User PIN) is required.
+///
+/// `touch_prompt` is called to notify the user when touch confirmation is
+/// required for a signing operation.
+///
+/// FIXME: Accept optional metadata for user_id binding(s)?
 #[allow(clippy::too_many_arguments)]
-pub fn make_certificate(
+pub fn bind_into_certificate(
     tx: &mut openpgp_card::Card<openpgp_card::state::Transaction>,
-    key_sig: PublicKey,
-    key_dec: Option<PublicKey>,
-    key_aut: Option<PublicKey>,
-    pw1: Option<SecretString>,
+    sig: PublicKey,
+    dec: Option<PublicKey>,
+    aut: Option<PublicKey>,
+    user_ids: &[String],
+    user_pin: Option<SecretString>,
     pinpad_prompt: &dyn Fn(),
     touch_prompt: &(dyn Fn() + Send + Sync),
-    user_ids: &[String],
 ) -> Result<SignedPublicKey, crate::Error> {
-    let primary = key_sig;
+    let primary = sig;
 
     if user_ids.is_empty() {
         return Err(Error::Message(
-            "a user id must be added to make a valid cert".to_string(),
+            "At least one User ID must be added to create a valid certificate".to_string(),
         ));
     }
 
@@ -298,7 +311,7 @@ pub fn make_certificate(
     >|
      -> Result<(), openpgp_card::Error> {
         // Allow signing on the card
-        if let Some(pw1) = pw1.clone() {
+        if let Some(pw1) = user_pin.clone() {
             txx.verify_user_signing_pin(pw1)?;
         } else {
             txx.verify_user_signing_pinpad(pinpad_prompt)?;
@@ -308,9 +321,9 @@ pub fn make_certificate(
 
     let mut subkeys = vec![];
 
-    if let Some(key_dec) = key_dec {
+    if let Some(dec) = dec {
         // add decryption key as subkey
-        let key = pri_to_sub(key_dec)?;
+        let key = pri_to_sub(dec)?;
 
         verify_signing_pin(tx)?;
 
@@ -348,9 +361,9 @@ pub fn make_certificate(
         subkeys.push(sps);
     }
 
-    if let Some(key_aut) = key_aut {
+    if let Some(aut) = aut {
         // add decryption key as subkey
-        let key = pri_to_sub(key_aut)?;
+        let key = pri_to_sub(aut)?;
 
         verify_signing_pin(tx)?;
 

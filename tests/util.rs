@@ -13,7 +13,7 @@ use openpgp_card::ocard::StatusBytes;
 use openpgp_card::state::{Admin, Open, Transaction};
 use openpgp_card::{ocard::KeyType, Card, Error};
 use openpgp_card_rpgp::{
-    make_certificate, public_key_material_and_fp_to_key, public_key_material_to_key, CardSlot,
+    bind_into_certificate, public_key_material_and_fp_to_key, public_key_material_to_key, CardSlot,
     UploadableKey,
 };
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
@@ -272,34 +272,41 @@ pub fn test_keygen(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOut
 
     println!(" Generate subkey for Signing");
     admin.set_algorithm(KeyType::Signing, alg)?;
-    let (pkm, ts) = admin.generate_key(openpgp_card_rpgp::fp_from_pub, KeyType::Signing)?;
+    let (pkm, ts) =
+        admin.generate_key(openpgp_card_rpgp::public_to_fingerprint, KeyType::Signing)?;
     let key_sig =
         public_key_material_to_key(&pkm, KeyType::Signing, &ts, None, None).expect("FIXME");
 
     println!(" Generate subkey for Decryption");
     admin.set_algorithm(KeyType::Decryption, alg)?;
-    let (pkm, ts) = admin.generate_key(openpgp_card_rpgp::fp_from_pub, KeyType::Decryption)?;
+    let (pkm, ts) = admin.generate_key(
+        openpgp_card_rpgp::public_to_fingerprint,
+        KeyType::Decryption,
+    )?;
     let key_dec =
         public_key_material_to_key(&pkm, KeyType::Decryption, &ts, None, None).expect("FIXME");
 
     println!(" Generate subkey for Authentication");
     admin.set_algorithm(KeyType::Authentication, alg)?;
-    let (pkm, ts) = admin.generate_key(openpgp_card_rpgp::fp_from_pub, KeyType::Authentication)?;
+    let (pkm, ts) = admin.generate_key(
+        openpgp_card_rpgp::public_to_fingerprint,
+        KeyType::Authentication,
+    )?;
     let key_aut =
         public_key_material_to_key(&pkm, KeyType::Authentication, &ts, None, None).expect("FIXME");
 
     tx.invalidate_cache()?;
 
     // Generate a Cert for this set of generated keys
-    let cert = make_certificate(
+    let cert = bind_into_certificate(
         tx,
         key_sig,
         Some(key_dec),
         Some(key_aut),
+        &["cardtest@example.org".to_string()],
         Some("123456".to_string().into()),
         &|| {},
         &|| eprintln!("touch confirmation needed"),
-        &["cardtest@example.org".to_string()],
     )?;
     let armored = cert
         .to_armored_string(ArmorOptions::default())
