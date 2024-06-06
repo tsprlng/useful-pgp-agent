@@ -7,7 +7,7 @@ use std::fs::File;
 use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
-use pgp::{types::SecretKeyTrait, Deserializable, Esk, Message, PlainSessionKey};
+use pgp::{Deserializable, Message};
 
 fn main() -> testresult::TestResult {
     let card = PcscBackend::cards(None)?.next().unwrap()?;
@@ -27,27 +27,7 @@ fn main() -> testresult::TestResult {
     let (message, _headers) = Message::from_armor_single(File::open("message2.asc")?)?;
     eprintln!("message: {:?}", &message);
 
-    //let (decrypted, _ids) = message.decrypt(|| String::new(), &[&decrypt_key])?;
-    let Message::Encrypted { esk, edata } = message else {
-        panic!("not encrypted");
-    };
-
-    let mpis = if let Esk::PublicKeyEncryptedSessionKey(ref k) = esk[0] {
-        k.mpis()
-    } else {
-        panic!("whoops")
-    };
-
-    let (session_key, session_key_algorithm) =
-        cs.unlock(String::new, |priv_key| priv_key.decrypt(mpis))?;
-    eprintln!("session key: {session_key:?}, {session_key_algorithm:?}");
-
-    let plain_session_key = PlainSessionKey::V4 {
-        key: session_key,
-        sym_alg: session_key_algorithm,
-    };
-
-    let decrypted = edata.decrypt(plain_session_key)?;
+    let decrypted = cs.decrypt_message(&message)?;
     eprintln!("decrypted: {:?}", &decrypted);
 
     if let Message::Literal(data) = decrypted {

@@ -18,7 +18,7 @@ use pgp::packet::{
 use pgp::types::{
     EcdsaPublicParams, KeyTrait, KeyVersion, Mpi, PublicParams, SecretKeyTrait, SignedUser, Version,
 };
-use pgp::{Esk, Message, PlainSessionKey, SignedKeyDetails, SignedPublicKey, SignedPublicSubKey};
+use pgp::{SignedKeyDetails, SignedPublicKey, SignedPublicSubKey};
 use secrecy::SecretString;
 
 use crate::{CardSlot, Error};
@@ -238,35 +238,6 @@ pub(crate) fn pubkey_from_card(
     };
 
     public_key_material_and_fp_to_key(&pkm, key_type, &created, &fingerprint)
-}
-
-pub fn decrypt(message: Message, cs: CardSlot) -> Result<Message, pgp::errors::Error> {
-    let Message::Encrypted { esk, edata } = message else {
-        return Err(pgp::errors::Error::Message(
-            "message must be Message::Encrypted".to_string(),
-        ));
-    };
-
-    let mpis = match &esk[0] {
-        Esk::PublicKeyEncryptedSessionKey(ref k) => k.mpis(),
-        _ => {
-            return Err(pgp::errors::Error::Message(
-                "Expected PublicKeyEncryptedSessionKey".to_string(),
-            ))
-        }
-    };
-
-    let (session_key, session_key_algorithm) =
-        cs.unlock(String::new, |priv_key| priv_key.decrypt(mpis))?;
-
-    let plain_session_key = PlainSessionKey::V4 {
-        key: session_key,
-        sym_alg: session_key_algorithm,
-    };
-
-    let decrypted = edata.decrypt(plain_session_key)?;
-
-    Ok(decrypted)
 }
 
 pub fn fp_from_pub(

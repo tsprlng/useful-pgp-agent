@@ -80,7 +80,7 @@ pub fn test_decrypt(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOu
     })
     .expect("FIXME");
 
-    let res = openpgp_card_rpgp::decrypt(msg, cs).expect("FIXME");
+    let res = cs.decrypt_message(&msg).expect("FIXME");
 
     if let Message::Literal(lit) = res {
         let plain = String::from_utf8_lossy(lit.data());

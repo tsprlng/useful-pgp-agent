@@ -21,11 +21,11 @@ use pgp::packet::PublicKey;
 use pgp::types::{
     EcdsaPublicParams, KeyId, KeyTrait, Mpi, PublicKeyTrait, PublicParams, SecretKeyTrait,
 };
+use pgp::{Esk, Message, PlainSessionKey};
 pub use privkey::UploadableKey;
 use rand::{CryptoRng, Rng};
 pub use rpgp::{
-    decrypt, fp_from_pub, make_certificate, public_key_material_and_fp_to_key,
-    public_key_material_to_key,
+    fp_from_pub, make_certificate, public_key_material_and_fp_to_key, public_key_material_to_key,
 };
 
 use crate::rpgp::map_card_err;
@@ -78,7 +78,9 @@ impl<'cs, 't> CardSlot<'cs, 't> {
 
         Self::with_public_key(tx, key_type, pk, touch_prompt)
     }
+}
 
+impl CardSlot<'_, '_> {
     /// The OpenPGP public key material that corresponds to the key in this CardSlot
     pub fn public_key(&self) -> &PublicKey {
         &self.public_key
@@ -98,6 +100,35 @@ impl<'cs, 't> CardSlot<'cs, 't> {
         } else {
             false
         }
+    }
+
+    pub fn decrypt_message(&self, message: &Message) -> Result<Message, pgp::errors::Error> {
+        let Message::Encrypted { esk, edata } = message else {
+            return Err(pgp::errors::Error::Message(
+                "message must be Message::Encrypted".to_string(),
+            ));
+        };
+
+        let mpis = match &esk[0] {
+            Esk::PublicKeyEncryptedSessionKey(ref k) => k.mpis(),
+            _ => {
+                return Err(pgp::errors::Error::Message(
+                    "Expected PublicKeyEncryptedSessionKey".to_string(),
+                ))
+            }
+        };
+
+        let (session_key, session_key_algorithm) =
+            self.unlock(String::new, |priv_key| priv_key.decrypt(mpis))?;
+
+        let plain_session_key = PlainSessionKey::V4 {
+            key: session_key,
+            sym_alg: session_key_algorithm,
+        };
+
+        let decrypted = edata.decrypt(plain_session_key)?;
+
+        Ok(decrypted)
     }
 }
 
