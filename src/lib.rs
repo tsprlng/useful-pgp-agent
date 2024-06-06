@@ -147,8 +147,6 @@ impl PublicKeyTrait for CardSlot<'_, '_> {
     }
 }
 
-pub struct Unlocked;
-
 impl SecretKeyTrait for CardSlot<'_, '_> {
     // We model the key data as a public primary key packet for this type.
     // FIXME: The choice of this type is a bit arbitrary.
