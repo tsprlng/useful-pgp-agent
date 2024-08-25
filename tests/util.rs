@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use std::convert::TryFrom;
-use std::io::Cursor;
 use std::string::FromUtf8Error;
 
-use anyhow::Result;
-use chrono::Utc;
+use anyhow::{anyhow, Result};
 use openpgp_card::ocard::algorithm::AlgoSimple;
+use openpgp_card::ocard::crypto::CardUploadableKey;
 use openpgp_card::ocard::data::{KeyGenerationTime, Sex};
 use openpgp_card::ocard::StatusBytes;
 use openpgp_card::state::{Admin, Open, Transaction};
@@ -17,16 +16,14 @@ use openpgp_card_rpgp::{
     UploadableKey,
 };
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
-use pgp::packet::LiteralData;
+use pgp::packet::{LiteralData, PublicSubkey};
 use pgp::ser::Serialize;
 use pgp::types::SecretKeyTrait;
 use pgp::{
-    ArmorOptions, Deserializable, Message, PublicOrSecret, SignedPublicKey, StandaloneSignature,
+    ArmorOptions, Deserializable, Message, PublicOrSecret, SignedPublicKey, SignedSecretKey,
+    StandaloneSignature,
 };
-use rpgpie::key::checked::CheckedCertificate;
-use rpgpie::key::component::ComponentKeySec;
-use rpgpie::key::Certificate;
-use rpgpie::key::Tsk;
+use rand::thread_rng;
 
 #[derive(Debug)]
 pub enum TestResult {
@@ -126,14 +123,14 @@ pub fn test_sign(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutpu
     let (mut parsed, _) =
         pgp::composed::signed_key::from_armor_many(param[0].as_bytes()).expect("parse key data");
 
-    let cert = match parsed.next().expect("no key found") {
-        Ok(PublicOrSecret::Public(p)) => Certificate::from(p),
-        Ok(PublicOrSecret::Secret(s)) => Certificate::from(SignedPublicKey::from(s)),
+    let spk = match parsed.next().expect("no key found") {
+        Ok(PublicOrSecret::Public(p)) => p,
+        Ok(PublicOrSecret::Secret(s)) => SignedPublicKey::from(s),
         Err(e) => panic!("parse key data {}", e),
     };
 
     assert!(verify_sig(
-        &cert,
+        &spk,
         cleartext.as_bytes(),
         &sig.to_bytes().expect("serialize signature")
     )?);
@@ -244,11 +241,11 @@ pub fn test_upload_keys(
     let key = std::fs::read_to_string(param[0])
         .unwrap_or_else(|_| panic!("load key from {:?}", param[0]));
 
-    let tsk = Tsk::try_from(key.as_bytes()).expect("parse tsk");
+    let (ssk, _) = SignedSecretKey::from_string(&key).expect("parse tsk");
 
     let mut admin = tx.to_admin_card(Some("12345678".to_string().into()))?;
 
-    let meta = upload_subkeys(&mut admin, &tsk)
+    let meta = upload_subkeys(&mut admin, &ssk)
         .map_err(|e| TestError::KeyUploadError(param[0].to_string(), e))?;
 
     check_key_upload_metadata(&mut admin, &meta)?;
@@ -758,7 +755,7 @@ pub fn run_test(
 
 pub(crate) fn upload_subkeys(
     admin: &mut Card<Admin>,
-    tsk: &Tsk,
+    ssk: &SignedSecretKey,
 ) -> Result<Vec<(String, KeyGenerationTime)>> {
     let mut out = vec![];
 
@@ -767,20 +764,14 @@ pub(crate) fn upload_subkeys(
         KeyType::Decryption,
         KeyType::Authentication,
     ] {
-        if let Some(ckey) = subkey_by_type(tsk, *kt) {
+        if let Some(uk) = subkey_by_type(ssk, *kt) {
             // store fingerprint as return-value
-            let fp = hex::encode(ckey.fingerprint());
+            let fp = hex::encode(uk.fingerprint()?.as_bytes());
 
             // store key creation time as return-value
-            let creation = ckey.created_at().timestamp() as u32;
+            let creation = uk.timestamp().get();
 
             out.push((fp, creation.into()));
-
-            // upload key
-            let uk: UploadableKey = match ckey {
-                ComponentKeySec::Primary(sk) => sk.into(),
-                ComponentKeySec::Subkey(ssk) => ssk.into(),
-            };
 
             admin.import_key(Box::new(uk), *kt)?;
         }
@@ -789,62 +780,121 @@ pub(crate) fn upload_subkeys(
     Ok(out)
 }
 
-fn subkey_by_type(tsk: &Tsk, kt: KeyType) -> Option<ComponentKeySec> {
-    let keys = match kt {
-        KeyType::Signing => tsk.signing_keys_sec(),
-        KeyType::Decryption => tsk.decryption_keys_sec(),
-        KeyType::Authentication => tsk.auth_keys_sec(),
-        KeyType::Attestation => vec![],
-    };
-
-    if keys.len() == 1 {
-        Some(keys.into_iter().next().unwrap())
-    } else {
-        None
+fn subkey_by_type(ssk: &SignedSecretKey, kt: KeyType) -> Option<UploadableKey> {
+    match kt {
+        KeyType::Signing => signing_sec_key(ssk).ok(),
+        KeyType::Decryption => decryption_sec_key(ssk).ok(),
+        KeyType::Authentication => auth_sec_key(ssk).ok(),
+        KeyType::Attestation => None,
     }
 }
 
-pub fn verify_sig(cert: &Certificate, data: &[u8], sig: &[u8]) -> Result<bool> {
-    let ccert = CheckedCertificate::from(cert);
-    let verifiers = ccert.valid_signing_capable_component_keys_at(&Utc::now());
+fn signing_sec_key(ssk: &SignedSecretKey) -> Result<UploadableKey> {
+    for sk in &ssk.secret_subkeys {
+        let binding = sk
+            .signatures
+            .first() // FIXME: we really want the newest, but for these tests we expect simple keys
+            .expect("expecting a binding signature");
 
+        if binding.key_flags().sign() {
+            return Ok(sk.key.clone().into());
+        }
+    }
+
+    // look at primary (NOTE: we're not handling direct signatures here!)
+    let binding = ssk
+        .details
+        .users
+        .first() // FIXME: we really want the primary user, but for these tests we expect simple keys
+        .expect("expecting a user")
+        .signatures
+        .first() // FIXME: we really want the newest, but for these tests we expect simple keys
+        .expect("expecting a binding signature");
+
+    if binding.key_flags().sign() {
+        return Ok(ssk.primary_key.clone().into());
+    }
+
+    Err(anyhow!("no key found"))
+}
+
+fn auth_sec_key(ssk: &SignedSecretKey) -> Result<UploadableKey> {
+    for sk in &ssk.secret_subkeys {
+        let binding = sk
+            .signatures
+            .first() // FIXME: we really want the newest, but for these tests we expect simple keys
+            .expect("expecting a binding signature");
+
+        if binding.key_flags().authentication() {
+            return Ok(sk.key.clone().into());
+        }
+    }
+
+    Err(anyhow!("no key found"))
+}
+
+fn decryption_sec_key(ssk: &SignedSecretKey) -> Result<UploadableKey> {
+    for sk in &ssk.secret_subkeys {
+        let binding = sk
+            .signatures
+            .first() // FIXME: we really want the newest, but for these tests we expect simple keys
+            .expect("expecting a binding signature");
+
+        let flags = binding.key_flags();
+        if flags.encrypt_comms() || flags.encrypt_storage() {
+            return Ok(sk.key.clone().into());
+        }
+    }
+
+    Err(anyhow!("no key found"))
+}
+
+/// NOTE: this function ignores key flags and all validity entirely.
+/// It returns `true` if any component key is found that cryptographically validates the signature.
+/// This is not ok for production OpenPGP, but sufficient for these tests.
+pub fn verify_sig(spk: &SignedPublicKey, data: &[u8], sig: &[u8]) -> Result<bool> {
     let sig = StandaloneSignature::from_bytes(sig).expect("signature");
 
-    let verified = verifiers
-        .iter()
-        .any(|v| v.verify(&sig.signature, data).is_ok());
-
-    Ok(verified)
-}
-
-pub fn encrypt_to(cleartext: &str, cert: &Certificate) -> Result<String> {
-    let ccert = CheckedCertificate::from(cert);
-
-    // certificate.
-    let enc = ccert.valid_encryption_capable_component_keys();
-
-    if enc.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No suitable encryption subkey for {}",
-            hex::encode(cert.fingerprint())
-        ));
+    if sig.verify(&spk.primary_key, data).is_ok() {
+        return Ok(true);
     }
 
-    let mut sink = vec![];
+    for sk in &spk.public_subkeys {
+        if sig.verify(&sk.key, data).is_ok() {
+            return Ok(true);
+        }
+    }
 
-    let source = cleartext.as_bytes();
+    Ok(false)
+}
 
-    rpgpie::msg::encrypt(
-        enc,
-        vec![],
-        vec![],
-        None,
-        SymmetricKeyAlgorithm::AES256,
-        &mut Cursor::new(source),
-        &mut sink,
-        true,
-    )
-    .expect("encrypt");
+pub fn encrypt_to(plaintext: &str, spk: &SignedPublicKey) -> Result<String> {
+    let lit = LiteralData::from_bytes((&[]).into(), plaintext.as_bytes());
+    let msg = Message::Literal(lit);
 
-    Ok(String::from_utf8(sink).unwrap())
+    let keys = encryption_capable(spk)?;
+
+    let enc = msg.encrypt_to_keys(&mut thread_rng(), SymmetricKeyAlgorithm::AES256, &keys)?;
+
+    Ok(enc.to_armored_string(ArmorOptions::default())?)
+}
+
+/// NOTE: we don't support encryption capable primaries here.
+/// This is a little unfortunate, but for the tests we don't care about that corner case.
+fn encryption_capable(spk: &SignedPublicKey) -> Result<Vec<&PublicSubkey>> {
+    let mut v = vec![];
+
+    for sk in &spk.public_subkeys {
+        let binding = sk
+            .signatures
+            .first() // FIXME: we really want the newest, but for these tests we expect simple keys
+            .expect("expecting a binding signature");
+
+        let flags = binding.key_flags();
+        if flags.encrypt_comms() || flags.encrypt_storage() {
+            v.push(&sk.key);
+        }
+    }
+
+    Ok(v)
 }

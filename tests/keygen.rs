@@ -8,7 +8,7 @@ use std::env;
 use anyhow::Result;
 use openpgp_card::state::Open;
 use openpgp_card::Card;
-use rpgpie::key::Certificate;
+use pgp::{Deserializable, SignedPublicKey};
 
 use crate::cards::TestConfig;
 use crate::util::{
@@ -77,8 +77,8 @@ fn keygen() -> Result<()> {
                 println!(" {sign_out:x?}");
 
                 // decrypt
-                let cert = Certificate::try_from(cert_str.as_bytes()).expect("parse cert");
-                let ciphertext = util::encrypt_to("Hello world!\n", &cert)?;
+                let (spk, _) = SignedPublicKey::from_string(cert_str)?;
+                let ciphertext = util::encrypt_to("Hello world!\n", &spk)?;
 
                 print!("  Decrypt");
                 let dec_out = run_test(&mut tx, test_decrypt, &[cert_str, &ciphertext])?;
