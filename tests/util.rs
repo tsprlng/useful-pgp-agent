@@ -108,7 +108,7 @@ pub fn test_sign(tx: &mut Card<Transaction>, param: &[&str]) -> Result<TestOutpu
     .expect("FIXME");
 
     let signed = msg
-        .sign(&cs, String::default, cs.hash_alg())
+        .sign(thread_rng(), &cs, String::default, cs.hash_alg())
         .expect("signing on card");
 
     let sig = match signed {
@@ -874,7 +874,8 @@ pub fn encrypt_to(plaintext: &str, spk: &SignedPublicKey) -> Result<String> {
 
     let keys = encryption_capable(spk)?;
 
-    let enc = msg.encrypt_to_keys(&mut thread_rng(), SymmetricKeyAlgorithm::AES256, &keys)?;
+    let enc =
+        msg.encrypt_to_keys_seipdv1(&mut thread_rng(), SymmetricKeyAlgorithm::AES256, &keys)?;
 
     Ok(enc.to_armored_string(ArmorOptions::default())?)
 }

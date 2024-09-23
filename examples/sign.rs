@@ -6,8 +6,8 @@ use card_backend_pcsc::PcscBackend;
 use openpgp_card::ocard::KeyType;
 use openpgp_card_rpgp::CardSlot;
 use pgp::crypto::hash::HashAlgorithm;
-use pgp::packet::{self, SignatureConfig};
-use pgp::types::{KeyTrait, KeyVersion};
+use pgp::packet::{SignatureConfig, SignatureType, Subpacket, SubpacketData};
+use pgp::types::PublicKeyTrait;
 use pgp::{ArmorOptions, StandaloneSignature};
 
 fn main() -> testresult::TestResult {
@@ -34,25 +34,27 @@ fn main() -> testresult::TestResult {
     })?;
 
     // -- use card signer
-    let signature = SignatureConfig::new_v4(
-        packet::SignatureVersion::V4,
-        packet::SignatureType::Binary,
+    let mut config = SignatureConfig::v4(
+        SignatureType::Binary,
         cs.public_key().algorithm(),
         HashAlgorithm::SHA2_256,
-        vec![
-            packet::Subpacket::regular(packet::SubpacketData::SignatureCreationTime(
-                std::time::SystemTime::now().into(),
-            )),
-            packet::Subpacket::regular(packet::SubpacketData::Issuer(cs.key_id())),
-            packet::Subpacket::regular(packet::SubpacketData::IssuerFingerprint(
-                KeyVersion::V4,
-                cs.fingerprint().into(),
-            )),
-        ],
-        vec![],
     );
 
-    let signature = signature.sign(&cs, String::new, DATA)?;
+    config
+        .hashed_subpackets
+        .push(Subpacket::regular(SubpacketData::SignatureCreationTime(
+            std::time::SystemTime::now().into(),
+        )));
+    config
+        .hashed_subpackets
+        .push(Subpacket::regular(SubpacketData::Issuer(cs.key_id())));
+    config
+        .hashed_subpackets
+        .push(Subpacket::regular(SubpacketData::IssuerFingerprint(
+            cs.fingerprint(),
+        )));
+
+    let signature = config.sign(&cs, String::new, DATA)?;
 
     let signature = StandaloneSignature { signature };
     signature

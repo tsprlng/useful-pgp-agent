@@ -4,7 +4,7 @@
 
 use pgp::composed::signed_key::SignedPublicKey;
 use pgp::composed::Deserializable;
-use pgp::types::KeyTrait;
+use pgp::types::PublicKeyTrait;
 use pgp::StandaloneSignature;
 
 fn main() -> testresult::TestResult {

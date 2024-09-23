@@ -12,11 +12,12 @@ use pgp::crypto::hash::HashAlgorithm;
 use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
 use pgp::packet::{
-    KeyFlags, PacketTrait, PublicKey, PublicSubkey, SignatureConfigBuilder, SignatureType,
-    Subpacket, SubpacketData, UserId,
+    KeyFlags, PacketTrait, PublicKey, PublicSubkey, SignatureConfig, SignatureType, Subpacket,
+    SubpacketData, UserId,
 };
 use pgp::types::{
-    EcdsaPublicParams, KeyTrait, KeyVersion, Mpi, PublicParams, SecretKeyTrait, SignedUser, Version,
+    EcdhPublicParams, EcdsaPublicParams, KeyVersion, Mpi, PublicKeyTrait, PublicParams,
+    SecretKeyTrait, SignedUser, Version,
 };
 use pgp::{SignedKeyDetails, SignedPublicKey, SignedPublicSubKey};
 use secrecy::SecretString;
@@ -111,7 +112,7 @@ pub fn public_key_material_and_fp_to_key(
     for (hash, alg_sym) in param {
         if let Ok(key) = public_key_material_to_key(pkm, key_type, created, *hash, *alg_sym) {
             // check FP
-            if key.fingerprint() == fingerprint.as_bytes() {
+            if key.fingerprint().as_bytes() == fingerprint.as_bytes() {
                 // return if match
                 return Ok(key);
             }
@@ -146,8 +147,8 @@ pub fn public_key_material_to_key(
             PublicKeyAlgorithm::RSA,
             created,
             PublicParams::RSA {
-                n: Mpi::from_raw_slice(rsa.n()),
-                e: Mpi::from_raw_slice(rsa.v()),
+                n: Mpi::from_slice(rsa.n()),
+                e: Mpi::from_slice(rsa.v()),
             },
         ),
 
@@ -175,12 +176,12 @@ pub fn public_key_material_to_key(
                         let hash = hash.unwrap_or(curve.hash_algo()?);
                         let alg_sym = alg_sym.unwrap_or(curve.sym_algo()?);
 
-                        let pp = PublicParams::ECDH {
+                        let pp = PublicParams::ECDH(EcdhPublicParams::Known {
                             curve: curve.clone(),
-                            p: p.clone().into(),
+                            p: Mpi::from_raw(p),
                             hash,
                             alg_sym,
-                        };
+                        });
 
                         (PublicKeyAlgorithm::ECDH, pp)
                     }
@@ -188,7 +189,7 @@ pub fn public_key_material_to_key(
                     EccType::ECDSA => (
                         PublicKeyAlgorithm::ECDSA,
                         PublicParams::ECDSA(EcdsaPublicParams::try_from_mpi(
-                            ecc.data().into(),
+                            Mpi::from_slice(ecc.data()).as_ref(),
                             curve,
                         )?),
                     ),
@@ -202,8 +203,11 @@ pub fn public_key_material_to_key(
                         }
 
                         (
-                            PublicKeyAlgorithm::EdDSA,
-                            PublicParams::EdDSA { curve, q: q.into() },
+                            PublicKeyAlgorithm::EdDSALegacy,
+                            PublicParams::EdDSALegacy {
+                                curve,
+                                q: Mpi::from_raw(q),
+                            },
                         )
                     }
                 };
@@ -256,7 +260,7 @@ pub fn public_to_fingerprint(
 
     let fp = key.fingerprint();
 
-    openpgp_card::ocard::data::Fingerprint::try_from(fp.as_slice())
+    openpgp_card::ocard::data::Fingerprint::try_from(fp.as_bytes())
 }
 
 // FIXME: upstream?
@@ -334,22 +338,17 @@ pub fn bind_into_certificate(
         kf.set_encrypt_comms(true);
         kf.set_encrypt_storage(true);
 
-        let config = SignatureConfigBuilder::default()
-            .typ(SignatureType::SubkeyBinding)
-            .pub_alg(cs.algorithm())
-            .hash_alg(cs.hash_alg())
-            .hashed_subpackets(vec![
-                Subpacket::regular(SubpacketData::SignatureCreationTime(
-                    Utc::now().trunc_subsecs(0),
-                )),
-                Subpacket::regular(SubpacketData::IssuerFingerprint(
-                    KeyVersion::V4,
-                    cs.fingerprint().into(),
-                )),
-                Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
-            ])
-            .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
-            .build()?;
+        let mut config =
+            SignatureConfig::v4(SignatureType::SubkeyBinding, cs.algorithm(), cs.hash_alg());
+
+        config.hashed_subpackets = vec![
+            Subpacket::regular(SubpacketData::SignatureCreationTime(
+                Utc::now().trunc_subsecs(0),
+            )),
+            Subpacket::regular(SubpacketData::IssuerFingerprint(cs.fingerprint())),
+            Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
+        ];
+        config.unhashed_subpackets = vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))];
 
         let sig = config.sign_key_binding(&cs, String::default, &key)?;
 
@@ -373,22 +372,17 @@ pub fn bind_into_certificate(
         let mut kf = KeyFlags::default();
         kf.set_authentication(true);
 
-        let config = SignatureConfigBuilder::default()
-            .typ(SignatureType::SubkeyBinding)
-            .pub_alg(cs.algorithm())
-            .hash_alg(cs.hash_alg())
-            .hashed_subpackets(vec![
-                Subpacket::regular(SubpacketData::SignatureCreationTime(
-                    Utc::now().trunc_subsecs(0),
-                )),
-                Subpacket::regular(SubpacketData::IssuerFingerprint(
-                    KeyVersion::V4,
-                    cs.fingerprint().into(),
-                )),
-                Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
-            ])
-            .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
-            .build()?;
+        let mut config =
+            SignatureConfig::v4(SignatureType::SubkeyBinding, cs.algorithm(), cs.hash_alg());
+
+        config.hashed_subpackets = vec![
+            Subpacket::regular(SubpacketData::SignatureCreationTime(
+                Utc::now().trunc_subsecs(0),
+            )),
+            Subpacket::regular(SubpacketData::IssuerFingerprint(cs.fingerprint())),
+            Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
+        ];
+        config.unhashed_subpackets = vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))];
 
         let sig = config.sign_key_binding(&cs, String::default, &key)?;
 
@@ -413,18 +407,16 @@ pub fn bind_into_certificate(
         verify_signing_pin(tx)?;
 
         let cs = CardSlot::with_public_key(tx, KeyType::Signing, primary.clone(), touch_prompt)?;
-        let config = SignatureConfigBuilder::default()
-            .typ(SignatureType::CertPositive)
-            .pub_alg(cs.algorithm())
-            .hash_alg(cs.hash_alg())
-            .hashed_subpackets(vec![
-                Subpacket::regular(SubpacketData::SignatureCreationTime(
-                    Utc::now().trunc_subsecs(0),
-                )),
-                Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
-            ])
-            .unhashed_subpackets(vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))])
-            .build()?;
+        let mut config =
+            SignatureConfig::v4(SignatureType::CertPositive, cs.algorithm(), cs.hash_alg());
+
+        config.hashed_subpackets = vec![
+            Subpacket::regular(SubpacketData::SignatureCreationTime(
+                Utc::now().trunc_subsecs(0),
+            )),
+            Subpacket::regular(SubpacketData::KeyFlags(kf.into())),
+        ];
+        config.unhashed_subpackets = vec![Subpacket::regular(SubpacketData::Issuer(cs.key_id()))];
 
         let sig = config.sign_certification(&cs, String::default, uid.tag(), &uid)?;
 

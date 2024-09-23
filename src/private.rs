@@ -6,8 +6,10 @@ use openpgp_card::ocard::crypto::{CardUploadableKey, EccKey, EccType, PrivateKey
 use openpgp_card::ocard::data::{Fingerprint, KeyGenerationTime};
 use openpgp_card::Error;
 use pgp::crypto::ecc_curve::ECCCurve;
-use pgp::crypto::public_key::PublicKeyAlgorithm;
-use pgp::types::{EcdsaPublicParams, KeyTrait, Mpi, PlainSecretParams, PublicParams, SecretParams};
+use pgp::types::{
+    EcdhPublicParams, EcdsaPublicParams, Mpi, PlainSecretParams, PublicKeyTrait, PublicParams,
+    SecretParams,
+};
 use rsa::traits::PrivateKeyParts;
 
 /// Shared type for rPGP "secret key" packets (primary or subkey)
@@ -17,13 +19,6 @@ enum Sec {
 }
 
 impl Sec {
-    fn algorithm(&self) -> PublicKeyAlgorithm {
-        match self {
-            Sec::Key(sk) => sk.algorithm(),
-            Sec::SubKey(ssk) => ssk.algorithm(),
-        }
-    }
-
     fn public_params(&self) -> &PublicParams {
         match self {
             Sec::Key(sk) => sk.public_params(),
@@ -81,13 +76,20 @@ impl UploadableKey {
         match self.key.secret_params() {
             SecretParams::Plain(_) => Ok(false),
             SecretParams::Encrypted(esp) => {
-                if let Ok(psp) = esp.unlock(
-                    || pw.to_string(),
-                    self.key.algorithm(),
-                    self.key.public_params(),
-                ) {
-                    self.unlocked = Some(psp);
-                    return Ok(true);
+                match &self.key {
+                    // FIXME: this duplication is unfortunate
+                    Sec::Key(sk) => {
+                        if let Ok(psp) = esp.unlock(|| pw.to_string(), sk, None) {
+                            self.unlocked = Some(psp);
+                            return Ok(true);
+                        }
+                    }
+                    Sec::SubKey(ssk) => {
+                        if let Ok(psp) = esp.unlock(|| pw.to_string(), ssk, None) {
+                            self.unlocked = Some(psp);
+                            return Ok(true);
+                        }
+                    }
                 }
 
                 Err(Error::InternalError("Could not unlock key".to_string()))
@@ -128,11 +130,14 @@ impl CardUploadableKey for UploadableKey {
                     let ecc = Ecc::new(curve, m.clone(), p.clone(), EccType::ECDSA);
                     Ok(PrivateKeyMaterial::E(Box::new(ecc)))
                 }
-                (PlainSecretParams::EdDSA(m), PublicParams::EdDSA { curve, q }) => {
+                (PlainSecretParams::EdDSALegacy(m), PublicParams::EdDSALegacy { curve, q }) => {
                     let ecc = Ecc::new(curve.clone(), m.clone(), q.clone(), EccType::EdDSA);
                     Ok(PrivateKeyMaterial::E(Box::new(ecc)))
                 }
-                (PlainSecretParams::ECDH(m), PublicParams::ECDH { curve, p, .. }) => {
+                (
+                    PlainSecretParams::ECDH(m),
+                    PublicParams::ECDH(EcdhPublicParams::Known { curve, p, .. }),
+                ) => {
                     let ecc = Ecc::new(curve.clone(), m.clone(), p.clone(), EccType::ECDH);
                     Ok(PrivateKeyMaterial::E(Box::new(ecc)))
                 }
@@ -178,7 +183,7 @@ impl CardUploadableKey for UploadableKey {
             Sec::SubKey(ssk) => ssk.fingerprint(),
         };
 
-        Fingerprint::try_from(fp.as_slice())
+        Fingerprint::try_from(fp.as_bytes())
     }
 }
 
@@ -202,25 +207,25 @@ impl Rsa {
         )
         .map_err(|e| Error::InternalError(format!("rsa error {e:?}")))?;
 
-        let pq = key
-            .qinv()
-            .ok_or_else(|| Error::InternalError("pq value missing".into()))?
-            .to_biguint()
-            .ok_or_else(|| Error::InternalError("conversion to bigunit failed".into()))?
-            .to_bytes_be()
-            .into();
+        let pq = Mpi::from_raw(
+            key.qinv()
+                .ok_or_else(|| Error::InternalError("pq value missing".into()))?
+                .to_biguint()
+                .ok_or_else(|| Error::InternalError("conversion to bigunit failed".into()))?
+                .to_bytes_be(),
+        );
 
-        let dp1 = key
-            .dp()
-            .ok_or_else(|| Error::InternalError("dp1 value missing".into()))?
-            .to_bytes_be()
-            .into();
+        let dp1 = Mpi::from_raw(
+            key.dp()
+                .ok_or_else(|| Error::InternalError("dp1 value missing".into()))?
+                .to_bytes_be(),
+        );
 
-        let dq1 = key
-            .dq()
-            .ok_or_else(|| Error::InternalError("dq1 value missing".into()))?
-            .to_bytes_be()
-            .into();
+        let dq1 = Mpi::from_raw(
+            key.dq()
+                .ok_or_else(|| Error::InternalError("dq1 value missing".into()))?
+                .to_bytes_be(),
+        );
 
         Ok(Self {
             e,

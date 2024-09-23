@@ -5,6 +5,7 @@
 use std::fmt::{Debug, Formatter};
 use std::sync::Mutex;
 
+use chrono::{DateTime, Utc};
 use openpgp_card::ocard::crypto::Hash;
 use openpgp_card::ocard::KeyType;
 use openpgp_card::state::Transaction;
@@ -16,7 +17,8 @@ use pgp::crypto::public_key::PublicKeyAlgorithm;
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
 use pgp::packet::PublicKey;
 use pgp::types::{
-    EcdsaPublicParams, KeyId, KeyTrait, Mpi, PublicKeyTrait, PublicParams, SecretKeyTrait,
+    EcdhPublicParams, EcdsaPublicParams, Fingerprint, KeyId, KeyVersion, Mpi, PkeskBytes,
+    PublicKeyTrait, PublicParams, SecretKeyTrait, SignatureBytes,
 };
 use pgp::{Esk, Message, PlainSessionKey};
 use rand::{CryptoRng, Rng};
@@ -95,13 +97,16 @@ impl CardSlot<'_, '_> {
         }
     }
 
-    pub fn decrypt(&self, mpis: &[Mpi]) -> pgp::errors::Result<(Vec<u8>, SymmetricKeyAlgorithm)> {
+    pub fn decrypt(
+        &self,
+        values: &PkeskBytes,
+    ) -> pgp::errors::Result<(Vec<u8>, SymmetricKeyAlgorithm)> {
         #[allow(clippy::unwrap_used)]
         let mut tx = self.tx.lock().unwrap();
 
-        let decrypted_key = match self.public_key.public_params() {
-            PublicParams::RSA { n, .. } => {
-                let mut ciphertext = mpis[0].to_vec();
+        let decrypted_key = match (self.public_key.public_params(), values) {
+            (PublicParams::RSA { n, .. }, PkeskBytes::Rsa { mpi }) => {
+                let mut ciphertext = mpi.to_vec();
 
                 // RSA modulus length. We use this length to pad the ciphertext, in case it was
                 // zero truncated.
@@ -135,16 +140,19 @@ impl CardSlot<'_, '_> {
                 })?
             }
 
-            PublicParams::ECDH {
-                curve,
-                alg_sym,
-                hash,
-                ..
-            } => {
-                let ciphertext = mpis[0].as_bytes();
-
-                // encrypted and wrapped value derived from the session key
-                let encrypted_session_key = mpis[2].as_bytes();
+            (
+                PublicParams::ECDH(EcdhPublicParams::Known {
+                    curve,
+                    alg_sym,
+                    hash,
+                    ..
+                }),
+                PkeskBytes::Ecdh {
+                    public_point,
+                    encrypted_session_key,
+                },
+            ) => {
+                let ciphertext = public_point.as_bytes();
 
                 let ciphertext = if *curve == ECCCurve::Curve25519 {
                     assert_eq!(
@@ -172,15 +180,14 @@ impl CardSlot<'_, '_> {
                     ))
                 })?;
 
-                let encrypted_key_len: usize =
-                    mpis[1].first().copied().map(Into::into).unwrap_or(0);
+                let encrypted_key_len = encrypted_session_key.len();
 
                 let decrypted_key: Vec<u8> = pgp::crypto::ecdh::derive_session_key(
                     &shared_secret,
                     encrypted_session_key,
                     encrypted_key_len,
                     &(curve.clone(), *alg_sym, *hash),
-                    &self.public_key.fingerprint(),
+                    self.public_key.fingerprint().as_bytes(),
                 )?;
 
                 decrypted_key
@@ -215,8 +222,8 @@ impl CardSlot<'_, '_> {
             ));
         };
 
-        let mpis = match &esk[0] {
-            Esk::PublicKeyEncryptedSessionKey(ref k) => k.mpis(),
+        let values = match &esk[0] {
+            Esk::PublicKeyEncryptedSessionKey(ref k) => k.values()?,
             _ => {
                 return Err(pgp::errors::Error::Message(
                     "Expected PublicKeyEncryptedSessionKey".to_string(),
@@ -225,9 +232,9 @@ impl CardSlot<'_, '_> {
         };
 
         let (session_key, session_key_algorithm) =
-            self.unlock(String::new, |priv_key| priv_key.decrypt(mpis))?;
+            self.unlock(String::new, |priv_key| priv_key.decrypt(values))?;
 
-        let plain_session_key = PlainSessionKey::V4 {
+        let plain_session_key = PlainSessionKey::V3_4 {
             key: session_key,
             sym_alg: session_key_algorithm,
         };
@@ -247,8 +254,12 @@ impl Debug for CardSlot<'_, '_> {
     }
 }
 
-impl KeyTrait for CardSlot<'_, '_> {
-    fn fingerprint(&self) -> Vec<u8> {
+impl PublicKeyTrait for CardSlot<'_, '_> {
+    fn version(&self) -> KeyVersion {
+        KeyVersion::V4 // FIXME?
+    }
+
+    fn fingerprint(&self) -> Fingerprint {
         self.public_key.fingerprint()
     }
 
@@ -259,28 +270,39 @@ impl KeyTrait for CardSlot<'_, '_> {
     fn algorithm(&self) -> PublicKeyAlgorithm {
         self.public_key.algorithm()
     }
-}
 
-impl PublicKeyTrait for CardSlot<'_, '_> {
+    fn created_at(&self) -> &DateTime<Utc> {
+        self.public_key.created_at()
+    }
+
+    fn expiration(&self) -> Option<u16> {
+        None
+    }
+
     fn verify_signature(
         &self,
         hash: HashAlgorithm,
         data: &[u8],
-        sig: &[Mpi],
+        sig: &SignatureBytes,
     ) -> pgp::errors::Result<()> {
         self.public_key.verify_signature(hash, data, sig)
     }
 
     fn encrypt<R: CryptoRng + Rng>(
         &self,
-        rng: &mut R,
+        rng: R,
         plain: &[u8],
-    ) -> pgp::errors::Result<Vec<Mpi>> {
-        self.public_key.encrypt(rng, plain)
+        typ: pgp::types::EskType,
+    ) -> pgp::errors::Result<PkeskBytes> {
+        self.public_key.encrypt(rng, plain, typ)
     }
 
-    fn to_writer_old(&self, writer: &mut impl std::io::Write) -> pgp::errors::Result<()> {
-        self.public_key.to_writer_old(writer)
+    fn serialize_for_hashing(&self, writer: &mut impl std::io::Write) -> pgp::errors::Result<()> {
+        self.public_key.serialize_for_hashing(writer)
+    }
+
+    fn public_params(&self) -> &PublicParams {
+        self.public_key.public_params()
     }
 }
 
@@ -303,7 +325,7 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
         _key_pw: F,
         hash: HashAlgorithm,
         data: &[u8],
-    ) -> pgp::errors::Result<Vec<Mpi>>
+    ) -> pgp::errors::Result<SignatureBytes>
     where
         F: FnOnce() -> String,
     {
@@ -320,7 +342,7 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
                     _ => data,
                 }
             }),
-            PublicKeyAlgorithm::EdDSA => Hash::EdDSA(data),
+            PublicKeyAlgorithm::EdDSALegacy => Hash::EdDSA(data),
 
             _ => {
                 return Err(pgp::errors::Error::Unimplemented(format!(
@@ -354,18 +376,12 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
             PublicKeyAlgorithm::ECDSA => {
                 let mid = sig.len() / 2;
 
-                vec![
-                    Mpi::from_raw_slice(&sig[..mid]),
-                    Mpi::from_raw_slice(&sig[mid..]),
-                ]
+                vec![Mpi::from_slice(&sig[..mid]), Mpi::from_slice(&sig[mid..])]
             }
-            PublicKeyAlgorithm::EdDSA => {
+            PublicKeyAlgorithm::EdDSALegacy => {
                 assert_eq!(sig.len(), 64); // FIXME: check curve; add error handling
 
-                vec![
-                    Mpi::from_raw_slice(&sig[..32]),
-                    Mpi::from_raw_slice(&sig[32..]),
-                ]
+                vec![Mpi::from_slice(&sig[..32]), Mpi::from_slice(&sig[32..])]
             }
 
             alg => {
@@ -376,15 +392,11 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
             }
         };
 
-        Ok(mpis)
+        Ok(SignatureBytes::Mpis(mpis))
     }
 
     fn public_key(&self) -> Self::PublicKey {
         self.public_key.clone()
-    }
-
-    fn public_params(&self) -> &PublicParams {
-        self.public_key.public_params()
     }
 }
 
