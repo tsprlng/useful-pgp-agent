@@ -371,7 +371,7 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
         };
 
         let mpis = match self.public_key.algorithm() {
-            PublicKeyAlgorithm::RSA => vec![Mpi::from_raw(sig)],
+            PublicKeyAlgorithm::RSA => vec![Mpi::from_slice(&sig)],
 
             PublicKeyAlgorithm::ECDSA => {
                 let mid = sig.len() / 2;
