@@ -20,7 +20,6 @@ steps:
     commands:
       - rustup component add clippy
       - apt update -y -qq && apt install -y -qq --no-install-recommends libpcsclite-dev nettle-dev libclang-dev
-      - cargo update -p base64ct --precise 1.6.0
       - cargo clippy --no-deps --tests --examples
 
   virtual-opcard:
