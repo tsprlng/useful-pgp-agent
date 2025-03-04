@@ -381,10 +381,10 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
             PublicKeyAlgorithm::EdDSALegacy => {
                 // FIXME: check curve?
                 if sig.len() != 64 {
-                    return Err(format_err!(
+                    return Err(pgp::errors::Error::Message(format!(
                         "Unexpected signature length {} for EdDSA",
                         sig.len()
-                    ));
+                    )));
                 }
 
                 vec![Mpi::from_slice(&sig[..32]), Mpi::from_slice(&sig[32..])]
