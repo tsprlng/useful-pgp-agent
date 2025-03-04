@@ -379,7 +379,13 @@ impl SecretKeyTrait for CardSlot<'_, '_> {
                 vec![Mpi::from_slice(&sig[..mid]), Mpi::from_slice(&sig[mid..])]
             }
             PublicKeyAlgorithm::EdDSALegacy => {
-                assert_eq!(sig.len(), 64); // FIXME: check curve; add error handling
+                // FIXME: check curve?
+                if sig.len() != 64 {
+                    return Err(format_err!(
+                        "Unexpected signature length {} for EdDSA",
+                        sig.len()
+                    ));
+                }
 
                 vec![Mpi::from_slice(&sig[..32]), Mpi::from_slice(&sig[32..])]
             }
