@@ -16,7 +16,7 @@ documentation = "https://docs.rs/openpgp-card-rpgp"
 
 [dependencies]
 chrono = "0.4"
-openpgp-card = "0.5"
+openpgp-card = { path = "../openpgp-card" }
 pgp = "0.15"
 rand = "0.8"
 rsa = "0.9"
