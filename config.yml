@@ -1,0 +1,11 @@
+cards:
+  desktop:
+    ident: '0006:07019259'
+    priority: 1
+    common_pin: main
+  laptop:
+    ident: '0006:13828974'
+    common_pin: main
+  laptop-usb-c:
+    ident: '0006:08535839'
+    common_pin: main
