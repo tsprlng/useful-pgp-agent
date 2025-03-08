@@ -1,0 +1,4 @@
+[submodule "rpgp"]
+	path = rpgp
+	url = ./
+	branch = rpgp
