@@ -17,6 +17,8 @@ pub struct Callbacks {
     pub card_unavailable: Box<dyn Fn(&CardInfo) -> ()>,
 }
 
+// Based on https://github.com/bluetech/pcsc-rust/blob/master/pcsc/examples/monitor.rs
+
 #[derive(Debug)]
 pub struct MonitorLoopStarting();
 
