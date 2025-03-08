@@ -33,7 +33,7 @@ mod errors;
 pub mod ocard;
 pub mod state;
 
-use card_backend::{CardBackend, SmartcardError};
+pub use card_backend::{CardBackend, SmartcardError};
 use secrecy::SecretString;
 
 pub use crate::errors::Error;

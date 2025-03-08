@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
+pub use card_backend::{CardBackend, CardCaps, CardTransaction, PinType, SmartcardError};
 use iso7816_tlv::simple::Tlv;
 use pcsc::Disposition;
 
@@ -23,14 +23,14 @@ const FEATURE_MODIFY_PIN_DIRECT: u8 = 0x07;
 /// are performed on the Card. To perform operations on the card, a
 /// [PcscTransaction] object needs to be obtained (via [PcscBackend::transaction]).
 pub struct PcscBackend {
-    card: pcsc::Card,
-    mode: pcsc::ShareMode,
-    reader_caps: HashMap<u8, Tlv>,
+    pub card: pcsc::Card,
+    pub mode: pcsc::ShareMode,
+    pub reader_caps: HashMap<u8, Tlv>,
 
     // The reader name could be used as a hint about capabilities
     // (e.g. readers that don't support extended length)
     #[allow(dead_code)]
-    reader_name: String,
+    pub reader_name: String,
     // FIXME: add a "adjust_card_caps" fn to card-backend? (could replace `max_cmd_len`)
 }
 
